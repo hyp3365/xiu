@@ -1,11 +1,12 @@
 /* =====================================================================
  * 模块：人物（境界、属性、气血法力自动恢复）
+ * 开局为“凡人”，修为满 100 突破为练气期一层。
  * ---------------------------------------------------------------------
  * 属性计算公式（computeStats）：
  *   气血 = (基础×成长^层序 + 装备 + 真经) × (1 + 装备气血%)
  *   攻击 =  基础×成长^层序 + 装备 + 功诀
  *   防御 =  基础×成长^层序 + 装备 + 心法
- *   法力 =  基础×成长^层序 + 法诀
+ *   法力 =  基础×成长^层序 + 装备 + 法诀
  *   （功法加成都是固定数值）
  *   神识 =  基础×成长^层序 × (1 + 装备神识%)
  *   速度 / 闪避 / 暴击：固定基础值 + 装备 + 身法，不随境界成长
@@ -14,6 +15,7 @@ G.module({
   id: "player",
 
   defaults: () => ({
+    mortal: true, // 凡人（尚未踏入练气期）
     L: 0,        // 总层序（境界×10+层）
     exp: 0,      // 当前修为
     hp: 100,     // 当前气血
@@ -31,17 +33,18 @@ G.module({
   api: {
     r() { return Math.floor(this.s.L / DATA.LAYERS); },          // 当前大境界序号
     layer() { return this.s.L % DATA.LAYERS; },                    // 当前层（0~9）
-    needExp() { return DATA.needExp(this.s.L); },
-    realmName(L = this.s.L) { return DATA.realms[Math.floor(L / 10)] + "期" + DATA.layerNames[L % 10]; },
+    needExp() { return this.s.mortal ? DATA.MORTAL_EXP : DATA.needExp(this.s.L); },
+    realmName(L) {
+      if (L === undefined) { if (this.s.mortal) return "凡人"; L = this.s.L; }
+      return DATA.realms[Math.floor(L / 10)] + "期" + DATA.layerNames[L % 10];
+    },
     root() { return DATA.roots.find(r => r.id === this.s.root); },
 
     // 汇总装备加成
     equipTotal() {
-      const add = { atk: 0, hp: 0, def: 0, crit: 0, dodge: 0, speed: 0, ssPct: 0, hpPct: 0 };
-      for (const sl in this.s.equip) {
-        const e = this.s.equip[sl];
-        if (e) { const st = this.equipStats(e); for (const k in st) add[k] += st[k]; }
-      }
+      const add = { atk: 0, hp: 0, def: 0, mana: 0, crit: 0, dodge: 0, speed: 0, ssPct: 0, hpPct: 0 };
+      const all = [...Object.values(this.s.equip), ...this.s.fabao.slice(0, this.slotCount())]; // 装备 + 法宝
+      for (const e of all) if (e) { const st = this.equipStats(e); for (const k in st) add[k] += st[k]; }
       return add;
     },
 
@@ -52,7 +55,7 @@ G.module({
         hp:      (B.hp * f + eq.hp + gf.hp) * (1 + eq.hpPct / 100),
         atk:     B.atk * f + eq.atk + gf.atk,
         def:     B.def * f + eq.def + gf.def,
-        mana:    B.mana * f + gf.mana,
+        mana:    B.mana * f + eq.mana + gf.mana,
         shenshi: B.shenshi * f * (1 + eq.ssPct / 100),
         speed:   F.speed + eq.speed,
         dodge:   Math.min(DATA.DODGE_CAP, F.dodge + eq.dodge + gf.dodge),
