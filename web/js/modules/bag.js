@@ -83,7 +83,7 @@ G.module({
     },
     itemName(it) {
       if (it.t === "pill") return `${DATA.realms[it.g]}·${DATA.pills[it.type].name}`;
-      if (it.t === "mat") return `${DATA.PIN[it.g] || ""}${it.name}`;
+      if (it.t === "mat") return (it.kind === "herb" || it.kind === "ore" ? DATA.PIN[it.g] || "" : "") + it.name;
       return `${DATA.realms[it.e.g]}·${it.e.name}`;
     },
     sellPrice(it) {
@@ -107,7 +107,7 @@ G.module({
           ${ok ? "" : "<br><span class='q5'>你的境界已超过此丹品质，无法服用。</span>"}</p>
           <div class="btns"><button class="primary" onclick="G.usePill(${i});G.closeModal()" ${ok ? "" : "disabled"}>服用</button>${sell}</div>`;
       } else if (it.t === "mat") {
-        h += `<p>${it.kind === "herb" ? "灵药，日后可用于炼丹。" : "矿物，日后可用于炼器。"}</p><div class="btns">${sell}</div>`;
+        h += `<p>${{ herb: "灵药，日后可用于炼丹。", ore: "矿物，日后可用于炼器。", core: "妖兽内丹，日后可用于炼丹、炼器。", blood: "妖兽灵血，日后可用于画符、炼体。" }[it.kind] || ""}</p><div class="btns">${sell}</div>`;
       } else {
         h += `<p>${DATA.slots[it.e.slot]} · ${this.equipDesc(it.e)}</p>
           <div class="btns"><button class="primary" onclick="G.equipItem(${i})">${it.e.slot === "fabao" ? "放入法宝栏" : "装备"}</button>${sell}</div>`;
@@ -190,7 +190,7 @@ G.module({
       const it = s.bag[i];
       if (!it) cells += `<div class="cell"></div>`;
       else if (it.t === "pill") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 3))}" onclick="G.openItem(${i})">${DATA.pills[it.type].name}<span class="g">${DATA.realms[it.g]}</span><span class="n">${it.n}</span></div>`;
-      else if (it.t === "mat") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${it.name}<span class="g">${DATA.PIN[it.g] || ""}</span><span class="n">${U.fmt(it.n)}</span></div>`;
+      else if (it.t === "mat") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${it.name}<span class="g">${it.kind === "herb" || it.kind === "ore" ? DATA.PIN[it.g] || "" : DATA.matKinds[it.kind]}</span><span class="n">${U.fmt(it.n)}</span></div>`;
       else cells += `<div class="cell q${it.e.q}" onclick="G.openItem(${i})">${it.e.name}<span class="g">${DATA.realms[it.e.g]}</span></div>`;
     }
     return tabs + top + `<div class="card"><h3>储物格<small>${s.bag.length} / ${s.bagCap}</small></h3><div class="grid">${cells}</div></div>`;
