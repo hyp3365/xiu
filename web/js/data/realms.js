@@ -16,47 +16,27 @@ DATA.realms = [
 DATA.LAYERS = 10;
 DATA.layerNames = ["一层", "二层", "三层", "四层", "五层", "六层", "七层", "八层", "九层", "十层"];
 
-// 每层需要的修为：练气一层→二层 10，之后每层翻倍
-DATA.needExp = L => 10 * Math.pow(2, L);
-// 开局为凡人，凡人 → 练气期一层 需要的修为
-DATA.MORTAL_EXP = 100;
+/* 以下数值都来自 js/config/numbers.js（数值设置文件），这里只做计算 */
+const _R = CFG.realm, _P = CFG.player;
+// 每层需要的修为：练气一层→二层 FIRST_EXP，之后每层 × EXP_RATE
+DATA.needExp = L => _R.FIRST_EXP * Math.pow(_R.EXP_RATE, L);
+DATA.MORTAL_EXP = _R.MORTAL_EXP; // 凡人 → 练气一层
 
-/* 人物基础属性
- * base：练气一层时的数值
- * 每升一层乘以 GROW（少量成长）。
- * 命中、闪避、暴击、速度 不随境界成长，只能靠功法/装备提升。 */
-DATA.GROW = 1.1;
-DATA.playerBase = {
-  hp: 100,       // 气血上限
-  atk: 15,       // 攻击
-  def: 5,        // 防御
-  mana: 50,      // 法力上限（以后法术、法宝消耗）
-  cultivate: 10, // 基础修炼速度（随境界少量成长）
-};
-DATA.playerFixed = {
-  speed: 10,     // 速度（战斗先手）
-  hit: 10,       // 命中（数值）
-  dodge: 10,     // 闪避（数值）
-  crit: 5,       // 暴击 %
-};
-/* 闪避几率 = (防守方闪避 - 进攻方命中) ÷ 12 %，最低 0，最高 50%
- * 例：自己命中 100，对方闪避 150 → 对方闪避几率 (150-100)/12 ≈ 4.2% */
-DATA.DODGE_DIV = 12;
-DATA.DODGE_CAP = 50;
-DATA.dodgeChance = (hit, dodge) => Math.min(DATA.DODGE_CAP, Math.max(0, (dodge - hit) / DATA.DODGE_DIV));
-// 怪物命中、闪避 = 10 + 怪物层序 × 系数
-DATA.MONSTER_HIT = 1.0;
-DATA.MONSTER_DODGE = 0.8;
-DATA.CRIT_CAP = 80;  // 暴击上限 %
+// 人物属性（base 随境界 × GROW；fixed 不随境界）
+DATA.GROW = _P.GROW;
+DATA.playerBase = _P.base;
+DATA.playerFixed = _P.fixed;
+// 闪避几率 = (防守方闪避 - 进攻方命中) ÷ DODGE_DIV %，最低 0，最高 DODGE_CAP
+DATA.DODGE_CAP = _P.DODGE_CAP;
+DATA.dodgeChance = (hit, dodge) => Math.min(_P.DODGE_CAP, Math.max(0, (dodge - hit) / _P.DODGE_DIV));
+DATA.MONSTER_HIT = CFG.monster.HIT_PER_L;
+DATA.MONSTER_DODGE = CFG.monster.DODGE_PER_L;
+DATA.CRIT_CAP = _P.CRIT_CAP;
+DATA.REGEN = _P.REGEN;
 
-// 气血 / 法力 每 10 秒自动恢复的比例
-DATA.REGEN = 0.01;
-
-/* 突破成功率
- * 小境界（同一境界内升层）：100%
- * 大境界（如 练气十层 → 筑基一层）：随境界降低，失败损失 30% 当前修为 */
-DATA.majorBreakChance = realmIndex => Math.max(0.4, 0.85 - realmIndex * 0.025);
-DATA.MAJOR_FAIL_LOSS = 0.3;
+/* 突破：小境界 100%；大境界成功率随境界降低，失败损失部分修为 */
+DATA.majorBreakChance = realmIndex => Math.max(_R.MAJOR_MIN, _R.MAJOR_BASE - realmIndex * _R.MAJOR_DROP);
+DATA.MAJOR_FAIL_LOSS = _R.MAJOR_FAIL_LOSS;
 
 // 修炼节奏：每 10 秒结算一次
 DATA.TICK = 10;
