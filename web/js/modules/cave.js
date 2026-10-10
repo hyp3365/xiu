@@ -8,7 +8,7 @@
  * - 每 10 秒聚集一次灵气（有进度条），灵气是修炼的“燃料”
  * - 同时给修炼速度加倍率（见 data/cave.js 的 factor）
  * - 聚灵速度只由聚灵阵等级决定，境界提升不会增加
- * - 开关在“修炼”页；关闭后不聚灵、也没有修炼加成
+ * - 初始 0 级；开关在“修炼”页，开关只影响修炼加成，不影响聚灵
  * - 可以用灵石手动补充灵气，或开启“灵气不足时自动补充”
  * ===================================================================== */
 G.module({
@@ -17,7 +17,7 @@ G.module({
 
   defaults: () => ({
     ling: 50,                                     // 当前灵气
-    array: { lv: 1, on: true, autoRefill: false }, // 聚灵阵
+    array: { lv: 0, on: true, autoRefill: false }, // 聚灵阵（初始 0 级）
   }),
 
   // 每 10 秒聚集灵气
@@ -27,9 +27,9 @@ G.module({
 
   api: {
     arrayFactor() { return DATA.array.factor(this.s.array.lv); },
-    // 每 10 秒聚灵量（聚灵阵关闭为 0）
-    gatherAmount() { return this.s.array.on ? DATA.array.GATHER_BASE * this.arrayFactor() : 0; },
-    lingCap() { const sp = this.speed(); return Math.max(100, sp.gatherFull * DATA.LING_CAP_GATHER + sp.total * DATA.LING_CAP_SPEED); },
+    // 每 10 秒聚灵量（只由等级决定，开关不影响）
+    gatherAmount() { return DATA.array.GATHER_BASE * this.arrayFactor(); },
+    lingCap() { const sp = this.speed(); return Math.max(100, sp.gather * DATA.LING_CAP_GATHER + sp.total * DATA.LING_CAP_SPEED); },
     lingPerStone() { return DATA.array.STONE_LING * this.arrayFactor(); },
 
     // 用灵石补充灵气，stones 为 "fill" 时补满
@@ -44,7 +44,11 @@ G.module({
       this.log(`消耗 ${U.fmt(stones)} 灵石，补充灵气 ${U.fmt(stones * rate)}。`, "good");
       this.after();
     },
-    toggleArray() { this.s.array.on = !this.s.array.on; this.log(`聚灵阵已${this.s.array.on ? "开启" : "关闭"}。`, "sys"); this.after(); },
+    toggleArray() {
+      this.s.array.on = !this.s.array.on;
+      this.after();
+      this.log(`聚灵阵加成已${this.s.array.on ? "开启" : "关闭"}，修炼速度 ${U.fmt(this.speed().total)} / 10秒。`, "sys");
+    },
     toggleRefill() { this.s.array.autoRefill = !this.s.array.autoRefill; this.after(); },
 
     // 升级聚灵阵，times 为最多升几级
@@ -72,13 +76,13 @@ G.module({
 
     // 聚灵阵
     const cap = this.lingCap(), max = a.lv >= DATA.array.MAX, f = this.arrayFactor();
-    return rooms + `<div class="card"><h3>聚灵阵 · ${a.lv} / ${DATA.array.MAX} 级<small>${a.on ? "运转中" : "已关闭（在修炼页开启）"}</small></h3>
+    return rooms + `<div class="card"><h3>聚灵阵 · ${a.lv} / ${DATA.array.MAX} 级<small>修炼加成${a.on ? "开启" : "关闭"}（修炼页切换）</small></h3>
       <div class="row small"><span>聚灵中（每 10 秒 +${U.fmt(this.gatherAmount())} 灵气）</span></div>
       <div class="bar tick"><div id="gather-bar"></div></div>
       <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>
       <div class="bar ling"><div style="width:${Math.min(100, s.ling / cap * 100)}%"></div></div>
-      <div class="line"><div>修炼速度倍率</div><b>×${f >= 100 ? U.fmt(f) : f.toFixed(2)}</b></div>
-      <div class="line"><div>下一级<small>倍率 ×${(DATA.array.factor(a.lv + 1)).toFixed(2)}，聚灵 +${U.fmt(DATA.array.GATHER_BASE * DATA.array.factor(a.lv + 1))}</small></div><b>${max ? "满级" : U.fmt(DATA.array.cost(a.lv)) + " 灵石"}</b></div>
+      <div class="line"><div>修炼速度加成</div><b>+${U.fmt((f - 1) * 100)}%</b></div>
+      <div class="line"><div>下一级<small>加成 +${U.fmt((DATA.array.factor(a.lv + 1) - 1) * 100)}%，聚灵 +${U.fmt(DATA.array.GATHER_BASE * DATA.array.factor(a.lv + 1))}</small></div><b>${max ? "满级" : U.fmt(DATA.array.cost(a.lv)) + " 灵石"}</b></div>
       <div class="btns">
         <button class="primary" onclick="G.upgradeArray(1)" ${max ? "disabled" : ""}>升级</button>
         <button onclick="G.upgradeArray(10)" ${max ? "disabled" : ""}>连升10级</button>
