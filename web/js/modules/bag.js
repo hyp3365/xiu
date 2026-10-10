@@ -9,7 +9,8 @@
  * 背包物品格式：
  *   丹药 { t: "pill", type: "juqi", g: 境界品质, n: 数量 }        同种同品质堆叠
  *   装备 { t: "eq", e: { slot, g, q, name } }                     每件占一格（法宝 slot = "fabao"）
- *   材料 { t: "mat", kind: "herb"|"ore", name, g, n }              灵药、矿物，同名同品质堆叠
+ *   材料 { t: "mat", kind: "herb"|"ore"|"core"|"blood", name, g, n }  药材、矿石、内丹、灵血，同名同品质堆叠
+ *   属性丹 { t: "dan", type: "atk", g: 阶, n }                    见 craft.js
  * ===================================================================== */
 G.module({
   id: "bag",
@@ -83,11 +84,13 @@ G.module({
     },
     itemName(it) {
       if (it.t === "pill") return `${DATA.realms[it.g]}·${DATA.pills[it.type].name}`;
+      if (it.t === "dan") return DATA.danName(it.type, it.g);
       if (it.t === "mat") return (it.kind === "herb" || it.kind === "ore" ? DATA.PIN[it.g] || "" : "") + it.name;
       return `${DATA.realms[it.e.g]}·${it.e.name}`;
     },
     sellPrice(it) {
       if (it.t === "pill") return Math.floor(DATA.pillPrice(it.type, it.g) * 0.3);
+      if (it.t === "dan") return DATA.danPrice(it.type, it.g);
       if (it.t === "mat") return DATA.matPrice(it.g);
       return Math.floor(150 * Math.pow(DATA.STONE_GROW, it.e.g * 10) * (it.e.q + 1));
     },
@@ -103,9 +106,14 @@ G.module({
       let h = `<h2 class="q${it.t === "eq" ? it.e.q : 0}">${it.t === "eq" ? DATA.quals[it.e.q] + " " : ""}${this.itemName(it)}${it.n ? " ×" + it.n : ""}</h2>`;
       if (it.t === "pill") {
         const ok = this.canUsePill(it.g);
-        h += `<p>修炼速度 +${Math.round(DATA.pillPct(it.type, it.g))}%，持续 ${DATA.pills[it.type].dur} 次修炼。<br>${DATA.realms[it.g]}期及以下可服用。
-          ${ok ? "" : "<br><span class='q5'>你的境界已超过此丹品质，无法服用。</span>"}</p>
+        h += `<p>修炼速度 +${Math.round(DATA.pillPct(it.type, it.g))}%，持续 ${DATA.pills[it.type].dur} 次修炼。<br>只有${DATA.realms[it.g]}期可服用。
+          ${ok ? "" : "<br><span class='q5'>与你当前境界不符，无法服用。</span>"}</p>
           <div class="btns"><button class="primary" onclick="G.usePill(${i});G.closeModal()" ${ok ? "" : "disabled"}>服用</button>${sell}</div>`;
+      } else if (it.t === "dan") {
+        const left = this.danLeft(it.type, it.g), d = DATA.dans[it.type];
+        h += `<p>服用后永久 ${d.label} +${U.num(DATA.danVal(it.type, it.g))}。<br>此阶已服 ${d.limit - left} / ${d.limit} 枚。</p>
+          <div class="btns"><button class="primary" onclick="G.eatDan(${i},1)" ${left > 0 ? "" : "disabled"}>服用</button>
+          <button onclick="G.eatDan(${i},${it.n})" ${left > 0 && it.n > 1 ? "" : "disabled"}>全部服用</button>${sell}</div>`;
       } else if (it.t === "mat") {
         h += `<p>${{ herb: "灵药，日后可用于炼丹。", ore: "矿物，日后可用于炼器。", core: "妖兽内丹，日后可用于炼丹、炼器。", blood: "妖兽灵血，日后可用于画符、炼体。" }[it.kind] || ""}</p><div class="btns">${sell}</div>`;
       } else {
@@ -190,6 +198,7 @@ G.module({
       const it = s.bag[i];
       if (!it) cells += `<div class="cell"></div>`;
       else if (it.t === "pill") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 3))}" onclick="G.openItem(${i})">${DATA.pills[it.type].name}<span class="g">${DATA.realms[it.g]}</span><span class="n">${it.n}</span></div>`;
+      else if (it.t === "dan") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${DATA.dans[it.type].name}<span class="g">${DATA.JIE[it.g]}</span><span class="n">${it.n}</span></div>`;
       else if (it.t === "mat") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${it.name}<span class="g">${it.kind === "herb" || it.kind === "ore" ? DATA.PIN[it.g] || "" : DATA.matKinds[it.kind]}</span><span class="n">${U.fmt(it.n)}</span></div>`;
       else cells += `<div class="cell q${it.e.q}" onclick="G.openItem(${i})">${it.e.name}<span class="g">${DATA.realms[it.e.g]}</span></div>`;
     }
