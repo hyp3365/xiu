@@ -7,7 +7,7 @@
  *   攻击 =  基础×成长^层序 + 装备 + 功诀
  *   防御 =  基础×成长^层序 + 装备 + 心法
  *   法力 =  基础×成长^层序 + 装备 + 法诀
- *   （功法加成都是固定数值）
+ *   （功法加成都是固定数值；以上各项再加 属性丹 永久加成）
  *   基础修炼速度 = 基础×成长^层序（不显示为属性）
  *   命中 = 固定基础值 + 装备 + 身法；闪避 = 固定基础值 + 装备 + 遁术（都是数值）
  *   速度 / 暴击：固定基础值 + 装备，不随境界成长
@@ -51,17 +51,17 @@ G.module({
 
     computeStats() {
       const L = this.s.L, f = Math.pow(DATA.GROW, L), B = DATA.playerBase, F = DATA.playerFixed;
-      const eq = this.equipTotal(), gf = this.gongfaBonus(); // gongfaBonus 见 modules/gongfa.js
+      const eq = this.equipTotal(), gf = this.gongfaBonus(), dn = this.danBonus(); // gongfaBonus 见 gongfa.js，danBonus（属性丹）见 craft.js
       return {
-        hp:      (B.hp * f + eq.hp + gf.hp) * (1 + eq.hpPct / 100),
-        atk:     B.atk * f + eq.atk + gf.atk,
-        def:     B.def * f + eq.def + gf.def,
-        mana:    B.mana * f + eq.mana + gf.mana,
+        hp:      (B.hp * f + eq.hp + gf.hp + dn.hp) * (1 + eq.hpPct / 100),
+        atk:     B.atk * f + eq.atk + gf.atk + dn.atk,
+        def:     B.def * f + eq.def + gf.def + dn.def,
+        mana:    B.mana * f + eq.mana + gf.mana + dn.mana,
         cultivate: B.cultivate * f,
         speed:   F.speed + eq.speed,
-        hit:     F.hit + eq.hit + gf.hit,
-        dodge:   F.dodge + eq.dodge + gf.dodge,
-        crit:    Math.min(DATA.CRIT_CAP, F.crit + eq.crit),
+        hit:     F.hit + eq.hit + gf.hit + dn.hit,
+        dodge:   F.dodge + eq.dodge + gf.dodge + dn.dodge,
+        crit:    Math.min(DATA.CRIT_CAP, F.crit + eq.crit + dn.crit),
       };
     },
   },
