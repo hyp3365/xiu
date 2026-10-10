@@ -16,6 +16,8 @@
  *   furnaceUse { dan: 阶|-1, qi: 阶|-1 }          正在使用的炉子
  *   furnaceJob { dan: {g, end} | null, qi: ... } 正在炼制的炉子
  *   alchJob    { type, g, n, done, next, per } | null  正在炼的丹
+ *   alchQueue  [{ type, g, n }]                   炼丹队列（排队时已扣药材）
+ *   furnaceQueue { dan: [阶...], qi: [阶...] }      炉子队列（排队时已扣材料）
  *   danEaten   { "atk|0": 已服用枚数 }
  * ===================================================================== */
 G.module({
@@ -28,6 +30,8 @@ G.module({
     furnaceUse: { dan: -1, qi: -1 },
     furnaceJob: { dan: null, qi: null },
     alchJob: null,
+    alchQueue: [],
+    furnaceQueue: { dan: [], qi: [] },
     danEaten: {},
   }),
 
@@ -66,21 +70,29 @@ G.module({
       }
       // 炉子
       for (const k of ["dan", "qi"]) {
-        const j = s.furnaceJob[k];
-        if (j && now >= j.end) {
+        let j;
+        while ((j = s.furnaceJob[k]) && now >= j.end) {
           s.furnaceJob[k] = null;
           if (!s.furnaces[k].includes(j.g)) s.furnaces[k].push(j.g);
           if (j.g > s.furnaceUse[k]) s.furnaceUse[k] = j.g; // 新炉更好就自动换上
           this.log(`${DATA.furnaceName(k, j.g)}炼制成功！`, "gold"); this.dirty();
+          const nx = s.furnaceQueue[k].shift(); // 队列里的下一个，从上一个结束时开始
+          if (nx !== undefined) s.furnaceJob[k] = { g: nx, end: j.end + DATA.furnaceTime(k, nx) };
         }
       }
-      // 炼丹
-      const a = s.alchJob;
-      while (a && a.done < a.n && now >= a.next) {
-        if (!this.addDan(a.type, a.g, 1)) break;
-        a.done++; a.next += a.per;
+      // 炼丹（一炉炼完自动开始队列里的下一炉）
+      let guard = 0;
+      while (s.alchJob && guard++ < 1000) {
+        const a = s.alchJob;
+        while (a.done < a.n && now >= a.next) {
+          if (!this.addDan(a.type, a.g, 1)) break;
+          a.done++; a.next += a.per;
+        }
+        if (a.done < a.n) break;
+        s.alchJob = null; this.log(`${DATA.danName(a.type, a.g)} ×${a.n} 全部出炉。`, "gold");
+        const nx = s.alchQueue.shift();
+        if (nx) { const per = this.danPer(nx.type, nx.g); s.alchJob = { type: nx.type, g: nx.g, n: nx.n, done: 0, per, next: a.next - a.per + per }; }
       }
-      if (a && a.done >= a.n) { s.alchJob = null; this.log(`${DATA.danName(a.type, a.g)} ×${a.n} 全部出炉。`, "gold"); }
     },
 
     /* ---------- 门派炼丹房：学习丹方 ---------- */
@@ -96,14 +108,23 @@ G.module({
     },
 
     /* ---------- 炉子 ---------- */
+    // 炼制炉子：炉子空闲就开始，否则加入队列（都会先扣材料）
     craftFurnace(kind, g) {
-      const s = this.s, mats = DATA.furnaceMats(kind, g);
-      if (s.furnaceJob[kind]) return this.log("炉子正在炼制中。", "sys");
+      const s = this.s, mats = DATA.furnaceMats(kind, g), q = s.furnaceQueue[kind];
       if (!s.blueprints[kind].includes(g)) return this.log("尚未学会该图纸。", "sys");
+      if (s.furnaceJob[kind] && q.length >= CFG.furnace.QUEUE) return this.log(`队列已满（最多 ${CFG.furnace.QUEUE} 个）。`, "sys");
       if (!this.hasMats(mats)) return this.log("材料不足。", "sys");
       mats.forEach(m => this.takeMat(m.kind, m.g, m.n));
-      s.furnaceJob[kind] = { g, end: this.now() + DATA.furnaceTime(kind, g) };
-      this.log(`开始炼制${DATA.furnaceName(kind, g)}。`, "good"); this.after();
+      if (s.furnaceJob[kind]) { q.push(g); this.log(`${DATA.furnaceName(kind, g)}加入队列。`, "sys"); }
+      else { s.furnaceJob[kind] = { g, end: this.now() + DATA.furnaceTime(kind, g) }; this.log(`开始炼制${DATA.furnaceName(kind, g)}。`, "good"); }
+      this.after();
+    },
+    // 取消队列中的炉子，退回材料
+    cancelFurnaceQ(kind, i) {
+      const q = this.s.furnaceQueue[kind], g = q[i]; if (g === undefined) return;
+      q.splice(i, 1);
+      DATA.furnaceMats(kind, g).forEach(m => this.addMat(m.kind, DATA.matName(m.kind, m.g), m.g, m.n));
+      this.log(`取消${DATA.furnaceName(kind, g)}，材料已退回。`, "sys"); this.after();
     },
     useFurnace(kind, g) {
       if (!this.s.furnaces[kind].includes(g)) return;
@@ -113,9 +134,10 @@ G.module({
     /* ---------- 炼丹 ---------- */
     danPer(type, g) { return Math.ceil(DATA.danTime(type, g) * (1 - DATA.furnaceBonus("dan", this.s.furnaceUse.dan) / 100)); },
     setDanTier(g) { this.danTier = g; this.render(); },
+    // 炼丹：丹炉空闲就开炉，否则加入队列（都会先扣药材）
     startAlch(type, g, n) {
       const s = this.s, rec = DATA.danRecipe(type, g);
-      if (s.alchJob) return this.log("炼丹炉正在使用中。", "sys");
+      if (s.alchJob && s.alchQueue.length >= CFG.alchemy.QUEUE) return this.log(`炼丹队列已满（最多 ${CFG.alchemy.QUEUE} 个）。`, "sys");
       if (!s.recipes.includes(type + "|" + g)) return this.log("尚未学会该丹方。", "sys");
       if (s.furnaceUse.dan < g) return this.log(`需要使用${DATA.JIE[g]}及以上炼丹炉。`, "sys");
       // n = 0 表示用现有药材能炼多少炼多少
@@ -124,17 +146,27 @@ G.module({
       n = n ? Math.min(n, max) : max;
       if (n <= 0) return this.log("药材不足。", "sys");
       rec.forEach(m => this.takeMat(m.kind, m.g, m.n * n));
+      if (s.alchJob) { s.alchQueue.push({ type, g, n }); this.log(`${DATA.danName(type, g)} ×${n} 加入炼丹队列。`, "sys"); return this.after(); }
       const per = this.danPer(type, g);
       s.alchJob = { type, g, n, done: 0, per, next: this.now() + per };
       this.log(`开炉炼制${DATA.danName(type, g)} ×${n}。`, "good"); this.after();
     },
-    // 停炉：退还没炼的药材
+    // 停炉：退还没炼的药材，队列里的下一炉马上开始
     stopAlch() {
       const s = this.s, a = s.alchJob; if (!a) return;
       const left = a.n - a.done;
       DATA.danRecipe(a.type, a.g).forEach(m => this.addMat(m.kind, DATA.matName(m.kind, m.g), m.g, m.n * left));
       s.alchJob = null;
+      const nx = s.alchQueue.shift();
+      if (nx) { const per = this.danPer(nx.type, nx.g); s.alchJob = { type: nx.type, g: nx.g, n: nx.n, done: 0, per, next: this.now() + per }; }
       this.log(`停炉，退回 ${left} 枚的药材。`, "sys"); this.after();
+    },
+    // 取消队列中的一项，退回药材
+    cancelAlchQ(i) {
+      const q = this.s.alchQueue[i]; if (!q) return;
+      this.s.alchQueue.splice(i, 1);
+      DATA.danRecipe(q.type, q.g).forEach(m => this.addMat(m.kind, DATA.matName(m.kind, m.g), m.g, m.n * q.n));
+      this.log(`取消${DATA.danName(q.type, q.g)} ×${q.n}，药材已退回。`, "sys"); this.after();
     },
 
     /* ---------- 属性丹：背包、服用 ---------- */
@@ -165,12 +197,14 @@ G.module({
     furnaceCard(kind) {
       const s = this.s, F = DATA.furnaces[kind], j = s.furnaceJob[kind], cur = s.furnaceUse[kind], own = s.furnaces[kind];
       let h = `<div class="card"><h3>${F.name}<small>${cur >= 0 ? `使用中：${DATA.furnaceName(kind, cur)} · ${kind === "dan" ? "炼丹" : "炼器"}时间 -${DATA.furnaceBonus(kind, cur)}%` : "尚无"}</small></h3>`;
-      if (j) h += `<div class="line"><div>正在炼制 ${DATA.furnaceName(kind, j.g)}<small>剩余 ${U.dur(Math.max(0, j.end - Date.now()) / 1000 + 59)}</small></div></div>`;
+      if (j) h += `<div class="line"><div>正在炼制 ${DATA.furnaceName(kind, j.g)}<small>剩余 ${U.dur(Math.max(0, j.end - Date.now()) / 1000 + 59)}</small></div></div>` +
+        s.furnaceQueue[kind].map((g, i) => `<div class="line"><div>队列 ${i + 1}：${DATA.furnaceName(kind, g)}<small>${U.dur(DATA.furnaceTime(kind, g) / 1000)}</small></div>
+          <button class="sm" onclick="G.cancelFurnaceQ('${kind}',${i})">取消</button></div>`).join("");
       const bps = s.blueprints[kind].slice().sort((a, b) => a - b);
       if (!bps.length) h += `<p class="desc">尚未学会${F.name}图纸，可在门派 → 宗门宝库兑换。</p>`;
       h += bps.map(g => { const mats = DATA.furnaceMats(kind, g), has = own.includes(g);
         const btn = has ? (cur === g ? `<button class="sm on" disabled>使用中</button>` : `<button class="sm" onclick="G.useFurnace('${kind}',${g})">更换</button>`)
-          : `<button class="sm" onclick="G.craftFurnace('${kind}',${g})" ${j || !this.hasMats(mats) ? "disabled" : ""}>炼制</button>`;
+          : `<button class="sm" onclick="G.craftFurnace('${kind}',${g})" ${!this.hasMats(mats) ? "disabled" : ""}>${j ? "排队" : "炼制"}</button>`;
         return `<div class="line"><div>${DATA.furnaceName(kind, g)}<span class="tag">-${DATA.furnaceBonus(kind, g)}%</span>
           <small>${has ? "已拥有" : `${this.matsText(mats)} · ${U.dur(DATA.furnaceTime(kind, g) / 1000)}`}</small></div>${btn}</div>`; }).join("");
       return h + `</div>`;
@@ -185,16 +219,18 @@ G.caveViews.alchemy = function () {
   if (a) {
     h += `<div class="card"><h3>丹炉中<small>${DATA.danName(a.type, a.g)} ${a.done} / ${a.n}</small></h3>
       <div class="line"><div>下一枚出炉<small>${U.dur(Math.max(0, a.next - Date.now()) / 1000 + 59)} · 每枚 ${U.dur(a.per / 1000)}</small></div>
-      <button class="sm" onclick="G.stopAlch()">停炉</button></div></div>`;
+      <button class="sm" onclick="G.stopAlch()">停炉</button></div>` +
+      s.alchQueue.map((q, i) => `<div class="line"><div>队列 ${i + 1}：${DATA.danName(q.type, q.g)} ×${q.n}</div><button class="sm" onclick="G.cancelAlchQ(${i})">取消</button></div>`).join("") +
+      `<p class="desc">队列 ${s.alchQueue.length} / ${CFG.alchemy.QUEUE}，炼完自动开下一炉。</p></div>`;
   }
   const list = Object.keys(DATA.dans).filter(t => s.recipes.includes(t + "|" + tier));
   h += `<div class="card"><h3>炼丹<small>${fu >= 0 ? `可炼一阶~${DATA.JIE[fu]}` : "需要炼丹炉"} · 已学丹方 ${s.recipes.length}</small></h3>
-    <div class="sub-tabs scroll">${DATA.JIE.map((n, g) => `<button class="${tier === g ? "active" : ""}" onclick="G.setDanTier(${g})">${n}</button>`).join("")}</div>` +
+    <div class="room-grid five">${DATA.JIE.map((n, g) => `<button class="${tier === g ? "active" : ""}" onclick="G.setDanTier(${g})">${n}</button>`).join("")}</div>` +
     (list.length ? list.map(t => {
-      const rec = DATA.danRecipe(t, tier), ok = fu >= tier && !a && this.hasMats(rec);
+      const rec = DATA.danRecipe(t, tier), ok = fu >= tier && this.hasMats(rec) && !(a && s.alchQueue.length >= CFG.alchemy.QUEUE);
       return `<div class="line"><div>${DATA.danName(t, tier)}<span class="tag">${DATA.dans[t].label}+${U.num(DATA.danVal(t, tier))}</span>
         <small>${this.matsText(rec)} · 每枚 ${U.dur(this.danPer(t, tier) / 1000)} · 已服 ${DATA.danLimit(t, tier) - this.danLeft(t, tier)}/${DATA.danLimit(t, tier)}</small></div>
-        <div><button class="sm" onclick="G.startAlch('${t}',${tier},1)" ${ok ? "" : "disabled"}>炼1</button>
+        <div><button class="sm" onclick="G.startAlch('${t}',${tier},1)" ${ok ? "" : "disabled"}>${a ? "排1" : "炼1"}</button>
         <button class="sm" onclick="G.startAlch('${t}',${tier},0)" ${ok ? "" : "disabled"}>全部</button></div></div>`;
     }).join("") : `<p class="desc">尚未学会${DATA.JIE[tier]}丹方，可在门派 → 炼丹房学习。</p>`) +
     `<p class="desc">丹阶不能高于使用中的炼丹炉；「全部」= 用现有药材最多炼 ${CFG.alchemy.MAX_BATCH} 枚。</p></div>`;
@@ -212,7 +248,7 @@ G.sectAlchemyView = function () {
   let h = "";
   if (st) { const [t, g] = st.key.split("|");
     h += `<div class="card"><h3>参悟中<small>《${DATA.danName(t, +g)}》</small></h3><p class="desc">剩余 ${U.dur(Math.max(0, st.end - Date.now()) / 1000 + 59)}</p></div>`; }
-  h += `<div class="sub-tabs scroll">${DATA.JIE.map((n, g) => `<button class="${tier === g ? "active" : ""}" onclick="G.setDanLibTier(${g})">${n}</button>`).join("")}</div>
+  h += `<div class="room-grid five">${DATA.JIE.map((n, g) => `<button class="${tier === g ? "active" : ""}" onclick="G.setDanLibTier(${g})">${n}</button>`).join("")}</div>
     <div class="card"><h3>炼丹房 · 丹方<small>${star}星门派可学 一阶~${DATA.JIE[star - 1]} · 一次学一个</small></h3>` +
     Object.keys(DATA.dans).map(t => {
       const d = DATA.dans[t], key = t + "|" + tier, has = s.recipes.includes(key), c = DATA.danLearnCost(t, tier), lock = tier >= star;
