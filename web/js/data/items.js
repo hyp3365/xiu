@@ -39,4 +39,4 @@ DATA.equipK = {
 };
 
 // 背包
-DATA.BAG_START = 60;    // 背包格子（扩充以后用其他方式）
+DATA.BAG_START = CFG.bag.START; // 储物格初始数量（numbers.js 的 bag.START）
