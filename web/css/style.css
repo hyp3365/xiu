@@ -80,3 +80,9 @@ button.sm{padding:4px 10px;font-size:13px}
 #toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%);max-width:90%;background:#2a2219ee;border:1px solid #c9a45c;border-radius:8px;padding:6px 12px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:50}
 #toast.show{opacity:1}
 #toast .good{color:#9fd3c7}#toast .bad{color:#e07a5f}#toast .gold{color:#e9c46a}#toast .sys{color:#c9bb9f}
+
+/* 探索信息栏 */
+.explore-log{max-height:300px;overflow-y:auto;margin-top:6px;padding:6px;background:#18140f;border:1px solid #3a3027;border-radius:6px;font-size:12px}
+.explore-log p{margin:2px 0;color:#c9bb9f}
+.explore-log b{color:#8c7e66;font-weight:normal;margin-right:4px}
+.explore-log .good{color:#9fd3c7}.explore-log .bad{color:#e07a5f}.explore-log .gold{color:#e9c46a}
