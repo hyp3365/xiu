@@ -64,8 +64,8 @@ const G = {
   },
 
   /* ---------- 存档 ---------- */
-  newSave(name, root) {
-    let s = { v: 5, name, root, last: Date.now(), log: [] };
+  newSave(name) {
+    let s = { v: 5, name, last: Date.now(), log: [] };
     for (const m of this.modules) if (m.defaults) Object.assign(s, m.defaults());
     return s;
   },
@@ -128,7 +128,7 @@ const G = {
       this.render();
     }
     // 修炼进度条（10 秒走满）
-    const pct = Math.min(100, (now - this._lastTick) / (DATA.TICK * 10)) + "%";
+    const pct = this.tickPct() + "%";
     const tb = $("#tick-bar");
     if (tb) tb.style.width = this.isCultivating() && this.canCultivate() ? pct : "0%";
     const gb = $("#gather-bar"); // 洞府聚灵阵进度条（一直聚灵）
@@ -136,6 +136,9 @@ const G = {
     const tl = $("#tick-left");  // 本次修炼倒计时
     if (tl) tl.textContent = Math.max(0, Math.ceil(DATA.TICK - (now - this._lastTick) / 1000)) + " 秒";
   },
+
+  // 本次 10 秒周期走了百分之几（进度条用；页面重绘时也直接用这个宽度，避免进度条被重置）
+  tickPct() { return Math.min(100, (Date.now() - this._lastTick) / (DATA.TICK * 10)); },
 
   /* ---------- 操作后统一调用：重算属性、存档、刷新 ---------- */
   after() {
@@ -176,7 +179,8 @@ const G = {
     setInterval(() => this.loop(), 200);
     // 倒计时刷新（只在有倒计时的页面）
     setInterval(() => { if (this.s && this.s.explore) this.advanceExplore(); }, 1000); // 自动探索每秒走一步
-    setInterval(() => { if ((this.tab === "gongfa" && this.s.gfStudy) || (this.tab === "sect" && this.sectTab === "affair") || (this.tab === "world" && this.s.explore) || this.tab === "cave") this.render(); }, 1000);
+    setInterval(() => { if (this.s && this.s.trib) this.advanceTrib(); if (this.tribOpen) this.showTrib(); }, 1000); // 雷劫每秒一回合
+    setInterval(() => { if ((this.tab === "gongfa" && this.s.gfStudy) || (this.tab === "sect" && (this.sectTab === "affair" || this.sectTab === "alchemy")) || (this.tab === "world" && this.s.explore) || this.tab === "cave") this.render(); }, 1000);
     // 切到后台 / 关闭页面时立即上传
     document.addEventListener("visibilitychange", () => { if (document.hidden && !this._stopped) { this.save(); API.beacon(this.s); } });
     window.addEventListener("pagehide", () => { if (!this._stopped) API.beacon(this.s); });
