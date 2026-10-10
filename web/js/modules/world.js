@@ -19,7 +19,7 @@ G.module({
    *   { map 地图序号, start 本次开始时间, step 已走步数, count 已完成次数,
    *     loot 本次收获 { stone, mats: { "herb|名字": {kind,name,g,n} }, pills: [], equips: [] },
    *     ev 本次事件列表（最新在前）, last 上一次结算文字 } */
-  defaults: () => ({ explore: null, trained: [] }), // trained：已历练通过的地图序号
+  defaults: () => ({ explore: null, trained: [], lastRun: null }), // lastRun：上一次历练/探索的事件记录 // trained：已历练通过的地图序号
 
   // 每 10 秒（以及在线时每秒）推进探索
   tick() { this.advanceExplore(); },
@@ -30,8 +30,8 @@ G.module({
     setWorld(id) { this.worldId = id; this.render(); },
 
     // 生成怪物：Lm 怪物层序，boss 是否首领
-    makeMonster(Lm, name, boss) {
-      const M = CFG.monster, k = M.STRENGTH_MIN + Math.random() * (M.STRENGTH_MAX - M.STRENGTH_MIN);
+    makeMonster(Lm, name, boss, mult = 1) {
+      const M = CFG.monster, k = (M.STRENGTH_MIN + Math.random() * (M.STRENGTH_MAX - M.STRENGTH_MIN)) * mult;
       const f = k * Math.pow(DATA.GROW, Lm), B = DATA.playerBase, F = DATA.playerFixed;
       const m = { name, Lm, boss, hp: B.hp * f, atk: B.atk * f, def: B.def * f, speed: F.speed, crit: F.crit,
         hit: F.hit + Lm * DATA.MONSTER_HIT, dodge: F.dodge + Lm * DATA.MONSTER_DODGE };
@@ -64,36 +64,45 @@ G.module({
         }
         return hit(st, m);
       };
-      let php = s.hp, mhp = m.hp, rounds = 0;
-      const meFirst = st.speed >= m.speed;
+      let php = s.hp, mhp = m.hp, rounds = 0, dealt = 0, taken = 0;
+      const hp0 = s.hp, meFirst = st.speed >= m.speed;
+      const me = () => { const d = myHit(); mhp -= d; dealt += d; }, him = () => { const d = hit(m, st); php -= d; taken += d; };
       while (php > 0 && mhp > 0 && rounds < 60) {
         rounds++;
-        if (meFirst) { mhp -= myHit(); if (mhp > 0) php -= hit(m, st); }
-        else { php -= hit(m, st); if (php > 0) mhp -= myHit(); }
+        if (meFirst) { me(); if (mhp > 0) him(); }
+        else { him(); if (php > 0) me(); }
       }
       s.hp = Math.max(1, php);
-      return { win: mhp <= 0 && php > 0, lose: php <= 0, rounds };
+      // 失败原因说明（显示在探索信息里）
+      const why = `你出战时气血 ${U.fmt(hp0)}，共造成 ${U.fmt(dealt)} 伤害（对方剩余气血 ${U.fmt(Math.max(0, mhp))}/${U.fmt(m.hp)}），承受 ${U.fmt(taken)} 伤害；对方攻击 ${U.fmt(m.atk)} 防御 ${U.fmt(m.def)}`;
+      return { win: mhp <= 0 && php > 0, lose: php <= 0, rounds, why };
     },
 
     /* ---------- 掉落 ---------- */
     newLoot() { return { stone: 0, mats: {}, pills: [], equips: [] }; },
-    // 随机一种药材/矿石，数量随地图提高
-    rollMat(loot, kind, a, mult = 1) {
-      const E = CFG.explore, g = U.weighted(E.MAT_WEIGHT);
-      const name = (kind === "herb" ? DATA.herbs : DATA.ores)[g];
-      const rate = kind === "herb" ? E.HERB_RATE : E.ORE_RATE;
-      const n = Math.max(1, Math.round(E.MAT_BASE * DATA.mapMult(a) * rate * mult * (1 + Math.random())));
-      const key = kind + "|" + name;
-      (loot.mats[key] = loot.mats[key] || { kind, name, g, n: 0 }).n += n;
-      return `${DATA.matFull(kind, g)}×${U.fmt(n)}`;
+    // 按配置掉落材料：spec = { herb: {kinds, n}, ore: {kinds, n} }，返回描述
+    rollDrop(loot, spec, a) {
+      const E = CFG.explore, got = [];
+      for (const kind of ["herb", "ore"]) {
+        const d = spec[kind]; if (!d) continue;
+        const kinds = U.rand(d.kinds[0], d.kinds[1]), w = E.MAT_WEIGHT.slice(), names = kind === "herb" ? DATA.herbs : DATA.ores;
+        for (let i = 0; i < kinds && w.some(x => x > 0); i++) {
+          const g = U.weighted(w); w[g] = 0; // 同一次不重复
+          const n = Math.max(1, Math.round(U.rand(d.n[0], d.n[1]) * DATA.mapMult(a)));
+          const key = kind + "|" + names[g];
+          (loot.mats[key] = loot.mats[key] || { kind, name: names[g], g, n: 0 }).n += n;
+          got.push(`${names[g]}×${U.fmt(n)}`);
+        }
+      }
+      return got.join("、");
     },
     // 击败怪物的掉落，写进 loot，返回描述文字
     rollMonsterLoot(loot, m, a) {
-      const E = CFG.explore, mult = m.boss ? E.BOSS_DROP : 1, got = [];
+      const E = CFG.explore, mult = m.boss ? E.BOSS_DROP : 1;
       const stone = Math.floor(E.STONE_BASE * Math.pow(E.STONE_GROW, m.Lm) * (1 + Math.random() * 1.5) * E.STONE_RATE * mult);
-      loot.stone += stone; got.push(`灵石${U.fmt(stone)}`);
-      if (m.boss || Math.random() < E.MONSTER_MAT) got.push(this.rollMat(loot, "herb", a, mult), this.rollMat(loot, "ore", a, mult));
-      return got.join("、"); // 怪物不掉丹药、装备
+      loot.stone += stone;
+      const mats = this.rollDrop(loot, E.drop[m.boss ? "boss" : "monster"], a);
+      return `灵石${U.fmt(stone)}${mats ? "、" + mats : ""}`; // 怪物不掉丹药、装备
     },
     // 把收获放进背包，返回简短描述
     giveLoot(loot) {
@@ -139,14 +148,14 @@ G.module({
       const st = this.stats(), H = CFG.explore.HEAL_STEP;
       this.s.hp = Math.min(st.hp, this.s.hp + st.hp * H); this.s.mana = Math.min(st.mana, this.s.mana + st.mana * H);
       let t = "", c = "";
-      if (type === "herb") { t = `发现灵药，采得 ${this.rollMat(x.loot, "herb", a)}`; c = "good"; }
-      else if (type === "ore") { t = `发现矿脉，挖得 ${this.rollMat(x.loot, "ore", a)}`; c = "good"; }
+      if (type === "herb") { t = `发现灵药，采得 ${this.rollDrop(x.loot, CFG.explore.drop.herbEvent, a) || "无"}`; c = "good"; }
+      else if (type === "ore") { t = `发现矿脉，挖得 ${this.rollDrop(x.loot, CFG.explore.drop.oreEvent, a) || "无"}`; c = "good"; }
       else if (type === "monster" || type === "boss") {
         const boss = type === "boss", Lm = Math.min(maxL, a * 10 + (boss ? 9 : U.rand(0, 9)));
         const m = this.makeMonster(Lm, boss ? map.boss : U.pick(map.monsters), boss);
         const res = this.battle(m), tag = `${boss ? "【首领】" : ""}${m.name}（${this.realmName(Lm)}）`;
         if (res.win) { this.s.kills++; t = `遭遇${tag}，${res.rounds}回合击败，获得 ${this.rollMonsterLoot(x.loot, m, a)}`; c = boss ? "gold" : ""; }
-        else if (res.lose) { t = `遭遇${tag}，不敌重伤，遗失灵石 ${U.fmt(this.loseStone())}`; c = "bad"; }
+        else if (res.lose) { t = `遭遇${tag}，第 ${res.rounds} 回合不敌重伤，遗失灵石 ${U.fmt(this.loseStone())}。${res.why}`; c = "bad"; }
         else { t = `遭遇${tag}，缠斗 ${res.rounds} 回合，各自退去`; }
       } else t = U.pick(DATA.exploreIdle);
       x.ev.unshift({ n: x.step, t, c });
@@ -176,8 +185,10 @@ G.module({
           // 结算本次
           x.count++;
           const got = this.giveLoot(x.loot);
-          x.last = `第 ${x.count} 次探索${lost ? "（战败提前结束）" : ""}：${got || "一无所获"}`;
+          x.last = `${x.once ? "历练" : `第 ${x.count} 次探索`}${lost ? `（第 ${x.step} 步战败，提前结束）` : ""}：${got || "一无所获"}`;
           this.log(x.last, lost ? "bad" : "gold");
+          // 保存这一次的全部事件，结束后也能查看（含失败那一步）
+          s.lastRun = { title: `${DATA.maps[x.map].name} · ${x.last}`, ev: x.ev.slice(), bad: lost };
           if (x.once) { // 历练只走一次；走完且未战败 = 通过，解锁该地图自动探索
             if (!lost && !s.trained.includes(x.map)) { s.trained.push(x.map); this.log(`${DATA.maps[x.map].name}历练通过！已可自动探索。`, "gold"); }
             else if (lost) this.log("历练失败，提升实力后再来。", "bad");
@@ -185,6 +196,7 @@ G.module({
           }
           if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) {
             this.log(`气血不足三成，自动探索停止（共探索 ${x.count} 次）。`, "bad");
+            s.lastRun.title += "；气血不足三成，自动探索停止";
             s.explore = null; break;
           }
           x.start = x.start + x.step * 1000; x.step = 0; x.loot = this.newLoot(); x.ev = []; x.plan = this.makePlan();
@@ -193,6 +205,7 @@ G.module({
       if (changed) this.dirty();
     },
     setExploreOpen(v) { this.exploreOpen = v; this.render(); },
+    setLastOpen(v) { this.lastOpen = v; this.render(); },
 
     // 坊市货单（当前境界品质）
     shopList() {
@@ -242,6 +255,9 @@ G.module({
           <p class="desc">本次收获（结束后放入背包）：灵石 ${U.fmt(L.stone)}${mats.length ? "、" + mats.join("、") : ""}${L.pills.length ? `、丹药${L.pills.length}枚` : ""}${L.equips.length ? `、装备${L.equips.length}件` : ""}</p>
           ${x.last ? `<p class="desc">上次：${x.last}</p>` : ""}
           ${this.exploreOpen ? `<div class="explore-log">${x.ev.map(e => `<p class="${e.c}"><b>第${e.n}步</b> ${e.t}</p>`).join("") || "<p>出发……</p>"}</div>` : ""}</div>`; })() : ""}
+        ${s.lastRun ? `<div class="card"><h3>上次记录<small><button class="sm" onclick="G.setLastOpen(${!this.lastOpen})">${this.lastOpen ? "收起" : "展开"}</button></small></h3>
+          <p class="desc ${s.lastRun.bad ? "q5" : ""}">${s.lastRun.title}</p>
+          ${this.lastOpen ? `<div class="explore-log">${s.lastRun.ev.map(e => `<p class="${e.c}"><b>第${e.n}步</b> ${e.t}</p>`).join("")}</div>` : ""}</div>` : ""}
         <div class="card"><h3>凡界<small>历练一次 100 秒，通过后才能自动探索；期间无法修炼，气血低于三成停止</small></h3>` +
         DATA.maps.map((map, a) => {
           const lock = this.r() < a, ok = s.trained.includes(a), x = s.explore && s.explore.map === a ? s.explore : null;
