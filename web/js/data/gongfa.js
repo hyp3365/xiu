@@ -1,19 +1,30 @@
 /* =====================================================================
- * 数据：功法
+ * 数据：功法 & 法术
  * ---------------------------------------------------------------------
- * 六大类功法，每类加成一种属性（固定数值，不是百分比）：
+ * 【功法】六大类，每类加成一种属性（固定数值，不是百分比）：
  *   心法 → 防御      功诀 → 攻击      真经 → 气血上限
  *   秘诀 → 修炼速度  身法 → 闪避      法诀 → 法力上限
- * 每个门派每类一部，名字 = 门派前缀 + 后缀，例如：
- *   青阳心法、青阳诀、青阳真经、青阳秘诀、青阳身法、青阳法诀
+ * 每个门派每类功法分 天、地、玄、黄 四阶，名字如：青阳心法（黄阶）
+ * 必须学会至少一部秘诀才能修炼。
  *
- * 每部功法 12 层。在门派“功法殿”第一次学习消耗贡献，学会即为第 1 层。
- * 之后在“功法”页参悟提升层数，只花时间（离线也会计时），同时只能参悟一部。
+ * 【法术】每个门派有 金木水火土雷 六系法术，同样分 天地玄黄 四阶。
+ *   施放消耗法力。伤害 = 攻击 × 百分比 + 固定伤害
+ *   百分比：1 星门派 100%，每多 1 星 +30%（9 星 340%）
+ *   修炼法术层数只增加固定伤害（不加百分比）
  *
- * 加成数值 = 类别系数 × 门派强度 × 层数
- *   门派强度 = 成长^(门派入门层序 + 5)，星级越高越强（见 sectPower）
- *   身法（闪避）不随门派强度成长：0.25 × 星级 × 层数
+ * 功法、法术都是 12 层：功法殿首次学习消耗贡献，学会即第 1 层；
+ * 之后在“功法”页修炼升层，消耗修为 + 时间（见 studyMin），同时只能修炼一部。
  * ===================================================================== */
+
+// 四阶：mult 数值倍率，cost 学习/修炼消耗倍率（顺序：黄 → 天，越往后越强）
+DATA.tiers = [
+  { id: "huang", name: "黄阶", mult: 1,   cost: 1 },
+  { id: "xuan",  name: "玄阶", mult: 1.8, cost: 3 },
+  { id: "di",    name: "地阶", mult: 3.2, cost: 10 },
+  { id: "tian",  name: "天阶", mult: 5.5, cost: 30 },
+];
+DATA.tierById = Object.fromEntries(DATA.tiers.map((t, i) => [t.id, Object.assign(t, { idx: i })]));
+
 DATA.gongfaTypes = [
   { id: "xinfa",    name: "心法", suffix: "心法", stat: "def",       k: DATA.playerBase.def * 0.06,     label: "防御" },
   { id: "gongjue",  name: "功诀", suffix: "诀",   stat: "atk",       k: DATA.playerBase.atk * 0.06,     label: "攻击" },
@@ -22,29 +33,64 @@ DATA.gongfaTypes = [
   { id: "shenfa",   name: "身法", suffix: "身法", stat: "dodge",     k: 0,                              label: "闪避" },
   { id: "fajue",    name: "法诀", suffix: "法诀", stat: "mana",      k: DATA.playerBase.mana * 0.06,    label: "法力上限" },
 ];
+
+// 六系法术（name 为法术名后缀，如 青阳·金光剑诀）
+DATA.elements = [
+  { id: "jin",  name: "金", spell: "金光剑诀" },
+  { id: "mu",   name: "木", spell: "青藤缚灵" },
+  { id: "shui", name: "水", spell: "玄水箭" },
+  { id: "huo",  name: "火", spell: "烈焰焚天" },
+  { id: "tu",   name: "土", spell: "落石术" },
+  { id: "lei",  name: "雷", spell: "掌心雷" },
+];
+
 DATA.GONGFA_MAX = 12;
+// 修炼升层所需时间（分钟）：第 1→2 层 3 分钟 …… 第 11→12 层 15 小时
+DATA.studyMin = [3, 10, 30, 60, 120, 240, 360, 480, 600, 720, 900];
 
-// 参悟升级所需时间（分钟）：第 1 层 → 第 2 层 3 分钟 …… 第 11 层 → 第 12 层 15 小时
-DATA.gongfaStudyMin = [3, 10, 30, 60, 120, 240, 360, 480, 600, 720, 900];
+// 门派强度：星级越高，数值越大
+DATA.sectL = sect => sect.reqRealm * DATA.LAYERS;
+DATA.sectPower = sect => Math.pow(DATA.GROW, DATA.sectL(sect) + 5);
 
-// 门派强度：星级越高，功法数值越大
-DATA.sectPower = sect => Math.pow(DATA.GROW, sect.reqRealm * DATA.LAYERS + 5);
+// 修炼升层消耗修为：0.5 × 修为需求(门派入门层序 + 当前层 - 1) × 阶倍率
+DATA.studyExp = info => Math.floor(0.5 * DATA.needExp(DATA.sectL(info.sect) + info.lv - 1) * info.tier.cost);
 
-// 功法 id 规则："门派id:类别id"，例如 "s1_0:mijue"
-DATA.gongfaId = (sectId, typeId) => `${sectId}:${typeId}`;
-
-// 由 id 解析出功法信息；lv 为层数
+/* ---------- 功法 ----------
+ * id 规则："门派id:类别id:阶id"，例如 "s1_0:mijue:huang" */
+DATA.gongfaId = (sectId, typeId, tierId) => `${sectId}:${typeId}:${tierId}`;
 DATA.gongfaInfo = (id, lv = 1) => {
-  const [sectId, typeId] = id.split(":");
-  const sect = DATA.sectById[sectId];
-  const type = DATA.gongfaTypes.find(x => x.id === typeId);
-  if (!sect || !type) return null;
-  const value = type.stat === "dodge" ? 0.25 * sect.star * lv : type.k * DATA.sectPower(sect) * lv;
+  const [sectId, typeId, tierId] = id.split(":");
+  const sect = DATA.sectById[sectId], type = DATA.gongfaTypes.find(x => x.id === typeId), tier = DATA.tierById[tierId];
+  if (!sect || !type || !tier) return null;
+  const per = type.stat === "dodge" ? 0.25 * sect.star * tier.mult : type.k * DATA.sectPower(sect) * tier.mult;
   return {
-    id, sect, type, lv,
+    kind: "gf", id, sect, type, tier, lv,
     name: sect.prefix + type.suffix,
-    value,                          // 当前层的加成（固定数值）
-    perLv: value / lv,              // 每层加成
-    cost: 50 * sect.star * sect.star, // 功法殿首次学习所需贡献
+    value: per * lv,                              // 当前加成（固定数值）
+    perLv: per,                                   // 每层加成
+    cost: Math.floor(10 * sect.star * sect.star * tier.cost), // 功法殿首次学习所需贡献
   };
 };
+
+/* ---------- 法术 ----------
+ * id 规则："门派id:sp:系id:阶id"，例如 "s1_0:sp:huo:huang" */
+DATA.spellId = (sectId, elId, tierId) => `${sectId}:sp:${elId}:${tierId}`;
+DATA.isSpell = id => id.split(":")[1] === "sp";
+DATA.spellInfo = (id, lv = 1) => {
+  const [sectId, , elId, tierId] = id.split(":");
+  const sect = DATA.sectById[sectId], el = DATA.elements.find(x => x.id === elId), tier = DATA.tierById[tierId];
+  if (!sect || !el || !tier) return null;
+  const P = DATA.sectPower(sect);
+  const per = DATA.playerBase.atk * P * 0.3 * tier.mult;     // 每层固定伤害
+  return {
+    kind: "sp", id, sect, el, tier, lv,
+    name: `${sect.prefix}·${el.spell}`,
+    pct: 100 + 30 * (sect.star - 1),                          // 攻击百分比
+    flat: per * lv, perLv: per,                               // 固定伤害
+    mana: Math.floor(DATA.playerBase.mana * P * 0.15 * (1 + tier.idx * 0.4)), // 法力消耗
+    cost: Math.floor(15 * sect.star * sect.star * tier.cost), // 首次学习所需贡献
+  };
+};
+
+// 通用：功法或法术
+DATA.skillInfo = (id, lv) => DATA.isSpell(id) ? DATA.spellInfo(id, lv) : DATA.gongfaInfo(id, lv);
