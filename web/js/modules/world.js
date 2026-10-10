@@ -6,7 +6,8 @@
  *   法术栏里的法术轮流施放（消耗法力），法力不足时普通攻击。
  *   胜利：灵石、药材、矿石（首领掉得更多）；怪物不掉丹药、装备
  *   失败：遗失部分灵石
- * 自动探索：每次 100 秒，每秒走一步，随机遇到：无事 / 怪物 / 灵药 / 矿石 / 首领
+ * 自动探索：每次 100 秒，每秒走一步；固定遇到 10 个小怪、灵药 5~10 次、矿石 5~10 次，
+ *   最后一步遇到首领，其余无事发生（顺序随机）。怪物掉 灵石、内丹、灵血、药材、矿石。
  *   一次探索中获得的东西先记下，100 秒结束后一起放进背包；
  *   气血够（≥ 三成）就继续下一次，不够就停止；探索时不能修炼；离线也继续。
  *   探索信息栏显示每一步发生的事，每秒刷新。
@@ -93,8 +94,12 @@ G.module({
       const E = CFG.explore, mult = m.boss ? E.BOSS_DROP : 1, got = [];
       const stone = Math.floor(E.STONE_BASE * Math.pow(E.STONE_GROW, m.Lm) * (1 + Math.random() * 1.5) * E.STONE_RATE * mult);
       loot.stone += stone; got.push(`灵石${U.fmt(stone)}`);
-      if (m.boss || Math.random() < E.MONSTER_MAT) got.push(this.rollMat(loot, Math.random() < 0.5 ? "herb" : "ore", a, mult));
-      if (m.boss) got.push(this.rollMat(loot, "herb", a, mult), this.rollMat(loot, "ore", a, mult));
+      // 内丹、灵血：阶 = 地图序号
+      const addJie = (kind, n) => { const name = DATA.JIE[a] + DATA.matKinds[kind], key = kind + "|" + name;
+        (loot.mats[key] = loot.mats[key] || { kind, name, g: a, n: 0 }).n += n; got.push(`${name}×${n}`); };
+      addJie("core", Math.max(1, Math.round(E.CORE_N * mult)));
+      addJie("blood", Math.max(1, Math.round(E.BLOOD_N * mult * (1 + Math.random()))));
+      if (m.boss || Math.random() < E.MONSTER_MAT) got.push(this.rollMat(loot, "herb", a, mult), this.rollMat(loot, "ore", a, mult));
       return got.join("、"); // 怪物不掉丹药、装备
     },
     // 把收获放进背包，返回简短描述
@@ -133,7 +138,7 @@ G.module({
       if (s.explore && s.explore.map === a) { this.stopExplore("停止自动探索"); return this.after(); }
       if (s.explore) this.stopExplore("更换地图");
       if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("气血不足三成，无法探索。", "sys");
-      s.explore = { map: a, start: this.now(), step: 0, count: 0, loot: this.newLoot(), ev: [], last: "" };
+      s.explore = { map: a, start: this.now(), step: 0, count: 0, loot: this.newLoot(), ev: [], last: "", plan: this.makePlan() };
       this.exploreOpen = true;
       this.log(`开始在${DATA.maps[a].name}自动探索（探索期间无法修炼）。`, "sys");
       this.after();
@@ -147,8 +152,9 @@ G.module({
     },
     // 走一步：随机事件
     exploreStep() {
-      const x = this.s.explore, a = x.map, map = DATA.maps[a], ev = CFG.explore.events, maxL = DATA.realms.length * DATA.LAYERS - 1;
-      const keys = Object.keys(ev), type = keys[U.weighted(keys.map(k => ev[k]))];
+      const x = this.s.explore, a = x.map, map = DATA.maps[a], maxL = DATA.realms.length * DATA.LAYERS - 1;
+      if (!x.plan) x.plan = this.makePlan();
+      const type = { n: "nothing", m: "monster", b: "boss", h: "herb", o: "ore" }[x.plan[x.step]] || "nothing";
       x.step++;
       let t = "", c = "";
       if (type === "herb") { t = `发现灵药，采得 ${this.rollMat(x.loot, "herb", a)}`; c = "good"; }
@@ -164,6 +170,15 @@ G.module({
       x.ev.unshift({ n: x.step, t, c });
       if (x.ev.length > CFG.explore.TIME) x.ev.length = CFG.explore.TIME;
       return c === "bad"; // 战败：本次提前结束
+    },
+    // 生成一次探索的事件顺序（字符串，每个字符一步）：首领固定在最后一步
+    makePlan() {
+      const E = CFG.explore, T = E.TIME;
+      const list = [...Array(E.MONSTERS).fill("m"), ...Array(U.rand(E.HERB_MIN, E.HERB_MAX)).fill("h"), ...Array(U.rand(E.ORE_MIN, E.ORE_MAX)).fill("o")];
+      while (list.length < T - E.BOSS) list.push("n");
+      list.length = T - E.BOSS;
+      for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
+      return list.join("") + "b".repeat(E.BOSS);
     },
     // 推进到当前时间（每秒走一步；满 100 步结算一次）
     advanceExplore() {
@@ -185,7 +200,7 @@ G.module({
             this.log(`气血不足三成，自动探索停止（共探索 ${x.count} 次）。`, "bad");
             s.explore = null; break;
           }
-          x.start = x.start + x.step * 1000; x.step = 0; x.loot = this.newLoot(); x.ev = [];
+          x.start = x.start + x.step * 1000; x.step = 0; x.loot = this.newLoot(); x.ev = []; x.plan = this.makePlan();
         }
       }
       if (changed) this.dirty();
