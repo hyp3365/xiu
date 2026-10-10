@@ -19,3 +19,15 @@ DATA.array = {
 // 灵气上限 = 聚灵 × CAP_GATHER + 修炼速度 × CAP_SPEED
 DATA.LING_CAP_GATHER = 360;
 DATA.LING_CAP_SPEED = 60;
+
+/* 洞府各房间（open: false 表示暂未开放，只显示入口） */
+DATA.caveRooms = [
+  { id: "array",   name: "聚灵阵",   open: true,  desc: "聚集天地灵气，供修炼使用。" },
+  { id: "alchemy", name: "炼丹房",   open: false, desc: "以灵药炼制丹药。" },
+  { id: "forge",   name: "炼器室",   open: false, desc: "锻造法器、法宝。" },
+  { id: "talisman",name: "画符室",   open: false, desc: "绘制各类符箓。" },
+  { id: "garden",  name: "灵药园",   open: false, desc: "种植灵草灵药。" },
+  { id: "beast",   name: "灵兽室",   open: false, desc: "豢养、培育灵兽。" },
+  { id: "formation",name:"洞府阵法", open: false, desc: "布置护府大阵。" },
+  { id: "servant", name: "道童居",   open: false, desc: "招募道童，代为打理洞府。" },
+];
