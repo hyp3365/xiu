@@ -12,8 +12,8 @@ DATA.matByName = {};
 DATA.herbs.forEach((n, g) => DATA.matByName[n] = { kind: "herb", g });
 DATA.ores.forEach((n, g) => DATA.matByName[n] = { kind: "ore", g });
 DATA.matName = (kind, g) => (kind === "herb" ? DATA.herbs : DATA.ores)[g];
-// 显示名：药材不显示品阶；矿石显示「三品赤铜精」
-DATA.matFull = (kind, g) => (kind === "ore" ? DATA.PIN[g] : "") + DATA.matName(kind, g);
+// 显示名：药材、矿石都不显示品阶
+DATA.matFull = (kind, g) => DATA.matName(kind, g);
 // [[名字, 数量], ...] → [{ kind, g, n }]，名字写错会在控制台报错
 DATA.parseMats = list => list.map(([name, n]) => {
   const m = DATA.matByName[name];
