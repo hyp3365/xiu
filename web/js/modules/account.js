@@ -42,8 +42,10 @@ G.module({
       }
       this._lockModal = false; this.closeModal();
       if (!data) return this.intro();
+      if (data.mortal === undefined) data.mortal = false; // 旧存档：已是修士
       this.s = this.migrate(data);
       this.fixGongfa(); // 旧版功法存档转换
+      this.fixEquip();  // 旧版装备栏转换
       this.s.manual = false;
       this.offline();
       this.start();
