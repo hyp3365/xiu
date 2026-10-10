@@ -43,6 +43,12 @@ const G = {
   stats() { return this.calc().stats; },
   speed() { return this.calc().speed; },
 
+  /* ---------- 当前时间 ----------
+   * 离线补算时返回“模拟时间”，所以按时间计算的功能（功法参悟、事务堂）
+   * 写成 G.now() 而不是 Date.now()，离线就能正确补算。 */
+  _simNow: 0,
+  now() { return this._simNow || Date.now(); },
+
   /* ---------- 日志 ---------- */
   log(m, c = "") {
     if (this.silent) return;
@@ -93,7 +99,9 @@ const G = {
     this.silent = true;
     const MAX = 3e6; // 安全上限（约 347 天），防止浏览器卡死
     const runs = Math.min(n, MAX);
-    for (let i = 0; i < runs; i++) this.tickAll(true);
+    const t0 = this.s.last;
+    for (let i = 0; i < runs; i++) { this._simNow = t0 + (i + 1) * DATA.TICK * 1000; this.tickAll(true); }
+    this._simNow = 0;
     this.silent = false;
     this.s.last = Date.now() - (sec % DATA.TICK) * 1000;
     const parts = [];
@@ -114,8 +122,11 @@ const G = {
       this.render();
     }
     // 修炼进度条（10 秒走满）
+    const pct = Math.min(100, (now - this._lastTick) / (DATA.TICK * 10)) + "%";
     const tb = $("#tick-bar");
-    if (tb) tb.style.width = (this.isCultivating() ? Math.min(100, (now - this._lastTick) / (DATA.TICK * 10)) : 0) + "%";
+    if (tb) tb.style.width = this.isCultivating() && this.canCultivate() ? pct : "0%";
+    const gb = $("#gather-bar"); // 洞府聚灵阵进度条
+    if (gb) gb.style.width = this.s.array.on ? pct : "0%";
   },
 
   /* ---------- 操作后统一调用：重算属性、存档、刷新 ---------- */
@@ -151,7 +162,7 @@ const G = {
     this._lastTick = Date.now();
     this.save(true); this.render(); this.renderLog();
     setInterval(() => this.loop(), 200);
-    setInterval(() => { if (this.tab === "sect") this.render(); }, 1000);
+    setInterval(() => { if (this.tab === "sect" || this.tab === "gongfa") this.render(); }, 1000); // 倒计时刷新
     // 切到后台 / 关闭页面时立即上传
     document.addEventListener("visibilitychange", () => { if (document.hidden && !this._stopped) { this.save(); API.beacon(this.s); } });
     window.addEventListener("pagehide", () => { if (!this._stopped) API.beacon(this.s); });
