@@ -1,14 +1,16 @@
 /* =====================================================================
- * 模块：洞府 · 聚灵阵
+ * 模块：洞府
  * ---------------------------------------------------------------------
- * - 聚灵阵每 10 秒聚集灵气（开启时），灵气是修炼的“燃料”
- * - 聚灵阵同时给修炼速度加倍率（见 data/cave.js 的 factor）
+ * 房间：聚灵阵、炼丹房、炼器室、画符室、灵药园、灵兽室、洞府阵法、道童居
+ * （房间列表在 data/cave.js 的 DATA.caveRooms，目前只开放聚灵阵）
+ *
+ * 聚灵阵：
+ * - 每 10 秒聚集一次灵气（有进度条），灵气是修炼的“燃料”
+ * - 同时给修炼速度加倍率（见 data/cave.js 的 factor）
  * - 聚灵速度只由聚灵阵等级决定，境界提升不会增加
+ * - 开关在“修炼”页；关闭后不聚灵、也没有修炼加成
  * - 可以用灵石手动补充灵气，或开启“灵气不足时自动补充”
- * - 关闭聚灵阵：只剩天地自然灵气（每 10 秒 AMBIENT 点）
  * ===================================================================== */
-DATA.AMBIENT = 2;
-
 G.module({
   id: "cave",
   tab: "cave",
@@ -25,8 +27,9 @@ G.module({
 
   api: {
     arrayFactor() { return DATA.array.factor(this.s.array.lv); },
-    gatherAmount() { return DATA.AMBIENT + (this.s.array.on ? DATA.array.GATHER_BASE * this.arrayFactor() : 0); },
-    lingCap() { const sp = this.speed(); return sp.gather * DATA.LING_CAP_GATHER + sp.total * DATA.LING_CAP_SPEED; },
+    // 每 10 秒聚灵量（聚灵阵关闭为 0）
+    gatherAmount() { return this.s.array.on ? DATA.array.GATHER_BASE * this.arrayFactor() : 0; },
+    lingCap() { const sp = this.speed(); return Math.max(100, sp.gatherFull * DATA.LING_CAP_GATHER + sp.total * DATA.LING_CAP_SPEED); },
     lingPerStone() { return DATA.array.STONE_LING * this.arrayFactor(); },
 
     // 用灵石补充灵气，stones 为 "fill" 时补满
@@ -56,18 +59,28 @@ G.module({
       else this.log(this.s.array.lv >= DATA.array.MAX ? "聚灵阵已满级。" : "灵石不足。", "sys");
       this.after();
     },
+    setCaveRoom(id) { this.caveRoom = id; this.render(); },
   },
 
   view() {
-    const s = this.s, a = s.array, cap = this.lingCap(), max = a.lv >= DATA.array.MAX;
-    return `<div class="card"><h3>聚灵阵 · ${a.lv} / ${DATA.array.MAX} 级<small>${a.on ? "运转中" : "已关闭"}</small></h3>
-      <div class="line"><div>修炼速度倍率</div><b>×${this.arrayFactor() >= 100 ? U.fmt(this.arrayFactor()) : this.arrayFactor().toFixed(2)}</b></div>
-      <div class="line"><div>每 10 秒聚集灵气<small>含天地自然灵气 ${DATA.AMBIENT}</small></div><b>${U.fmt(this.gatherAmount())}</b></div>
-      <div class="row small" style="margin-top:6px"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>
+    const s = this.s, a = s.array, cur = this.caveRoom || "array";
+    const rooms = `<div class="room-grid">${DATA.caveRooms.map(r =>
+      `<button class="${cur === r.id ? "active" : ""}" onclick="G.setCaveRoom('${r.id}')">${r.name}${r.open ? "" : "<small>未开放</small>"}</button>`).join("")}</div>`;
+
+    const room = DATA.caveRooms.find(r => r.id === cur);
+    if (!room.open) return rooms + `<div class="card"><h3>${room.name}</h3><p class="desc">${room.desc}</p><p class="desc">尚在营建，敬请期待。</p></div>`;
+
+    // 聚灵阵
+    const cap = this.lingCap(), max = a.lv >= DATA.array.MAX, f = this.arrayFactor();
+    return rooms + `<div class="card"><h3>聚灵阵 · ${a.lv} / ${DATA.array.MAX} 级<small>${a.on ? "运转中" : "已关闭（在修炼页开启）"}</small></h3>
+      <div class="row small"><span>聚灵中（每 10 秒 +${U.fmt(this.gatherAmount())} 灵气）</span></div>
+      <div class="bar tick"><div id="gather-bar"></div></div>
+      <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>
       <div class="bar ling"><div style="width:${Math.min(100, s.ling / cap * 100)}%"></div></div>
+      <div class="line"><div>修炼速度倍率</div><b>×${f >= 100 ? U.fmt(f) : f.toFixed(2)}</b></div>
+      <div class="line"><div>下一级<small>倍率 ×${(DATA.array.factor(a.lv + 1)).toFixed(2)}，聚灵 +${U.fmt(DATA.array.GATHER_BASE * DATA.array.factor(a.lv + 1))}</small></div><b>${max ? "满级" : U.fmt(DATA.array.cost(a.lv)) + " 灵石"}</b></div>
       <div class="btns">
-        <button class="${a.on ? "on" : ""}" onclick="G.toggleArray()">${a.on ? "聚灵阵：开" : "聚灵阵：关"}</button>
-        <button onclick="G.upgradeArray(1)" ${max ? "disabled" : ""}>${max ? "已满级" : `升级（${U.fmt(DATA.array.cost(a.lv))} 灵石）`}</button>
+        <button class="primary" onclick="G.upgradeArray(1)" ${max ? "disabled" : ""}>升级</button>
         <button onclick="G.upgradeArray(10)" ${max ? "disabled" : ""}>连升10级</button>
         <button onclick="G.upgradeArray(${DATA.array.MAX})" ${max ? "disabled" : ""}>灵石全部升级</button>
       </div></div>
