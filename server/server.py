@@ -1,0 +1,180 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+问道长生 · 存档服务器
+=====================
+只用 Python 标准库，不需要安装任何依赖。
+
+接口（全部返回 JSON）：
+  POST /api/register  {"username","password"}   注册，返回 {"token"}
+  POST /api/login     {"username","password"}   登录，返回 {"token"}
+  GET  /api/save      Header X-Token             读取存档，返回 {"data", "updated"}
+  POST /api/save      Header X-Token {"data"}    保存存档（data 为 null 表示删档）
+                      也支持 body 里带 "token"（网页关闭时 sendBeacon 用）
+
+数据存在 SQLite：默认 /var/lib/xiu/xiu.db（环境变量 XIU_DB 可改）
+监听地址：默认 127.0.0.1:18300（环境变量 XIU_HOST / XIU_PORT 可改），由 nginx 反向代理。
+密码用 PBKDF2-SHA256 加盐哈希存储，不保存明文。
+"""
+import hashlib
+import hmac
+import json
+import os
+import re
+import secrets
+import sqlite3
+import threading
+import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+DB_PATH = os.environ.get("XIU_DB", "/var/lib/xiu/xiu.db")
+HOST = os.environ.get("XIU_HOST", "127.0.0.1")
+PORT = int(os.environ.get("XIU_PORT", "18300"))
+MAX_BODY = 2 * 1024 * 1024           # 存档最大 2MB
+TOKEN_DAYS = 90                      # 登录令牌有效期（天）
+USERNAME_RE = re.compile(r"^[\w\u4e00-\u9fff]{2,20}$")  # 2~20 位字母/数字/下划线/中文
+
+_lock = threading.Lock()
+
+
+def db():
+    """每次请求开一个连接（SQLite 很轻量）。"""
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_db():
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    with db() as c:
+        c.executescript("""
+        CREATE TABLE IF NOT EXISTS users(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            pw_hash TEXT NOT NULL,
+            salt TEXT NOT NULL,
+            created INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS tokens(
+            token TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            expires INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS saves(
+            user_id INTEGER PRIMARY KEY,
+            data TEXT,
+            updated INTEGER NOT NULL
+        );
+        """)
+
+
+def hash_pw(password, salt):
+    return hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(salt), 200_000).hex()
+
+
+def new_token(conn, user_id):
+    token = secrets.token_hex(24)
+    conn.execute("INSERT INTO tokens(token,user_id,expires) VALUES(?,?,?)",
+                 (token, user_id, int(time.time()) + TOKEN_DAYS * 86400))
+    conn.execute("DELETE FROM tokens WHERE expires < ?", (int(time.time()),))
+    return token
+
+
+def user_by_token(conn, token):
+    if not token:
+        return None
+    row = conn.execute("SELECT user_id FROM tokens WHERE token=? AND expires>?",
+                       (token, int(time.time()))).fetchone()
+    return row["user_id"] if row else None
+
+
+class Handler(BaseHTTPRequestHandler):
+    server_version = "XiuServer/1.0"
+
+    # ---------- 工具 ----------
+    def send(self, code, obj):
+        body = json.dumps(obj, ensure_ascii=False).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def body(self):
+        n = int(self.headers.get("Content-Length") or 0)
+        if n > MAX_BODY:
+            raise ValueError("存档过大")
+        raw = self.rfile.read(n) if n else b"{}"
+        return json.loads(raw.decode() or "{}")
+
+    def route(self):
+        # 兼容 /api/xxx 和 /xiuxian/api/xxx
+        p = self.path.split("?")[0]
+        return p[p.rfind("/api/") + 5:] if "/api/" in p else ""
+
+    def log_message(self, fmt, *args):  # 只打印错误，不刷屏
+        pass
+
+    # ---------- GET ----------
+    def do_GET(self):
+        if self.route() != "save":
+            return self.send(404, {"error": "not found"})
+        with db() as c:
+            uid = user_by_token(c, self.headers.get("X-Token"))
+            if not uid:
+                return self.send(401, {"error": "请重新登录"})
+            row = c.execute("SELECT data, updated FROM saves WHERE user_id=?", (uid,)).fetchone()
+        if not row or row["data"] is None:
+            return self.send(200, {"data": None})
+        return self.send(200, {"data": json.loads(row["data"]), "updated": row["updated"]})
+
+    # ---------- POST ----------
+    def do_POST(self):
+        try:
+            data = self.body()
+        except Exception as e:
+            return self.send(400, {"error": str(e) or "请求格式错误"})
+        r = self.route()
+
+        if r in ("register", "login"):
+            u = str(data.get("username", "")).strip()
+            p = str(data.get("password", ""))
+            if not USERNAME_RE.match(u):
+                return self.send(400, {"error": "账号需 2~20 位字母、数字、下划线或中文"})
+            if len(p) < 6:
+                return self.send(400, {"error": "密码至少 6 位"})
+            with _lock, db() as c:
+                row = c.execute("SELECT * FROM users WHERE username=?", (u,)).fetchone()
+                if r == "register":
+                    if row:
+                        return self.send(409, {"error": "账号已存在"})
+                    salt = secrets.token_hex(16)
+                    cur = c.execute("INSERT INTO users(username,pw_hash,salt,created) VALUES(?,?,?,?)",
+                                    (u, hash_pw(p, salt), salt, int(time.time())))
+                    uid = cur.lastrowid
+                else:
+                    if not row or not hmac.compare_digest(row["pw_hash"], hash_pw(p, row["salt"])):
+                        return self.send(401, {"error": "账号或密码错误"})
+                    uid = row["id"]
+                return self.send(200, {"token": new_token(c, uid)})
+
+        if r == "save":
+            token = self.headers.get("X-Token") or data.get("token")
+            with _lock, db() as c:
+                uid = user_by_token(c, token)
+                if not uid:
+                    return self.send(401, {"error": "请重新登录"})
+                save = data.get("data")
+                c.execute("INSERT INTO saves(user_id,data,updated) VALUES(?,?,?) "
+                          "ON CONFLICT(user_id) DO UPDATE SET data=excluded.data, updated=excluded.updated",
+                          (uid, None if save is None else json.dumps(save, ensure_ascii=False), int(time.time())))
+            return self.send(200, {"ok": True})
+
+        return self.send(404, {"error": "not found"})
+
+
+if __name__ == "__main__":
+    init_db()
+    print(f"XiuServer listening on {HOST}:{PORT}, db={DB_PATH}", flush=True)
+    ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
