@@ -1,0 +1,16 @@
+[Unit]
+Description=Xiu (问道长生) save server
+After=network.target
+
+[Service]
+User=xiu
+Group=xiu
+Environment=XIU_DB=/var/lib/xiu/xiu.db
+Environment=XIU_HOST=127.0.0.1
+Environment=XIU_PORT=18300
+ExecStart=/usr/bin/python3 /opt/xiu/server/server.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
