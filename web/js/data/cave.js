@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------
  * 聚灵阵的聚灵速度、修炼加成只由聚灵阵等级决定，与境界无关。
  * factor(lv)：聚灵阵倍率，0 级为 1（初始 0 级）
- *   - 每 10 秒聚集灵气 = GATHER_BASE × factor（开关不影响聚灵）
+ *   - 每 10 秒聚集灵气 = gather(lv) = GATHER_BASE × (1 + 0.2×lv) × factor（开关不影响聚灵）
  *   - 修炼速度加成     = factor - 1，即 +(factor-1)×100%（只有开启时生效）
  *   - 1 灵石换灵气     = STONE_LING × factor
  * cost(lv)：从 lv 升到 lv+1 需要的灵石
@@ -13,6 +13,7 @@ DATA.array = {
   GATHER_BASE: 10,
   STONE_LING: 10,
   factor: lv => Math.pow(1.03, lv),
+  gather: lv => DATA.array.GATHER_BASE * (1 + 0.2 * lv) * Math.pow(1.03, lv), // 每级都明显增加
   cost: lv => Math.floor(100 * Math.pow(1.032, lv)),
 };
 
