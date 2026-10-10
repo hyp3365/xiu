@@ -31,6 +31,7 @@ DATA.maps = [
 DATA.HERB_CHANCE = 0.35; // 每场胜利获得灵药概率
 DATA.ORE_CHANCE = 0.25;  // 每场胜利获得矿物概率
 DATA.EXPLORE_STOP = 0.3; // 自动探索：气血低于上限 30% 自动停止
+DATA.EXPLORE_TIME = 100; // 自动探索：每次 100 秒
 DATA.matPrice = g => Math.floor(30 * Math.pow(1.8, g)); // 材料出售价
 
 DATA.STONE_BASE = 20;
