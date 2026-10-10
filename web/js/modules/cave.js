@@ -2,7 +2,7 @@
  * 模块：洞府
  * ---------------------------------------------------------------------
  * 房间：聚灵阵、炼丹房、炼器室、画符室、灵药园、灵兽室、洞府阵法、道童居
- * （房间列表在 data/cave.js 的 DATA.caveRooms，目前只开放聚灵阵）
+ * （房间列表在 data/cave.js 的 DATA.caveRooms；炼丹房、炼器室见 craft.js，灵药园见 garden.js）
  *
  * 聚灵阵：
  * - 每 10 秒聚集一次灵气（有进度条），灵气是修炼的“燃料”
@@ -26,6 +26,8 @@ G.module({
   },
 
   api: {
+    // 其他房间的页面（炼丹房、炼器室、灵药园在各自模块里登记：G.caveViews.房间id = function）
+    caveViews: {},
     arrayFactor() { return DATA.array.factor(this.s.array.lv); },
     // 每 10 秒聚灵量（只由等级决定，开关不影响）
     gatherAmount() { return DATA.array.gather(this.s.array.lv); },
@@ -67,6 +69,7 @@ G.module({
       `<button class="${cur === r.id ? "active" : ""}" onclick="G.setCaveRoom('${r.id}')">${r.name}${r.open ? "" : "<small>未开放</small>"}</button>`).join("")}</div>`;
 
     const room = DATA.caveRooms.find(r => r.id === cur);
+    if (this.caveViews[cur]) return rooms + this.caveViews[cur].call(this);
     if (!room.open) return rooms + `<div class="card"><h3>${room.name}</h3><p class="desc">${room.desc}</p><p class="desc">尚在营建，敬请期待。</p></div>`;
 
     // 聚灵阵
