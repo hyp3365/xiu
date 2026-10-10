@@ -45,51 +45,13 @@ SECT_NAMES.forEach((list, i) => {
   });
 });
 
-/* ---------------------------------------------------------------------
- * 宗门大殿 · 职务
- * cost：晋升消耗贡献（× 门派星级）
- * realm：晋升需要的境界 = 门派入门境界 + realm（不超过最高境界）
- * daily：每天可领取的灵石倍数（实际 = daily × 星级 × 灵石成长^当前层序）
- * tasks：该职务在事务堂能接到的任务名
- * reward：该职务每个任务的贡献倍数
- * ------------------------------------------------------------------- */
-DATA.ranks = [
-  { name: "外门弟子", cost: 0,     realm: 0, daily: 20,   reward: 1,  tasks: ["打扫山门", "挑水劈柴", "看守药田", "巡视山道"] },
-  { name: "内门弟子", cost: 300,   realm: 0, daily: 50,   reward: 2,  tasks: ["炼制丹砂", "护送商队", "清剿妖兽", "誊抄典籍"] },
-  { name: "真传弟子", cost: 1500,  realm: 1, daily: 120,  reward: 4,  tasks: ["镇守灵脉", "追缉叛徒", "代师授课", "采集灵矿"] },
-  { name: "核心弟子", cost: 6000,  realm: 1, daily: 300,  reward: 8,  tasks: ["坐镇坊市", "斩杀魔修", "探查秘境", "主持试炼"] },
-  { name: "宗门长老", cost: 25000, realm: 2, daily: 800,  reward: 16, tasks: ["传功讲道", "炼制宗门法宝", "调停纷争", "巡视藩属"] },
-  { name: "宗门供奉", cost: 80000, realm: 3, daily: 2000, reward: 30, tasks: ["镇压魔窟", "护宗大阵", "拜会他宗", "开辟灵田"] },
-  { name: "宗主",     cost: 300000,realm: 4, daily: 6000, reward: 60, tasks: ["统御宗门", "开宗立派大典", "论道天下", "镇守山门"] },
-];
-
-/* 事务堂：每 30 分钟刷新一轮，每轮 AFFAIR_COUNT 个任务。可开启自动完成。 */
-DATA.AFFAIR_ROUND = 30 * 60;
-DATA.AFFAIR_COUNT = 3;
-DATA.affairContrib = (rank, star) => 10 * star * DATA.ranks[rank].reward;
-
-/* 宗门宝库：用贡献兑换。kind=pill 为当前境界品质丹药 */
-DATA.treasury = [
-  { kind: "pill", type: "juqi",    cost: 30 },
-  { kind: "pill", type: "juling",  cost: 90 },
-  { kind: "pill", type: "peiyuan", cost: 280 },
-  { kind: "stone", n: 2000,        cost: 100, name: "一袋灵石" },
-];
-
-/* 试炼塔：100 层，第 n 层守关者等级 = 门派入门层序 + n × TOWER_STEP */
-DATA.TOWER_MAX = 100;
-DATA.TOWER_STEP = 1;
-DATA.towerReward = floor => 20 * floor; // 首次通关奖励贡献
-
-/* 宗门秘境：消耗贡献进入，随机获得奖励 */
-DATA.secretCost = star => 200 * star;
-
-/* 炼丹房 / 炼器室：暂未开放，先留入口 */
-
-/* 练功房：pct 修炼速度加成 %，cost 每次修炼消耗贡献（都乘以门派星级） */
-DATA.rooms = [
-  { name: "下品练功房", pct: 20,  cost: 1 },
-  { name: "中品练功房", pct: 50,  cost: 2 },
-  { name: "上品练功房", pct: 100, cost: 4 },
-  { name: "天字练功房", pct: 200, cost: 8 },
-];
+/* 宗门大殿、事务堂、练功房、试炼塔、秘境、宝库的数值都在 js/config/numbers.js 第十三部分 sect */
+const _SC = CFG.sect;
+DATA.ranks = _SC.ranks;
+DATA.affairs = _SC.affair.tasks;
+DATA.rooms = _SC.rooms;
+DATA.treasury = _SC.treasury;
+DATA.TOWER_MAX = _SC.tower.MAX;
+DATA.TOWER_STEP = _SC.tower.STEP;
+DATA.towerReward = floor => _SC.tower.REWARD * floor; // 首次通关奖励贡献
+DATA.secretCost = star => _SC.SECRET_COST * star;
