@@ -1,0 +1,33 @@
+/* =====================================================================
+ * 核心：通用工具函数
+ * ===================================================================== */
+const $ = s => document.querySelector(s);
+
+const U = {
+  // a~b 之间的随机整数（含两端）
+  rand: (a, b) => Math.floor(Math.random() * (b - a + 1)) + a,
+  // 从数组里随机取一个
+  pick: arr => arr[Math.floor(Math.random() * arr.length)],
+  // 按权重随机，返回下标
+  weighted(ws) {
+    let r = Math.random() * ws.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < ws.length; i++) if ((r -= ws[i]) < 0) return i;
+    return 0;
+  },
+  // 大数字显示：万、亿、兆、京……
+  UNITS: [[1e48, "极"], [1e44, "载"], [1e40, "正"], [1e36, "涧"], [1e32, "沟"], [1e28, "穰"],
+          [1e24, "秭"], [1e20, "垓"], [1e16, "京"], [1e12, "兆"], [1e8, "亿"], [1e4, "万"]],
+  fmt(n) {
+    if (!isFinite(n)) return "∞";
+    n = Math.floor(n);
+    if (n >= 1e52) return n.toExponential(2).replace("e+", "e");
+    for (const [v, u] of U.UNITS) if (n >= v) return (n / v).toFixed(n / v >= 100 ? 0 : 2).replace(/\.?0+$/, "") + u;
+    return String(n);
+  },
+  // 秒数 → “X天X小时X分”
+  dur(sec) {
+    sec = Math.floor(sec);
+    const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60);
+    return (d ? d + "天" : "") + (h ? h + "小时" : "") + (m || (!d && !h) ? m + "分钟" : "");
+  },
+};
