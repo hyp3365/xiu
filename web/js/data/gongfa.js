@@ -37,15 +37,42 @@ DATA.gongfaTypes = [
 ];
 DATA.FLAT_STATS = ["hit", "dodge"]; // 只随星级、不随门派强度成长的属性
 
-// 六系法术（name 为法术名后缀，如 青阳·金光剑诀）
+/* 六种属性。words：起名用的词（门派前缀 + 随机词 + 后缀，如 青阳 + 赤炎 + 心法）
+ * 每个门派从 本属性词 + 通用词 里随机（按门派固定）选，保证同门派功法不重名。 */
 DATA.elements = [
-  { id: "jin",  name: "金", spell: "金光剑诀" },
-  { id: "mu",   name: "木", spell: "青藤缚灵" },
-  { id: "shui", name: "水", spell: "玄水箭" },
-  { id: "huo",  name: "火", spell: "烈焰焚天" },
-  { id: "tu",   name: "土", spell: "落石术" },
-  { id: "lei",  name: "雷", spell: "掌心雷" },
+  { id: "jin",  name: "金", words: ["庚金", "太白", "锐金", "金罡", "白虎", "破军", "金乌", "裂空", "万剑", "斩月", "天锋", "铁骨", "金鳞", "兵煞", "金光", "断岳"] },
+  { id: "mu",   name: "木", words: ["青木", "长春", "乙木", "苍藤", "万木", "青帝", "枯荣", "建木", "灵椿", "碧叶", "回春", "扶桑", "青莲", "生生", "翠微", "古藤"] },
+  { id: "shui", name: "水", words: ["玄水", "癸水", "寒潭", "沧溟", "弱水", "碧波", "冰魄", "玄冥", "潮生", "天河", "凝霜", "北海", "流泉", "雪魄", "九渊", "沧浪"] },
+  { id: "huo",  name: "火", words: ["赤炎", "离火", "丙火", "焚天", "朱雀", "烈阳", "红莲", "三昧", "金乌", "炎龙", "流火", "焚心", "火鸦", "南明", "赤霄", "炽阳"] },
+  { id: "tu",   name: "土", words: ["厚土", "戊土", "镇岳", "玄黄", "息壤", "磐石", "山河", "后土", "不动", "大地", "坤元", "黄庭", "撼山", "岩甲", "千仞", "载物"] },
+  { id: "lei",  name: "雷", words: ["紫霄", "神霄", "九霄", "惊雷", "奔雷", "天罚", "雷音", "掌心", "五雷", "玄雷", "雷霆", "紫电", "天劫", "震霄", "破虚", "引雷"] },
 ];
+DATA.elById = Object.fromEntries(DATA.elements.map(e => [e.id, e]));
+DATA.COMMON_WORDS = ["太虚", "混元", "归元", "无相", "紫府", "玄妙", "长生", "通天", "周天", "大衍", "两仪", "太乙",
+  "玉清", "灵虚", "抱朴", "逍遥", "凌云", "浩然", "天罡", "北斗", "星河", "鸿蒙", "九转", "不灭"];
+DATA.spellSuffix = ["术", "诀", "印", "神通"]; // 法术后缀：黄 玄 地 天
+
+// 同一门派固定的随机词表（按门派 id 洗牌，结果每次都一样）
+DATA._words = {};
+DATA.sectWords = sect => {
+  if (DATA._words[sect.id]) return DATA._words[sect.id];
+  const el = DATA.elById[sect.el] || DATA.elements[0];
+  const list = [...el.words, ...DATA.COMMON_WORDS].filter(w => w !== sect.prefix);
+  let h = 0; for (const c of sect.id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  for (let i = list.length - 1; i > 0; i--) { h = (h * 1103515245 + 12345) >>> 0; const j = h % (i + 1); [list[i], list[j]] = [list[j], list[i]]; }
+  return (DATA._words[sect.id] = list);
+};
+// 功法名：门派前缀 + 随机词 + 类别后缀（每个 类别×阶 用不同的词）
+DATA.gongfaName = (sect, type, tier) => {
+  const w = DATA.sectWords(sect), ti = DATA.gongfaTypes.indexOf(type);
+  return sect.prefix + w[(ti * 4 + tier.idx) % w.length] + type.suffix;
+};
+// 法术名：门派前缀 + 随机词 + 阶后缀（用本属性的词）
+DATA.spellName = (sect, el, tier) => {
+  const w = DATA.sectWords(sect), d = (DATA.elements.indexOf(el) - DATA.elements.indexOf(DATA.elById[sect.el]) + 6) % 6;
+  return sect.prefix + w[(28 + (d * 4 + tier.idx) % 12) % w.length] + DATA.spellSuffix[tier.idx];
+};
+DATA.starMult = sect => _GF.STAR_MULT[sect.star - 1] || 1;
 
 DATA.GONGFA_MAX = _GF.MAX;
 DATA.GF_QUEUE = _GF.QUEUE;
@@ -66,10 +93,10 @@ DATA.gongfaInfo = (id, lv = 1) => {
   const [sectId, typeId, tierId] = id.split(":");
   const sect = DATA.sectById[sectId], type = DATA.gongfaTypes.find(x => x.id === typeId), tier = DATA.tierById[tierId];
   if (!sect || !type || !tier) return null;
-  const per = DATA.FLAT_STATS.includes(type.stat) ? type.k * sect.star * tier.mult : type.k * DATA.sectPower(sect) * tier.mult;
+  const per = (DATA.FLAT_STATS.includes(type.stat) ? type.k * sect.star : type.k * DATA.sectPower(sect)) * tier.mult * DATA.starMult(sect);
   return {
-    kind: "gf", id, sect, type, tier, lv,
-    name: sect.prefix + type.suffix,
+    kind: "gf", id, sect, type, tier, lv, el: DATA.elById[sect.el],
+    name: DATA.gongfaName(sect, type, tier),
     value: per * lv,                              // 当前加成（固定数值）
     perLv: per,                                   // 每层加成
     cost: Math.floor(_GF.LEARN_GF * sect.star * sect.star * tier.cost), // 功法殿首次学习所需贡献
@@ -85,10 +112,10 @@ DATA.spellInfo = (id, lv = 1) => {
   const sect = DATA.sectById[sectId], el = DATA.elements.find(x => x.id === elId), tier = DATA.tierById[tierId];
   if (!sect || !el || !tier) return null;
   const P = DATA.sectPower(sect);
-  const per = DATA.playerBase.atk * P * _GF.SPELL_FLAT * tier.mult;     // 每层固定伤害
+  const per = DATA.playerBase.atk * P * _GF.SPELL_FLAT * tier.mult * DATA.starMult(sect); // 每层固定伤害
   return {
     kind: "sp", id, sect, el, tier, lv,
-    name: `${sect.prefix}·${el.spell}`,
+    name: DATA.spellName(sect, el, tier),
     pct: _GF.PCT_BASE + _GF.PCT_PER_STAR * (sect.star - 1),                         // 攻击百分比
     flat: per * lv, perLv: per,                               // 固定伤害
     mana: Math.floor(DATA.playerBase.mana * P * _GF.SPELL_MANA * (1 + tier.idx * 0.4)), // 法力消耗
