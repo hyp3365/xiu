@@ -43,6 +43,7 @@ G.module({
       this._lockModal = false; this.closeModal();
       if (!data) return this.intro();
       this.s = this.migrate(data);
+      this.fixGongfa(); // 旧版功法存档转换
       this.s.manual = false;
       this.offline();
       this.start();
