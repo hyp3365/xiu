@@ -175,6 +175,7 @@ const G = {
     this.save(true); this.render(); this.renderLog();
     setInterval(() => this.loop(), 200);
     // 倒计时刷新（只在有倒计时的页面）
+    setInterval(() => { if (this.s && this.s.explore) this.advanceExplore(); }, 1000); // 自动探索每秒走一步
     setInterval(() => { if ((this.tab === "gongfa" && this.s.gfStudy) || (this.tab === "sect" && this.sectTab === "affair") || (this.tab === "world" && this.s.explore)) this.render(); }, 1000);
     // 切到后台 / 关闭页面时立即上传
     document.addEventListener("visibilitychange", () => { if (document.hidden && !this._stopped) { this.save(); API.beacon(this.s); } });
