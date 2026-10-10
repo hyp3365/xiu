@@ -4,7 +4,7 @@
  * 未入门：按 1~9 星浏览 90 个门派，境界够了即可拜入。
  * 入门后有九个去处：
  *   宗门大殿  晋升职务（外门弟子 → 宗主），每天领取职务俸禄（灵石）
- *   功法殿    用贡献学习本门功法（学会为第 1 层，之后去“功法”页参悟）
+ *   功法殿    用贡献学习本门功法、法术（天地玄黄四阶；学会为第 1 层，之后去“功法”页修炼）
  *   事务堂    每 30 分钟一轮任务，可手动完成或开启自动完成（离线也会进行）
  *   练功房    修炼时消耗贡献，增加修炼速度
  *   宗门宝库  用贡献兑换物品
@@ -81,11 +81,13 @@ G.module({
     },
 
     /* ---------- 功法殿 ---------- */
+    setLibTier(t) { this.libTier = t; this.render(); },
     learnGongfa(id) {
-      const g = DATA.gongfaInfo(id);
+      const g = DATA.skillInfo(id);
       if (this.hasGongfa(id) || this.s.contrib < g.cost) return;
       this.s.contrib -= g.cost; this.s.gongfa[id] = 1;
-      this.log(`习得《${g.name}》第 1 层，可在功法栏参悟提升。`, "gold"); this.after();
+      if (g.kind === "sp") this.autoSlotSpell(id); // 法术栏有空位就自动放入（见 bag.js）
+      this.log(`习得《${g.name}》（${g.tier.name}）第 1 层，可在功法栏修炼提升。`, "gold"); this.after();
     },
 
     /* ---------- 事务堂 ---------- */
@@ -158,10 +160,10 @@ G.module({
     if (!s.sect) {
       const star = this.sectStar || 1;
       const stars = Array.from({ length: 9 }, (_, i) => `<button class="${star === i + 1 ? "active" : ""}" onclick="G.setSectStar(${i + 1})">${i + 1}★</button>`).join("");
-      return `<div class="sub-tabs scroll">${stars}</div><div class="card"><h3>${star} 星门派<small>需${DATA.realms[(star - 1) * 2]}期</small></h3>` +
+      return `<div class="room-grid five">${stars}</div><div class="card"><h3>${star} 星门派<small>需${DATA.realms[(star - 1) * 2]}期</small></h3>` +
         DATA.sects.filter(x => x.star === star).map(x => {
           const lock = this.r() < x.reqRealm;
-          return `<div class="line"><div>${x.name}<small>${x.prefix}心法、${x.prefix}诀、${x.prefix}真经、${x.prefix}秘诀、${x.prefix}身法、${x.prefix}法诀</small></div>
+          return `<div class="line"><div>${x.name}<small>六类功法、六系法术 · 天地玄黄四阶</small></div>
             <button class="sm" onclick="G.joinSect('${x.id}')" ${lock ? "disabled" : ""}>${lock ? "境界不足" : "拜入"}</button></div>`;
         }).join("") + `</div>`;
     }
@@ -184,11 +186,17 @@ G.module({
         <div class="card"><h3>职务一览</h3>${DATA.ranks.map((r, i) => `<div class="line"><div>${r.name}<small>俸禄 ×${r.daily} · 任务贡献 ×${r.reward}</small></div>${i === s.rank ? "<b>当前</b>" : i < s.rank ? "<small>已历</small>" : ""}</div>`).join("")}</div>
         <div class="btns"><button onclick="G.leaveSect()">叛出门派</button></div>`;
     } else if (tab === "lib") {
-      h += `<div class="card"><h3>功法殿<small>学会后到“功法”页参悟升层</small></h3>` + DATA.gongfaTypes.map(t => {
-        const g = DATA.gongfaInfo(DATA.gongfaId(x.id, t.id)), has = this.hasGongfa(g.id);
-        return `<div class="line"><div>《${g.name}》<span class="tag">${t.name}</span><small>增加${t.label} · ${U.fmt(g.cost)} 贡献</small></div>
-          <button class="sm" onclick="G.learnGongfa('${g.id}')" ${has || s.contrib < g.cost ? "disabled" : ""}>${has ? "已学会" : "学习"}</button></div>`;
-      }).join("") + `</div>`;
+      const tier = this.libTier || "huang";
+      const btn = g => { const has = this.hasGongfa(g.id);
+        return `<button class="sm" onclick="G.learnGongfa('${g.id}')" ${has || s.contrib < g.cost ? "disabled" : ""}>${has ? "已学会" : "学习"}</button>`; };
+      h += `<div class="room-grid">${[...DATA.tiers].reverse().map(t => `<button class="${tier === t.id ? "active" : ""}" onclick="G.setLibTier('${t.id}')">${t.name}</button>`).join("")}</div>
+        <div class="card"><h3>功法<small>学会后到“功法”页修炼升层</small></h3>` + DATA.gongfaTypes.map(t => {
+          const g = DATA.gongfaInfo(DATA.gongfaId(x.id, t.id, tier));
+          return `<div class="line"><div>《${g.name}》<span class="tag">${t.name}</span><small>每层${t.label} +${this.gfValue(g, g.perLv)} · ${U.fmt(g.cost)} 贡献</small></div>${btn(g)}</div>`;
+        }).join("") + `</div><div class="card"><h3>法术<small>施放消耗法力</small></h3>` + DATA.elements.map(e => {
+          const g = DATA.spellInfo(DATA.spellId(x.id, e.id, tier));
+          return `<div class="line"><div>《${g.name}》<span class="tag">${e.name}</span><small>攻击×${g.pct}% + ${U.fmt(g.perLv)}/层 · 耗法力 ${U.fmt(g.mana)} · ${U.fmt(g.cost)} 贡献</small></div>${btn(g)}</div>`;
+        }).join("") + `</div>`;
     } else if (tab === "affair") {
       const left = Math.max(0, s.affair.start + DATA.AFFAIR_ROUND * 1000 - Date.now());
       h += `<div class="card"><h3>事务堂<small>${U.dur(left / 1000)}后刷新</small></h3>` + s.affair.tasks.map((t, i) =>
