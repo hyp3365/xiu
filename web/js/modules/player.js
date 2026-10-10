@@ -8,8 +8,9 @@
  *   防御 =  基础×成长^层序 + 装备 + 心法
  *   法力 =  基础×成长^层序 + 装备 + 法诀
  *   （功法加成都是固定数值）
- *   神识 =  基础×成长^层序 × (1 + 装备神识%)
- *   速度 / 闪避 / 暴击：固定基础值 + 装备 + 身法，不随境界成长
+ *   基础修炼速度 = 基础×成长^层序（不显示为属性）
+ *   命中 = 固定基础值 + 装备 + 身法；闪避 = 固定基础值 + 装备 + 遁术（都是数值）
+ *   速度 / 暴击：固定基础值 + 装备，不随境界成长
  * ===================================================================== */
 G.module({
   id: "player",
@@ -42,7 +43,7 @@ G.module({
 
     // 汇总装备加成
     equipTotal() {
-      const add = { atk: 0, hp: 0, def: 0, mana: 0, crit: 0, dodge: 0, speed: 0, ssPct: 0, hpPct: 0 };
+      const add = { atk: 0, hp: 0, def: 0, mana: 0, crit: 0, hit: 0, dodge: 0, speed: 0, hpPct: 0 };
       const all = [...Object.values(this.s.equip), ...this.s.fabao.slice(0, this.slotCount())]; // 装备 + 法宝
       for (const e of all) if (e) { const st = this.equipStats(e); for (const k in st) add[k] += st[k]; }
       return add;
@@ -56,9 +57,10 @@ G.module({
         atk:     B.atk * f + eq.atk + gf.atk,
         def:     B.def * f + eq.def + gf.def,
         mana:    B.mana * f + eq.mana + gf.mana,
-        shenshi: B.shenshi * f * (1 + eq.ssPct / 100),
+        cultivate: B.cultivate * f,
         speed:   F.speed + eq.speed,
-        dodge:   Math.min(DATA.DODGE_CAP, F.dodge + eq.dodge + gf.dodge),
+        hit:     F.hit + eq.hit + gf.hit,
+        dodge:   F.dodge + eq.dodge + gf.dodge,
         crit:    Math.min(DATA.CRIT_CAP, F.crit + eq.crit),
       };
     },
