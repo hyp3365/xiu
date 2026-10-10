@@ -55,6 +55,12 @@ const G = {
     this.s.log.unshift({ m, c });
     if (this.s.log.length > 60) this.s.log.length = 60;
     this.renderLog();
+    // 信息栏只在修炼页显示，其他页面用浮动提示
+    if (this.tab !== "cultivate") {
+      const t = $("#toast"); if (!t) return;
+      t.innerHTML = `<p class="${c}">${m}</p>`; t.classList.add("show");
+      clearTimeout(this._toastT); this._toastT = setTimeout(() => t.classList.remove("show"), 2500);
+    }
   },
 
   /* ---------- 存档 ---------- */
@@ -150,6 +156,10 @@ const G = {
     $("#p-stone").textContent = U.fmt(s.stone);
     $("#exp-bar").style.width = Math.min(100, s.exp / this.needExp() * 100) + "%";
     document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === this.tab));
+    // 顶部（道号、修为、灵石）和信息栏只在修炼页显示
+    const main = this.tab === "cultivate";
+    $("#top").style.display = main ? "" : "none";
+    $("#log-wrap").style.display = main ? "" : "none";
     const v = $("#view"), top = v.scrollTop;
     v.innerHTML = this.views[this.tab] ? this.views[this.tab].call(this) : "";
     v.scrollTop = top;
@@ -165,7 +175,7 @@ const G = {
     this.save(true); this.render(); this.renderLog();
     setInterval(() => this.loop(), 200);
     // 倒计时刷新（只在有倒计时的页面）
-    setInterval(() => { if ((this.tab === "gongfa" && this.s.gfStudy) || (this.tab === "sect" && this.sectTab === "affair")) this.render(); }, 1000);
+    setInterval(() => { if ((this.tab === "gongfa" && this.s.gfStudy) || (this.tab === "sect" && this.sectTab === "affair") || (this.tab === "world" && this.s.explore)) this.render(); }, 1000);
     // 切到后台 / 关闭页面时立即上传
     document.addEventListener("visibilitychange", () => { if (document.hidden && !this._stopped) { this.save(); API.beacon(this.s); } });
     window.addEventListener("pagehide", () => { if (!this._stopped) API.beacon(this.s); });
