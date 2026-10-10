@@ -25,20 +25,18 @@ DATA.equipNames = {
   fabao:   ["铜镜", "聚宝盆", "乾坤袋", "镇魂钟", "昊天塔", "造化玉碟"],
 };
 /* 各部位属性系数（× 玩家同境界基础属性 × 品质倍率）
- * atk/hp/def/mana：按基础属性倍数；crit/dodge/speed/ssPct/hpPct：× (品质+1) */
+ * atk/hp/def/mana：按基础属性倍数；crit/speed/hpPct：× (品质+1)
+ * hit/dodge（命中、闪避，数值）：× (品质+1) × (境界+1) */
 DATA.equipK = {
   helmet:  { hp: 1, def: 1 },
   armor:   { hp: 2, def: 2 },
   weapon:  { atk: 3, crit: 1 },
   legs:    { hp: 1.5, def: 1 },
-  boots:   { speed: 2, dodge: 0.5 },
-  pendant: { mana: 2, ssPct: 5 },
-  ring:    { atk: 0.5, crit: 0.5 },
+  boots:   { speed: 2, dodge: 3 },
+  pendant: { mana: 2, hit: 2 },
+  ring:    { atk: 0.5, crit: 0.5, hit: 1 },
   fabao:   { atk: 1, def: 1, hpPct: 2 },
 };
 
 // 背包
-DATA.BAG_START = 30;    // 初始格子
-DATA.BAG_MAX = 200;     // 最大格子
-DATA.BAG_STEP = 10;     // 每次扩充格数
-DATA.bagExpandCost = times => 500 * Math.pow(2, times);
+DATA.BAG_START = 60;    // 背包格子（扩充以后用其他方式）
