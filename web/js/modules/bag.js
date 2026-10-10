@@ -9,7 +9,7 @@
  * 背包物品格式：
  *   丹药 { t: "pill", type: "juqi", g: 境界品质, n: 数量 }        同种同品质堆叠
  *   装备 { t: "eq", e: { slot, g, q, name } }                     每件占一格（法宝 slot = "fabao"）
- *   材料 { t: "mat", kind: "herb"|"ore"|"core"|"blood", name, g, n }  药材、矿石、内丹、灵血，同名同品质堆叠
+ *   材料 { t: "mat", kind: "herb"|"ore", name, g, n }  药材、矿石，同名堆叠（g = 序号）
  *   属性丹 { t: "dan", type: "atk", g: 阶, n }                    见 craft.js
  * ===================================================================== */
 G.module({
@@ -37,6 +37,10 @@ G.module({
         if (old.fabao) s.fabao.push(old.fabao);
       }
       s.bagCap = Math.max(s.bagCap, DATA.BAG_START);
+      // v10：内丹、灵血已删除；旧存档里的清掉
+      s.bag = s.bag.filter(it => !(it.t === "mat" && (it.kind === "core" || it.kind === "blood")));
+      if (s.explore && s.explore.loot) for (const k in s.explore.loot.mats) if (!/^(herb|ore)\|/.test(k)) delete s.explore.loot.mats[k];
+      if (s.explore && !s.trained.includes(s.explore.map)) s.trained.push(s.explore.map); // 旧存档在探索的地图算已历练
       s.bag.forEach(it => { if (it.t === "eq" && it.e.slot === "acc") { it.e.slot = "pendant"; it.e.name = DATA.equipNames.pendant[it.e.q]; } });
     },
     // 法宝栏、法术栏当前开启格数：每个大境界 1 格
@@ -85,14 +89,14 @@ G.module({
     itemName(it) {
       if (it.t === "pill") return `${DATA.realms[it.g]}·${DATA.pills[it.type].name}`;
       if (it.t === "dan") return DATA.danName(it.type, it.g);
-      if (it.t === "mat") return (it.kind === "herb" || it.kind === "ore" ? DATA.PIN[it.g] || "" : "") + it.name;
+      if (it.t === "mat") return DATA.matFull(it.kind, it.g);
       return `${DATA.realms[it.e.g]}·${it.e.name}`;
     },
     sellPrice(it) {
-      if (it.t === "pill") return Math.floor(DATA.pillPrice(it.type, it.g) * 0.3);
+      if (it.t === "pill") return Math.floor(DATA.pillPrice(it.type, it.g) * CFG.price.PILL_SELL);
       if (it.t === "dan") return DATA.danPrice(it.type, it.g);
-      if (it.t === "mat") return DATA.matPrice(it.g);
-      return Math.floor(150 * Math.pow(DATA.STONE_GROW, it.e.g * 10) * (it.e.q + 1));
+      if (it.t === "mat") return DATA.matPrice(it.kind, it.g);
+      return Math.floor(CFG.price.EQUIP_SELL * Math.pow(DATA.STONE_GROW, it.e.g * 10) * (it.e.q + 1));
     },
 
     setBagTab(t) { this.bagTab = t; this.render(); },
@@ -115,7 +119,7 @@ G.module({
           <div class="btns"><button class="primary" onclick="G.eatDan(${i},1)" ${left > 0 ? "" : "disabled"}>服用</button>
           <button onclick="G.eatDan(${i},${it.n})" ${left > 0 && it.n > 1 ? "" : "disabled"}>全部服用</button>${sell}</div>`;
       } else if (it.t === "mat") {
-        h += `<p>${{ herb: "灵药，日后可用于炼丹。", ore: "矿物，日后可用于炼器。", core: "妖兽内丹，日后可用于炼丹、炼器。", blood: "妖兽灵血，日后可用于画符、炼体。" }[it.kind] || ""}</p><div class="btns">${sell}</div>`;
+        h += `<p>${{ herb: "药材，可用于炼丹、炼制炉子。", ore: "矿石，可用于炼制炉子、日后炼器。" }[it.kind] || ""}</p><div class="btns">${sell}</div>`;
       } else {
         h += `<p>${DATA.slots[it.e.slot]} · ${this.equipDesc(it.e)}</p>
           <div class="btns"><button class="primary" onclick="G.equipItem(${i})">${it.e.slot === "fabao" ? "放入法宝栏" : "装备"}</button>${sell}</div>`;
@@ -199,7 +203,7 @@ G.module({
       if (!it) cells += `<div class="cell"></div>`;
       else if (it.t === "pill") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 3))}" onclick="G.openItem(${i})">${DATA.pills[it.type].name}<span class="g">${DATA.realms[it.g]}</span><span class="n">${it.n}</span></div>`;
       else if (it.t === "dan") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${DATA.dans[it.type].name}<span class="g">${DATA.JIE[it.g]}</span><span class="n">${it.n}</span></div>`;
-      else if (it.t === "mat") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${it.name}<span class="g">${it.kind === "herb" || it.kind === "ore" ? DATA.PIN[it.g] || "" : DATA.matKinds[it.kind]}</span><span class="n">${U.fmt(it.n)}</span></div>`;
+      else if (it.t === "mat") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${it.name}<span class="g">${it.kind === "ore" ? DATA.PIN[it.g] : "药材"}</span><span class="n">${U.fmt(it.n)}</span></div>`;
       else cells += `<div class="cell q${it.e.q}" onclick="G.openItem(${i})">${it.e.name}<span class="g">${DATA.realms[it.e.g]}</span></div>`;
     }
     return tabs + top + `<div class="card"><h3>储物格<small>${s.bag.length} / ${s.bagCap}</small></h3><div class="grid">${cells}</div></div>`;
