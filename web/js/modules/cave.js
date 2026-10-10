@@ -28,7 +28,7 @@ G.module({
   api: {
     arrayFactor() { return DATA.array.factor(this.s.array.lv); },
     // 每 10 秒聚灵量（只由等级决定，开关不影响）
-    gatherAmount() { return DATA.array.GATHER_BASE * this.arrayFactor(); },
+    gatherAmount() { return DATA.array.gather(this.s.array.lv); },
     lingCap() { const sp = this.speed(); return Math.max(100, sp.gather * DATA.LING_CAP_GATHER + sp.total * DATA.LING_CAP_SPEED); },
     lingPerStone() { return DATA.array.STONE_LING * this.arrayFactor(); },
 
@@ -77,12 +77,13 @@ G.module({
     // 聚灵阵
     const cap = this.lingCap(), max = a.lv >= DATA.array.MAX, f = this.arrayFactor();
     return rooms + `<div class="card"><h3>聚灵阵 · ${a.lv} / ${DATA.array.MAX} 级<small>修炼加成${a.on ? "开启" : "关闭"}（修炼页切换）</small></h3>
-      <div class="row small"><span>聚灵中（每 10 秒 +${U.fmt(this.gatherAmount())} 灵气）</span></div>
+      <div class="row small"><span>聚灵中（每 10 秒 +${U.num(this.gatherAmount())} 灵气）</span></div>
       <div class="bar tick"><div id="gather-bar"></div></div>
       <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>
       <div class="bar ling"><div style="width:${Math.min(100, s.ling / cap * 100)}%"></div></div>
-      <div class="line"><div>修炼速度加成</div><b>+${U.fmt((f - 1) * 100)}%</b></div>
-      <div class="line"><div>下一级<small>加成 +${U.fmt((DATA.array.factor(a.lv + 1) - 1) * 100)}%，聚灵 +${U.fmt(DATA.array.GATHER_BASE * DATA.array.factor(a.lv + 1))}</small></div><b>${max ? "满级" : U.fmt(DATA.array.cost(a.lv)) + " 灵石"}</b></div>
+      <div class="line"><div>每 10 秒聚灵</div><b>+${U.num(this.gatherAmount())}</b></div>
+      <div class="line"><div>修炼速度加成</div><b>+${U.num((f - 1) * 100)}%</b></div>
+      <div class="line"><div>下一级<small>加成 +${U.num((DATA.array.factor(a.lv + 1) - 1) * 100)}%，聚灵 +${U.num(DATA.array.gather(a.lv + 1))}</small></div><b>${max ? "满级" : U.fmt(DATA.array.cost(a.lv)) + " 灵石"}</b></div>
       <div class="btns">
         <button class="primary" onclick="G.upgradeArray(1)" ${max ? "disabled" : ""}>升级</button>
         <button onclick="G.upgradeArray(10)" ${max ? "disabled" : ""}>连升10级</button>
