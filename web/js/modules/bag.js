@@ -5,7 +5,7 @@
  *   装备：头盔 护甲 武器 腿甲 靴 吊坠 + 6 个戒指
  *   法宝：每个大境界开启 1 格，最多 12 格
  *   法术：每个大境界开启 1 格，最多 12 格（放入的法术在战斗中轮流施放）
- * 下方：储物格，可扩充。
+ * 下方：储物格（扩充以后另做）。
  * 背包物品格式：
  *   丹药 { t: "pill", type: "juqi", g: 境界品质, n: 数量 }        同种同品质堆叠
  *   装备 { t: "eq", e: { slot, g, q, name } }                     每件占一格（法宝 slot = "fabao"）
@@ -19,7 +19,6 @@ G.module({
     stone: 100,                                               // 灵石
     bag: [{ t: "pill", type: "juqi", g: 0, n: 3 }],          // 开局送 3 枚聚气丹
     bagCap: DATA.BAG_START,
-    bagExp: 0,                                                // 已扩充次数
     equip: Object.fromEntries(DATA.equipSlots.map(k => [k, null])), // 装备栏
     fabao: [],                                                // 法宝栏
     spellSlots: [],                                           // 法术栏（法术 id）
@@ -36,6 +35,7 @@ G.module({
         if (old.acc) s.equip.pendant = Object.assign(old.acc, { slot: "pendant", name: DATA.equipNames.pendant[old.acc.q] });
         if (old.fabao) s.fabao.push(old.fabao);
       }
+      s.bagCap = Math.max(s.bagCap, DATA.BAG_START);
       s.bag.forEach(it => { if (it.t === "eq" && it.e.slot === "acc") { it.e.slot = "pendant"; it.e.name = DATA.equipNames.pendant[it.e.q]; } });
     },
     // 法宝栏、法术栏当前开启格数：每个大境界 1 格
@@ -46,15 +46,16 @@ G.module({
       const Le = e.g * 10 + 5, f = Math.pow(DATA.GROW, Le), m = DATA.qualMult[e.q], k = e.q + 1, B = DATA.playerBase;
       const K = DATA.equipK[e.slot] || {}, out = {};
       for (const key in K) {
-        if (key in B) out[key] = B[key] * f * m * K[key];   // 攻击/气血/防御/法力：随境界成长
-        else out[key] = K[key] * k;                          // 百分比、速度：随品质
+        if (key in B) out[key] = B[key] * f * m * K[key];               // 攻击/气血/防御/法力：随境界成长
+        else if (key === "hit" || key === "dodge") out[key] = K[key] * k * (e.g + 1); // 命中/闪避：随品质和境界
+        else out[key] = K[key] * k;                                      // 百分比、速度：随品质
       }
       return out;
     },
     equipDesc(e) {
-      const n = { atk: "攻击", hp: "气血", def: "防御", mana: "法力", crit: "暴击%", dodge: "闪避%", speed: "速度", ssPct: "神识%", hpPct: "气血%" };
+      const n = { atk: "攻击", hp: "气血", def: "防御", mana: "法力", crit: "暴击%", hit: "命中", dodge: "闪避", speed: "速度", hpPct: "气血%" };
       const st = this.equipStats(e);
-      return Object.keys(st).map(k => `${n[k]}+${st[k] < 10 && st[k] % 1 ? st[k].toFixed(1) : U.fmt(st[k])}`).join(" ");
+      return Object.keys(st).map(k => `${n[k]}+${U.num(st[k])}`).join(" ");
     },
     makeEquip(slot, g, q) { return { slot, g, q, name: DATA.equipNames[slot][Math.min(5, q)] }; },
 
@@ -91,13 +92,6 @@ G.module({
       return Math.floor(150 * Math.pow(DATA.STONE_GROW, it.e.g * 10) * (it.e.q + 1));
     },
 
-    expandBag() {
-      const cost = DATA.bagExpandCost(this.s.bagExp);
-      if (this.s.bagCap >= DATA.BAG_MAX) return;
-      if (this.s.stone < cost) return this.log("灵石不足。", "sys");
-      this.s.stone -= cost; this.s.bagCap += DATA.BAG_STEP; this.s.bagExp++;
-      this.log(`背包扩充至 ${this.s.bagCap} 格。`, "good"); this.after();
-    },
     setBagTab(t) { this.bagTab = t; this.render(); },
 
     /* ---------- 弹窗：点储物格 ---------- */
@@ -199,7 +193,6 @@ G.module({
       else if (it.t === "mat") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${it.name}<span class="g">${DATA.realms[it.g]}</span><span class="n">${U.fmt(it.n)}</span></div>`;
       else cells += `<div class="cell q${it.e.q}" onclick="G.openItem(${i})">${it.e.name}<span class="g">${DATA.realms[it.e.g]}</span></div>`;
     }
-    return tabs + top + `<div class="card"><h3>储物格<small>${s.bag.length} / ${s.bagCap}</small></h3><div class="grid">${cells}</div>
-      <div class="btns"><button onclick="G.expandBag()" ${s.bagCap >= DATA.BAG_MAX ? "disabled" : ""}>扩充 ${DATA.BAG_STEP} 格（${U.fmt(DATA.bagExpandCost(s.bagExp))} 灵石）</button></div></div>`;
+    return tabs + top + `<div class="card"><h3>储物格<small>${s.bag.length} / ${s.bagCap}</small></h3><div class="grid">${cells}</div></div>`;
   },
 });
