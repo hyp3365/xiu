@@ -2,10 +2,11 @@
  * 模块：人物（境界、属性、气血法力自动恢复）
  * ---------------------------------------------------------------------
  * 属性计算公式（computeStats）：
- *   气血 = (基础×成长^层序 + 装备) × (1 + 真经% + 装备%)
- *   攻击 = (基础×成长^层序 + 装备) × (1 + 功诀%)
- *   防御 = (基础×成长^层序 + 装备) × (1 + 心法%)
- *   法力 =  基础×成长^层序 × (1 + 法诀%)
+ *   气血 = (基础×成长^层序 + 装备 + 真经) × (1 + 装备气血%)
+ *   攻击 =  基础×成长^层序 + 装备 + 功诀
+ *   防御 =  基础×成长^层序 + 装备 + 心法
+ *   法力 =  基础×成长^层序 + 法诀
+ *   （功法加成都是固定数值）
  *   神识 =  基础×成长^层序 × (1 + 装备神识%)
  *   速度 / 闪避 / 暴击：固定基础值 + 装备 + 身法，不随境界成长
  * ===================================================================== */
@@ -48,10 +49,10 @@ G.module({
       const L = this.s.L, f = Math.pow(DATA.GROW, L), B = DATA.playerBase, F = DATA.playerFixed;
       const eq = this.equipTotal(), gf = this.gongfaBonus(); // gongfaBonus 见 modules/gongfa.js
       return {
-        hp:      (B.hp * f + eq.hp) * (1 + (gf.hp + eq.hpPct) / 100),
-        atk:     (B.atk * f + eq.atk) * (1 + gf.atk / 100),
-        def:     (B.def * f + eq.def) * (1 + gf.def / 100),
-        mana:    B.mana * f * (1 + gf.mana / 100),
+        hp:      (B.hp * f + eq.hp + gf.hp) * (1 + eq.hpPct / 100),
+        atk:     B.atk * f + eq.atk + gf.atk,
+        def:     B.def * f + eq.def + gf.def,
+        mana:    B.mana * f + gf.mana,
         shenshi: B.shenshi * f * (1 + eq.ssPct / 100),
         speed:   F.speed + eq.speed,
         dodge:   Math.min(DATA.DODGE_CAP, F.dodge + eq.dodge + gf.dodge),
