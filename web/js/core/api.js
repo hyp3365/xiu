@@ -1,0 +1,45 @@
+/* =====================================================================
+ * 核心：与服务器通讯（账号 & 云存档）
+ * ---------------------------------------------------------------------
+ * 接口都在 server/server.py：
+ *   POST /api/register  {username, password}       → {token}
+ *   POST /api/login     {username, password}       → {token}
+ *   GET  /api/save      (Header: X-Token)          → {data, updated}
+ *   POST /api/save      (Header: X-Token) {data}   → {ok}
+ * 登录令牌 token 保存在浏览器 localStorage，存档本体在服务器。
+ * ===================================================================== */
+const API = {
+  BASE: "api/", // 相对路径：网页在 /xiuxian/ 下时，接口就是 /xiuxian/api/
+  token: localStorage.getItem("xiu_token") || "",
+  user: localStorage.getItem("xiu_user") || "",
+
+  async req(path, body, method) {
+    const opt = { method: method || (body ? "POST" : "GET"), headers: { "Content-Type": "application/json" } };
+    if (this.token) opt.headers["X-Token"] = this.token;
+    if (body) opt.body = JSON.stringify(body);
+    const r = await fetch(this.BASE + path, opt);
+    const j = await r.json().catch(() => ({ error: "服务器无响应" }));
+    if (!r.ok) throw new Error(j.error || "请求失败 " + r.status);
+    return j;
+  },
+
+  setLogin(user, token) {
+    this.user = user; this.token = token;
+    localStorage.setItem("xiu_user", user); localStorage.setItem("xiu_token", token);
+  },
+  logout() {
+    this.token = ""; localStorage.removeItem("xiu_token");
+  },
+
+  async register(u, p) { const j = await this.req("register", { username: u, password: p }); this.setLogin(u, j.token); },
+  async login(u, p) { const j = await this.req("login", { username: u, password: p }); this.setLogin(u, j.token); },
+  async loadSave() { return (await this.req("save")).data; },
+  async upload(data) { return this.req("save", { data }); },
+
+  // 关闭页面时用 sendBeacon 尽量把最后的进度发出去
+  beacon(data) {
+    if (!this.token || !navigator.sendBeacon) return;
+    const blob = new Blob([JSON.stringify({ data, token: this.token })], { type: "application/json" });
+    navigator.sendBeacon(this.BASE + "save", blob);
+  },
+};
