@@ -134,7 +134,7 @@ G.module({
     },
 
     /* ---------- 丹药（只加修炼速度） ---------- */
-    canUsePill(grade) { return grade >= this.r(); },
+    canUsePill(grade) { return grade === this.r(); }, // 只能服用与当前境界对应品质的丹药
     // 找背包里能吃的最高品质丹药
     bestPillIndex(type) {
       let best = -1;
