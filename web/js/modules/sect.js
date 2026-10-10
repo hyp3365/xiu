@@ -82,6 +82,7 @@ G.module({
 
     /* ---------- 功法殿 ---------- */
     setLibTier(t) { this.libTier = t; this.render(); },
+    setLibEl(e) { this.libEl = e; this.render(); },
     learnGongfa(id) {
       const g = DATA.skillInfo(id);
       if (this.hasGongfa(id) || this.s.contrib < g.cost) return;
@@ -163,7 +164,7 @@ G.module({
       return `<div class="room-grid five">${stars}</div><div class="card"><h3>${star} 星门派<small>需${DATA.realms[(star - 1) * 2]}期</small></h3>` +
         DATA.sects.filter(x => x.star === star).map(x => {
           const lock = this.r() < x.reqRealm;
-          return `<div class="line"><div>${x.name}<small>六类功法、六系法术 · 天地玄黄四阶</small></div>
+          return `<div class="line"><div>${x.name}<span class="tag">${DATA.elById[x.el].name}</span><small>${DATA.elById[x.el].name}属性功法、法术 · 可学本星级全部门派功法</small></div>
             <button class="sm" onclick="G.joinSect('${x.id}')" ${lock ? "disabled" : ""}>${lock ? "境界不足" : "拜入"}</button></div>`;
         }).join("") + `</div>`;
     }
@@ -172,7 +173,7 @@ G.module({
     const x = this.sectInfo(), tab = this.sectTab || "hall";
     const TABS = [["hall", "宗门大殿"], ["lib", "功法殿"], ["affair", "事务堂"], ["room", "练功房"], ["treasury", "宗门宝库"],
                   ["alchemy", "炼丹房"], ["forge", "炼器室"], ["tower", "试炼塔"], ["secret", "宗门秘境"]];
-    let h = `<div class="card"><h3>${x.name} <span class="tag">${x.star}星</span><small>${DATA.ranks[s.rank].name} · 贡献 ${U.fmt(s.contrib)}</small></h3></div>
+    let h = `<div class="card"><h3>${x.name} <span class="tag">${x.star}星</span><span class="tag">${DATA.elById[x.el].name}</span><small>${DATA.ranks[s.rank].name} · 贡献 ${U.fmt(s.contrib)}</small></h3></div>
       <div class="room-grid">${TABS.map(([k, n]) => `<button class="${tab === k ? "active" : ""}" onclick="G.setSectTab('${k}')">${n}</button>`).join("")}</div>`;
 
     if (tab === "hall") {
@@ -186,17 +187,22 @@ G.module({
         <div class="card"><h3>职务一览</h3>${DATA.ranks.map((r, i) => `<div class="line"><div>${r.name}<small>俸禄 ×${r.daily} · 任务贡献 ×${r.reward}</small></div>${i === s.rank ? "<b>当前</b>" : i < s.rank ? "<small>已历</small>" : ""}</div>`).join("")}</div>
         <div class="btns"><button onclick="G.leaveSect()">叛出门派</button></div>`;
     } else if (tab === "lib") {
-      const tier = this.libTier || "huang";
+      // 功法殿：本星级全部门派的功法、法术；按 阶 和 属性 筛选
+      const tier = this.libTier || "huang", el = this.libEl || x.el;
       const btn = g => { const has = this.hasGongfa(g.id);
         return `<button class="sm" onclick="G.learnGongfa('${g.id}')" ${has || s.contrib < g.cost ? "disabled" : ""}>${has ? "已学会" : "学习"}</button>`; };
+      const sects = DATA.sects.filter(o => o.star === x.star && (el === "all" || o.el === el));
       h += `<div class="room-grid">${DATA.tiers.map(t => `<button class="${tier === t.id ? "active" : ""}" onclick="G.setLibTier('${t.id}')">${t.name}</button>`).join("")}</div>
-        <div class="card"><h3>功法<small>学会后到“功法”页修炼升层</small></h3>` + DATA.gongfaTypes.map(t => {
-          const g = DATA.gongfaInfo(DATA.gongfaId(x.id, t.id, tier));
-          return `<div class="line"><div>《${g.name}》<span class="tag">${t.name}</span><small>每层${t.label} +${this.gfValue(g, g.perLv)} · ${U.fmt(g.cost)} 贡献</small></div>${btn(g)}</div>`;
-        }).join("") + `</div><div class="card"><h3>法术<small>施放消耗法力</small></h3>` + DATA.elements.map(e => {
-          const g = DATA.spellInfo(DATA.spellId(x.id, e.id, tier));
-          return `<div class="line"><div>《${g.name}》<span class="tag">${e.name}</span><small>攻击×${g.pct}% + ${U.fmt(g.perLv)}/层 · 耗法力 ${U.fmt(g.mana)} · ${U.fmt(g.cost)} 贡献</small></div>${btn(g)}</div>`;
-        }).join("") + `</div>`;
+        <div class="room-grid">${[["all", "全部"], ...DATA.elements.map(e => [e.id, e.name])].map(([k, n]) =>
+          `<button class="${el === k ? "active" : ""}" onclick="G.setLibEl('${k}')">${n}</button>`).join("")}</div>` +
+        sects.map(o => `<div class="card"><h3>${o.name}<span class="tag">${DATA.elById[o.el].name}</span><small>${DATA.tierById[tier].name}</small></h3>` +
+          DATA.gongfaTypes.map(t => {
+            const g = DATA.gongfaInfo(DATA.gongfaId(o.id, t.id, tier));
+            return `<div class="line"><div>《${g.name}》<span class="tag">${t.name}</span><small>每层${t.label} +${this.gfValue(g, g.perLv)} · ${U.fmt(g.cost)} 贡献</small></div>${btn(g)}</div>`;
+          }).join("") + (() => {
+            const g = DATA.spellInfo(DATA.spellId(o.id, o.el, tier));
+            return `<div class="line"><div>《${g.name}》<span class="tag">法术</span><small>攻击×${g.pct}% + ${U.fmt(g.perLv)}/层 · 耗法力 ${U.fmt(g.mana)} · ${U.fmt(g.cost)} 贡献</small></div>${btn(g)}</div>`;
+          })() + `</div>`).join("");
     } else if (tab === "affair") {
       const left = Math.max(0, s.affair.start + DATA.AFFAIR_ROUND * 1000 - Date.now());
       h += `<div class="card"><h3>事务堂<small>${U.dur(left / 1000)}后刷新</small></h3>` + s.affair.tasks.map((t, i) =>
