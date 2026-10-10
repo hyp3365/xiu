@@ -2,9 +2,10 @@
  * 模块：修炼（灵气 → 修为、突破、丹药加速）
  * ---------------------------------------------------------------------
  * 修炼速度 = 基础修炼速度 × 聚灵阵倍率 × (1 + 丹药%) × (1 + 练功房%)
- *   基础修炼速度 = 神识 × 灵根倍率 × (1 + 秘诀%)
+ *   基础修炼速度 = (神识 + 秘诀) × 灵根倍率
+ * 聚灵阵开关在本页；关闭后不聚灵，也没有聚灵阵倍率。
  * 每 10 秒修炼一次：消耗 灵气 = 修炼速度，获得同等修为（1 灵气 = 1 修为）
- * 灵气不够时，只能把剩下的灵气全部转化。
+ * 灵气不够时，只能把剩下的灵气全部转化；灵气为 0 时无法修炼（进度条不走）。
  * 修为满了不会自动突破，必须手动点“突破”。修为会继续累积，不会浪费。
  * 小境界突破 100% 成功；大境界突破有成功率，失败损失 30% 修为。
  * ===================================================================== */
@@ -49,7 +50,12 @@ G.module({
     }
 
     // 4. 灵气转修为
-    const gain = Math.min(s.ling, sp);
+    const gain = Math.min(Math.floor(s.ling), sp);
+    if (gain <= 0) {           // 没有灵气，本次修炼不生效
+      if (!s.lackWarned) { this.log("灵气耗尽，无法修炼。请开启聚灵阵或用灵石补充灵气。", "bad"); s.lackWarned = true; }
+      s.manual = false;
+      return;
+    }
     s.ling -= gain; s.exp += gain;
     if (gain < sp * 0.999) {
       if (!s.lackWarned) { this.log("灵气不足，修炼受阻。请开启聚灵阵或用灵石补充灵气。", "bad"); s.lackWarned = true; }
@@ -65,15 +71,19 @@ G.module({
 
   api: {
     isCultivating() { return this.s.auto || this.s.manual; },
+    // 有灵气（或开了自动补充且有灵石）才能修炼
+    canCultivate() { return this.s.ling >= 1 || (this.s.array.autoRefill && this.s.stone >= 1); },
 
     computeSpeed() {
       const st = this.stats(), s = this.s;
-      const base = st.shenshi * this.root().mult * (1 + this.gongfaBonus().cultivate / 100);
+      const base = (st.shenshi + this.gongfaBonus().cultivate) * this.root().mult;
       const arr = s.array.on ? this.arrayFactor() : 1;
       let pill = 0;
       for (const t in s.buffs) { const b = s.buffs[t]; if (b && b.left > 0) pill += b.pct; }
       const room = s.room >= 0 && s.sect ? this.roomPct(s.room) : 0;
-      return { base, arr, pill, room, total: base * arr * (1 + pill / 100) * (1 + room / 100), gather: this.gatherAmount() };
+      return { base, arr, pill, room, total: base * arr * (1 + pill / 100) * (1 + room / 100),
+        gather: this.gatherAmount(),                                       // 实际聚灵（关闭为 0）
+        gatherFull: DATA.array.GATHER_BASE * this.arrayFactor() };         // 聚灵阵开启时的聚灵（用于算灵气上限）
     },
 
     toggleAuto() {
@@ -84,6 +94,7 @@ G.module({
     },
     cultivateOnce() {
       if (this.isCultivating()) return;
+      if (!this.canCultivate()) return this.log("灵气耗尽，无法修炼。", "bad");
       this.s.manual = true; this._lastTick = Date.now(); this.render();
     },
 
@@ -147,13 +158,14 @@ G.module({
     return `
     <div class="card">
       <h3>${this.realmName()}<small>${this.root().name}</small></h3>
-      <div class="row small"><span>本次修炼</span><span>${this.isCultivating() ? (s.auto ? "自动修炼中" : "修炼中") : "未修炼"}</span></div>
+      <div class="row small"><span>本次修炼</span><span>${!this.isCultivating() ? "未修炼" : !this.canCultivate() ? "<b class='q5'>灵气耗尽，修炼停滞</b>" : s.auto ? "自动修炼中" : "修炼中"}</span></div>
       <div class="bar tick"><div id="tick-bar"></div></div>
       <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>
       <div class="bar ling"><div style="width:${Math.min(100, s.ling / cap * 100)}%"></div></div>
       <div class="btns">
         <button class="${s.auto ? "on" : "primary"}" onclick="G.toggleAuto()">自动修炼：${s.auto ? "开" : "关"}</button>
         <button onclick="G.cultivateOnce()" ${this.isCultivating() ? "disabled" : ""}>修炼一次（10秒）</button>
+        <button class="${s.array.on ? "on" : ""}" style="flex-basis:100%" onclick="G.toggleArray()">聚灵阵：${s.array.on ? "开启中（每10秒 +" + U.fmt(this.gatherAmount()) + " 灵气）" : "已关闭"}</button>
         <button class="primary" style="flex-basis:100%" onclick="G.breakthrough()" ${can ? "" : "disabled"}>
           ${can ? `${next}（成功率 ${Math.round(this.breakChance() * 100)}%）` : `修为未满，还差 ${U.fmt(this.needExp() - s.exp)}`}</button>
       </div>
@@ -166,7 +178,7 @@ G.module({
       <div style="grid-column:1/3"><span>修炼速度</span>${U.fmt(sp.total)} / 10秒</div>
     </div><p class="desc" style="margin-top:4px">气血、法力每 10 秒恢复 1%</p></div>
     <div class="card"><h3>修炼速度构成</h3>
-      <div class="line"><div>基础修炼速度<small>神识 × 灵根 ${this.root().mult} × 秘诀 +${Math.round(this.gongfaBonus().cultivate)}%</small></div><b>${U.fmt(sp.base)}</b></div>
+      <div class="line"><div>基础修炼速度<small>(神识 ${U.fmt(st.shenshi)} + 秘诀 ${U.fmt(this.gongfaBonus().cultivate)}) × 灵根 ${this.root().mult}</small></div><b>${U.fmt(sp.base)}</b></div>
       <div class="line"><div>聚灵阵<small>${s.array.on ? s.array.lv + " 级" : "已关闭"}</small></div><b>×${sp.arr >= 100 ? U.fmt(sp.arr) : sp.arr.toFixed(2)}</b></div>
       <div class="line"><div>丹药</div><b>+${Math.round(sp.pill)}%</b></div>
       <div class="line"><div>门派练功房<small>${s.room >= 0 && s.sect ? DATA.rooms[s.room].name : "未使用"}</small></div><b>+${Math.round(sp.room)}%</b></div>
