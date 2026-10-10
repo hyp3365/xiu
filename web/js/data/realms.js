@@ -24,21 +24,29 @@ DATA.MORTAL_EXP = 100;
 /* 人物基础属性
  * base：练气一层时的数值
  * 每升一层乘以 GROW（少量成长）。
- * 闪避、暴击、速度 不随境界成长，只能靠功法/装备提升。 */
+ * 命中、闪避、暴击、速度 不随境界成长，只能靠功法/装备提升。 */
 DATA.GROW = 1.1;
 DATA.playerBase = {
   hp: 100,       // 气血上限
   atk: 15,       // 攻击
   def: 5,        // 防御
   mana: 50,      // 法力上限（以后法术、法宝消耗）
-  shenshi: 10,   // 神识（决定基础修炼速度）
+  cultivate: 10, // 基础修炼速度（随境界少量成长）
 };
 DATA.playerFixed = {
   speed: 10,     // 速度（战斗先手）
-  dodge: 5,      // 闪避 %
+  hit: 10,       // 命中（数值）
+  dodge: 10,     // 闪避（数值）
   crit: 5,       // 暴击 %
 };
-DATA.DODGE_CAP = 60; // 闪避上限 %
+/* 闪避几率 = (防守方闪避 - 进攻方命中) ÷ 12 %，最低 0，最高 50%
+ * 例：自己命中 100，对方闪避 150 → 对方闪避几率 (150-100)/12 ≈ 4.2% */
+DATA.DODGE_DIV = 12;
+DATA.DODGE_CAP = 50;
+DATA.dodgeChance = (hit, dodge) => Math.min(DATA.DODGE_CAP, Math.max(0, (dodge - hit) / DATA.DODGE_DIV));
+// 怪物命中、闪避 = 10 + 怪物层序 × 系数
+DATA.MONSTER_HIT = 1.0;
+DATA.MONSTER_DODGE = 0.8;
 DATA.CRIT_CAP = 80;  // 暴击上限 %
 
 // 气血 / 法力 每 10 秒自动恢复的比例
