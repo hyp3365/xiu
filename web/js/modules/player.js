@@ -39,7 +39,6 @@ G.module({
       if (L === undefined) { if (this.s.mortal) return "凡人"; L = this.s.L; }
       return DATA.realms[Math.floor(L / 10)] + "期" + DATA.layerNames[L % 10];
     },
-    root() { return DATA.roots.find(r => r.id === this.s.root); },
 
     // 汇总装备加成
     equipTotal() {
