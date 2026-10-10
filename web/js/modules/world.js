@@ -2,12 +2,10 @@
  * 模块：世界（六界：凡界 仙界 魔界 冥界 神界 天外天，目前只开放凡界）
  * 凡界内：9 张地图（练气 → 渡劫）、坊市、设置
  * ---------------------------------------------------------------------
- * 历练：选择地图，战斗一场（普通怪或首领）。速度高者先手，判闪避、暴击。
- *   法术栏里的法术轮流施放（消耗法力），法力不足时普通攻击。
- *   胜利：灵石、药材、矿石（首领掉得更多）；怪物不掉丹药、装备
- *   失败：遗失部分灵石
+ * 历练：和自动探索一样走 100 步，但只走一次；走完且没战败 = 通过，解锁该地图的自动探索。
  * 自动探索：每次 100 秒，每秒走一步；固定遇到 10 个小怪、灵药 5~10 次、矿石 5~10 次，
- *   最后一步遇到首领，其余无事发生（顺序随机）。怪物掉 灵石、内丹、灵血、药材、矿石。
+ *   最后一步遇到首领，其余无事发生（顺序随机）。怪物掉 灵石、药材、矿石（不掉丹药、装备）。
+ * 战斗：速度高者先手，判闪避、暴击；法术栏法术轮流施放（耗法力），不足时普通攻击；战败遗失部分灵石。
  *   一次探索中获得的东西先记下，100 秒结束后一起放进背包；
  *   气血够（≥ 三成）就继续下一次，不够就停止；探索时不能修炼；离线也继续。
  *   探索信息栏显示每一步发生的事，每秒刷新。
@@ -21,7 +19,7 @@ G.module({
    *   { map 地图序号, start 本次开始时间, step 已走步数, count 已完成次数,
    *     loot 本次收获 { stone, mats: { "herb|名字": {kind,name,g,n} }, pills: [], equips: [] },
    *     ev 本次事件列表（最新在前）, last 上一次结算文字 } */
-  defaults: () => ({ explore: null }),
+  defaults: () => ({ explore: null, trained: [] }), // trained：已历练通过的地图序号
 
   // 每 10 秒（以及在线时每秒）推进探索
   tick() { this.advanceExplore(); },
@@ -87,18 +85,13 @@ G.module({
       const n = Math.max(1, Math.round(E.MAT_BASE * DATA.mapMult(a) * rate * mult * (1 + Math.random())));
       const key = kind + "|" + name;
       (loot.mats[key] = loot.mats[key] || { kind, name, g, n: 0 }).n += n;
-      return `${name}×${U.fmt(n)}`;
+      return `${DATA.matFull(kind, g)}×${U.fmt(n)}`;
     },
     // 击败怪物的掉落，写进 loot，返回描述文字
     rollMonsterLoot(loot, m, a) {
       const E = CFG.explore, mult = m.boss ? E.BOSS_DROP : 1, got = [];
       const stone = Math.floor(E.STONE_BASE * Math.pow(E.STONE_GROW, m.Lm) * (1 + Math.random() * 1.5) * E.STONE_RATE * mult);
       loot.stone += stone; got.push(`灵石${U.fmt(stone)}`);
-      // 内丹、灵血：阶 = 地图序号
-      const addJie = (kind, n) => { const name = DATA.JIE[a] + DATA.matKinds[kind], key = kind + "|" + name;
-        (loot.mats[key] = loot.mats[key] || { kind, name, g: a, n: 0 }).n += n; got.push(`${name}×${n}`); };
-      addJie("core", Math.max(1, Math.round(E.CORE_N * mult)));
-      addJie("blood", Math.max(1, Math.round(E.BLOOD_N * mult * (1 + Math.random()))));
       if (m.boss || Math.random() < E.MONSTER_MAT) got.push(this.rollMat(loot, "herb", a, mult), this.rollMat(loot, "ore", a, mult));
       return got.join("、"); // 怪物不掉丹药、装备
     },
@@ -107,7 +100,7 @@ G.module({
       const s = this.s, parts = [];
       s.stone += loot.stone; if (loot.stone) parts.push(`灵石${U.fmt(loot.stone)}`);
       let lost = 0;
-      for (const k in loot.mats) { const x = loot.mats[k]; if (this.addMat(x.kind, x.name, x.g, x.n)) parts.push(`${x.name}×${U.fmt(x.n)}`); else lost++; }
+      for (const k in loot.mats) { const x = loot.mats[k]; if (this.addMat(x.kind, x.name, x.g, x.n)) parts.push(`${DATA.matFull(x.kind, x.g)}×${U.fmt(x.n)}`); else lost++; }
       loot.pills.forEach(p => { if (this.addPill(p.t, p.g)) parts.push(`${DATA.realms[p.g]}·${DATA.pills[p.t].name}`); else lost++; });
       loot.equips.forEach(e => { if (this.addEquip(e)) parts.push(`<span class="q${e.q}">${DATA.quals[e.q]}${e.name}</span>`); else lost++; });
       return parts.join("、") + (lost ? `（背包已满，遗失 ${lost} 件）` : "");
@@ -115,32 +108,18 @@ G.module({
     // 战败损失
     loseStone() { const lost = Math.floor(this.s.stone * CFG.explore.LOSE_STONE); this.s.stone -= lost; return lost; },
 
-    // 历练：a 地图序号；boss 是否挑战首领
-    fightMap(a, boss) {
-      const s = this.s, st = this.stats(), maxL = DATA.realms.length * DATA.LAYERS - 1;
-      if (this.r() < a) return;
-      if (s.hp < st.hp * DATA.EXPLORE_STOP) return this.log("气血不足三成，先休养片刻（每 10 秒恢复 1%）。", "sys");
-      const map = DATA.maps[a], Lm = Math.min(maxL, a * 10 + (boss ? 9 : U.rand(0, 9)));
-      const m = this.makeMonster(Lm, boss ? map.boss : U.pick(map.monsters), boss);
-      const res = this.battle(m), tag = `${boss ? "首领 " : ""}${m.name}（${this.realmName(Lm)}）`;
-      if (res.win) {
-        s.kills++;
-        const loot = this.newLoot(); this.rollMonsterLoot(loot, m, a);
-        this.log(`${res.rounds}回合击败${tag}，获得 ${this.giveLoot(loot)}`, "gold");
-      } else if (res.lose) this.log(`不敌${tag}，重伤逃回，遗失灵石 ${U.fmt(this.loseStone())}。`, "bad");
-      else this.log(`与${tag}缠斗 ${res.rounds} 回合未分胜负，各自退去。`, "sys");
-      this.after();
-    },
-
     /* ---------- 自动探索 ---------- */
-    toggleExplore(a) {
+    // once = true：历练（只走一次）；否则自动探索（需先历练通过该地图）
+    toggleExplore(a, once) {
       const s = this.s;
-      if (s.explore && s.explore.map === a) { this.stopExplore("停止自动探索"); return this.after(); }
-      if (s.explore) this.stopExplore("更换地图");
-      if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("气血不足三成，无法探索。", "sys");
-      s.explore = { map: a, start: this.now(), step: 0, count: 0, loot: this.newLoot(), ev: [], last: "", plan: this.makePlan() };
+      if (s.explore && s.explore.map === a && !!s.explore.once === !!once) { this.stopExplore(once ? "放弃历练" : "停止自动探索"); return this.after(); }
+      if (this.r() < a) return;
+      if (!once && !s.trained.includes(a)) return this.log("需先在此地历练通过，才能自动探索。", "sys");
+      if (s.explore) this.stopExplore("更换");
+      if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("气血不足三成，先休养片刻（每 10 秒恢复 1%）。", "sys");
+      s.explore = { map: a, once: !!once, start: this.now(), step: 0, count: 0, loot: this.newLoot(), ev: [], last: "", plan: this.makePlan() };
       this.exploreOpen = true;
-      this.log(`开始在${DATA.maps[a].name}自动探索（探索期间无法修炼）。`, "sys");
+      this.log(`开始在${DATA.maps[a].name}${once ? "历练" : "自动探索"}（期间无法修炼）。`, "sys");
       this.after();
     },
     // 停止：本次已获得的东西也结算
@@ -156,6 +135,9 @@ G.module({
       if (!x.plan) x.plan = this.makePlan();
       const type = { n: "nothing", m: "monster", b: "boss", h: "herb", o: "ore" }[x.plan[x.step]] || "nothing";
       x.step++;
+      // 每走一步恢复少量气血、法力
+      const st = this.stats(), H = CFG.explore.HEAL_STEP;
+      this.s.hp = Math.min(st.hp, this.s.hp + st.hp * H); this.s.mana = Math.min(st.mana, this.s.mana + st.mana * H);
       let t = "", c = "";
       if (type === "herb") { t = `发现灵药，采得 ${this.rollMat(x.loot, "herb", a)}`; c = "good"; }
       else if (type === "ore") { t = `发现矿脉，挖得 ${this.rollMat(x.loot, "ore", a)}`; c = "good"; }
@@ -196,6 +178,11 @@ G.module({
           const got = this.giveLoot(x.loot);
           x.last = `第 ${x.count} 次探索${lost ? "（战败提前结束）" : ""}：${got || "一无所获"}`;
           this.log(x.last, lost ? "bad" : "gold");
+          if (x.once) { // 历练只走一次；走完且未战败 = 通过，解锁该地图自动探索
+            if (!lost && !s.trained.includes(x.map)) { s.trained.push(x.map); this.log(`${DATA.maps[x.map].name}历练通过！已可自动探索。`, "gold"); }
+            else if (lost) this.log("历练失败，提升实力后再来。", "bad");
+            s.explore = null; break;
+          }
           if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) {
             this.log(`气血不足三成，自动探索停止（共探索 ${x.count} 次）。`, "bad");
             s.explore = null; break;
@@ -211,7 +198,7 @@ G.module({
     shopList() {
       const g = this.r(), list = [];
       for (const t in DATA.pills) list.push({ kind: "pill", type: t, g, price: DATA.pillPrice(t, g) });
-      for (const sl in DATA.slots) if (sl !== "fabao") list.push({ kind: "eq", slot: sl, g, q: 1, price: Math.floor(500 * Math.pow(DATA.STONE_GROW, g * 10)) });
+      for (const sl in DATA.slots) if (sl !== "fabao") list.push({ kind: "eq", slot: sl, g, q: 1, price: Math.floor(CFG.price.SHOP_EQUIP * Math.pow(DATA.STONE_GROW, g * 10)) });
       return list;
     },
     buy(i, n = 1) {
@@ -247,21 +234,20 @@ G.module({
         <div class="row small"><span>法力 ${U.fmt(s.mana)} / ${U.fmt(st.mana)}</span><span>灵石 ${U.fmt(s.stone)}</span></div>
         ${s.explore ? (() => { const x = s.explore, T = CFG.explore.TIME, L = x.loot;
           const mats = Object.values(L.mats).map(m => `${m.name}×${U.fmt(m.n)}`);
-          return `<div class="card"><h3>自动探索中 · ${DATA.maps[x.map].name}<small>已完成 ${x.count} 次</small></h3>
+          return `<div class="card"><h3>${x.once ? "历练中" : "自动探索中"} · ${DATA.maps[x.map].name}<small>${x.once ? "走完且不战败即通过" : `已完成 ${x.count} 次`}</small></h3>
           <div class="bar tick"><div style="width:${x.step / T * 100}%"></div></div>
           <div class="row small"><span>第 ${x.step} / ${T} 步 · 剩余 ${T - x.step} 秒</span><span>
             <button class="sm" onclick="G.setExploreOpen(${!this.exploreOpen})">${this.exploreOpen ? "收起信息" : "探索信息"}</button>
-            <button class="sm" onclick="G.toggleExplore(${x.map})">停止</button></span></div>
+            <button class="sm" onclick="G.toggleExplore(${x.map},${!!x.once})">停止</button></span></div>
           <p class="desc">本次收获（结束后放入背包）：灵石 ${U.fmt(L.stone)}${mats.length ? "、" + mats.join("、") : ""}${L.pills.length ? `、丹药${L.pills.length}枚` : ""}${L.equips.length ? `、装备${L.equips.length}件` : ""}</p>
           ${x.last ? `<p class="desc">上次：${x.last}</p>` : ""}
           ${this.exploreOpen ? `<div class="explore-log">${x.ev.map(e => `<p class="${e.c}"><b>第${e.n}步</b> ${e.t}</p>`).join("") || "<p>出发……</p>"}</div>` : ""}</div>`; })() : ""}
-        <div class="card"><h3>凡界<small>探索每次 100 秒，探索时无法修炼，气血低于三成停止</small></h3>` +
+        <div class="card"><h3>凡界<small>历练一次 100 秒，通过后才能自动探索；期间无法修炼，气血低于三成停止</small></h3>` +
         DATA.maps.map((map, a) => {
-          const lock = this.r() < a, on = s.explore && s.explore.map === a;
-          return `<div class="line"><div>${map.name}<small>${DATA.realms[a]}期 · 首领 ${map.boss} · 掉落 ×${U.num(DATA.mapMult(a))}</small></div>
-            ${lock ? `<button class="sm" disabled>需${DATA.realms[a]}期</button>` : `<div><button class="sm" onclick="G.fightMap(${a})">历练</button>
-            <button class="sm" onclick="G.fightMap(${a},true)">首领</button>
-            <button class="sm ${on ? "on" : ""}" onclick="G.toggleExplore(${a})">${on ? "停止" : "探索"}</button></div>`}</div>`;
+          const lock = this.r() < a, ok = s.trained.includes(a), x = s.explore && s.explore.map === a ? s.explore : null;
+          return `<div class="line"><div>${map.name}<small>${DATA.realms[a]}期 · 掉落 ×${U.num(DATA.mapMult(a))} · ${ok ? "已通过历练" : "未历练"}</small></div>
+            ${lock ? `<button class="sm" disabled>需${DATA.realms[a]}期</button>` : `<div><button class="sm ${x && x.once ? "on" : ""}" onclick="G.toggleExplore(${a},true)">${x && x.once ? "停止" : "历练"}</button>
+            <button class="sm ${x && !x.once ? "on" : ""}" onclick="G.toggleExplore(${a})" ${ok ? "" : "disabled"}>${x && !x.once ? "停止" : "探索"}</button></div>`}</div>`;
         }).join("") + `</div>`;
     }
 
