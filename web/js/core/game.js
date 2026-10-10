@@ -59,7 +59,7 @@ const G = {
 
   /* ---------- 存档 ---------- */
   newSave(name, root) {
-    let s = { v: 3, name, root, last: Date.now(), log: [] };
+    let s = { v: 5, name, root, last: Date.now(), log: [] };
     for (const m of this.modules) if (m.defaults) Object.assign(s, m.defaults());
     return s;
   },
@@ -107,7 +107,7 @@ const G = {
     const parts = [];
     if (this.s.exp > before.exp) parts.push(`修为 +${U.fmt(this.s.exp - before.exp)}`);
     if (this.s.stone !== before.stone) parts.push(`灵石 ${this.s.stone > before.stone ? "+" : "-"}${U.fmt(Math.abs(this.s.stone - before.stone))}`);
-    this.log(`你离开了 ${U.dur(sec)}，${this.s.auto ? "自动修炼未曾停歇" : "聚灵阵仍在运转"}${parts.length ? "：" + parts.join("，") : ""}。`, "gold");
+    this.log(`你离开了 ${U.dur(sec)}，${this.s.explore ? "自动探索未曾停歇" : this.s.auto ? "自动修炼未曾停歇" : "聚灵阵仍在运转"}${parts.length ? "：" + parts.join("，") : ""}。`, "gold");
     this.dirty();
   },
 
@@ -125,8 +125,10 @@ const G = {
     const pct = Math.min(100, (now - this._lastTick) / (DATA.TICK * 10)) + "%";
     const tb = $("#tick-bar");
     if (tb) tb.style.width = this.isCultivating() && this.canCultivate() ? pct : "0%";
-    const gb = $("#gather-bar"); // 洞府聚灵阵进度条
-    if (gb) gb.style.width = this.s.array.on ? pct : "0%";
+    const gb = $("#gather-bar"); // 洞府聚灵阵进度条（一直聚灵）
+    if (gb) gb.style.width = pct;
+    const tl = $("#tick-left");  // 本次修炼倒计时
+    if (tl) tl.textContent = Math.max(0, Math.ceil(DATA.TICK - (now - this._lastTick) / 1000)) + " 秒";
   },
 
   /* ---------- 操作后统一调用：重算属性、存档、刷新 ---------- */
@@ -162,7 +164,8 @@ const G = {
     this._lastTick = Date.now();
     this.save(true); this.render(); this.renderLog();
     setInterval(() => this.loop(), 200);
-    setInterval(() => { if (this.tab === "sect" || this.tab === "gongfa") this.render(); }, 1000); // 倒计时刷新
+    // 倒计时刷新（只在有倒计时的页面）
+    setInterval(() => { if ((this.tab === "gongfa" && this.s.gfStudy) || (this.tab === "sect" && this.sectTab === "affair")) this.render(); }, 1000);
     // 切到后台 / 关闭页面时立即上传
     document.addEventListener("visibilitychange", () => { if (document.hidden && !this._stopped) { this.save(); API.beacon(this.s); } });
     window.addEventListener("pagehide", () => { if (!this._stopped) API.beacon(this.s); });
