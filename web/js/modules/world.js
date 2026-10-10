@@ -1,15 +1,32 @@
 /* =====================================================================
  * 模块：世界（六界：凡界 仙界 魔界 冥界 神界 天外天，目前只开放凡界）
- * 凡界内：地图历练、坊市、设置
+ * 凡界内：9 张地图（练气 → 渡劫）、坊市、设置
  * ---------------------------------------------------------------------
- * 历练：选择地图，自动战斗一场。速度高者先手，闪避/暴击生效。
- *   胜利：灵石 + 概率掉落该境界的丹药/装备
- *   失败：气血归 1，遗失 10% 灵石
+ * 历练：选择地图，战斗一场。速度高者先手，闪避/暴击生效。
+ *   法术栏里的法术轮流施放（消耗法力），法力不足时普通攻击。
+ *   胜利：灵石 + 概率获得灵药、矿物、丹药、装备
+ *   失败：遗失 10% 灵石
+ * 自动探索：每 10 秒战斗一场（离线也继续）；探索时不能修炼；
+ *   气血低于上限 30% 自动停止。
  * 坊市：出售当前境界品质的丹药和灵品装备。
  * ===================================================================== */
 G.module({
   id: "world",
   tab: "world",
+
+  defaults: () => ({ explore: null }), // 自动探索中：{ map: 地图序号 }
+
+  // 每 10 秒：自动探索打一场
+  tick() {
+    const s = this.s;
+    if (!s.explore) return;
+    if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) {
+      s.explore = null;
+      this.log("气血不足三成，自动探索已停止。", "bad");
+      return;
+    }
+    this.fightMap(s.explore.map, true);
+  },
 
   api: {
     setWorldTab(t) { this.worldTab = t; this.render(); },
@@ -24,7 +41,23 @@ G.module({
 
     // 通用战斗：速度高者先手，判闪避、暴击。返回 { win, rounds }，并更新玩家气血
     battle(m) {
-      const st = this.stats();
+      const st = this.stats(), s = this.s;
+      const spells = s.spellSlots.slice(0, this.slotCount()).map(id => DATA.spellInfo(id, s.gongfa[id])).filter(Boolean);
+      let si = 0;
+      // 玩家出手：按顺序施放法术，法力不足则普通攻击
+      const myHit = () => {
+        for (let k = 0; k < spells.length; k++) {
+          const sp = spells[(si + k) % spells.length];
+          if (s.mana >= sp.mana) {
+            si = (si + k + 1) % spells.length; s.mana -= sp.mana;
+            if (Math.random() * 100 < m.dodge) return 0;
+            let d = Math.max(st.atk * 0.1, st.atk * sp.pct / 100 + sp.flat - m.def * 0.5) * (0.9 + Math.random() * 0.2);
+            if (Math.random() * 100 < st.crit) d *= 2;
+            return d;
+          }
+        }
+        return hit(st, m);
+      };
       const hit = (A, D) => {
         if (Math.random() * 100 < D.dodge) return 0;                              // 闪避
         let d = Math.max(A.atk * 0.1, A.atk - D.def * 0.5) * (0.9 + Math.random() * 0.2);
@@ -35,8 +68,8 @@ G.module({
       const meFirst = st.speed >= m.speed;
       while (php > 0 && mhp > 0 && rounds < 60) {
         rounds++;
-        if (meFirst) { mhp -= hit(st, m); if (mhp > 0) php -= hit(m, st); }
-        else { php -= hit(m, st); if (php > 0) mhp -= hit(st, m); }
+        if (meFirst) { mhp -= myHit(); if (mhp > 0) php -= hit(m, st); }
+        else { php -= hit(m, st); if (php > 0) mhp -= myHit(); }
       }
       const win = mhp <= 0 && php > 0;
       this.s.hp = Math.max(1, php);
@@ -44,10 +77,11 @@ G.module({
     },
 
     // 历练：a 为地图序号（= 大境界序号）
-    fightMap(a) {
+    // auto 为 true 时是自动探索（不刷新界面）
+    fightMap(a, auto) {
       const s = this.s, st = this.stats(), maxL = DATA.realms.length * DATA.LAYERS - 1;
       if (this.r() < a) return;
-      if (s.hp < st.hp * 0.3) return this.log("气血不足三成，先休养片刻（每 10 秒恢复 1%）。", "sys");
+      if (s.hp < st.hp * DATA.EXPLORE_STOP) return this.log("气血不足三成，先休养片刻（每 10 秒恢复 1%）。", "sys");
       const map = DATA.maps[a], Lm = Math.min(maxL, a * 10 + U.rand(0, 9));
       const m = this.makeMonster(Lm, U.pick(map.monsters));
       const res = this.battle(m), tag = `${m.name}（${this.realmName(Lm)}）`;
@@ -60,6 +94,8 @@ G.module({
           const t = ["juqi", "juling", "peiyuan"][U.weighted([60, 30, 10])];
           if (this.addPill(t, a)) got.push(`${DATA.realms[a]}·${DATA.pills[t].name}`);
         }
+        if (Math.random() < DATA.HERB_CHANCE) { const n = U.pick(map.herbs); if (this.addMat("herb", n, a)) got.push(n); }
+        if (Math.random() < DATA.ORE_CHANCE) { const n = U.pick(map.ores); if (this.addMat("ore", n, a)) got.push(n); }
         if (Math.random() < DATA.DROP_EQUIP) {
           const e = this.makeEquip(U.pick(Object.keys(DATA.slots)), a, U.weighted(DATA.EQUIP_QUAL_WEIGHT));
           if (this.addEquip(e)) got.push(`<span class="q${e.q}">${DATA.quals[e.q]}${e.name}</span>`);
@@ -70,6 +106,16 @@ G.module({
         s.stone -= lost;
         this.log(`不敌${tag}，重伤逃回，遗失灵石 ${U.fmt(lost)}。`, "bad");
       } else this.log(`与${tag}缠斗 ${res.rounds} 回合未分胜负，各自退去。`, "sys");
+      if (auto) this.dirty(); else this.after();
+    },
+
+    // 开始 / 停止自动探索
+    toggleExplore(a) {
+      const s = this.s;
+      if (s.explore && s.explore.map === a) { s.explore = null; this.log("停止自动探索。", "sys"); return this.after(); }
+      if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("气血不足三成，无法探索。", "sys");
+      s.explore = { map: a };
+      this.log(`开始在${DATA.maps[a].name}自动探索（探索期间无法修炼）。`, "sys");
       this.after();
     },
 
@@ -77,7 +123,7 @@ G.module({
     shopList() {
       const g = this.r(), list = [];
       for (const t in DATA.pills) list.push({ kind: "pill", type: t, g, price: DATA.pillPrice(t, g) });
-      for (const sl in DATA.slots) list.push({ kind: "eq", slot: sl, g, q: 1, price: Math.floor(500 * Math.pow(DATA.STONE_GROW, g * 10)) });
+      for (const sl in DATA.slots) if (sl !== "fabao") list.push({ kind: "eq", slot: sl, g, q: 1, price: Math.floor(500 * Math.pow(DATA.STONE_GROW, g * 10)) });
       return list;
     },
     buy(i, n = 1) {
@@ -109,12 +155,14 @@ G.module({
     if (wt === "explore") {
       const st = this.stats();
       return tabs + `<div class="row small"><span>气血 ${U.fmt(s.hp)} / ${U.fmt(st.hp)}</span><span>斩妖 ${s.kills}</span></div>
-        <div class="bar hp"><div style="width:${s.hp / st.hp * 100}%"></div></div><div class="card">` +
+        <div class="bar hp"><div style="width:${s.hp / st.hp * 100}%"></div></div>
+        <div class="row small"><span>法力 ${U.fmt(s.mana)} / ${U.fmt(st.mana)}</span><span>${s.explore ? `<b class="q4">探索中：${DATA.maps[s.explore.map].name}</b>` : "未探索"}</span></div>
+        <div class="card"><h3>凡界<small>探索时无法修炼，气血低于三成自动停止</small></h3>` +
         DATA.maps.map((map, a) => {
-          if (a > this.r() + 1) return "";
-          const lock = this.r() < a;
-          return `<div class="line"><div>${map.name}<small>${DATA.realms[a]}期妖兽 · 掉落${DATA.realms[a]}期丹药与装备</small></div>
-            <button class="sm" onclick="G.fightMap(${a})" ${lock ? "disabled" : ""}>${lock ? "需" + DATA.realms[a] + "期" : "历练"}</button></div>`;
+          const lock = this.r() < a, on = s.explore && s.explore.map === a;
+          return `<div class="line"><div>${map.name}<small>${DATA.realms[a]}期妖兽 · ${map.herbs.join("、")}、${map.ores.join("、")}</small></div>
+            ${lock ? `<button class="sm" disabled>需${DATA.realms[a]}期</button>` : `<div><button class="sm" onclick="G.fightMap(${a})">历练</button>
+            <button class="sm ${on ? "on" : ""}" onclick="G.toggleExplore(${a})">${on ? "停止" : "自动探索"}</button></div>`}</div>`;
         }).join("") + `</div>`;
     }
 
