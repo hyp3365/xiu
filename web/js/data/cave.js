@@ -8,18 +8,18 @@
  *   - 1 灵石换灵气     = STONE_LING × factor
  * cost(lv)：从 lv 升到 lv+1 需要的灵石
  * ===================================================================== */
+// 数值在 js/config/numbers.js 的 array 部分
+const _A = CFG.array;
 DATA.array = {
-  MAX: 3000,
-  GATHER_BASE: 10,
-  STONE_LING: 10,
-  factor: lv => Math.pow(1.03, lv),
-  gather: lv => DATA.array.GATHER_BASE * (1 + 0.2 * lv) * Math.pow(1.03, lv), // 每级都明显增加
-  cost: lv => Math.floor(100 * Math.pow(1.032, lv)),
+  MAX: _A.MAX,
+  GATHER_BASE: _A.GATHER_BASE,
+  STONE_LING: _A.STONE_LING,
+  factor: lv => Math.pow(_A.SPEED_RATE, lv),
+  gather: lv => _A.GATHER_BASE * (1 + _A.GATHER_PER_LV * lv) * Math.pow(_A.GATHER_RATE, lv),
+  cost: lv => Math.floor(_A.COST_BASE * Math.pow(_A.COST_RATE, lv)),
 };
-
-// 灵气上限 = 聚灵 × CAP_GATHER + 修炼速度 × CAP_SPEED
-DATA.LING_CAP_GATHER = 360;
-DATA.LING_CAP_SPEED = 60;
+DATA.LING_CAP_GATHER = _A.CAP_GATHER;
+DATA.LING_CAP_SPEED = _A.CAP_SPEED;
 
 /* 洞府各房间（open: false 表示暂未开放，只显示入口） */
 DATA.caveRooms = [
