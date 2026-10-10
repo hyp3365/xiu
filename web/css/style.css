@@ -68,3 +68,10 @@ button.sm{padding:4px 10px;font-size:13px}
 .room-grid button{padding:8px 2px;font-size:13px;line-height:1.3}
 .room-grid button small{display:block;font-size:10px;color:#8c7e66}
 .room-grid button.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}
+.room-grid.five{grid-template-columns:repeat(5,1fr)}
+.equip.four{grid-template-columns:repeat(4,1fr)}
+.slot-eq.lock{opacity:.4;font-size:11px}
+/* 修炼速度加成小标签（实时显示） */
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.chips span{font-size:12px;padding:2px 8px;border-radius:10px;border:1px solid #4a3d2e;color:#8c7e66}
+.chips span.on{border-color:#c9a45c;color:#f3d48b;background:#3a2c18}
