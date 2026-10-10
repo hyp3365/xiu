@@ -4,7 +4,7 @@
  * ---------------------------------------------------------------------
  * 历练：选择地图，战斗一场（普通怪或首领）。速度高者先手，判闪避、暴击。
  *   法术栏里的法术轮流施放（消耗法力），法力不足时普通攻击。
- *   胜利：灵石、药材、矿石，概率丹药、装备（首领掉得更多、必掉装备）
+ *   胜利：灵石、药材、矿石（首领掉得更多）；怪物不掉丹药、装备
  *   失败：遗失部分灵石
  * 自动探索：每次 100 秒，每秒走一步，随机遇到：无事 / 怪物 / 灵药 / 矿石 / 首领
  *   一次探索中获得的东西先记下，100 秒结束后一起放进背包；
@@ -58,7 +58,7 @@ G.module({
           if (s.mana >= sp.mana) {
             si = (si + k + 1) % spells.length; s.mana -= sp.mana;
             if (Math.random() * 100 < DATA.dodgeChance(st.hit, m.dodge)) return 0;
-            let d = Math.max(st.atk * 0.1, st.atk * sp.pct / 100 + sp.flat - m.def * 0.5) * (0.9 + Math.random() * 0.2);
+            let d = Math.max(st.atk * 0.1, (st.atk * sp.pct / 100 + sp.flat) * this.lingenSpell(sp.el.id) - m.def * 0.5) * (0.9 + Math.random() * 0.2);
             if (Math.random() * 100 < st.crit) d *= 2;
             return d;
           }
@@ -83,7 +83,7 @@ G.module({
       const E = CFG.explore, g = U.weighted(E.MAT_WEIGHT);
       const name = (kind === "herb" ? DATA.herbs : DATA.ores)[g];
       const rate = kind === "herb" ? E.HERB_RATE : E.ORE_RATE;
-      const n = Math.max(1, Math.round(E.MAT_BASE * Math.pow(E.MAP_MULT, a) * rate * mult * (1 + Math.random())));
+      const n = Math.max(1, Math.round(E.MAT_BASE * DATA.mapMult(a) * rate * mult * (1 + Math.random())));
       const key = kind + "|" + name;
       (loot.mats[key] = loot.mats[key] || { kind, name, g, n: 0 }).n += n;
       return `${name}×${U.fmt(n)}`;
@@ -95,15 +95,7 @@ G.module({
       loot.stone += stone; got.push(`灵石${U.fmt(stone)}`);
       if (m.boss || Math.random() < E.MONSTER_MAT) got.push(this.rollMat(loot, Math.random() < 0.5 ? "herb" : "ore", a, mult));
       if (m.boss) got.push(this.rollMat(loot, "herb", a, mult), this.rollMat(loot, "ore", a, mult));
-      if (Math.random() < E.DROP_PILL * mult) {
-        const t = ["juqi", "juling", "peiyuan"][U.weighted([60, 30, 10])];
-        loot.pills.push({ t, g: a }); got.push(`${DATA.realms[a]}·${DATA.pills[t].name}`);
-      }
-      if (m.boss || Math.random() < E.DROP_EQUIP) {
-        const e = this.makeEquip(U.pick(Object.keys(DATA.slots)), a, U.weighted(m.boss ? E.BOSS_QUAL_WEIGHT : E.EQUIP_QUAL_WEIGHT));
-        loot.equips.push(e); got.push(`<span class="q${e.q}">${DATA.quals[e.q]}${e.name}</span>`);
-      }
-      return got.join("、");
+      return got.join("、"); // 怪物不掉丹药、装备
     },
     // 把收获放进背包，返回简短描述
     giveLoot(loot) {
@@ -251,7 +243,7 @@ G.module({
         <div class="card"><h3>凡界<small>探索每次 100 秒，探索时无法修炼，气血低于三成停止</small></h3>` +
         DATA.maps.map((map, a) => {
           const lock = this.r() < a, on = s.explore && s.explore.map === a;
-          return `<div class="line"><div>${map.name}<small>${DATA.realms[a]}期 · 首领 ${map.boss} · 掉落 ×${U.num(Math.pow(CFG.explore.MAP_MULT, a))}</small></div>
+          return `<div class="line"><div>${map.name}<small>${DATA.realms[a]}期 · 首领 ${map.boss} · 掉落 ×${U.num(DATA.mapMult(a))}</small></div>
             ${lock ? `<button class="sm" disabled>需${DATA.realms[a]}期</button>` : `<div><button class="sm" onclick="G.fightMap(${a})">历练</button>
             <button class="sm" onclick="G.fightMap(${a},true)">首领</button>
             <button class="sm ${on ? "on" : ""}" onclick="G.toggleExplore(${a})">${on ? "停止" : "探索"}</button></div>`}</div>`;
