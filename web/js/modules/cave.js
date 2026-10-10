@@ -30,7 +30,7 @@ G.module({
     // 每 10 秒聚灵量（只由等级决定，开关不影响）
     gatherAmount() { return DATA.array.gather(this.s.array.lv); },
     lingCap() { const sp = this.speed(); return Math.max(100, sp.gather * DATA.LING_CAP_GATHER + sp.total * DATA.LING_CAP_SPEED); },
-    lingPerStone() { return DATA.array.STONE_LING * this.arrayFactor(); },
+    lingPerStone() { return DATA.array.STONE_LING; }, // 固定数值
 
     // 用灵石补充灵气，stones 为 "fill" 时补满
     buyLing(stones) {
@@ -43,11 +43,6 @@ G.module({
       this.s.ling = Math.min(cap, this.s.ling + stones * rate);
       this.log(`消耗 ${U.fmt(stones)} 灵石，补充灵气 ${U.fmt(stones * rate)}。`, "good");
       this.after();
-    },
-    toggleArray() {
-      this.s.array.on = !this.s.array.on;
-      this.after();
-      this.log(`聚灵阵加成已${this.s.array.on ? "开启" : "关闭"}，修炼速度 ${U.fmt(this.speed().total)} / 10秒。`, "sys");
     },
     toggleRefill() { this.s.array.autoRefill = !this.s.array.autoRefill; this.after(); },
 
