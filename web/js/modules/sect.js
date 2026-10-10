@@ -189,7 +189,7 @@ G.module({
       const tier = this.libTier || "huang";
       const btn = g => { const has = this.hasGongfa(g.id);
         return `<button class="sm" onclick="G.learnGongfa('${g.id}')" ${has || s.contrib < g.cost ? "disabled" : ""}>${has ? "已学会" : "学习"}</button>`; };
-      h += `<div class="room-grid">${[...DATA.tiers].reverse().map(t => `<button class="${tier === t.id ? "active" : ""}" onclick="G.setLibTier('${t.id}')">${t.name}</button>`).join("")}</div>
+      h += `<div class="room-grid">${DATA.tiers.map(t => `<button class="${tier === t.id ? "active" : ""}" onclick="G.setLibTier('${t.id}')">${t.name}</button>`).join("")}</div>
         <div class="card"><h3>功法<small>学会后到“功法”页修炼升层</small></h3>` + DATA.gongfaTypes.map(t => {
           const g = DATA.gongfaInfo(DATA.gongfaId(x.id, t.id, tier));
           return `<div class="line"><div>《${g.name}》<span class="tag">${t.name}</span><small>每层${t.label} +${this.gfValue(g, g.perLv)} · ${U.fmt(g.cost)} 贡献</small></div>${btn(g)}</div>`;
