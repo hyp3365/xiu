@@ -1,0 +1,30 @@
+#!/bin/bash
+# =====================================================================
+# 快捷更新命令：sudo xiu-update
+#   从 GitHub 拉取最新代码 → 重启存档服务 → 重新加载 nginx
+#   网页文件直接从 /opt/xiu/web 读取，拉下来就生效。
+#   存档在 /var/lib/xiu，更新不会影响玩家数据。
+# =====================================================================
+set -e
+DIR=/opt/xiu
+[ "$(id -u)" = 0 ] || exec sudo "$0" "$@"
+
+echo ">>> 拉取最新代码..."
+git -C "$DIR" fetch --depth 1 origin
+git -C "$DIR" reset --hard origin/HEAD
+git -C "$DIR" log -1 --format="当前版本：%h  %s  (%cd)" --date=format:'%Y-%m-%d %H:%M'
+
+# 更新命令本身、服务配置也一起更新
+install -m 755 "$DIR/deploy/xiu-update" /usr/local/bin/xiu-update
+if ! cmp -s "$DIR/deploy/xiu-server.service" /etc/systemd/system/xiu-server.service; then
+  cp "$DIR/deploy/xiu-server.service" /etc/systemd/system/xiu-server.service
+  systemctl daemon-reload
+fi
+
+echo ">>> 重启存档服务..."
+systemctl restart xiu-server
+sleep 1
+systemctl is-active --quiet xiu-server && echo "存档服务运行中" || { echo "存档服务启动失败："; journalctl -u xiu-server -n 20 --no-pager; exit 1; }
+
+nginx -t >/dev/null 2>&1 && systemctl reload nginx
+echo ">>> 更新完成！刷新网页即可。"
