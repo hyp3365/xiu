@@ -2,7 +2,7 @@
  * 模块：修炼（灵气 → 修为、突破、丹药加速）
  * ---------------------------------------------------------------------
  * 修炼速度 = 基础修炼速度 × 聚灵阵倍率 × (1 + 丹药%) × (1 + 练功房%)
- *   基础修炼速度 = (神识 + 秘诀) × 灵根倍率
+ *   基础修炼速度 = (境界基础 + 秘诀) × 灵根倍率
  * 聚灵阵开关在本页；开关只影响修炼速度（关闭后没有聚灵阵倍率），不影响聚灵。
  * 修炼前提：学会至少一部秘诀，且不在自动探索中。
  * 每 10 秒修炼一次：消耗 灵气 = 修炼速度，获得同等修为（1 灵气 = 1 修为）
@@ -85,7 +85,7 @@ G.module({
 
     computeSpeed() {
       const st = this.stats(), s = this.s;
-      const base = (st.shenshi + this.gongfaBonus().cultivate) * this.root().mult;
+      const base = (st.cultivate + this.gongfaBonus().cultivate) * this.root().mult;
       const arr = s.array.on ? this.arrayFactor() : 1;   // 聚灵阵关闭：倍率 1
       let pill = 0;
       for (const t in s.buffs) { const b = s.buffs[t]; if (b && b.left > 0) pill += b.pct; }
@@ -176,9 +176,9 @@ G.module({
       <h3>${this.realmName()}<small>${this.root().name}</small></h3>
       <div class="row small"><span>本次修炼</span><span>${!this.isCultivating() ? "未修炼" : block ? `<b class='q5'>${block}</b>` : `${s.auto ? "自动修炼中" : "修炼中"} · <b id="tick-left"></b>`}</span></div>
       <div class="bar tick"><div id="tick-bar"></div></div>
-      <div class="row small"><span>修炼速度</span><b class="q4">${U.fmt(sp.total)} 修为 / 10秒</b></div>
+      <div class="row small"><span>修炼速度</span><b class="q4">${U.num(sp.total)} 修为 / 10秒</b></div>
       <div class="chips">
-        <span class="${s.array.on && arrPct > 0 ? "on" : ""}">聚灵阵 ${s.array.on ? "+" + U.fmt(arrPct) + "%" : "关"}</span>
+        <span class="${s.array.on && arrPct > 0 ? "on" : ""}">聚灵阵 ${s.array.on ? "+" + U.num(arrPct) + "%" : "关"}</span>
         <span class="${sp.pill ? "on" : ""}">丹药 +${Math.round(sp.pill)}%</span>
         <span class="${sp.room ? "on" : ""}">练功房 +${Math.round(sp.room)}%</span></div>
       <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>
@@ -186,7 +186,7 @@ G.module({
       <div class="btns">
         <button class="${s.auto ? "on" : "primary"}" onclick="G.toggleAuto()">自动修炼：${s.auto ? "开" : "关"}</button>
         <button onclick="G.cultivateOnce()" ${this.isCultivating() ? "disabled" : ""}>修炼一次（10秒）</button>
-        <button class="${s.array.on ? "on" : ""}" style="flex-basis:100%" onclick="G.toggleArray()">聚灵阵加成：${s.array.on ? `开（修炼速度 +${U.fmt(arrPct)}%）` : "关"}</button>
+        <button class="${s.array.on ? "on" : ""}" style="flex-basis:100%" onclick="G.toggleArray()">聚灵阵加成：${s.array.on ? `开（修炼速度 +${U.num(arrPct)}%）` : "关"}</button>
         <button class="primary" style="flex-basis:100%" onclick="G.breakthrough()" ${can ? "" : "disabled"}>
           ${can ? `${next}（成功率 ${Math.round(this.breakChance() * 100)}%）` : `修为未满，还差 ${U.fmt(this.needExp() - s.exp)}`}</button>
       </div>
@@ -194,12 +194,12 @@ G.module({
     <div class="card"><h3>人物属性</h3><div class="stats">
       <div><span>气血</span>${U.fmt(s.hp)}/${U.fmt(st.hp)}</div><div><span>法力</span>${U.fmt(s.mana)}/${U.fmt(st.mana)}</div>
       <div><span>攻击</span>${U.fmt(st.atk)}</div><div><span>防御</span>${U.fmt(st.def)}</div>
-      <div><span>神识</span>${U.fmt(st.shenshi)}</div><div><span>速度</span>${U.fmt(st.speed)}</div>
-      <div><span>闪避</span>${st.dodge.toFixed(1)}%</div><div><span>暴击</span>${st.crit.toFixed(1)}%</div>
+      <div><span>命中</span>${U.num(st.hit)}</div><div><span>闪避</span>${U.num(st.dodge)}</div>
+      <div><span>速度</span>${U.fmt(st.speed)}</div><div><span>暴击</span>${st.crit.toFixed(1)}%</div>
       <div style="grid-column:1/3"><span>修炼速度</span>${U.fmt(sp.total)} / 10秒</div>
     </div><p class="desc" style="margin-top:4px">气血、法力每 10 秒恢复 1%</p></div>
     <div class="card"><h3>修炼速度构成</h3>
-      <div class="line"><div>基础修炼速度<small>(神识 ${U.fmt(st.shenshi)} + 秘诀 ${U.fmt(this.gongfaBonus().cultivate)}) × 灵根 ${this.root().mult}</small></div><b>${U.fmt(sp.base)}</b></div>
+      <div class="line"><div>基础修炼速度<small>(境界 ${U.num(st.cultivate)} + 秘诀 ${U.num(this.gongfaBonus().cultivate)}) × 灵根 ${this.root().mult}</small></div><b>${U.num(sp.base)}</b></div>
       <div class="line"><div>聚灵阵<small>${s.array.lv} 级${s.array.on ? "" : "（已关闭）"}</small></div><b>×${sp.arr >= 100 ? U.fmt(sp.arr) : sp.arr.toFixed(2)}</b></div>
       <div class="line"><div>丹药</div><b>+${Math.round(sp.pill)}%</b></div>
       <div class="line"><div>门派练功房<small>${s.room >= 0 && s.sect ? DATA.rooms[s.room].name : "未使用"}</small></div><b>+${Math.round(sp.room)}%</b></div>
