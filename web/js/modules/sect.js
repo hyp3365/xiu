@@ -7,7 +7,8 @@
  *   功法殿    用贡献学习本门功法、法术（天地玄黄四阶；学会为第 1 层，之后去“功法”页修炼）
  *   事务堂    每 30 分钟一轮任务，可手动完成或开启自动完成（离线也会进行）
  *   练功房    修炼时消耗贡献，增加修炼速度
- *   宗门宝库  用贡献兑换物品
+ *   宗门宝库  用贡献兑换：丹药灵石 / 凡界材料（药材 矿石 内丹 灵血）/ 灵药种子 / 炉子图纸
+ *             材料、种子、图纸只能兑换不高于门派星级的品/阶（数值见 numbers.js）
  *   炼丹房    学习丹方（暂未开放）
  *   炼器室    学习炼器（暂未开放）
  *   试炼塔    100 层，逐层挑战，首次通关得贡献
@@ -119,6 +120,30 @@ G.module({
       this.s.contrib -= c;
       this.log("兑换成功。", "good"); this.after();
     },
+    setTreasuryTab(t) { this.treasuryTab = t; this.render(); },
+    treasuryMaxG() { return this.sectInfo().star - 1; }, // 可兑换的最高 品/阶 序号
+    // 兑换材料 n 个
+    exchangeMat(kind, g, n) {
+      const c = DATA.matContrib(g) * n;
+      if (g > this.treasuryMaxG() || this.s.contrib < c) return;
+      if (!this.addMat(kind, DATA.matName(kind, g), g, n)) return;
+      this.s.contrib -= c;
+      this.log(`兑换${DATA.matFull(kind, g)} ×${n}。`, "good"); this.after();
+    },
+    // 兑换种子（每种一次，永久可种）
+    exchangeSeed(g) {
+      const c = DATA.seedCost(g);
+      if (g > this.treasuryMaxG() || this.s.seeds.includes(g) || this.s.contrib < c) return;
+      this.s.contrib -= c; this.s.seeds.push(g);
+      this.log(`获得${DATA.herbs[g]}种子，可在洞府灵药园种植。`, "gold"); this.after();
+    },
+    // 兑换图纸（直接学会）
+    exchangeBlueprint(kind, g) {
+      const c = DATA.blueprintCost(g), bp = this.s.blueprints[kind];
+      if (g > this.treasuryMaxG() || bp.includes(g) || this.s.contrib < c) return;
+      this.s.contrib -= c; bp.push(g);
+      this.log(`学会${DATA.furnaceName(kind, g)}图纸，可在洞府炼制。`, "gold"); this.after();
+    },
 
     /* ---------- 试炼塔 ---------- */
     towerLevel(floor) { return Math.min(DATA.realms.length * DATA.LAYERS - 1, this.sectInfo().reqRealm * DATA.LAYERS + floor * DATA.TOWER_STEP); },
@@ -217,12 +242,32 @@ G.module({
           <button class="sm ${on ? "on" : ""}" onclick="G.enterRoom(${i})">${on ? "使用中" : "进入"}</button></div>`;
       }).join("") + `</div>`;
     } else if (tab === "treasury") {
-      h += `<div class="card"><h3>宗门宝库<small>以贡献兑换</small></h3>` + DATA.treasury.map((it, i) => {
-        const name = it.kind === "pill" ? `${DATA.realms[this.r()]}·${DATA.pills[it.type].name}` : it.name;
-        const c = this.treasuryCost(it);
-        return `<div class="line"><div>${name}<small>${U.fmt(c)} 贡献</small></div>
-          <button class="sm" onclick="G.exchange(${i})" ${s.contrib < c ? "disabled" : ""}>兑换</button></div>`;
-      }).join("") + `</div>`;
+      const tt = this.treasuryTab || "pill", maxG = this.treasuryMaxG(), gs = Array.from({ length: maxG + 1 }, (_, g) => g);
+      h += `<div class="sub-tabs scroll">${[["pill", "丹药灵石"], ["herb", "药材"], ["ore", "矿石"], ["core", "内丹"], ["blood", "灵血"], ["seed", "种子"], ["bp", "图纸"]].map(([k, n]) =>
+        `<button class="${tt === k ? "active" : ""}" onclick="G.setTreasuryTab('${k}')">${n}</button>`).join("")}</div>`;
+      const lim = `${x.star}星门派可兑换 一~${DATA.JIE[maxG].slice(0, 1)}品/阶`;
+      if (tt === "pill") {
+        h += `<div class="card"><h3>宗门宝库<small>以贡献兑换</small></h3>` + DATA.treasury.map((it, i) => {
+          const name = it.kind === "pill" ? `${DATA.realms[this.r()]}·${DATA.pills[it.type].name}` : it.name;
+          const c = this.treasuryCost(it);
+          return `<div class="line"><div>${name}<small>${U.fmt(c)} 贡献</small></div>
+            <button class="sm" onclick="G.exchange(${i})" ${s.contrib < c ? "disabled" : ""}>兑换</button></div>`;
+        }).join("") + `</div>`;
+      } else if (tt === "seed") {
+        h += `<div class="card"><h3>灵药种子<small>${lim} · 每种兑换一次</small></h3>` + gs.map(g => { const c = DATA.seedCost(g), has = s.seeds.includes(g);
+          return `<div class="line"><div>${DATA.PIN[g]}${DATA.herbs[g]}种子<small>${U.fmt(c)} 贡献 · ${U.dur(DATA.growTime(g) / 1000)}成熟</small></div>
+            <button class="sm" onclick="G.exchangeSeed(${g})" ${has || s.contrib < c ? "disabled" : ""}>${has ? "已拥有" : "兑换"}</button></div>`; }).join("") + `</div>`;
+      } else if (tt === "bp") {
+        h += ["dan", "qi"].map(k => `<div class="card"><h3>${DATA.furnaces[k].name}图纸<small>${lim} · 兑换即学会</small></h3>` + gs.map(g => {
+          const c = DATA.blueprintCost(g), has = s.blueprints[k].includes(g);
+          return `<div class="line"><div>${DATA.furnaceName(k, g)}图纸<small>${U.fmt(c)} 贡献</small></div>
+            <button class="sm" onclick="G.exchangeBlueprint('${k}',${g})" ${has || s.contrib < c ? "disabled" : ""}>${has ? "已学会" : "兑换"}</button></div>`; }).join("") + `</div>`).join("");
+      } else {
+        h += `<div class="card"><h3>${DATA.matKinds[tt]}<small>${lim}</small></h3>` + gs.map(g => { const c = DATA.matContrib(g);
+          return `<div class="line"><div>${DATA.matFull(tt, g)}<small>${U.fmt(c)} 贡献/个 · 已有 ${U.fmt(this.countMat(tt, g))}</small></div>
+            <div><button class="sm" onclick="G.exchangeMat('${tt}',${g},1)" ${s.contrib < c ? "disabled" : ""}>×1</button>
+            <button class="sm" onclick="G.exchangeMat('${tt}',${g},10)" ${s.contrib < c * 10 ? "disabled" : ""}>×10</button></div></div>`; }).join("") + `</div>`;
+      }
     } else if (tab === "alchemy" || tab === "forge") {
       h += `<div class="card"><h3>${tab === "alchemy" ? "炼丹房 · 丹方" : "炼器室 · 器谱"}</h3><p class="desc">长老闭关中，暂未开放传授。</p></div>`;
     } else if (tab === "tower") {
