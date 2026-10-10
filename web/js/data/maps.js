@@ -15,7 +15,7 @@ DATA.worlds = [
  * ---------------------------------------------------------------------
  * monsters：普通怪物名字（随机遇到）；boss：首领名字（各方面更强）
  * 所有地图掉落的药材、矿石种类都一样（下方 9 种），只是数量不同：
- *   地图越高，掉得越多（倍率见 js/config/numbers.js 的 explore 部分）
+ *   地图越高，掉得越多（第 1 张 ×1 → 第 9 张 ×10，见 js/config/numbers.js 的 explore 部分）
  * ===================================================================== */
 DATA.maps = [
   { name: "青云山林", boss: "青云山君·吊睛白虎",
@@ -53,5 +53,5 @@ DATA.EXPLORE_STOP = _E.STOP;
 DATA.EXPLORE_TIME = _E.TIME;
 DATA.STONE_BASE = _E.STONE_BASE;
 DATA.STONE_GROW = _E.STONE_GROW;
-DATA.EQUIP_QUAL_WEIGHT = _E.EQUIP_QUAL_WEIGHT;
+DATA.mapMult = a => 1 + (_E.MAP_MAX - 1) * a / (DATA.maps.length - 1); // 地图掉落倍率
 DATA.matPrice = g => Math.floor(_E.MAT_PRICE_BASE * Math.pow(_E.MAT_PRICE_RATE, g)); // g：品级序号 0~8
