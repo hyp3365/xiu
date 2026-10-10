@@ -14,7 +14,7 @@ DATA.worlds = [
  * 数据：凡界地图（9 张，对应 练气 → 渡劫）
  * ---------------------------------------------------------------------
  * monsters：普通怪物名字（随机遇到）；boss：首领名字（各方面更强）
- * 所有地图掉落的药材、矿石种类都一样（下方 9 种），只是数量不同：
+ * 所有地图掉落的药材、矿石种类都一样（9 种药材、9 种矿石），只是数量不同：
  *   地图越高，掉得越多（第 1 张 ×1 → 第 9 张 ×10，见 js/config/numbers.js 的 explore 部分）
  * ===================================================================== */
 DATA.maps = [
@@ -38,13 +38,13 @@ DATA.maps = [
     monsters: ["雷灵", "劫雷兽", "心魔", "雷鹏", "紫电蛟", "天罚使者", "劫火灵", "雷霆巨人"] },
 ];
 
-// 9 种药材、9 种矿石（序号 0~8 = 一品~九品）
-DATA.herbs = ["青灵草", "凝露花", "赤血参", "紫灵芝", "幽冥花", "星辰草", "天魔花", "九幽莲", "渡劫花"];
-DATA.ores  = ["铁精", "寒铁", "赤铜精", "玄冥铁", "星辰砂", "虚空石", "魔晶", "九幽玄铁", "天雷石"];
+// 9 种药材、9 种矿石：名字和价格在 js/config/numbers.js 的 mats（序号 0~8，越往后越稀有）
+DATA.herbs = Object.keys(CFG.mats.herb);
+DATA.ores  = Object.keys(CFG.mats.ore);
 DATA.PIN = ["一品", "二品", "三品", "四品", "五品", "六品", "七品", "八品", "九品"];
-// 内丹、灵血分九阶（第 1 张地图掉一阶 …… 第 9 张掉九阶）
+// 丹药、炉子、丹方分九阶
 DATA.JIE = ["一阶", "二阶", "三阶", "四阶", "五阶", "六阶", "七阶", "八阶", "九阶"];
-DATA.matKinds = { herb: "药材", ore: "矿石", core: "内丹", blood: "灵血" };
+DATA.matKinds = { herb: "药材", ore: "矿石" };
 
 // 无事发生时的随机描述
 DATA.exploreIdle = ["四下寂静，无事发生。", "山风拂过，草木沙沙。", "踏过一片乱石。", "远处传来几声兽吼。",
@@ -57,4 +57,6 @@ DATA.EXPLORE_TIME = _E.TIME;
 DATA.STONE_BASE = _E.STONE_BASE;
 DATA.STONE_GROW = _E.STONE_GROW;
 DATA.mapMult = a => 1 + (_E.MAP_MAX - 1) * a / (DATA.maps.length - 1); // 地图掉落倍率
-DATA.matPrice = g => Math.floor(_E.MAT_PRICE_BASE * Math.pow(_E.MAT_PRICE_RATE, g)); // g：品级序号 0~8
+// 材料出售价、宗门兑换贡献（numbers.js 的 mats）
+DATA.matPrice = (kind, g) => CFG.mats[kind][DATA[kind === "herb" ? "herbs" : "ores"][g]][0];
+DATA.matContrib = (kind, g) => CFG.mats[kind][DATA[kind === "herb" ? "herbs" : "ores"][g]][1];
