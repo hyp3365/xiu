@@ -62,20 +62,18 @@ G.module({
       API.upload(null).then(() => location.reload());
     },
 
-    // 创建角色：随机灵根
+    // 创建角色（不再随机灵根；灵根在「灵根」页用灵石提升）
     intro() {
-      const root = DATA.roots[U.weighted(DATA.roots.map(r => r.w))];
       this._lockModal = true;
       this.modal(`<h2>踏入仙途</h2><p>凡人寿不过百，你于山野间偶得一卷残破古经，自此心生问道之念。</p>
         <p>道号<input id="name-input" maxlength="8" placeholder="例如：青云子"></p>
-        <p>测灵石显示：<b class="q4">${root.name}</b>（修炼速度 ×${root.mult}）<br>${root.desc}</p>
         <div class="btns"><button class="primary" id="start-btn">开始修仙</button></div>`);
       $("#start-btn").onclick = () => {
         const name = ($("#name-input").value || "").trim() || "无名散修";
-        this.s = this.newSave(name, root.id);
+        this.s = this.newSave(name);
         this._lockModal = false; this.closeModal();
         this.dirty(); const st = this.stats(); this.s.hp = st.hp; this.s.mana = st.mana;
-        this.log(`${name}，${root.name}，自此踏上仙途。赠你聚气丹三枚。`, "gold");
+        this.log(`${name}，自此踏上仙途。赠你聚气丹三枚。`, "gold");
         this.log("提示：修炼页开启“自动修炼”，聚灵阵会为你聚集灵气；离线也会继续修炼。", "sys");
         this.start();
       };
