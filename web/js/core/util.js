@@ -24,6 +24,8 @@ const U = {
     for (const [v, u] of U.UNITS) if (n >= v) return (n / v).toFixed(n / v >= 100 ? 0 : 2).replace(/\.?0+$/, "") + u;
     return String(n);
   },
+  // 小数字保留 1 位小数（如 1.6），大数字同 fmt
+  num(n) { return n < 100 ? String(Math.floor(n * 10) / 10) : U.fmt(n); },
   // 秒数 → “X天X小时X分”
   dur(sec) {
     sec = Math.floor(sec);
