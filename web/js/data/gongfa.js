@@ -18,23 +18,22 @@
  * ===================================================================== */
 
 // 四阶：mult 数值倍率，cost 学习/修炼消耗倍率（顺序：黄 → 天，越往后越强）
+// （倍率在 js/config/numbers.js 的 gongfa.tiers）
+const _GF = CFG.gongfa;
 DATA.tiers = [
-  { id: "huang", name: "黄阶", mult: 1,   cost: 1 },
-  { id: "xuan",  name: "玄阶", mult: 1.8, cost: 3 },
-  { id: "di",    name: "地阶", mult: 3.2, cost: 10 },
-  { id: "tian",  name: "天阶", mult: 5.5, cost: 30 },
-];
+  { id: "huang", name: "黄阶" }, { id: "xuan", name: "玄阶" }, { id: "di", name: "地阶" }, { id: "tian", name: "天阶" },
+].map(t => Object.assign(t, _GF.tiers[t.id]));
 DATA.tierById = Object.fromEntries(DATA.tiers.map((t, i) => [t.id, Object.assign(t, { idx: i })]));
 
-/* k：每层加成系数。攻防血法修速 = k × 门派强度 × 阶倍率；命中/闪避 = k × 星级 × 阶倍率 */
+/* k：每层加成系数（数值见 numbers.js：EFFECT、HIT_DODGE_K） */
 DATA.gongfaTypes = [
-  { id: "xinfa",    name: "心法", suffix: "心法", stat: "def",       k: DATA.playerBase.def * 0.25,       label: "防御" },
-  { id: "gongjue",  name: "功诀", suffix: "诀",   stat: "atk",       k: DATA.playerBase.atk * 0.25,       label: "攻击" },
-  { id: "zhenjing", name: "真经", suffix: "真经", stat: "hp",        k: DATA.playerBase.hp * 0.25,        label: "气血上限" },
-  { id: "mijue",    name: "秘诀", suffix: "秘诀", stat: "cultivate", k: DATA.playerBase.cultivate * 0.25, label: "修炼速度" },
-  { id: "shenfa",   name: "身法", suffix: "身法", stat: "hit",       k: 3,                                label: "命中" },
-  { id: "dunshu",   name: "遁术", suffix: "遁术", stat: "dodge",     k: 3,                                label: "闪避" },
-  { id: "fajue",    name: "法诀", suffix: "法诀", stat: "mana",      k: DATA.playerBase.mana * 0.25,      label: "法力上限" },
+  { id: "xinfa",    name: "心法", suffix: "心法", stat: "def",       k: DATA.playerBase.def * _GF.EFFECT,       label: "防御" },
+  { id: "gongjue",  name: "功诀", suffix: "诀",   stat: "atk",       k: DATA.playerBase.atk * _GF.EFFECT,       label: "攻击" },
+  { id: "zhenjing", name: "真经", suffix: "真经", stat: "hp",        k: DATA.playerBase.hp * _GF.EFFECT,        label: "气血上限" },
+  { id: "mijue",    name: "秘诀", suffix: "秘诀", stat: "cultivate", k: DATA.playerBase.cultivate * _GF.EFFECT, label: "修炼速度" },
+  { id: "shenfa",   name: "身法", suffix: "身法", stat: "hit",       k: _GF.HIT_DODGE_K,                           label: "命中" },
+  { id: "dunshu",   name: "遁术", suffix: "遁术", stat: "dodge",     k: _GF.HIT_DODGE_K,                           label: "闪避" },
+  { id: "fajue",    name: "法诀", suffix: "法诀", stat: "mana",      k: DATA.playerBase.mana * _GF.EFFECT,      label: "法力上限" },
 ];
 DATA.FLAT_STATS = ["hit", "dodge"]; // 只随星级、不随门派强度成长的属性
 
@@ -48,18 +47,17 @@ DATA.elements = [
   { id: "lei",  name: "雷", spell: "掌心雷" },
 ];
 
-DATA.GONGFA_MAX = 12;
-DATA.GF_QUEUE = 15;   // 修炼队列上限
-DATA.STUDY_STEP = 5;  // 每 5 秒扣一次修为
-// 修炼升层所需时间（分钟）：第 1→2 层 3 分钟 …… 第 11→12 层 15 小时
-DATA.studyMin = [3, 10, 30, 60, 120, 240, 360, 480, 600, 720, 900];
+DATA.GONGFA_MAX = _GF.MAX;
+DATA.GF_QUEUE = _GF.QUEUE;
+DATA.STUDY_STEP = _GF.STUDY_STEP;
+DATA.studyMin = _GF.STUDY_MIN;
 
 // 门派强度：星级越高，数值越大
 DATA.sectL = sect => sect.reqRealm * DATA.LAYERS;
 DATA.sectPower = sect => Math.pow(DATA.GROW, DATA.sectL(sect) + 5);
 
 // 修炼升层总共消耗修为：0.5 × 修为需求(门派入门层序 + 当前层 - 1) × 阶倍率（分摊到每 5 秒扣）
-DATA.studyExp = info => Math.floor(0.5 * DATA.needExp(DATA.sectL(info.sect) + info.lv - 1) * info.tier.cost);
+DATA.studyExp = info => Math.floor(_GF.STUDY_EXP_RATE * DATA.needExp(DATA.sectL(info.sect) + info.lv - 1) * info.tier.cost);
 
 /* ---------- 功法 ----------
  * id 规则："门派id:类别id:阶id"，例如 "s1_0:mijue:huang" */
@@ -74,7 +72,7 @@ DATA.gongfaInfo = (id, lv = 1) => {
     name: sect.prefix + type.suffix,
     value: per * lv,                              // 当前加成（固定数值）
     perLv: per,                                   // 每层加成
-    cost: Math.floor(10 * sect.star * sect.star * tier.cost), // 功法殿首次学习所需贡献
+    cost: Math.floor(_GF.LEARN_GF * sect.star * sect.star * tier.cost), // 功法殿首次学习所需贡献
   };
 };
 
@@ -87,14 +85,14 @@ DATA.spellInfo = (id, lv = 1) => {
   const sect = DATA.sectById[sectId], el = DATA.elements.find(x => x.id === elId), tier = DATA.tierById[tierId];
   if (!sect || !el || !tier) return null;
   const P = DATA.sectPower(sect);
-  const per = DATA.playerBase.atk * P * 0.3 * tier.mult;     // 每层固定伤害
+  const per = DATA.playerBase.atk * P * _GF.SPELL_FLAT * tier.mult;     // 每层固定伤害
   return {
     kind: "sp", id, sect, el, tier, lv,
     name: `${sect.prefix}·${el.spell}`,
-    pct: 100 + 30 * (sect.star - 1),                          // 攻击百分比
+    pct: _GF.PCT_BASE + _GF.PCT_PER_STAR * (sect.star - 1),                         // 攻击百分比
     flat: per * lv, perLv: per,                               // 固定伤害
-    mana: Math.floor(DATA.playerBase.mana * P * 0.15 * (1 + tier.idx * 0.4)), // 法力消耗
-    cost: Math.floor(15 * sect.star * sect.star * tier.cost), // 首次学习所需贡献
+    mana: Math.floor(DATA.playerBase.mana * P * _GF.SPELL_MANA * (1 + tier.idx * 0.4)), // 法力消耗
+    cost: Math.floor(_GF.LEARN_SP * sect.star * sect.star * tier.cost), // 首次学习所需贡献
   };
 };
 
