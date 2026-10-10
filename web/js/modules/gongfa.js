@@ -62,7 +62,7 @@ G.module({
       for (const id in this.s.gongfa) {
         if (DATA.isSpell(id)) continue;
         const info = DATA.gongfaInfo(id, this.s.gongfa[id]);
-        if (info) b[info.type.stat] += info.value;
+        if (info) b[info.type.stat] += info.value * this.lingenGongfa(info.el.id); // 灵根加成
       }
       return b;
     },
@@ -112,11 +112,12 @@ G.module({
     // 一行：功法或法术，带修炼按钮
     skillLine(g) {
       const s = this.s, max = g.lv >= DATA.GONGFA_MAX, plan = this.plannedLv(g.id), full = plan >= DATA.GONGFA_MAX;
+      const lg = this.s.lingen[g.el.id] || 0, lgTxt = lg ? `（${g.el.name}灵根 +${lg * (g.kind === "sp" ? CFG.lingen.SPELL_PCT : CFG.lingen.GONGFA_PCT)}%）` : "";
       const desc = g.kind === "sp"
-        ? `伤害 攻击×${g.pct}% + ${U.fmt(g.flat)}，耗法力 ${U.fmt(g.mana)}${max ? "" : `，下一层 +${U.fmt(g.perLv * (g.lv + 1))}`}`
-        : `${g.type.label} +${this.gfValue(g, g.value)}${max ? "" : `，下一层 +${this.gfValue(g, g.perLv * (g.lv + 1))}`}`;
+        ? `伤害 攻击×${g.pct}% + ${U.fmt(g.flat)}${lgTxt}，耗法力 ${U.fmt(g.mana)}${max ? "" : `，下一层 +${U.fmt(g.perLv * (g.lv + 1))}`}`
+        : `${g.type.label} +${this.gfValue(g, g.value * this.lingenGongfa(g.el.id))}${lgTxt}${max ? "" : `，下一层 +${this.gfValue(g, g.perLv * (g.lv + 1) * this.lingenGongfa(g.el.id))}`}`;
       const cost = max ? 0 : DATA.studyExp(g), steps = max ? 1 : DATA.studyMin[g.lv - 1] * 60 / DATA.STUDY_STEP;
-      return `<div class="line"><div>《${g.name}》<span class="tag">${g.tier.name}</span><span class="tag">${g.lv}/${DATA.GONGFA_MAX}层</span>
+      return `<div class="line"><div>《${g.name}》<span class="tag">${g.el.name}</span><span class="tag">${g.tier.name}</span><span class="tag">${g.lv}/${DATA.GONGFA_MAX}层</span>
         <small>${desc}${max ? "" : `<br>下一层：${U.dur(DATA.studyMin[g.lv - 1] * 60)} · 每5秒 ${U.fmt(Math.max(1, Math.ceil(cost / steps)))} 修为（共 ${U.fmt(cost)}）`}${plan > g.lv ? `<br>已排至第 ${plan} 层` : ""}</small></div>
         ${max ? `<button class="sm" disabled>圆满</button>` :
           `<button class="sm" onclick="G.studyGongfa('${g.id}')" ${full || s.gfQueue.length >= DATA.GF_QUEUE ? "disabled" : ""}>${full ? "已排满" : "修炼"}</button>`}</div>`;
