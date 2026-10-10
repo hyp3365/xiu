@@ -44,6 +44,13 @@ G.module({
       s.bag.forEach(it => { if (it.t === "eq" && it.e.slot === "acc") { it.e.slot = "pendant"; it.e.name = DATA.equipNames.pendant[it.e.q]; } });
     },
     // 法宝栏、法术栏当前开启格数：每个大境界 1 格
+    // 背包排序：先按类型（修炼丹 → 属性丹 → 药材 → 矿石 → 装备），同类型再按品阶从低到高
+    sortBag() {
+      const order = it => it.t === "pill" ? 0 : it.t === "dan" ? 1 : it.t === "mat" ? (it.kind === "herb" ? 2 : 3) : it.t === "eq" ? (it.e.slot === "fabao" ? 5 : 4) : 9;
+      const grade = it => it.t === "eq" ? it.e.g * 10 + it.e.q : it.g || 0;
+      const sub = it => it.t === "pill" || it.t === "dan" ? it.type : it.t === "eq" ? it.e.slot : "";
+      this.s.bag.sort((a, b) => order(a) - order(b) || grade(a) - grade(b) || (sub(a) < sub(b) ? -1 : sub(a) > sub(b) ? 1 : 0));
+    },
     slotCount() { return Math.min(DATA.SLOT_MAX, this.r() + 1); },
 
     /* ---------- 装备属性 ---------- */
@@ -197,13 +204,14 @@ G.module({
         <p class="desc">战斗中按顺序轮流施放，法力不足时普通攻击。</p></div>`;
     }
 
+    this.sortBag();
     let cells = "";
     for (let i = 0; i < s.bagCap; i++) {
       const it = s.bag[i];
       if (!it) cells += `<div class="cell"></div>`;
       else if (it.t === "pill") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 3))}" onclick="G.openItem(${i})">${DATA.pills[it.type].name}<span class="g">${DATA.realms[it.g]}</span><span class="n">${it.n}</span></div>`;
       else if (it.t === "dan") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${DATA.dans[it.type].name}<span class="g">${DATA.JIE[it.g]}</span><span class="n">${it.n}</span></div>`;
-      else if (it.t === "mat") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${it.name}<span class="g">${it.kind === "ore" ? DATA.PIN[it.g] : "药材"}</span><span class="n">${U.fmt(it.n)}</span></div>`;
+      else if (it.t === "mat") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${it.name}<span class="g">${DATA.matKinds[it.kind]}</span><span class="n">${U.fmt(it.n)}</span></div>`;
       else cells += `<div class="cell q${it.e.q}" onclick="G.openItem(${i})">${it.e.name}<span class="g">${DATA.realms[it.e.g]}</span></div>`;
     }
     return tabs + top + `<div class="card"><h3>储物格<small>${s.bag.length} / ${s.bagCap}</small></h3><div class="grid">${cells}</div></div>`;
