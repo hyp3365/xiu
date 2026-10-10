@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------
  * 【功法】六大类，每类加成一种属性（固定数值，不是百分比）：
  *   心法 → 防御      功诀 → 攻击      真经 → 气血上限
- *   秘诀 → 修炼速度  身法 → 闪避      法诀 → 法力上限
+ *   秘诀 → 修炼速度  身法 → 命中      遁术 → 闪避      法诀 → 法力上限
  * 每个门派每类功法分 天、地、玄、黄 四阶，名字如：青阳心法（黄阶）
  * 必须学会至少一部秘诀才能修炼。
  *
@@ -13,7 +13,8 @@
  *   修炼法术层数只增加固定伤害（不加百分比）
  *
  * 功法、法术都是 12 层：功法殿首次学习消耗贡献，学会即第 1 层；
- * 之后在“功法”页修炼升层，消耗修为 + 时间（见 studyMin），同时只能修炼一部。
+ * 之后在“功法”页修炼升层：需要时间（见 studyMin），修炼期间每 5 秒消耗一次修为；
+ * 可排队，队列最多 GF_QUEUE 个。
  * ===================================================================== */
 
 // 四阶：mult 数值倍率，cost 学习/修炼消耗倍率（顺序：黄 → 天，越往后越强）
@@ -25,14 +26,17 @@ DATA.tiers = [
 ];
 DATA.tierById = Object.fromEntries(DATA.tiers.map((t, i) => [t.id, Object.assign(t, { idx: i })]));
 
+/* k：每层加成系数。攻防血法修速 = k × 门派强度 × 阶倍率；命中/闪避 = k × 星级 × 阶倍率 */
 DATA.gongfaTypes = [
-  { id: "xinfa",    name: "心法", suffix: "心法", stat: "def",       k: DATA.playerBase.def * 0.06,     label: "防御" },
-  { id: "gongjue",  name: "功诀", suffix: "诀",   stat: "atk",       k: DATA.playerBase.atk * 0.06,     label: "攻击" },
-  { id: "zhenjing", name: "真经", suffix: "真经", stat: "hp",        k: DATA.playerBase.hp * 0.06,      label: "气血上限" },
-  { id: "mijue",    name: "秘诀", suffix: "秘诀", stat: "cultivate", k: DATA.playerBase.shenshi * 0.06, label: "修炼速度" },
-  { id: "shenfa",   name: "身法", suffix: "身法", stat: "dodge",     k: 0,                              label: "闪避" },
-  { id: "fajue",    name: "法诀", suffix: "法诀", stat: "mana",      k: DATA.playerBase.mana * 0.06,    label: "法力上限" },
+  { id: "xinfa",    name: "心法", suffix: "心法", stat: "def",       k: DATA.playerBase.def * 0.25,       label: "防御" },
+  { id: "gongjue",  name: "功诀", suffix: "诀",   stat: "atk",       k: DATA.playerBase.atk * 0.25,       label: "攻击" },
+  { id: "zhenjing", name: "真经", suffix: "真经", stat: "hp",        k: DATA.playerBase.hp * 0.25,        label: "气血上限" },
+  { id: "mijue",    name: "秘诀", suffix: "秘诀", stat: "cultivate", k: DATA.playerBase.cultivate * 0.25, label: "修炼速度" },
+  { id: "shenfa",   name: "身法", suffix: "身法", stat: "hit",       k: 3,                                label: "命中" },
+  { id: "dunshu",   name: "遁术", suffix: "遁术", stat: "dodge",     k: 3,                                label: "闪避" },
+  { id: "fajue",    name: "法诀", suffix: "法诀", stat: "mana",      k: DATA.playerBase.mana * 0.25,      label: "法力上限" },
 ];
+DATA.FLAT_STATS = ["hit", "dodge"]; // 只随星级、不随门派强度成长的属性
 
 // 六系法术（name 为法术名后缀，如 青阳·金光剑诀）
 DATA.elements = [
@@ -45,6 +49,8 @@ DATA.elements = [
 ];
 
 DATA.GONGFA_MAX = 12;
+DATA.GF_QUEUE = 15;   // 修炼队列上限
+DATA.STUDY_STEP = 5;  // 每 5 秒扣一次修为
 // 修炼升层所需时间（分钟）：第 1→2 层 3 分钟 …… 第 11→12 层 15 小时
 DATA.studyMin = [3, 10, 30, 60, 120, 240, 360, 480, 600, 720, 900];
 
@@ -52,7 +58,7 @@ DATA.studyMin = [3, 10, 30, 60, 120, 240, 360, 480, 600, 720, 900];
 DATA.sectL = sect => sect.reqRealm * DATA.LAYERS;
 DATA.sectPower = sect => Math.pow(DATA.GROW, DATA.sectL(sect) + 5);
 
-// 修炼升层消耗修为：0.5 × 修为需求(门派入门层序 + 当前层 - 1) × 阶倍率
+// 修炼升层总共消耗修为：0.5 × 修为需求(门派入门层序 + 当前层 - 1) × 阶倍率（分摊到每 5 秒扣）
 DATA.studyExp = info => Math.floor(0.5 * DATA.needExp(DATA.sectL(info.sect) + info.lv - 1) * info.tier.cost);
 
 /* ---------- 功法 ----------
@@ -62,7 +68,7 @@ DATA.gongfaInfo = (id, lv = 1) => {
   const [sectId, typeId, tierId] = id.split(":");
   const sect = DATA.sectById[sectId], type = DATA.gongfaTypes.find(x => x.id === typeId), tier = DATA.tierById[tierId];
   if (!sect || !type || !tier) return null;
-  const per = type.stat === "dodge" ? 0.25 * sect.star * tier.mult : type.k * DATA.sectPower(sect) * tier.mult;
+  const per = DATA.FLAT_STATS.includes(type.stat) ? type.k * sect.star * tier.mult : type.k * DATA.sectPower(sect) * tier.mult;
   return {
     kind: "gf", id, sect, type, tier, lv,
     name: sect.prefix + type.suffix,
