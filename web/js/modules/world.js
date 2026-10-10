@@ -6,26 +6,30 @@
  *   法术栏里的法术轮流施放（消耗法力），法力不足时普通攻击。
  *   胜利：灵石 + 概率获得灵药、矿物、丹药、装备
  *   失败：遗失 10% 灵石
- * 自动探索：每 10 秒战斗一场（离线也继续）；探索时不能修炼；
- *   气血低于上限 30% 自动停止。
+ * 自动探索：每次 100 秒（DATA.EXPLORE_TIME），结束时战斗并把奖励放进背包，
+ *   气血够就继续下一次（离线也继续）；探索时不能修炼；气血低于上限 30% 自动停止。
  * 坊市：出售当前境界品质的丹药和灵品装备。
  * ===================================================================== */
 G.module({
   id: "world",
   tab: "world",
 
-  defaults: () => ({ explore: null }), // 自动探索中：{ map: 地图序号 }
+  defaults: () => ({ explore: null }), // 自动探索中：{ map: 地图序号, start: 本次开始时间, count: 已探索次数 }
 
-  // 每 10 秒：自动探索打一场
+  // 每 10 秒检查：本次探索满 100 秒就结算，气血够就开始下一次
   tick() {
-    const s = this.s;
+    const s = this.s, T = DATA.EXPLORE_TIME * 1000;
     if (!s.explore) return;
-    if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) {
-      s.explore = null;
-      this.log("气血不足三成，自动探索已停止。", "bad");
-      return;
+    if (!s.explore.start) s.explore.start = this.now();
+    while (s.explore && this.now() >= s.explore.start + T) {
+      s.explore.count = (s.explore.count || 0) + 1;
+      s.explore.start += T;
+      this.fightMap(s.explore.map, true);
+      if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) {
+        this.log(`气血不足三成，自动探索停止（共探索 ${s.explore.count} 次）。`, "bad");
+        s.explore = null;
+      }
     }
-    this.fightMap(s.explore.map, true);
   },
 
   api: {
@@ -36,7 +40,8 @@ G.module({
     // 生成怪物：Lm 为怪物层序，k 为强度系数
     makeMonster(Lm, name, k = 0.8 + Math.random() * 0.2) {
       const f = k * Math.pow(DATA.GROW, Lm), B = DATA.playerBase, F = DATA.playerFixed;
-      return { name, Lm, hp: B.hp * f, atk: B.atk * f, def: B.def * f, speed: F.speed, dodge: F.dodge, crit: F.crit };
+      return { name, Lm, hp: B.hp * f, atk: B.atk * f, def: B.def * f, speed: F.speed, crit: F.crit,
+        hit: F.hit + Lm * DATA.MONSTER_HIT, dodge: F.dodge + Lm * DATA.MONSTER_DODGE };
     },
 
     // 通用战斗：速度高者先手，判闪避、暴击。返回 { win, rounds }，并更新玩家气血
@@ -50,7 +55,7 @@ G.module({
           const sp = spells[(si + k) % spells.length];
           if (s.mana >= sp.mana) {
             si = (si + k + 1) % spells.length; s.mana -= sp.mana;
-            if (Math.random() * 100 < m.dodge) return 0;
+            if (Math.random() * 100 < DATA.dodgeChance(st.hit, m.dodge)) return 0;
             let d = Math.max(st.atk * 0.1, st.atk * sp.pct / 100 + sp.flat - m.def * 0.5) * (0.9 + Math.random() * 0.2);
             if (Math.random() * 100 < st.crit) d *= 2;
             return d;
@@ -59,7 +64,7 @@ G.module({
         return hit(st, m);
       };
       const hit = (A, D) => {
-        if (Math.random() * 100 < D.dodge) return 0;                              // 闪避
+        if (Math.random() * 100 < DATA.dodgeChance(A.hit, D.dodge)) return 0;     // 闪避（看命中与闪避之差）
         let d = Math.max(A.atk * 0.1, A.atk - D.def * 0.5) * (0.9 + Math.random() * 0.2);
         if (Math.random() * 100 < A.crit) d *= 2;                                  // 暴击
         return d;
@@ -114,7 +119,7 @@ G.module({
       const s = this.s;
       if (s.explore && s.explore.map === a) { s.explore = null; this.log("停止自动探索。", "sys"); return this.after(); }
       if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("气血不足三成，无法探索。", "sys");
-      s.explore = { map: a };
+      s.explore = { map: a, start: this.now(), count: 0 };
       this.log(`开始在${DATA.maps[a].name}自动探索（探索期间无法修炼）。`, "sys");
       this.after();
     },
@@ -156,7 +161,12 @@ G.module({
       const st = this.stats();
       return tabs + `<div class="row small"><span>气血 ${U.fmt(s.hp)} / ${U.fmt(st.hp)}</span><span>斩妖 ${s.kills}</span></div>
         <div class="bar hp"><div style="width:${s.hp / st.hp * 100}%"></div></div>
-        <div class="row small"><span>法力 ${U.fmt(s.mana)} / ${U.fmt(st.mana)}</span><span>${s.explore ? `<b class="q4">探索中：${DATA.maps[s.explore.map].name}</b>` : "未探索"}</span></div>
+        <div class="row small"><span>法力 ${U.fmt(s.mana)} / ${U.fmt(st.mana)}</span><span>灵石 ${U.fmt(s.stone)}</span></div>
+        ${s.explore ? (() => { const left = Math.max(0, s.explore.start + DATA.EXPLORE_TIME * 1000 - Date.now());
+          return `<div class="card"><h3>自动探索中 · ${DATA.maps[s.explore.map].name}<small>已探索 ${s.explore.count || 0} 次</small></h3>
+          <div class="bar tick"><div style="width:${100 - left / (DATA.EXPLORE_TIME * 10)}%"></div></div>
+          <div class="row small"><span>本次剩余 ${Math.ceil(left / 1000)} 秒</span><button class="sm" onclick="G.toggleExplore(${s.explore.map})">停止</button></div>
+          <p class="desc">${(s.log.find(l => /击败|不敌|缠斗/.test(l.m)) || { m: "" }).m}</p></div>`; })() : ""}
         <div class="card"><h3>凡界<small>探索时无法修炼，气血低于三成自动停止</small></h3>` +
         DATA.maps.map((map, a) => {
           const lock = this.r() < a, on = s.explore && s.explore.map === a;
