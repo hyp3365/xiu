@@ -18,15 +18,15 @@ CFG.gongfa = {
   // 四阶：mult 效果倍率，cost 消耗倍率（贡献、修为）
   tiers: { huang: { mult: 1, cost: 1 }, xuan: { mult: 1.2, cost: 2 }, di: { mult: 1.4, cost: 4 }, tian: { mult: 1.6, cost: 7 } },
   // 功法效果：每层加成 = 基础属性 × EFFECT × 门派强度 × 阶倍率
-  EFFECT: 0.11,
+  EFFECT: 0.45,
   // 星级倍率：1~9 星门派的功法效果、法术固定伤害再乘这个（第 1 个是 1 星）
-  STAR_MULT: [1, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9],
+  STAR_MULT: [1, 1.3, 1.6, 1.9, 2.2, 2.5, 2.7, 3, 3.3, 3.6],
   // 身法(命中)、遁术(闪避)：每层 = HIT_DODGE_K × 门派星级 × 阶倍率
   HIT_DODGE_K: 1,
   // 法术：攻击百分比 = PCT_BASE + PCT_PER_STAR × (星级-1)；每层固定伤害 = 攻击基础 × 门派强度 × SPELL_FLAT × 阶倍率
   PCT_BASE: 100, PCT_PER_STAR: 40, SPELL_FLAT: 0.6,
   // 法术法力消耗 = 法力基础 × 门派强度 × SPELL_MANA × (1 + 阶序 × 0.4)
-  SPELL_MANA: 3.5,
+  SPELL_MANA: 4.5,
   // 功法殿学习所需帮贡 = 基数 × 星级² × 阶消耗倍率
   LEARN_GF: 100,      // 功法
   LEARN_SP: 80,      // 法术
