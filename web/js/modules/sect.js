@@ -53,7 +53,7 @@ G.module({
     /* ---------- 入门 / 叛出 ---------- */
     joinSect(id) {
       const x = DATA.sectById[id];
-      if (this.r() < x.reqRealm) return;
+      if (!this.realmOK(x.reqRealm)) return;
       Object.assign(this.s, { sect: id, contrib: 0, rank: 0, room: -1, tower: 0, affair: { task: -1, start: 0, count: 0 } });
       this.sectTab = "hall";
       this.log(`你拜入${x.name}（${x.star}星），成为外门弟子。`, "gold"); this.after();
@@ -65,11 +65,11 @@ G.module({
     },
 
     /* ---------- 宗门大殿 ---------- */
-    rankReqRealm(i) { return Math.min(DATA.realms.length - 1, this.sectInfo().reqRealm + DATA.ranks[i].realm); },
+    rankReqRealm(i) { return Math.min(DATA.realms.length - 1, this.sectInfo().reqRealm + DATA.ranks[i].realm); }, // -1 = 凡人
     rankCost(i) { return Math.floor(DATA.ranks[i].cost * this.starMul()); },
     promote() {
       const i = this.s.rank + 1; if (i >= DATA.ranks.length) return;
-      if (this.r() < this.rankReqRealm(i) || this.s.contrib < this.rankCost(i)) return;
+      if (!this.realmOK(this.rankReqRealm(i)) || this.s.contrib < this.rankCost(i)) return;
       this.s.contrib -= this.rankCost(i); this.s.rank = i;
       this.log(`晋升为【${DATA.ranks[i].name}】！`, "gold"); this.after();
     },
@@ -205,8 +205,9 @@ G.module({
         const t = U.pick(Object.keys(DATA.pills)), n = U.rand(SC.pill.n[0], SC.pill.n[1]);
         this.addPill(t, g, n); this.log(`秘境中发现前人遗留的${DATA.pills[t].name} ×${n}。`, "gold");
       } else if (roll < SC.stone.chance + SC.pill.chance + SC.equip.chance) {
-        const e = this.makeEquip(U.pick(Object.keys(DATA.slots)), g, U.rand(SC.equip.q[0], SC.equip.q[1]));
-        if (this.addEquip(e)) this.log(`秘境深处得到<span class="q${e.q}">${DATA.quals[e.q]}${e.name}</span>！`, "gold");
+        const sl = U.pick(Object.keys(DATA.slots));   // 头盔~吊坠：本门星级对应阶的炼器装备；戒指、法宝：旧品质装备
+        const e = DATA.forgeSlots.includes(sl) ? DATA.rollForged(sl, Math.min(9, this.sectInfo().star - 1)) : this.makeEquip(sl, g, U.rand(SC.equip.q[0], SC.equip.q[1]));
+        if (this.addEquip(e)) this.log(`秘境深处得到<span class="q${e.q}">${this.eqQual(e)}${this.itemName({ t: "eq", e })}</span>！`, "gold");
       } else this.log("秘境中迷雾重重，一无所获。", "sys");
       this.after();
     },
@@ -218,9 +219,9 @@ G.module({
     if (!s.sect) {
       const star = this.sectStar || 1;
       const stars = Array.from({ length: DATA.SECT_STARS }, (_, i) => `<button class="${star === i + 1 ? "active" : ""}" onclick="G.setSectStar(${i + 1})">${i + 1}★</button>`).join("");
-      return `<div class="room-grid five">${stars}</div><div class="card"><h3>${star} 星门派<small>需${DATA.realms[DATA.sectReq(star)]}期</small></h3>` +
+      return `<div class="room-grid five">${stars}</div><div class="card"><h3>${star} 星门派<small>需${DATA.realmLabel(DATA.sectReq(star))}</small></h3>` +
         DATA.sects.filter(x => x.star === star).map(x => {
-          const lock = this.r() < x.reqRealm;
+          const lock = !this.realmOK(x.reqRealm);
           return `<div class="line"><div>${x.name}<span class="tag">${DATA.elById[x.el].name}</span><small>${DATA.elById[x.el].name}属性功法、法术 · 可学本星级全部门派功法</small></div>
             <button class="sm" onclick="G.joinSect('${x.id}')" ${lock ? "disabled" : ""}>${lock ? "境界不足" : "拜入"}</button></div>`;
         }).join("") + `</div>`;
@@ -239,8 +240,8 @@ G.module({
         <div class="line"><div>每日俸禄<small>${U.fmt(this.salary())} 灵石</small></div>
         <button class="sm" onclick="G.claimSalary()" ${got ? "disabled" : ""}>${got ? "今日已领" : "领取"}</button></div>
         ${next < 0 ? `<p class="desc">你已是一宗之主。</p>` : `<div class="line"><div>晋升【${DATA.ranks[next].name}】
-          <small>需${DATA.realms[this.rankReqRealm(next)]}期 · ${U.fmt(this.rankCost(next))} 贡献</small></div>
-          <button class="sm" onclick="G.promote()" ${this.r() < this.rankReqRealm(next) || s.contrib < this.rankCost(next) ? "disabled" : ""}>晋升</button></div>`}</div>
+          <small>需${DATA.realmLabel(this.rankReqRealm(next))} · ${U.fmt(this.rankCost(next))} 贡献</small></div>
+          <button class="sm" onclick="G.promote()" ${!this.realmOK(this.rankReqRealm(next)) || s.contrib < this.rankCost(next) ? "disabled" : ""}>晋升</button></div>`}</div>
         <div class="card"><h3>职务一览</h3>${DATA.ranks.map((r, i) => `<div class="line"><div>${r.name}<small>俸禄 ${U.fmt(Math.floor(r.daily * this.starMul() * this.rankMul(i)))} 灵石 · 晋升 ${U.fmt(this.rankCost(i))} 贡献</small></div>${i === s.rank ? "<b>当前</b>" : i < s.rank ? "<small>已历</small>" : ""}</div>`).join("")}</div>
         <div class="btns"><button onclick="G.leaveSect()">叛出门派</button></div>`;
     } else if (tab === "lib") {
@@ -312,7 +313,7 @@ G.module({
     } else if (tab === "wudao") {
       h += this.sectWudaoView();   // 见 wudao.js
     } else if (tab === "forge") {
-      h += `<div class="card"><h3>炼器室 · 器谱</h3><p class="desc">长老闭关中，暂未开放传授。</p></div>`;
+      h += this.sectForgeView();   // 见 craft.js
     } else if (tab === "tower") {
       const f = s.tower + 1, done = s.tower >= DATA.TOWER_MAX;
       h += `<div class="card"><h3>试炼塔<small>已通关 ${s.tower} / ${DATA.TOWER_MAX} 层</small></h3>
