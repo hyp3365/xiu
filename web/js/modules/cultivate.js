@@ -83,7 +83,7 @@ G.module({
     // 不能修炼的原因（能修炼返回空）
     cultivateBlock() {
       if (!this.hasMijue()) return "未学秘诀，无法修炼（门派功法殿学习）";
-      if (this.s.explore) return "自动探索中，无法修炼";
+      if (this.s.explore) return this.s.explore.once ? "历练中，无法修炼" : "自动探索中，无法修炼";
       if (!this.canCultivate()) return "灵气耗尽，修炼停滞";
       return "";
     },
@@ -118,9 +118,11 @@ G.module({
     needTrib() { return !this.s.mortal && this.s.L + 1 >= CFG.trib.START; },
 
     /* ---------- 雷劫 ---------- */
+    // 雷劫属性：numbers.js trib.realms 里该大境界「一层」的数值 × LAYER_GROW^层
     makeTrib(L) {
-      const T = CFG.trib, f = Math.pow(DATA.GROW, L) * Math.pow(T.REALM_MULT, Math.floor(L / DATA.LAYERS)), B = DATA.playerBase;
-      return { hp: B.hp * f * T.HP, atk: B.atk * f * T.ATK, def: B.def * f * T.DEF, crit: T.CRIT };
+      const T = CFG.trib, R = DATA.realms[Math.floor(L / DATA.LAYERS)], b = T.realms[R] || T.realms[Object.keys(T.realms).pop()];
+      const f = Math.pow(T.LAYER_GROW, L % DATA.LAYERS);
+      return { hp: b.hp * f, atk: b.atk * f, def: b.def * f, crit: b.crit };
     },
     startTrib() {
       const s = this.s, L = s.L + 1, t = this.makeTrib(L);
