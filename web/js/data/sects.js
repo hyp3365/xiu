@@ -55,6 +55,5 @@ DATA.affairs = _SC.affair.tasks;
 DATA.rooms = _SC.rooms;
 DATA.treasury = _SC.treasury;
 DATA.TOWER_MAX = _SC.tower.MAX;
-DATA.TOWER_STEP = _SC.tower.STEP;
 DATA.towerReward = floor => _SC.tower.REWARD * floor; // 首次通关奖励贡献
 DATA.secretCost = star => _SC.SECRET_COST * star;
