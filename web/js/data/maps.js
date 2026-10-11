@@ -14,10 +14,10 @@ DATA.worlds = [
  * 数据：凡界地图（9 张，对应 练气 → 渡劫）
  * ---------------------------------------------------------------------
  * monsters：普通怪物名字（随机遇到，精英怪 = "精英·" + 名字）；boss：北域首领名字
- * 每张地图分 东 西 南 北 四个区域（DATA.regionDirs），每个区域的怪物属性在 numbers.js 的 monster.regions；
+ * 每张地图分 东 西 南 北 四个区域（DATA.regionDirs），每个区域的怪物属性在 js/config/ 数值文件 的 monster.regions；
  *   东/西/南 三域首领名 = "X域·" + 普通怪名 + "王"，北域首领 = boss
  * 所有地图掉落的药材、矿石种类都一样（6 种药材、6 种矿石），只是数量不同：
- *   地图越高，掉得越多（第 1 张 ×1 → 第 9 张 ×10，见 js/config/numbers.js 的 explore 部分）
+ *   地图越高，掉得越多（第 1 张 ×1 → 第 9 张 ×10，见 js/config/ 下的数值文件 的 explore 部分）
  * ===================================================================== */
 DATA.maps = [
   { name: "青云山林", boss: "青云山君·吊睛白虎",
@@ -40,18 +40,18 @@ DATA.maps = [
     monsters: ["雷灵", "劫雷兽", "心魔", "雷鹏", "紫电蛟", "天罚使者", "劫火灵", "雷霆巨人"] },
 ];
 
-// 6 种药材、6 种矿石：名字和价格在 js/config/numbers.js 的 mats（序号 0~5，越往后越稀有）
+// 6 种药材、6 种矿石：名字和价格在 js/config/ 下的数值文件 的 mats（序号 0~5，越往后越稀有）
 DATA.herbs = Object.keys(CFG.mats.herb);
 DATA.ores  = Object.keys(CFG.mats.ore);
 DATA.PIN = ["一品", "二品", "三品", "四品", "五品", "六品", "七品", "八品", "九品"];
-// 丹药、炉子、丹方分九阶
-DATA.JIE = ["一阶", "二阶", "三阶", "四阶", "五阶", "六阶", "七阶", "八阶", "九阶"];
+// 丹药、炉子、丹方分十阶（一星门派对应一阶 …… 十星对应十阶）
+DATA.JIE = ["一阶", "二阶", "三阶", "四阶", "五阶", "六阶", "七阶", "八阶", "九阶", "十阶"];
 DATA.matKinds = { herb: "药材", ore: "矿石" };
 
 /* ---------- 东西南北四域 ---------- */
 DATA.regionDirs = ["东", "西", "南", "北"];
 DATA.regionCount = 4;
-DATA.region = (a, r) => CFG.monster.regions[a][r];          // 数值（numbers.js）
+DATA.region = (a, r) => CFG.monster.regions[a][r];          // 数值（js/config/ 数值文件）
 DATA.regionName = (a, r) => DATA.maps[a].name + "·" + DATA.regionDirs[r] + "域";
 DATA.regionBoss = (a, r) => r === 3 ? DATA.maps[a].boss : DATA.regionDirs[r] + "域·" + DATA.maps[a].monsters[r * 2] + "王";
 
@@ -59,13 +59,15 @@ DATA.regionBoss = (a, r) => r === 3 ? DATA.maps[a].boss : DATA.regionDirs[r] + "
 DATA.exploreIdle = ["四下寂静，无事发生。", "山风拂过，草木沙沙。", "踏过一片乱石。", "远处传来几声兽吼。",
   "沿着小径继续前行。", "林间雾气渐浓。", "脚下泥泞难行。", "抬头望见一群飞鸟掠过。"];
 
-// 以下数值来自 js/config/numbers.js
+// 以下数值来自 js/config/ 下的数值文件
 const _E = CFG.explore;
 DATA.EXPLORE_STOP = _E.STOP;
 DATA.EXPLORE_TIME = _E.TIME;
 DATA.STONE_BASE = _E.STONE_BASE;
 DATA.STONE_GROW = _E.STONE_GROW;
-DATA.mapMult = a => 1 + (_E.MAP_MAX - 1) * a / (DATA.maps.length - 1); // 地图掉落倍率
-// 材料出售价、宗门兑换贡献（numbers.js 的 mats）
+DATA.mapMult = a => 1 + (_E.MAP_MAX - 1) * a / (DATA.maps.length - 1); // 通用掉落倍率（没在 config/drops.js 单独设置时用）
+DATA.mapDrop = (a, ev) => { const m = (CFG.mapDrops || [])[a]; return m && m[ev]; };  // 该地图单独设置的掉落组
+DATA.mapStone = a => { const m = (CFG.mapDrops || [])[a]; return m && m.stone !== undefined ? m.stone : 1; };
+// 材料出售价、宗门兑换贡献（js/config/ 数值文件 的 mats）
 DATA.matPrice = (kind, g) => CFG.mats[kind][DATA[kind === "herb" ? "herbs" : "ores"][g]][0];
 DATA.matContrib = (kind, g) => CFG.mats[kind][DATA[kind === "herb" ? "herbs" : "ores"][g]][1];
