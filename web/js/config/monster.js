@@ -220,3 +220,7 @@ CFG.monster.mapMult = [
   { hp: 1, atk: 1, def: 1, speed: 1, hit: 1, dodge: 1 },   // 8 九幽深渊
   { hp: 1, atk: 1, def: 1, speed: 1, hit: 1, dodge: 1 },   // 9 雷劫之地
 ];
+
+// ---------- v21 新增：每张地图需要的境界（序号见 config/sect.js 里的说明） ----------
+// 第 1 张青云山林 练气 …… 第 9 张雷劫之地 渡劫
+CFG.monster.MAP_REALM = [0, 1, 2, 3, 5, 6, 7, 9, 10];
