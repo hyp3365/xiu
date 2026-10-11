@@ -12,26 +12,26 @@ window.CFG = window.CFG || {};
 //   hp 气血  atk 攻击  def 防御  speed 速度（高者先手）  hit 命中  dodge 闪避  crit 暴击%
 //   实际遇到时，气血/攻击/防御/速度/命中/闪避 会在 ±RAND 范围内随机浮动
 CFG.monster = {
-  RAND: 0.1,         // 随机浮动 ±10%
+  RAND: 0.18,         // 随机浮动 ±10%
   regions: [
     // ---------- 第 1 张：青云山林 ----------
     [
       { name: "东", L: 0,
-        normal: { hp: 60, atk: 9.0, def: 3.0, speed: 9.0, hit: 9.0, dodge: 9.0, crit: 5 },
-        elite:  { hp: 120, atk: 12, def: 4.0, speed: 10, hit: 10, dodge: 10, crit: 10 },
-        boss:   { hp: 220, atk: 14, def: 5.0, speed: 12, hit: 12, dodge: 12, crit: 15 } },
+        normal: { hp: 120, atk: 15, def: 3.0, speed: 9.0, hit: 9.0, dodge: 9.0, crit: 5 },
+        elite:  { hp: 240, atk: 22, def: 4.0, speed: 10, hit: 10, dodge: 10, crit: 10 },
+        boss:   { hp: 450, atk: 30, def: 5.0, speed: 12, hit: 12, dodge: 12, crit: 15 } },
       { name: "西", L: 3,
-        normal: { hp: 80, atk: 12, def: 4.0, speed: 12, hit: 12, dodge: 12, crit: 5 },
-        elite:  { hp: 160, atk: 16, def: 5.3, speed: 13, hit: 13, dodge: 13, crit: 10 },
-        boss:   { hp: 293, atk: 19, def: 6.6, speed: 16, hit: 16, dodge: 15, crit: 15 } },
+        normal: { hp: 160, atk: 24, def: 4.0, speed: 12, hit: 12, dodge: 12, crit: 5 },
+        elite:  { hp: 320, atk: 32, def: 5.3, speed: 13, hit: 13, dodge: 13, crit: 10 },
+        boss:   { hp: 583, atk: 38, def: 6.6, speed: 16, hit: 16, dodge: 15, crit: 15 } },
       { name: "南", L: 6,
-        normal: { hp: 106, atk: 16, def: 5.3, speed: 16, hit: 16, dodge: 16, crit: 5 },
-        elite:  { hp: 213, atk: 21, def: 7.1, speed: 18, hit: 18, dodge: 18, crit: 10 },
-        boss:   { hp: 390, atk: 25, def: 8.8, speed: 21, hit: 21, dodge: 20, crit: 15 } },
+        normal: { hp: 206, atk: 32, def: 5.3, speed: 16, hit: 16, dodge: 16, crit: 5 },
+        elite:  { hp: 423, atk: 42, def: 7.1, speed: 18, hit: 18, dodge: 18, crit: 10 },
+        boss:   { hp: 790, atk: 50, def: 8.8, speed: 21, hit: 21, dodge: 20, crit: 15 } },
       { name: "北", L: 9,
-        normal: { hp: 141, atk: 21, def: 7.1, speed: 21, hit: 21, dodge: 21, crit: 5 },
-        elite:  { hp: 283, atk: 28, def: 9.4, speed: 24, hit: 24, dodge: 24, crit: 10 },
-        boss:   { hp: 472, atk: 30, def: 11, speed: 26, hit: 26, dodge: 25, crit: 15 } },
+        normal: { hp: 285, atk: 42, def: 7.1, speed: 21, hit: 21, dodge: 21, crit: 5 },
+        elite:  { hp: 592, atk: 56, def: 9.4, speed: 24, hit: 24, dodge: 24, crit: 10 },
+        boss:   { hp: 854, atk: 60, def: 11, speed: 26, hit: 26, dodge: 25, crit: 15 } },
     ],
     // ---------- 第 2 张：黑风谷 ----------
     [
