@@ -111,15 +111,19 @@ G.module({
 
     /* ---------- 宗门宝库 ---------- */
     treasuryCost(it) { return it.cost; },
+    // 杂物页货单：content/items.js 的 ITEMS.treasury（没写就用 config/sect.js 的 treasury）
+    treasuryList() { return ITEMS.treasury || DATA.treasury; },
     treasuryName(it) {
+      if (it.item) return it.item;
       if (it.kind === "furnace") return DATA.furnaceName(it.fk, it.g);
       if (it.kind === "pill") return `${DATA.realms[this.r()]}·${DATA.pills[it.type].name}`;
       return it.name || "灵石";
     },
     exchange(i) {
-      const it = DATA.treasury[i], c = this.treasuryCost(it);
-      if (this.s.contrib < c) return;
-      if (it.kind === "furnace") { if (!this.addFurnaceItem(it.fk, it.g)) return; }
+      const it = this.treasuryList()[i], c = this.treasuryCost(it);
+      if (!it || this.s.contrib < c || (it.star || 1) > this.sectInfo().star) return;
+      if (it.item) { if (!this.addCustom(it.item)) return; }
+      else if (it.kind === "furnace") { if (!this.addFurnaceItem(it.fk, it.g)) return; }
       else if (it.kind === "pill") { if (!this.addPill(it.type, this.r())) return; }
       else this.s.stone += Math.floor(it.n * Math.pow(DATA.STONE_GROW, this.s.L));
       this.s.contrib -= c;
@@ -263,11 +267,13 @@ G.module({
       h += `<div class="sub-tabs">${[["pill", "杂物"], ["herb", "药材"], ["ore", "矿石"], ["seed", "种子"], ["bp", "图纸"]].map(([k, n]) =>
         `<button class="${tt === k ? "active" : ""}" onclick="G.setTreasuryTab('${k}')">${n}</button>`).join("")}</div>`;
       if (tt === "pill") {
-        h += `<div class="card"><h3>杂物<small>以贡献兑换 · 炉子放进背包后点「使用」</small></h3>` + DATA.treasury.map((it, i) => {
-          const c = this.treasuryCost(it);
-          const desc = it.kind === "furnace" ? `${it.fk === "dan" ? "炼丹" : "炼器"}时间 -${DATA.furnaceBonus(it.fk, it.g)}% · ` : "";
-          return `<div class="line"><div>${this.treasuryName(it)}<small>${desc}${U.fmt(c)} 贡献</small></div>
-            <button class="sm" onclick="G.exchange(${i})" ${s.contrib < c ? "disabled" : ""}>兑换</button></div>`;
+        h += `<div class="card"><h3>杂物<small>以贡献兑换 · 炉子放进背包后点「使用」</small></h3>` + this.treasuryList().map((it, i) => {
+          if (!it || (it.item && !this.cuDef(it.item))) return "";
+          const c = this.treasuryCost(it), lock = (it.star || 1) > x.star, cd = it.item ? this.cuDef(it.item) : null;
+          const desc = it.kind === "furnace" ? `${it.fk === "dan" ? "炼丹" : "炼器"}时间 -${DATA.furnaceBonus(it.fk, it.g)}% · `
+            : cd ? `${DATA.cuTypes[cd.type] || ""}${cd.desc ? " · " + cd.desc : ""}${["perm", "equip", "fabao"].includes(cd.type) ? " · " + this.cuStatText(this.cuStats(cd)) : ""} · ` : "";
+          return `<div class="line"><div>${cd ? `<span class="q${cd.q || 0}">${this.treasuryName(it)}</span>` : this.treasuryName(it)}<small>${desc}${U.fmt(c)} 贡献</small></div>
+            <button class="sm" onclick="G.exchange(${i})" ${lock || s.contrib < c ? "disabled" : ""}>${lock ? `需${it.star}星` : "兑换"}</button></div>`;
         }).join("") + `</div>`;
       } else if (tt === "seed") {
         h += `<div class="card"><h3>灵药种子<small>${x.star}星门派可换前 ${Math.min(maxG + 1, DATA.herbs.length)} 种 · 每种兑换一次</small></h3>` + DATA.herbs.map((n, g) => { const c = DATA.seedCost(g), has = s.seeds.includes(g), lock = g > maxG;
