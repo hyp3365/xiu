@@ -69,7 +69,7 @@ CFG.gongfa.shop = {
     def: 2, atk: 2, hp: 8, cultivate: 5, hit: 5, dodge: 5, mana: 3, res: 2.5,
     spell: 10, pct: 100, spellMana: 10,
     study: 100,      // 修炼升一层消耗的修为
-    price: 500,      // 坊市售价（灵石）
+    price: 500,      // 坊市售价基础（灵石）
   },
   TYPE_MULT: { xinfa: 0.8, gongjue: 0.8, zhenjing: 0.8, mijue: 0.8, shenfa: 0.8, dunshu: 0.8, fajue: 0.8, zhenjue: 0.8, spell: 0.8 },
   STAR_MULT: [1, 1.3, 1.6, 1.9, 2.2, 2.5],
@@ -79,8 +79,12 @@ CFG.gongfa.shop = {
   EFFECT_PCT: 1,
   EFFECT_MANA: 1,
   EFFECT_STUDY: 1,
-  EFFECT_PRICE: 1,   // 售价
   STUDY_LV: [1, 2, 3, 5, 8, 12, 18, 27, 40, 60, 90],
-  // 1~6 星需要的境界序号（0 练气、1 筑基、2 金丹 ……）
-  REQ_REALM: [0, 1, 2, 3, 4, 5],
+  // ---- 售价单独设置（不受上面的类型/星级/阶倍率影响）----
+  // 售价 = base.price × PRICE_TYPE × PRICE_STAR × PRICE_TIER × EFFECT_PRICE
+  PRICE_TYPE: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1 },
+  PRICE_STAR: [1, 5, 20, 80, 300, 1000],     // 1~6 星
+  PRICE_TIER: { huang: 1, xuan: 2, di: 4, tian: 8 },
+  EFFECT_PRICE: 1,
+  // 需要的境界：和同星级门派一样（config/sect.js 的 REQ_REALM）
 };
