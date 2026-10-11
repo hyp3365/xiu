@@ -11,6 +11,8 @@
  *   装备 { t: "eq", e: { slot, g, q, name } }                     每件占一格（法宝 slot = "fabao"）
  *   材料 { t: "mat", kind: "herb"|"ore", name, g, n }  药材、矿石，同名堆叠（g = 序号）
  *   属性丹 { t: "dan", type: "atk", g: 阶, n }                    见 craft.js
+ *   炉子 { t: "fu", kind: "dan"|"qi", g: 阶, n }   点「使用」装进洞府
+ *   图纸 { t: "bp", kind: "dan"|"qi", g: 阶 }      点「学习」后才能在炼器室炼制
  * ===================================================================== */
 G.module({
   id: "bag",
@@ -41,14 +43,28 @@ G.module({
       s.bag = s.bag.filter(it => !(it.t === "mat" && (it.kind === "core" || it.kind === "blood")));
       if (s.explore && s.explore.loot) for (const k in s.explore.loot.mats) if (!/^(herb|ore)\|/.test(k)) delete s.explore.loot.mats[k];
       if (s.explore && !s.trained.includes(s.explore.map)) s.trained.push(s.explore.map); // 旧存档在探索的地图算已历练
+      // v12：药材、矿石只剩 6 种，删掉的折算成灵石（按原出售价）
+      const OLD = { 天魔花: 1020, 九幽莲: 1837, 渡劫花: 3306, 魔晶: 1020, 九幽玄铁: 1837, 天雷石: 3306 };
+      let refund = 0;
+      s.bag = s.bag.filter(it => {
+        if (it.t !== "mat") return true;
+        const names = it.kind === "herb" ? DATA.herbs : DATA.ores, g = names.indexOf(it.name);
+        if (g >= 0) { it.g = g; return true; }
+        refund += (OLD[it.name] || 100) * it.n; return false;
+      });
+      if (refund) { s.stone += refund; this.log(`药材、矿石改为 6 种，已下架的材料折算灵石 +${U.fmt(refund)}。`, "sys"); }
+      if (s.explore && s.explore.loot) for (const k in s.explore.loot.mats) { const m = s.explore.loot.mats[k]; if ((m.kind === "herb" ? DATA.herbs : DATA.ores).indexOf(m.name) < 0) delete s.explore.loot.mats[k]; }
+      const hmax = DATA.herbs.length - 1;
+      if (s.seeds) s.seeds = s.seeds.filter(g => g <= hmax);
+      if (s.fields) s.fields.forEach(f => { if (f.g > hmax) f.g = hmax; if (f.next != null && f.next > hmax) f.next = null; });
       s.bag.forEach(it => { if (it.t === "eq" && it.e.slot === "acc") { it.e.slot = "pendant"; it.e.name = DATA.equipNames.pendant[it.e.q]; } });
     },
     // 法宝栏、法术栏当前开启格数：每个大境界 1 格
     // 背包排序：先按类型（修炼丹 → 属性丹 → 药材 → 矿石 → 装备），同类型再按品阶从低到高
     sortBag() {
-      const order = it => it.t === "pill" ? 0 : it.t === "dan" ? 1 : it.t === "mat" ? (it.kind === "herb" ? 2 : 3) : it.t === "eq" ? (it.e.slot === "fabao" ? 5 : 4) : 9;
+      const order = it => it.t === "pill" ? 0 : it.t === "dan" ? 1 : it.t === "mat" ? (it.kind === "herb" ? 2 : 3) : it.t === "fu" ? 4 : it.t === "bp" ? 5 : it.t === "eq" ? (it.e.slot === "fabao" ? 7 : 6) : 9;
       const grade = it => it.t === "eq" ? it.e.g * 10 + it.e.q : it.g || 0;
-      const sub = it => it.t === "pill" || it.t === "dan" ? it.type : it.t === "eq" ? it.e.slot : "";
+      const sub = it => it.t === "pill" || it.t === "dan" ? it.type : it.t === "eq" ? it.e.slot : it.kind || "";
       this.s.bag.sort((a, b) => order(a) - order(b) || grade(a) - grade(b) || (sub(a) < sub(b) ? -1 : sub(a) > sub(b) ? 1 : 0));
     },
     slotCount() { return Math.min(DATA.SLOT_MAX, this.r() + 1); },
@@ -97,12 +113,15 @@ G.module({
       if (it.t === "pill") return `${DATA.realms[it.g]}·${DATA.pills[it.type].name}`;
       if (it.t === "dan") return DATA.danName(it.type, it.g);
       if (it.t === "mat") return DATA.matFull(it.kind, it.g);
+      if (it.t === "fu") return DATA.furnaceName(it.kind, it.g);
+      if (it.t === "bp") return DATA.furnaceName(it.kind, it.g) + "图纸";
       return `${DATA.realms[it.e.g]}·${it.e.name}`;
     },
     sellPrice(it) {
       if (it.t === "pill") return Math.floor(DATA.pillPrice(it.type, it.g) * CFG.price.PILL_SELL);
       if (it.t === "dan") return DATA.danPrice(it.type, it.g);
       if (it.t === "mat") return DATA.matPrice(it.kind, it.g);
+      if (it.t === "fu" || it.t === "bp") return Math.floor(DATA.blueprintCost(it.kind, it.g) * (it.t === "fu" ? 2 : 1));
       return Math.floor(CFG.price.EQUIP_SELL * Math.pow(DATA.STONE_GROW, it.e.g * 10) * (it.e.q + 1));
     },
 
@@ -125,8 +144,16 @@ G.module({
         h += `<p>服用后永久 ${d.label} +${U.num(DATA.danVal(it.type, it.g))}。<br>此阶已服 ${d.limit - left} / ${d.limit} 枚。</p>
           <div class="btns"><button class="primary" onclick="G.eatDan(${i},1)" ${left > 0 ? "" : "disabled"}>服用</button>
           <button onclick="G.eatDan(${i},${it.n})" ${left > 0 && it.n > 1 ? "" : "disabled"}>全部服用</button>${sell}</div>`;
+      } else if (it.t === "fu") {
+        const own = this.s.furnaces[it.kind].includes(it.g);
+        h += `<p>${it.kind === "dan" ? "炼丹" : "炼器"}时间 -${DATA.furnaceBonus(it.kind, it.g)}%${it.kind === "dan" ? `，可炼一阶~${DATA.JIE[it.g]}丹` : ""}。<br>使用后装进洞府${it.kind === "dan" ? "炼丹房" : "炼器室"}，可随时更换。${own ? "<br><span class='q5'>洞府里已有同阶炉子。</span>" : ""}</p>
+          <div class="btns"><button class="primary" onclick="G.installFurnace(${i})" ${own ? "disabled" : ""}>使用</button>${sell}</div>`;
+      } else if (it.t === "bp") {
+        const has = this.s.blueprints[it.kind].includes(it.g);
+        h += `<p>学习后可在洞府炼器室炼制${DATA.furnaceName(it.kind, it.g)}。<br>材料：${this.matsText(DATA.furnaceMats(it.kind, it.g))}${has ? "<br><span class='q5'>已学会。</span>" : ""}</p>
+          <div class="btns"><button class="primary" onclick="G.learnBlueprint(${i})" ${has ? "disabled" : ""}>学习</button>${sell}</div>`;
       } else if (it.t === "mat") {
-        h += `<p>${{ herb: "药材，可用于炼丹、炼制炉子。", ore: "矿石，可用于炼制炉子、日后炼器。" }[it.kind] || ""}</p><div class="btns">${sell}</div>`;
+        h += `<p>${{ herb: "药材，可用于炼丹。", ore: "矿石，可用于炼制炉子、日后炼器。" }[it.kind] || ""}</p><div class="btns">${sell}</div>`;
       } else {
         h += `<p>${DATA.slots[it.e.slot]} · ${this.equipDesc(it.e)}</p>
           <div class="btns"><button class="primary" onclick="G.equipItem(${i})">${it.e.slot === "fabao" ? "放入法宝栏" : "装备"}</button>${sell}</div>`;
@@ -212,6 +239,8 @@ G.module({
       else if (it.t === "pill") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 3))}" onclick="G.openItem(${i})">${DATA.pills[it.type].name}<span class="g">${DATA.realms[it.g]}</span><span class="n">${it.n}</span></div>`;
       else if (it.t === "dan") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${DATA.dans[it.type].name}<span class="g">${DATA.JIE[it.g]}</span><span class="n">${it.n}</span></div>`;
       else if (it.t === "mat") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${it.name}<span class="g">${DATA.matKinds[it.kind]}</span><span class="n">${U.fmt(it.n)}</span></div>`;
+      else if (it.t === "fu") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${DATA.furnaceName(it.kind, it.g)}<span class="g">炉子</span>${it.n > 1 ? `<span class="n">${it.n}</span>` : ""}</div>`;
+      else if (it.t === "bp") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${DATA.furnaceName(it.kind, it.g)}<span class="g">图纸</span></div>`;
       else cells += `<div class="cell q${it.e.q}" onclick="G.openItem(${i})">${it.e.name}<span class="g">${DATA.realms[it.e.g]}</span></div>`;
     }
     return tabs + top + `<div class="card"><h3>储物格<small>${s.bag.length} / ${s.bagCap}</small></h3><div class="grid">${cells}</div></div>`;
