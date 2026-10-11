@@ -47,11 +47,11 @@ G.module({
 
     // 生成怪物：a 地图、r 区域、kind = normal 普通 / elite 精英 / boss 首领（属性见 js/config/ 数值文件 monster.regions）
     makeMob(a, r, kind) {
-      const R = DATA.region(a, r), b = R[kind], map = DATA.maps[a], k = CFG.monster.RAND;
-      const v = x => x * (1 - k + Math.random() * 2 * k);
+      const R = DATA.region(a, r), b = R[kind], map = DATA.maps[a], k = CFG.monster.RAND, M = DATA.mapMob(a);
+      const v = (x, key) => x * (M[key] === undefined ? 1 : M[key]) * (1 - k + Math.random() * 2 * k);   // × 地图倍率 × 随机浮动
       const name = kind === "boss" ? DATA.regionBoss(a, r) : (kind === "elite" ? "精英·" : "") + U.pick(map.monsters);
       return this.addMagic({ name, Lm: R.L, kind, boss: kind === "boss", elite: kind === "elite",
-        hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), crit: b.crit }, kind, b);
+        hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), crit: b.crit }, kind, b);
     },
 
     // 给怪物加 法力 / 属性 / 六系抗性 / 法术 / 法宝（js/config/monster.js 的 monster.magic；b = regions 里单独写的数值）
@@ -72,6 +72,8 @@ G.module({
       const spells = s.spellSlots.slice(0, this.slotCount()).map(id => DATA.spellInfo(id, s.gongfa[id])).filter(Boolean);
       let si = 0, act = null;   // act：这一下出手的方式 { k: 0 普通攻击 / 1 法术 / 2 法宝, sp 法术名序号, f: 0 命中 / 1 被闪避 / 2 暴击 }
       const BT = CFG.battle, rnd = () => BT.RAND_MIN + Math.random() * (BT.RAND_MAX - BT.RAND_MIN);
+      // 某系抗性 = 防御 × RES_RATE + 该系抗性（config/battle.js）
+      const RR = BT.RES_RATE === undefined ? 1 : BT.RES_RATE, resOf = (D, el) => D.def * RR + ((D.res || {})[el] || 0);
       const roll = (A, D, raw, k, sp) => {
         act = { k, sp, f: 0 };
         if (Math.random() * 100 < DATA.dodgeChance(A.hit, D.dodge)) { act.f = 1; return 0; } // 闪避（看命中与闪避之比）
@@ -87,7 +89,7 @@ G.module({
           const j = (si + k) % spells.length, sp = spells[j];
           if (s.mana >= sp.mana) {
             si = (j + 1) % spells.length; s.mana -= sp.mana;
-            return roll(st, m, Math.max(st.atk * BT.MIN_DMG, (st.atk * sp.pct / 100 + sp.flat) * this.lingenSpell(sp.el.id) - (m.def + ((m.res || {})[sp.el.id] || 0)) * BT.DEF_RATE), 1, j);
+            return roll(st, m, Math.max(st.atk * BT.MIN_DMG, (st.atk * sp.pct / 100 + sp.flat) * this.lingenSpell(sp.el.id) - resOf(m, sp.el.id) * BT.DEF_RATE), 1, j);
           }
         }
         return hit(st, m);
@@ -100,7 +102,7 @@ G.module({
         const c = m[k], cost = c ? m.maxMana * c.cost : 0;
         if (!c || m.mana < cost || Math.random() * 100 >= c.chance) return -1;
         m.mana -= cost; k === "spell" ? mSp++ : mFb++;
-        return roll(m, st, Math.max(m.atk * BT.MIN_DMG, m.atk * c.pct / 100 - (st.def + (el ? st.res[el] || 0 : 0)) * BT.DEF_RATE), k === "spell" ? 1 : 2);
+        return roll(m, st, Math.max(m.atk * BT.MIN_DMG, m.atk * c.pct / 100 - (el ? resOf(st, el) : st.def) * BT.DEF_RATE), k === "spell" ? 1 : 2);
       };
       const mobHit = () => { let d = mCast("spell", m.el); if (d < 0) d = mCast("fabao"); return d < 0 ? hit(m, st) : d; };
       // 每一下记一条：[回合, 谁(0 你 / 1 对方), 方式, 法术名序号, 结果, 伤害, 你的气血, 你的法力, 对方气血, 对方法力]
@@ -120,30 +122,71 @@ G.module({
       return { win: mhp <= 0 && php > 0, lose: php <= 0, rounds, why, detail };
     },
 
+    // 战斗过程每一下的文字（b = battle() 返回的 detail）
+    battleRow(b, x) {
+      const [r, w, k, sp, f, d, ph, pm, mh, mm] = x, el = b.el ? DATA.elById[b.el].name : "";
+      const who = w ? b.name : "你", tgt = w ? "你" : b.name;
+      const how = k === 1 ? `施放${w ? `${el}系法术` : `《${b.sp[sp] || "法术"}》`}` : k === 2 ? "祭出法宝" : "发动普通攻击";
+      const res = f === 1 ? `，被${tgt}闪避` : `，${f === 2 ? "暴击！" : ""}对${tgt}造成 <b>${U.fmt(d)}</b> 伤害`;
+      return `<p class="${w ? "bad" : "good"}"><b>第${r}回合</b> ${who}${how}${res}<br><small>你 气血 ${U.fmt(ph)}/${U.fmt(b.me[1])} 法力 ${U.fmt(pm)}/${U.fmt(b.me[3])} · ${b.name} 气血 ${U.fmt(mh)}/${U.fmt(b.mob[1])} 法力 ${U.fmt(mm)}/${U.fmt(b.mob[3])}</small></p>`;
+    },
+    // 战斗总览：先手、开战数值、双方各方式伤害合计
+    battleHead(b) {
+      const K = ["普通攻击", "法术", "法宝"], el = b.el ? DATA.elById[b.el].name : "";
+      const sum = (w, k) => b.log.filter(x => x[1] === w && x[2] === k).reduce((t, x) => t + x[5], 0);
+      const cnt = (w, k) => b.log.filter(x => x[1] === w && x[2] === k).length;
+      const line = w => K.map((n, k) => cnt(w, k) ? `${n} ${cnt(w, k)} 次 ${U.fmt(sum(w, k))}` : "").filter(Boolean).join("，") || "无";
+      return `<p class="desc">${el ? `${b.name}为${el}属性 · ` : ""}${b.first ? `${b.name}先手` : "你先手"}<br>开战：你 气血 ${U.fmt(b.me[0])}/${U.fmt(b.me[1])} 法力 ${U.fmt(b.me[2])}/${U.fmt(b.me[3])} · ${b.name} 气血 ${U.fmt(b.mob[0])} 法力 ${U.fmt(b.mob[2])}<br>
+        你造成：${line(0)}<br>${b.name}造成：${line(1)}</p>`;
+    },
     // 完整战斗过程弹窗：src = "cur" 本次探索 / "last" 上一次结果，i = 事件序号
     showBattle(src, i) {
       const s = this.s, list = src === "cur" ? (s.explore && s.explore.ev) : (s.lastRun && s.lastRun.ev), e = list && list[i];
       if (!e || !e.b) return;
-      const b = e.b, K = ["普通攻击", "法术", "法宝"], el = b.el ? DATA.elById[b.el].name : "";
-      const rows = b.log.map(([r, w, k, sp, f, d, ph, pm, mh, mm]) => {
-        const who = w ? b.name : "你", how = k === 1 ? (w ? `${el}系法术` : `《${b.sp[sp] || "法术"}》`) : K[k];
-        const res = f === 1 ? "被闪避" : `造成 <b>${U.fmt(d)}</b> 伤害${f === 2 ? "（暴击）" : ""}`;
-        return `<p class="${w ? "bad" : "good"}"><b>第${r}回合</b> ${who}${k ? "施放" : ""}${how}，${res}<br><small>你 气血 ${U.fmt(ph)}/${U.fmt(b.me[1])} 法力 ${U.fmt(pm)}/${U.fmt(b.me[3])} · 对方 气血 ${U.fmt(mh)}/${U.fmt(b.mob[1])} 法力 ${U.fmt(mm)}/${U.fmt(b.mob[3])}</small></p>`;
-      }).join("");
-      // 各方式伤害合计
-      const sum = (w, k) => b.log.filter(x => x[1] === w && x[2] === k).reduce((t, x) => t + x[5], 0);
-      const cnt = (w, k) => b.log.filter(x => x[1] === w && x[2] === k).length;
-      const line = w => K.map((n, k) => cnt(w, k) ? `${n} ${cnt(w, k)} 次 ${U.fmt(sum(w, k))}` : "").filter(Boolean).join("，") || "无";
-      this.modal(`<h2>战斗详情 · ${b.name}${el ? `（${el}属性）` : ""}</h2>
-        <p class="desc">${b.first ? "对方先手" : "你先手"}<br>开战：你 气血 ${U.fmt(b.me[0])}/${U.fmt(b.me[1])} 法力 ${U.fmt(b.me[2])}/${U.fmt(b.me[3])} · 对方 气血 ${U.fmt(b.mob[0])} 法力 ${U.fmt(b.mob[2])}<br>
-        你造成：${line(0)}<br>对方造成：${line(1)}</p>
-        <div class="explore-log">${rows || "<p>无</p>"}</div>
+      const b = e.b, el = b.el ? DATA.elById[b.el].name : "";
+      this.modal(`<h2>战斗详情 · ${b.name}${el ? `（${el}属性）` : ""}</h2>${this.battleHead(b)}
+        <div class="explore-log">${b.log.map(x => this.battleRow(b, x)).join("") || "<p>无</p>"}</div>
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
+    // 战斗画面（试炼塔）：每秒播放一回合，3 秒后可跳过；结果已经结算好，这里只是播放
+    playBattle(b, title, txt, win) {
+      if (this._bp && this._bp.timer) clearInterval(this._bp.timer);
+      const rounds = [];
+      b.log.forEach(x => { (rounds[x[0] - 1] = rounds[x[0] - 1] || []).push(x); });
+      const bp = this._bp = { b, title, txt, win, rounds: rounds.filter(Boolean), shown: 0, t0: Date.now(), done: false };
+      this._lockModal = true;
+      const step = () => {
+        if (this._bp !== bp) return clearInterval(bp.timer);
+        if (bp.shown < bp.rounds.length) bp.shown++;
+        if (bp.shown >= bp.rounds.length) { bp.done = true; clearInterval(bp.timer); }
+        this.drawBattle();
+      };
+      bp.shown = Math.min(1, bp.rounds.length); if (bp.shown >= bp.rounds.length) bp.done = true;
+      this.drawBattle();
+      if (!bp.done || Date.now() - bp.t0 < 3000) bp.timer = setInterval(step, 1000);
+    },
+    drawBattle() {
+      const bp = this._bp; if (!bp) return;
+      const b = bp.b, canSkip = Date.now() - bp.t0 >= 3000;
+      const rows = bp.rounds.slice(0, bp.shown).map(r => r.map(x => this.battleRow(b, x)).join("")).join("");
+      const el = b.el ? DATA.elById[b.el].name : "";
+      this.modal(`<h2>${bp.title} · ${b.name}${el ? `（${el}属性）` : ""}</h2>
+        <p class="desc">第 ${bp.rounds.length ? (bp.rounds[Math.max(0, bp.shown - 1)][0][0]) : 0} 回合${bp.done ? "" : " · 战斗中……"}</p>
+        <div class="explore-log" id="bt-log">${rows || "<p>交手……</p>"}</div>
+        ${bp.done ? `<p class="${bp.win ? "good" : "bad"}"><b>${bp.txt}</b></p>${this.battleHead(b)}` : ""}
+        <div class="btns">${bp.done ? `<button onclick="G.closeBattle()">关闭</button>`
+          : `<button onclick="G.skipBattle()" ${canSkip ? "" : "disabled"}>${canSkip ? "跳过战斗" : "3 秒后可跳过"}</button>`}</div>`);
+      const box = $("#bt-log"); if (box) box.scrollTop = 1e9;
+    },
+    skipBattle() {
+      const bp = this._bp; if (!bp || Date.now() - bp.t0 < 3000) return;
+      clearInterval(bp.timer); bp.shown = bp.rounds.length; bp.done = true; this.drawBattle();
+    },
+    closeBattle() { if (this._bp) clearInterval(this._bp.timer); this._bp = null; this._lockModal = false; this.closeModal(); this.render(); },
 
     /* ---------- 掉落 ---------- */
     newLoot() { return { stone: 0, mats: {}, pills: [], equips: [] }; },
-    // 掉落：先看 config/drops.js 里该地图单独设置的掉落组，没有就用 explore.js 的通用设置
+    // 掉落：config/drops.js 里该地图的掉落组（数量 × 该地图 mat 倍率）
     //   之后再加 content/items.js 里 ITEMS.drops 的自定义物品掉落
     rollEvent(loot, ev, a) {
       const base = this.rollEventMats(loot, ev, a), extra = this.rollCustom(loot, ev, a);
@@ -164,15 +207,15 @@ G.module({
       return got.join("、");
     },
     rollEventMats(loot, ev, a) {
-      const groups = DATA.mapDrop(a, ev);
-      if (!groups) return this.rollDrop(loot, CFG.explore.drop[ev], a);
+      const groups = DATA.mapDrop(a, ev), mul = DATA.mapMat(a);
+      if (!groups) return "";
       const got = [];
       for (const gr of groups) {
         const names = Object.keys(gr.items || {}).filter(n => DATA.matByName[n]), w = names.map(n => gr.items[n]);
         const kinds = U.rand(gr.kinds[0], gr.kinds[1]);
         for (let i = 0; i < kinds && w.some(x => x > 0); i++) {
           const j = U.weighted(w); w[j] = 0;   // 同一组不重复
-          const name = names[j], m = DATA.matByName[name], n = U.rand(gr.n[0], gr.n[1]);
+          const name = names[j], m = DATA.matByName[name], n0 = U.rand(gr.n[0], gr.n[1]), n = n0 > 0 ? Math.max(1, Math.round(n0 * mul)) : 0;
           if (n <= 0) continue;
           const key = m.kind + "|" + name;
           (loot.mats[key] = loot.mats[key] || { kind: m.kind, name, g: m.g, n: 0 }).n += n;
@@ -181,26 +224,9 @@ G.module({
       }
       return got.join("、");
     },
-    // 通用掉落：spec = { herb: {kinds, n}, ore: {kinds, n} }，返回描述
-    rollDrop(loot, spec, a) {
-      if (!spec) return "";
-      const E = CFG.explore, got = [];
-      for (const kind of ["herb", "ore"]) {
-        const d = spec[kind]; if (!d) continue;
-        const kinds = U.rand(d.kinds[0], d.kinds[1]), w = E.MAT_WEIGHT.slice(), names = kind === "herb" ? DATA.herbs : DATA.ores;
-        for (let i = 0; i < kinds && w.some(x => x > 0); i++) {
-          const g = U.weighted(w); w[g] = 0; // 同一次不重复
-          const n = Math.max(1, Math.round(U.rand(d.n[0], d.n[1]) * DATA.mapMult(a)));
-          const key = kind + "|" + names[g];
-          (loot.mats[key] = loot.mats[key] || { kind, name: names[g], g, n: 0 }).n += n;
-          got.push(`${names[g]}×${U.fmt(n)}`);
-        }
-      }
-      return got.join("、");
-    },
     // 击败怪物的掉落，写进 loot，返回描述文字
     rollMonsterLoot(loot, m, a) {
-      const E = CFG.explore, mult = m.boss ? E.BOSS_DROP : m.elite ? E.ELITE_DROP : 1;
+      const E = CFG.drop, mult = m.boss ? E.BOSS_STONE : m.elite ? E.ELITE_STONE : 1;
       const stone = Math.floor(E.STONE_BASE * Math.pow(E.STONE_GROW, m.Lm) * (1 + Math.random() * 1.5) * E.STONE_RATE * mult * DATA.mapStone(a));
       loot.stone += stone;
       const mats = this.rollEvent(loot, m.boss ? "boss" : m.elite ? "elite" : "monster", a);
@@ -265,7 +291,7 @@ G.module({
       else if (type === "ore") { t = `发现矿脉，挖得 ${this.rollEvent(x.loot, "oreEvent", a) || "无"}`; c = "good"; }
       else if (type === "monster" || type === "elite" || type === "boss") {
         const kind = type === "monster" ? "normal" : type, m = this.makeMob(a, r, kind);
-        const res = this.battle(m), tag = `${m.boss ? "【首领】" : m.elite ? "【精英】" : ""}${m.name}（${this.realmName(m.Lm)}）`;
+        const res = this.battle(m), tag = `${m.boss ? "【首领】" : m.elite ? "【精英】" : ""}${m.name}`;
         if (res.win) { this.s.kills++; t = `遭遇${tag}，${res.rounds}回合击败，获得 ${this.rollMonsterLoot(x.loot, m, a)}`; c = m.boss ? "gold" : ""; }
         else if (res.lose) { t = `遭遇${tag}，第 ${res.rounds} 回合不敌重伤，遗失灵石 ${U.fmt(this.loseStone())}。${res.why}`; c = "bad"; }
         else { t = `遭遇${tag}，缠斗 ${res.rounds} 回合，各自退去`; }
@@ -325,20 +351,26 @@ G.module({
     setLastOpen(v) { this.lastOpen = v; this.render(); },
     setMapSel(a) { this.mapSel = a; this.render(); },
 
-    // 坊市货单：content/items.js 的 ITEMS.shop（修炼丹、装备为当前境界品质；自定义物品按 item 名）
+    /* ---------- 坊市：丹药 装备 功法 药材 矿石 ----------
+     * 丹药、装备：content/items.js 的 ITEMS.shop，只卖练气品质（自定义物品按 item 名）
+     * 功法：凡界坊市功法（config/gongfa.js 的 shop），灵石购买，买下即学会第 1 层
+     * 药材、矿石：凡界地图会掉的（config/drops.js），售价 = 出售价 × CFG.price.SHOP_MAT */
+    setShopTab(t) { this.shopTab = t; this.render(); },
+    setShopStar(n) { this.shopStar = n; this.render(); },
+    setShopTier(t) { this.shopTier = t; this.render(); },
     shopList() {
-      const g = this.r(), list = [];
+      const g = 0, list = [];   // 只卖练气品质
       const src = ITEMS.shop || [...Object.keys(DATA.pills).map(t => ({ kind: "pill", type: t })), ...Object.keys(DATA.slots).filter(sl => sl !== "fabao").map(sl => ({ kind: "eq", slot: sl, q: 1 }))];
       for (const x of src) {
-        if (!x || (x.realm !== undefined && g < x.realm)) continue;
-        if (x.item) { if (this.cuDef(x.item)) list.push({ kind: "cu", name: x.item, price: x.price || 0 }); }
-        else if (x.kind === "pill" && DATA.pills[x.type]) list.push({ kind: "pill", type: x.type, g, price: x.price || DATA.pillPrice(x.type, g) });
-        else if (x.kind === "eq" && DATA.equipNames[x.slot]) list.push({ kind: "eq", slot: x.slot, g, q: x.q || 1, price: x.price || Math.floor(CFG.price.SHOP_EQUIP * Math.pow(DATA.STONE_GROW, g * 10)) });
+        if (!x || (x.realm !== undefined && this.r() < x.realm)) continue;
+        if (x.item) { const d = this.cuDef(x.item); if (d) list.push({ kind: "cu", name: x.item, price: x.price || 0, tab: ["equip", "fabao"].includes(d.type) ? "eq" : "pill" }); }
+        else if (x.kind === "pill" && DATA.pills[x.type]) list.push({ kind: "pill", type: x.type, g, price: x.price || DATA.pillPrice(x.type, g), tab: "pill" });
+        else if (x.kind === "eq" && DATA.equipNames[x.slot]) list.push({ kind: "eq", slot: x.slot, g, q: x.q || 1, price: x.price || Math.floor(CFG.price.SHOP_EQUIP), tab: "eq" });
       }
       return list;
     },
     buy(i, n = 1) {
-      const it = this.shopList()[i];
+      const it = this.shopList()[i]; if (!it) return;
       let k = 0;
       for (; k < n; k++) {
         if (this.s.stone < it.price) { this.log("灵石不足。", "sys"); break; }
@@ -348,6 +380,66 @@ G.module({
       }
       if (k) this.log(`购买成功 ×${k}。`, "good");
       this.after();
+    },
+    // 坊市药材、矿石
+    shopMatPrice(kind, g) { return Math.max(1, Math.ceil(DATA.matPrice(kind, g) * (CFG.price.SHOP_MAT || 3))); },
+    buyMat(kind, g, n) {
+      n = Math.floor(n || +($("#shop-n") && $("#shop-n").value) || 1);
+      const names = kind === "herb" ? DATA.herbs : DATA.ores;
+      if (n <= 0 || !DATA.fanMats().has(names[g])) return;
+      const c = this.shopMatPrice(kind, g) * n;
+      if (this.s.stone < c) return this.log(`灵石不足，需要 ${U.fmt(c)}。`, "sys");
+      if (!this.addMat(kind, names[g], g, n)) return;
+      this.s.stone -= c; this.shopN = n;
+      this.log(`购买${DATA.matFull(kind, g)} ×${U.fmt(n)}，灵石 -${U.fmt(c)}。`, "good"); this.after();
+    },
+    // 坊市功法：买下即学会第 1 层
+    buyGongfa(id) {
+      const g = DATA.skillInfo(id);
+      if (!g || g.src !== "shop" || this.hasGongfa(id)) return;
+      if (this.r() < g.sect.reqRealm) return this.log(`需要${DATA.realms[g.sect.reqRealm]}期。`, "sys");
+      if (this.s.stone < g.cost) return this.log("灵石不足。", "sys");
+      this.s.stone -= g.cost; this.s.gongfa[id] = 1;
+      if (g.kind === "sp") this.autoSlotSpell(id);
+      this.log(`购得《${g.name}》（${g.star}星 ${g.tier.name}），习得第 1 层。`, "gold"); this.after();
+    },
+    shopView() {
+      const s = this.s, t = this.shopTab || "pill";
+      const tabs = `<div class="sub-tabs">${[["pill", "丹药"], ["eq", "装备"], ["gf", "功法"], ["herb", "药材"], ["ore", "矿石"]].map(([k, n]) =>
+        `<button class="${t === k ? "active" : ""}" onclick="G.setShopTab('${k}')">${n}</button>`).join("")}</div>`;
+      if (t === "pill" || t === "eq") {
+        const rows = this.shopList().map((it, i) => {
+          if (it.tab !== t) return "";
+          const cd = it.kind === "cu" ? this.cuDef(it.name) : null, multi = it.kind === "pill" || (cd && cd.type !== "equip" && cd.type !== "fabao");
+          const name = cd ? `<span class="q${cd.q || 0}">${it.name}</span>` : it.kind === "pill" ? `${DATA.realms[it.g]}·${DATA.pills[it.type].name}` : `${DATA.quals[it.q]} ${DATA.realms[it.g]}·${DATA.equipNames[it.slot][Math.min(5, it.q)]}`;
+          const desc = cd ? `${DATA.cuTypes[cd.type] || ""}${cd.desc ? " · " + cd.desc : ""}${["perm", "equip", "fabao"].includes(cd.type) ? " · " + this.cuStatText(this.cuStats(cd)) : ""}`
+            : it.kind === "pill" ? `修炼速度 +${Math.round(DATA.pillPct(it.type, it.g))}%，${DATA.pills[it.type].dur}次修炼` : `${DATA.slots[it.slot]} · ${this.equipDesc(this.makeEquip(it.slot, it.g, it.q))}`;
+          return `<div class="line"><div>${name}<small>${desc}</small></div><div>
+            <button class="sm" onclick="G.buy(${i})" ${s.stone < it.price ? "disabled" : ""}>${U.fmt(it.price)}</button>
+            ${multi ? `<button class="sm" onclick="G.buy(${i},10)" ${s.stone < it.price * 10 ? "disabled" : ""}>×10</button>` : ""}</div></div>`;
+        }).join("");
+        return tabs + `<div class="card"><h3>${t === "pill" ? "丹药" : "装备"}<small>练气期货品 · 灵石 ${U.fmt(s.stone)}</small></h3>${rows || `<p class="desc">暂无货品。</p>`}</div>`;
+      }
+      if (t === "gf") {
+        const star = this.shopStar || 1, tier = this.shopTier || "huang", T = DATA.tierById[tier], N = DATA.SHOP_GF_PREFIX.length;
+        const srcs = DATA.shopSources.filter(o => o.star === star), lock = this.r() < (srcs[0] ? srcs[0].reqRealm : 0);
+        const line = g => { const has = this.hasGongfa(g.id);
+          const desc = g.kind === "sp" ? `${g.el.name}系 · 攻击×${g.pct}% + ${U.fmt(g.perLv)}/层 · 耗法力 ${U.fmt(g.mana)}` : `每层${g.label} +${U.num(g.perLv)}`;
+          return `<div class="line"><div>《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.kind === "sp" ? "法术" : g.type.name}</span><small>${desc} · ${U.fmt(g.cost)} 灵石</small></div>
+            <button class="sm" onclick="G.buyGongfa('${g.id}')" ${has || lock || s.stone < g.cost ? "disabled" : ""}>${has ? "已学会" : lock ? "境界不足" : "购买"}</button></div>`; };
+        return tabs + `<div class="room-grid">${Array.from({ length: N }, (_, i) => `<button class="${star === i + 1 ? "active" : ""}" onclick="G.setShopStar(${i + 1})">${i + 1}星</button>`).join("")}</div>
+          <div class="room-grid">${DATA.tiers.map(x => `<button class="${tier === x.id ? "active" : ""}" onclick="G.setShopTier('${x.id}')">${x.name}</button>`).join("")}</div>
+          <p class="desc">凡界坊市功法 ${star}星 · 需${DATA.realms[srcs[0] ? srcs[0].reqRealm : 0]}期 · 灵石 ${U.fmt(s.stone)} · 买下即学会第 1 层</p>` +
+          srcs.map(o => `<div class="card"><h3>${o.name}<span class="tag">${DATA.elById[o.el].name}</span><small>${T.name}</small></h3>` +
+            DATA.gongfaTypes.map(ty => line(DATA.gongfaInfo(DATA.gongfaId(o.id, ty.id, tier)))).join("") +
+            line(DATA.spellInfo(DATA.spellId(o.id, o.el, tier))) + `</div>`).join("");
+      }
+      const names = t === "herb" ? DATA.herbs : DATA.ores, fan = DATA.fanMats();
+      return tabs + `<div class="card"><h3>${DATA.matKinds[t]}<small>凡界地图产出 · 灵石 ${U.fmt(s.stone)}</small></h3>
+        <div class="line"><div>购买数量</div><input id="shop-n" type="number" min="1" value="${this.shopN || 1}" oninput="G.shopN=+this.value" style="width:110px"></div>` +
+        names.map((n, g) => { if (!fan.has(n)) return ""; const c = this.shopMatPrice(t, g);
+          return `<div class="line"><div>${DATA.matFull(t, g)}<small>${U.fmt(c)} 灵石/个 · 已有 ${U.fmt(this.countMat(t, g))}</small></div>
+            <button class="sm" onclick="G.buyMat('${t}',${g})" ${s.stone < c ? "disabled" : ""}>购买</button></div>`; }).join("") + `</div>`;
     },
   },
 
@@ -385,27 +477,17 @@ G.module({
           const sel = this.mapSel !== undefined ? this.mapSel : s.explore ? s.explore.map : Math.min(this.r(), DATA.maps.length - 1);
           const map = DATA.maps[sel], lock = this.r() < sel;
           return `<div class="room-grid five">${DATA.maps.map((m, a) => `<button class="${sel === a ? "active" : ""}" onclick="G.setMapSel(${a})">${m.name}${this.r() < a ? `<small>需${DATA.realms[a]}期</small>` : ""}</button>`).join("")}</div>
-          <div class="card"><h3>${map.name}<small>${DATA.realms[sel]}期 · 掉落 ×${U.num(DATA.mapMult(sel))} · 历练一次 100 秒，通过后才能自动探索</small></h3>` +
+          <div class="card"><h3>${map.name}<small>需${DATA.realms[sel]}期 · 历练一次 100 秒，通过后才能自动探索</small></h3>` +
           DATA.regionDirs.map((d, r) => {
             const R = DATA.region(sel, r), ok = this.isTrained(sel, r), x = s.explore && s.explore.map === sel && (s.explore.reg || 0) === r ? s.explore : null;
-            return `<div class="line"><div>${d}域<span class="tag">${this.realmName(R.L)}</span><small>首领 ${DATA.regionBoss(sel, r)} · ${ok ? "已通过历练" : "未历练"}</small></div>
+            return `<div class="line"><div>${d}域<small>首领 ${DATA.regionBoss(sel, r)} · ${ok ? "已通过历练" : "未历练"}</small></div>
               ${lock ? `<button class="sm" disabled>需${DATA.realms[sel]}期</button>` : `<div><button class="sm ${x && x.once ? "on" : ""}" onclick="G.toggleExplore(${sel},${r},true)">${x && x.once ? "停止" : "历练"}</button>
               <button class="sm ${x && !x.once ? "on" : ""}" onclick="G.toggleExplore(${sel},${r})" ${ok ? "" : "disabled"}>${x && !x.once ? "停止" : "探索"}</button></div>`}</div>`;
           }).join("") + `<p class="desc">期间无法修炼；气血低于三成停止。</p></div>`;
         })()}`;
     }
 
-    if (wt === "shop") {
-      return tabs + `<div class="card"><h3>坊市<small>${DATA.realms[this.r()]}期货品</small></h3>` + this.shopList().map((it, i) => {
-        const cd = it.kind === "cu" ? this.cuDef(it.name) : null, multi = it.kind === "pill" || (cd && cd.type !== "equip" && cd.type !== "fabao");
-        const name = cd ? `<span class="q${cd.q || 0}">${it.name}</span>` : it.kind === "pill" ? `${DATA.realms[it.g]}·${DATA.pills[it.type].name}` : `${DATA.quals[it.q]} ${DATA.realms[it.g]}·${DATA.equipNames[it.slot][Math.min(5, it.q)]}`;
-        const desc = cd ? `${DATA.cuTypes[cd.type] || ""}${cd.desc ? " · " + cd.desc : ""}${["perm", "equip", "fabao"].includes(cd.type) ? " · " + this.cuStatText(this.cuStats(cd)) : ""}`
-          : it.kind === "pill" ? `修炼速度 +${Math.round(DATA.pillPct(it.type, it.g))}%，${DATA.pills[it.type].dur}次修炼` : `${DATA.slots[it.slot]} · ${this.equipDesc(this.makeEquip(it.slot, it.g, it.q))}`;
-        return `<div class="line"><div>${name}<small>${desc}</small></div><div>
-          <button class="sm" onclick="G.buy(${i})" ${s.stone < it.price ? "disabled" : ""}>${U.fmt(it.price)}</button>
-          ${multi ? `<button class="sm" onclick="G.buy(${i},10)" ${s.stone < it.price * 10 ? "disabled" : ""}>×10</button>` : ""}</div></div>`;
-      }).join("") + `</div>`;
-    }
+    if (wt === "shop") return tabs + this.shopView();
 
     return tabs + `<div class="card"><h3>账号<small>${API.user}</small></h3>
       <p class="desc">存档保存在服务器，换手机、关浏览器都不会丢。离线期间修炼、聚灵阵持续进行，不封顶。</p>
