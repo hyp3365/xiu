@@ -16,7 +16,7 @@ DATA.realms = [
 DATA.LAYERS = 10;
 DATA.layerNames = ["一层", "二层", "三层", "四层", "五层", "六层", "七层", "八层", "九层", "十层"];
 
-/* 以下数值都来自 js/config/numbers.js（数值设置文件），这里只做计算 */
+/* 以下数值都来自 js/config/ 下的数值文件（数值设置文件），这里只做计算 */
 const _R = CFG.realm, _P = CFG.player;
 // 每层需要的修为：练气一层→二层 FIRST_EXP，之后每层 × EXP_RATE
 DATA.needExp = L => _R.FIRST_EXP * Math.pow(_R.EXP_RATE, L);
