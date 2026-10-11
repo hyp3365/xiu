@@ -20,8 +20,8 @@ G.module({
     mortal: true, // 凡人（尚未踏入练气期）
     L: 0,        // 总层序（境界×10+层）
     exp: 0,      // 当前修为
-    hp: 100,     // 当前气血
-    mana: 50,    // 当前法力
+    hp: CFG.player.base.hp,     // 当前气血
+    mana: CFG.player.base.mana, // 当前法力
     kills: 0,    // 斩妖数
   }),
 
@@ -52,15 +52,16 @@ G.module({
     computeStats() {
       const L = this.s.L, f = Math.pow(DATA.GROW, L), B = DATA.playerBase, F = DATA.playerFixed;
       const eq = this.equipTotal(), gf = this.gongfaBonus(), dn = this.danBonus(); // gongfaBonus 见 gongfa.js，danBonus（属性丹）见 craft.js
+      const mf = this.wudaoPct(), p = k => 1 + (mf[k] || 0) / 100;               // 宗门秘法（悟道室）百分比加成，见 wudao.js
       return {
-        hp:      (B.hp * f + eq.hp + gf.hp + dn.hp) * (1 + eq.hpPct / 100),
-        atk:     B.atk * f + eq.atk + gf.atk + dn.atk,
-        def:     B.def * f + eq.def + gf.def + dn.def,
-        mana:    B.mana * f + eq.mana + gf.mana + dn.mana,
+        hp:      (B.hp * f + eq.hp + gf.hp + dn.hp) * (1 + eq.hpPct / 100) * p("hp"),
+        atk:     (B.atk * f + eq.atk + gf.atk + dn.atk) * p("atk"),
+        def:     (B.def * f + eq.def + gf.def + dn.def) * p("def"),
+        mana:    (B.mana * f + eq.mana + gf.mana + dn.mana) * p("mana"),
         cultivate: B.cultivate * f,
         speed:   B.speed * f + eq.speed,
-        hit:     B.hit * f + eq.hit + gf.hit + dn.hit,
-        dodge:   B.dodge * f + eq.dodge + gf.dodge + dn.dodge,
+        hit:     (B.hit * f + eq.hit + gf.hit + dn.hit) * p("hit"),
+        dodge:   (B.dodge * f + eq.dodge + gf.dodge + dn.dodge) * p("dodge"),
         crit:    Math.min(DATA.CRIT_CAP, F.crit + eq.crit + dn.crit),
       };
     },
