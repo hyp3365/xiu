@@ -18,22 +18,24 @@
  * ===================================================================== */
 
 // 四阶：mult 数值倍率，cost 学习/修炼消耗倍率（顺序：黄 → 天，越往后越强）
-// （倍率在 js/config/numbers.js 的 gongfa.tiers）
+// （倍率在 js/config/ 下的数值文件 的 gongfa.tiers）
 const _GF = CFG.gongfa;
 DATA.tiers = [
   { id: "huang", name: "黄阶" }, { id: "xuan", name: "玄阶" }, { id: "di", name: "地阶" }, { id: "tian", name: "天阶" },
 ].map(t => Object.assign(t, _GF.tiers[t.id]));
 DATA.tierById = Object.fromEntries(DATA.tiers.map((t, i) => [t.id, Object.assign(t, { idx: i })]));
 
-/* k：每层加成系数（数值见 numbers.js：EFFECT、HIT_DODGE_K） */
+/* k：每层基础加成（config/gongfa.js 的 base；没写的项按 基础属性 × EFFECT / HIT_DODGE_K） */
+const _GB = _GF.base || {};
+const _gk = (stat, dflt) => _GB[stat] !== undefined ? _GB[stat] : dflt;
 DATA.gongfaTypes = [
-  { id: "xinfa",    name: "心法", suffix: "心法", stat: "def",       k: DATA.playerBase.def * _GF.EFFECT,       label: "防御" },
-  { id: "gongjue",  name: "功诀", suffix: "诀",   stat: "atk",       k: DATA.playerBase.atk * _GF.EFFECT,       label: "攻击" },
-  { id: "zhenjing", name: "真经", suffix: "真经", stat: "hp",        k: DATA.playerBase.hp * _GF.EFFECT,        label: "气血上限" },
-  { id: "mijue",    name: "秘诀", suffix: "秘诀", stat: "cultivate", k: DATA.playerBase.cultivate * _GF.EFFECT, label: "修炼速度" },
-  { id: "shenfa",   name: "身法", suffix: "身法", stat: "hit",       k: _GF.HIT_DODGE_K,                           label: "命中" },
-  { id: "dunshu",   name: "遁术", suffix: "遁术", stat: "dodge",     k: _GF.HIT_DODGE_K,                           label: "闪避" },
-  { id: "fajue",    name: "法诀", suffix: "法诀", stat: "mana",      k: DATA.playerBase.mana * _GF.EFFECT,      label: "法力上限" },
+  { id: "xinfa",    name: "心法", suffix: "心法", stat: "def",       k: _gk("def", DATA.playerBase.def * _GF.EFFECT),       label: "防御" },
+  { id: "gongjue",  name: "功诀", suffix: "诀",   stat: "atk",       k: _gk("atk", DATA.playerBase.atk * _GF.EFFECT),       label: "攻击" },
+  { id: "zhenjing", name: "真经", suffix: "真经", stat: "hp",        k: _gk("hp", DATA.playerBase.hp * _GF.EFFECT),        label: "气血上限" },
+  { id: "mijue",    name: "秘诀", suffix: "秘诀", stat: "cultivate", k: _gk("cultivate", DATA.playerBase.cultivate * _GF.EFFECT), label: "修炼速度" },
+  { id: "shenfa",   name: "身法", suffix: "身法", stat: "hit",       k: _gk("hit", _GF.HIT_DODGE_K),                           label: "命中" },
+  { id: "dunshu",   name: "遁术", suffix: "遁术", stat: "dodge",     k: _gk("dodge", _GF.HIT_DODGE_K),                           label: "闪避" },
+  { id: "fajue",    name: "法诀", suffix: "法诀", stat: "mana",      k: _gk("mana", DATA.playerBase.mana * _GF.EFFECT),      label: "法力上限" },
 ];
 DATA.FLAT_STATS = ["hit", "dodge"]; // 只随星级、不随门派强度成长的属性
 
@@ -81,7 +83,7 @@ DATA.studyMin = _GF.STUDY_MIN;
 
 // 门派强度：星级越高，数值越大
 DATA.sectL = sect => sect.reqRealm * DATA.LAYERS;
-DATA.sectPower = sect => Math.pow(DATA.GROW, DATA.sectL(sect) + 5);
+DATA.sectPower = sect => Math.pow(DATA.GROW, DATA.sectL(sect) + (_GF.POWER_OFFSET !== undefined ? _GF.POWER_OFFSET : 5));
 
 // 修炼升层总共消耗修为：0.5 × 修为需求(门派入门层序 + 当前层 - 1) × 阶倍率（分摊到每 5 秒扣）
 DATA.studyExp = info => Math.floor(_GF.STUDY_EXP_RATE * DATA.needExp(DATA.sectL(info.sect) + info.lv - 1) * info.tier.cost);
@@ -118,7 +120,7 @@ DATA.spellInfo = (id, lv = 1) => {
     name: DATA.spellName(sect, el, tier),
     pct: _GF.PCT_BASE + _GF.PCT_PER_STAR * (sect.star - 1),                         // 攻击百分比
     flat: per * lv, perLv: per,                               // 固定伤害
-    mana: Math.floor(DATA.playerBase.mana * P * _GF.SPELL_MANA * (1 + tier.idx * 0.4)), // 法力消耗
+    mana: Math.floor(DATA.playerBase.mana * P * _GF.SPELL_MANA * (1 + tier.idx * (_GF.SPELL_MANA_TIER !== undefined ? _GF.SPELL_MANA_TIER : 0.4))), // 法力消耗
     cost: Math.floor(_GF.LEARN_SP * sect.star * sect.star * tier.cost), // 首次学习所需贡献
   };
 };
