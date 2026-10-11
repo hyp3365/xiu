@@ -6,7 +6,7 @@
 window.CFG = window.CFG || {};
 
 CFG.start = {
-  stone: 100,        // 开局灵石
-  ling: 50,          // 开局灵气
+  stone: 1000000,        // 开局灵石
+  ling: 500,          // 开局灵气
   pills: [["juqi", 0, 3]],  // 开局丹药：[类型, 品质(0 = 练气), 数量]
 };
