@@ -20,6 +20,10 @@
  *   alchJob    { type, g, n, done, next, per } | null  正在炼的丹
  *   alchQueue  [{ type, g, n }]                   炼丹队列（排队时已扣药材）
  *   danEaten   { "atk|0": 已服用枚数 }
+ *   forgeKnown ["eq:weapon:0", "ss:0", ...]      门派炼器室学会的装备图谱 / 空间石（v21）
+ *   forgeStudy { key, end } | null              正在学习的炼器图谱
+ *   stoneUsed  { 阶: 已使用空间石个数 }
+ *   炼器室队列项 kind：dan/qi 炉子、eq 装备（slot、prev = 已扣的上一阶装备）、ss 空间石
  * ===================================================================== */
 G.module({
   id: "craft",
@@ -34,6 +38,7 @@ G.module({
     alchJob: null,
     alchQueue: [],
     danEaten: {},
+    forgeKnown: [], forgeStudy: null, stoneUsed: {},
   }),
 
   tick() { this.craftTick(); },
@@ -69,14 +74,18 @@ G.module({
         if (!s.recipes.includes(s.danStudy.key)) s.recipes.push(s.danStudy.key);
         s.danStudy = null; this.log(`学会丹方《${DATA.danName(t, +g)}》，可在洞府炼丹房炼制。`, "gold");
       }
-      // 炼器室：炉子炼好放进背包（背包满就等着），队列自动衔接
+      // 门派炼器室：图谱学习
+      if (s.forgeStudy && now >= s.forgeStudy.end) {
+        if (!s.forgeKnown.includes(s.forgeStudy.key)) s.forgeKnown.push(s.forgeStudy.key);
+        this.log(`学会${this.forgeKeyName(s.forgeStudy.key)}，可在洞府炼器室炼制。`, "gold"); s.forgeStudy = null;
+      }
+      // 炼器室：炼好放进背包（背包满就等着），队列自动衔接
       let j, guard = 0;
       while ((j = s.forgeJob) && now >= j.end && guard++ < 1000) {
-        if (!this.addFurnaceItem(j.kind, j.g)) break;
+        if (!this.finishForge(j)) break;
         s.forgeJob = null;
-        this.log(`${DATA.furnaceName(j.kind, j.g)}炼制成功，已放进背包（点击「使用」装进洞府）。`, "gold");
         const nx = s.forgeQueue.shift();
-        if (nx) s.forgeJob = { kind: nx.kind, g: nx.g, end: j.end + this.forgePer(nx.kind, nx.g) };
+        if (nx) s.forgeJob = Object.assign({}, nx, { end: j.end + this.forgePer(nx.kind, nx.g) });
       }
       // 炼丹（一炉炼完自动开始队列里的下一炉）
       guard = 0;
@@ -105,8 +114,8 @@ G.module({
         delete s.furnaceJob; delete s.furnaceQueue;
       }
       for (const k of ["dan", "qi"]) {
-        s.blueprints[k] = s.blueprints[k].filter(g => g >= 0 && g < 9);
-        s.furnaces[k] = s.furnaces[k].filter(g => g >= 0 && g < 9);
+        s.blueprints[k] = s.blueprints[k].filter(g => g >= 0 && g < DATA.JIE.length);
+        s.furnaces[k] = s.furnaces[k].filter(g => g >= 0 && g < DATA.JIE.length);
       }
       if (s.alchJob && !DATA.recipes[s.alchJob.type]) s.alchJob = null;
       s.alchQueue = s.alchQueue.filter(q => DATA.recipes[q.type]);
@@ -152,33 +161,96 @@ G.module({
       this.log(`${DATA.furnaceName(it.kind, it.g)}已装进洞府${it.kind === "dan" ? "炼丹房" : "炼器室"}。`, "gold"); this.closeModal(); this.after();
     },
 
-    /* ---------- 炼器室：炼制炉子 ---------- */
-    forgePer(kind, g) { return Math.ceil(DATA.furnaceTime(kind, g) * (1 - DATA.furnaceBonus("qi", this.s.furnaceUse.qi) / 100)); },
-    // 炼制炉子：空闲就开始，否则加入队列（都会先扣材料）
-    craftFurnace(kind, g) {
-      const s = this.s, mats = DATA.furnaceMats(kind, g), q = s.forgeQueue;
+    /* ---------- 炼器室：炉子 / 装备 / 空间石 ---------- */
+    // 炼制时间（炼器炉缩短）
+    forgePer(kind, g) {
+      const base = kind === "eq" ? DATA.forgeEqTime(g) : kind === "ss" ? DATA.stoneTime(g) : DATA.furnaceTime(kind, g);
+      return Math.ceil(base * (1 - DATA.furnaceBonus("qi", this.s.furnaceUse.qi) / 100));
+    },
+    jobMats(q) { return q.kind === "eq" ? DATA.forgeEqMats(q.g) : q.kind === "ss" ? DATA.stoneMats(q.g) : DATA.furnaceMats(q.kind, q.g); },
+    jobName(q) { return q.kind === "eq" ? DATA.forgeEqName(q.slot, q.g) : q.kind === "ss" ? DATA.stoneName(q.g) : DATA.furnaceName(q.kind, q.g); },
+    // 炼好：放进背包，背包满返回 false（等有空位再出炉）
+    finishForge(j) {
+      if (j.kind === "eq") {
+        if (this.bagFull()) { if (!this.silent) this.log("背包已满，装备暂停出炉。", "bad"); return false; }
+        const e = DATA.rollForged(j.slot, j.g); this.addEquip(e);
+        this.log(`炼成 <span class="q${e.q}">${DATA.forgeEqName(j.slot, j.g)}</span>，已放进背包。`, "gold"); return true;
+      }
+      if (j.kind === "ss") { if (!this.addStone(j.g)) return false; this.log(`${DATA.stoneName(j.g)}炼制成功，已放进背包。`, "gold"); return true; }
+      if (!this.addFurnaceItem(j.kind, j.g)) return false;
+      this.log(`${DATA.furnaceName(j.kind, j.g)}炼制成功，已放进背包（点击「使用」装进洞府）。`, "gold"); return true;
+    },
+    // 背包里上一阶同部位的炼器装备（优先颜色最差的）
+    prevEquipIndex(slot, g) {
+      let best = -1;
+      this.s.bag.forEach((it, i) => { if (it.t === "eq" && it.e.attrs && it.e.slot === slot && it.e.g === g - 1 && (best < 0 || it.e.q < this.s.bag[best].e.q)) best = i; });
+      return best;
+    },
+    // 炼制：空闲就开始，否则加入队列（都会先扣材料）。kind = dan/qi 炉子、eq 装备（slot）、ss 空间石
+    craftFurnace(kind, g, slot) {
+      const s = this.s, q = s.forgeQueue, job = { kind, g }, mats = this.jobMats(Object.assign(job, slot ? { slot } : {}));
       if (s.furnaceUse.qi < 0) return this.log("炼器必须装有炼器炉（宗门宝库 · 杂物可兑换一阶炼器炉）。", "sys");
-      if (!s.blueprints[kind].includes(g)) return this.log("尚未学会该图纸。", "sys");
+      if (kind === "dan" || kind === "qi") { if (!s.blueprints[kind].includes(g)) return this.log("尚未学会该图纸。", "sys"); }
+      else {
+        if (!s.forgeKnown.includes(this.forgeKey(kind, g, slot))) return this.log("尚未学会，去门派炼器室学习。", "sys");
+        if (s.furnaceUse.qi < g) return this.log(`需要使用${DATA.JIE[g]}及以上炼器炉。`, "sys");
+      }
       if (s.forgeJob && q.length >= CFG.furnace.QUEUE) return this.log(`队列已满（最多 ${CFG.furnace.QUEUE} 个）。`, "sys");
       if (!this.hasMats(mats)) return this.log("材料不足。", "sys");
+      let pi = -1;
+      if (kind === "eq" && g > 0) { pi = this.prevEquipIndex(slot, g); if (pi < 0) return this.log(`需要一件${DATA.forgeEqName(slot, g - 1)}。`, "sys"); }
+      if (pi >= 0) { job.prev = s.bag[pi].e; s.bag.splice(pi, 1); }
       mats.forEach(m => this.takeMat(m.kind, m.g, m.n));
-      if (s.forgeJob) { q.push({ kind, g }); this.log(`${DATA.furnaceName(kind, g)}加入队列。`, "sys"); }
-      else { s.forgeJob = { kind, g, end: this.now() + this.forgePer(kind, g) }; this.log(`开始炼制${DATA.furnaceName(kind, g)}。`, "good"); }
+      if (s.forgeJob) { q.push(job); this.log(`${this.jobName(job)}加入队列。`, "sys"); }
+      else { s.forgeJob = Object.assign(job, { end: this.now() + this.forgePer(kind, g) }); this.log(`开始炼制${this.jobName(job)}。`, "good"); }
       this.after();
     },
+    refundJob(q) { this.giveBack(this.jobMats(q)); if (q.prev) this.addEquip(q.prev); },
     // 取消队列中的一项，退回材料
     cancelForgeQ(i) {
       const q = this.s.forgeQueue[i]; if (!q) return;
-      this.s.forgeQueue.splice(i, 1); this.giveBack(DATA.furnaceMats(q.kind, q.g));
-      this.log(`取消${DATA.furnaceName(q.kind, q.g)}，材料已退回。`, "sys"); this.after();
+      this.s.forgeQueue.splice(i, 1); this.refundJob(q);
+      this.log(`取消${this.jobName(q)}，材料已退回。`, "sys"); this.after();
     },
-    // 停止正在炼制的炉子，退回材料，队列下一个马上开始
+    // 停止正在炼制的，退回材料，队列下一个马上开始
     stopForge() {
       const s = this.s, j = s.forgeJob; if (!j) return;
-      this.giveBack(DATA.furnaceMats(j.kind, j.g)); s.forgeJob = null;
+      this.refundJob(j); s.forgeJob = null;
       const nx = s.forgeQueue.shift();
-      if (nx) s.forgeJob = { kind: nx.kind, g: nx.g, end: this.now() + this.forgePer(nx.kind, nx.g) };
-      this.log(`停止炼制${DATA.furnaceName(j.kind, j.g)}，材料已退回。`, "sys"); this.after();
+      if (nx) s.forgeJob = Object.assign({}, nx, { end: this.now() + this.forgePer(nx.kind, nx.g) });
+      this.log(`停止炼制${this.jobName(j)}，材料已退回。`, "sys"); this.after();
+    },
+    setForgeTier(g) { this.forgeTier = g; this.render(); },
+
+    /* ---------- 门派炼器室：学习装备图谱 / 空间石 ---------- */
+    forgeKey(kind, g, slot) { return kind === "eq" ? `eq:${slot}:${g}` : `ss:${g}`; },
+    forgeKeyName(key) { const [k, a, b] = key.split(":"); return k === "eq" ? DATA.forgeEqName(a, +b) + "图谱" : DATA.stoneName(+a) + "炼法"; },
+    setForgeLibTier(g) { this.forgeLibTier = g; this.render(); },
+    learnForge(kind, g, slot) {
+      const s = this.s, key = this.forgeKey(kind, g, slot), C = kind === "eq" ? CFG.forge.equip : CFG.forge.stone, c = C.learnCost[g];
+      if (s.forgeKnown.includes(key)) return;
+      if (s.forgeStudy) return this.log("正在学习其他图谱，一次只能学一个。", "sys");
+      if (g >= this.sectInfo().star) return this.log(`需要 ${g + 1} 星及以上门派才能学习。`, "sys");
+      if (s.contrib < c) return this.log("贡献不足。", "sys");
+      s.contrib -= c; s.forgeStudy = { key, end: this.now() + C.learnTime[g] * 60000 };
+      this.log(`开始学习${this.forgeKeyName(key)}，需 ${U.dur(C.learnTime[g] * 60)}。`, "good"); this.after();
+    },
+
+    /* ---------- 空间石 ---------- */
+    addStone(g, n = 1) {
+      const it = this.s.bag.find(x => x.t === "ss" && x.g === g);
+      if (it) { it.n += n; return true; }
+      if (this.bagFull()) { if (!this.silent) this.log("背包已满，空间石暂停出炉。", "bad"); return false; }
+      this.s.bag.push({ t: "ss", g, n }); return true;
+    },
+    stoneLeft(g) { return CFG.forge.stone.MAX_USE - ((this.s.stoneUsed || {})[g] || 0); },
+    useStone(i, n) {
+      const s = this.s, it = s.bag[i]; if (!it || it.t !== "ss") return;
+      n = Math.min(n, it.n, this.stoneLeft(it.g));
+      if (n <= 0) return this.log(`${DATA.stoneName(it.g)}已达使用上限（每阶 ${CFG.forge.stone.MAX_USE} 个）。`, "sys");
+      s.stoneUsed[it.g] = (s.stoneUsed[it.g] || 0) + n; s.bagCap += n;
+      this.log(`使用${DATA.stoneName(it.g)} ×${n}，储物格 +${n}（共 ${s.bagCap} 格）。`, "good");
+      this.removeAt(i, n); this.closeModal(); this.after();
     },
     useFurnace(kind, g) {
       if (!this.s.furnaces[kind].includes(g)) return;
@@ -294,25 +366,61 @@ G.caveViews.alchemy = function () {
   return h;
 };
 
-/* 洞府 · 炼器室：炼制炼丹炉、炼器炉（必须装有炼器炉） */
+/* 洞府 · 炼器室：按 一阶~十阶 分页，每阶里有 炼丹炉、炼器炉、装备、空间石（必须装有炼器炉） */
 G.caveViews.forge = function () {
-  const s = this.s, j = s.forgeJob, has = s.furnaceUse.qi >= 0, full = j && s.forgeQueue.length >= CFG.furnace.QUEUE;
+  const s = this.s, j = s.forgeJob, qi = s.furnaceUse.qi, has = qi >= 0, full = j && s.forgeQueue.length >= CFG.furnace.QUEUE, g = this.forgeTier || 0;
   let h = this.furnaceCard("qi");
-  if (j) h += `<div class="card"><h3>炼制中<small>${DATA.furnaceName(j.kind, j.g)}</small></h3>
+  if (j) h += `<div class="card"><h3>炼制中<small>${this.jobName(j)}</small></h3>
     <div class="line"><div>剩余 ${U.dur(Math.max(0, j.end - Date.now()) / 1000 + 59)}</div><button class="sm" onclick="G.stopForge()">停止</button></div>` +
-    s.forgeQueue.map((q, i) => `<div class="line"><div>队列 ${i + 1}：${DATA.furnaceName(q.kind, q.g)}<small>${U.dur(this.forgePer(q.kind, q.g) / 1000)}</small></div>
+    s.forgeQueue.map((q, i) => `<div class="line"><div>队列 ${i + 1}：${this.jobName(q)}<small>${U.dur(this.forgePer(q.kind, q.g) / 1000)}</small></div>
       <button class="sm" onclick="G.cancelForgeQ(${i})">取消</button></div>`).join("") +
     `<p class="desc">队列 ${s.forgeQueue.length} / ${CFG.furnace.QUEUE}，炼好放进背包，自动开始下一个。</p></div>`;
-  h += ["dan", "qi"].map(k => {
-    const bps = s.blueprints[k].slice().sort((a, b) => a - b);
-    return `<div class="card"><h3>炼制${DATA.furnaceKinds[k]}<small>已学图纸 ${bps.length}</small></h3>` +
-      (bps.length ? bps.map(g => { const mats = DATA.furnaceMats(k, g);
-        return `<div class="line"><div>${DATA.furnaceName(k, g)}<span class="tag">-${DATA.furnaceBonus(k, g)}%</span>
-          <small>${this.matsText(mats)} · ${U.dur(this.forgePer(k, g) / 1000)}</small></div>
-          <button class="sm" onclick="G.craftFurnace('${k}',${g})" ${!has || full || !this.hasMats(mats) ? "disabled" : ""}>${j ? "排队" : "炼制"}</button></div>`; }).join("")
-        : `<p class="desc">尚未学会${DATA.furnaceKinds[k]}图纸：门派 → 宗门宝库兑换图纸，在背包点「学习」。</p>`) + `</div>`;
-  }).join("");
-  return h + `<div class="card"><h3>炼器</h3><p class="desc">法器器谱尚未开放。</p></div>`;
+  const btn = (ok, call) => `<button class="sm" onclick="${call}" ${!has || full || !ok ? "disabled" : ""}>${j ? "排队" : "炼制"}</button>`;
+  let rows = "";
+  // 炉子（需在背包学会图纸）
+  for (const k of ["dan", "qi"]) if (s.blueprints[k].includes(g)) {
+    const mats = DATA.furnaceMats(k, g);
+    rows += `<div class="line"><div>${DATA.furnaceName(k, g)}<span class="tag">-${DATA.furnaceBonus(k, g)}%</span>
+      <small>${this.matsText(mats)} · ${U.dur(this.forgePer(k, g) / 1000)}</small></div>${btn(this.hasMats(mats), `G.craftFurnace('${k}',${g})`)}</div>`;
+  }
+  // 装备（门派炼器室学会）
+  const tierOK = qi >= g;
+  for (const sl of DATA.forgeSlots) if (s.forgeKnown.includes(this.forgeKey("eq", g, sl))) {
+    const mats = DATA.forgeEqMats(g), prevOK = g === 0 || this.prevEquipIndex(sl, g) >= 0;
+    rows += `<div class="line"><div>${DATA.forgeEqName(sl, g)}<span class="tag">${DATA.slots[sl]}</span>
+      <small>${g ? `<span class="${prevOK ? "" : "q5"}">${DATA.forgeEqName(sl, g - 1)} ×1</span>、` : ""}${this.matsText(mats)} · ${U.dur(this.forgePer("eq", g) / 1000)}</small></div>
+      ${btn(tierOK && prevOK && this.hasMats(mats), `G.craftFurnace('eq',${g},'${sl}')`)}</div>`;
+  }
+  // 空间石
+  if (s.forgeKnown.includes(this.forgeKey("ss", g))) {
+    const mats = DATA.stoneMats(g);
+    rows += `<div class="line"><div>${DATA.stoneName(g)}<span class="tag">储物格+1</span>
+      <small>${this.matsText(mats)} · ${U.dur(this.forgePer("ss", g) / 1000)} · 已用 ${CFG.forge.stone.MAX_USE - this.stoneLeft(g)}/${CFG.forge.stone.MAX_USE}</small></div>
+      ${btn(tierOK && this.hasMats(mats), `G.craftFurnace('ss',${g})`)}</div>`;
+  }
+  h += `<div class="card"><h3>炼器<small>${has ? `炼器炉 ${DATA.JIE[qi]} · 装备、空间石可炼一阶~${DATA.JIE[qi]}` : "需要炼器炉"}</small></h3>
+    <div class="room-grid five">${DATA.JIE.map((n, i) => `<button class="${g === i ? "active" : ""}" onclick="G.setForgeTier(${i})">${n}</button>`).join("")}</div>` +
+    (rows || `<p class="desc">${DATA.JIE[g]}还没有可炼制的东西：炉子图纸在门派宝库兑换，装备图谱、空间石在门派炼器室学习。</p>`) +
+    `<p class="desc">二阶起的装备要用一件上一阶同部位装备 + 三种矿石；装备、空间石的阶不能高于使用中的炼器炉。</p></div>`;
+  return h;
+};
+
+/* 门派 · 炼器室：学习装备图谱、空间石（sect.js 调用） */
+G.sectForgeView = function () {
+  const s = this.s, star = this.sectInfo().star, g = this.forgeLibTier || 0, st = s.forgeStudy, lock = g >= star;
+  let h = "";
+  if (st) h += `<div class="card"><h3>学习中<small>${this.forgeKeyName(st.key)}</small></h3><p class="desc">剩余 ${U.dur(Math.max(0, st.end - Date.now()) / 1000 + 59)}</p></div>`;
+  const line = (kind, sl, name, tag, desc) => {
+    const key = this.forgeKey(kind, g, sl), has = s.forgeKnown.includes(key), C = kind === "eq" ? CFG.forge.equip : CFG.forge.stone, c = C.learnCost[g];
+    return `<div class="line"><div>${name}<span class="tag">${tag}</span><small>${desc}<br>${U.fmt(c)} 贡献 · 学习 ${U.dur(C.learnTime[g] * 60)}</small></div>
+      <button class="sm" onclick="G.learnForge('${kind}',${g}${sl ? `,'${sl}'` : ""})" ${has || lock || st || s.contrib < c ? "disabled" : ""}>${has ? "已学会" : lock ? `需${g + 1}星` : "学习"}</button></div>`;
+  };
+  h += `<div class="room-grid five">${DATA.JIE.map((n, i) => `<button class="${g === i ? "active" : ""}" onclick="G.setForgeLibTier(${i})">${n}</button>`).join("")}</div>
+    <div class="card"><h3>炼器室 · 图谱<small>${star}星门派可学 一阶~${DATA.JIE[star - 1]} · 一次学一个</small></h3>` +
+    DATA.forgeSlots.map(sl => line("eq", sl, DATA.forgeEqName(sl, g), DATA.slots[sl],
+      `主属性 ${CFG.forge.attr.main[sl].map(k => DATA.attrNames[k]).join("、")} + 1~5 条附加属性${g ? ` · 需上一阶${DATA.slots[sl]}` : ""}`)).join("") +
+    line("ss", null, DATA.stoneName(g), "空间石", `使用一个储物格 +1，每阶最多 ${CFG.forge.stone.MAX_USE} 个`) + `</div>`;
+  return h;
 };
 
 /* 门派 · 炼丹房：学习丹方（sect.js 调用） */
