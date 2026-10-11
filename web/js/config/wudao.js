@@ -13,19 +13,19 @@ window.CFG = window.CFG || {};
 //   升级灵石 = COST_BASE × COST_RATE^当前等级 × 门派星级倍率 STAR_COST
 CFG.wudao = {
   MAX: 100,          // 每部秘法最高等级
-  COST_BASE: 500,    // 0 → 1 级灵石
-  COST_RATE: 1.12,   // 每级升级灵石 × 这个倍率
+  COST_BASE: 5000,    // 0 → 1 级灵石
+  COST_RATE: 1.15,   // 每级升级灵石 × 这个倍率
   // 1~10 星门派：效果倍率、灵石倍率
-  STAR_PCT:  [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6],
-  STAR_COST: [1, 3, 9, 27, 81, 243, 729, 2187, 6561, 19683],
+  STAR_PCT:  [1, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9],
+  STAR_COST: [1, 1.2, 1.4, 1.6, 1.8, 2, 2.2, 2.4, 2.6, 2.8],
   // 7 种秘法：name 名字后缀、label 加成属性、pct 每级加成 %
   types: {
-    atk:       { name: "破军秘法", label: "攻击",     pct: 1 },
-    def:       { name: "金刚秘法", label: "防御",     pct: 1 },
-    cultivate: { name: "聚元秘法", label: "修炼速度", pct: 1 },
-    hp:        { name: "血元秘法", label: "气血",     pct: 1 },
-    mana:      { name: "灵虚秘法", label: "法力",     pct: 1 },
-    hit:       { name: "鹰目秘法", label: "命中",     pct: 1 },
-    dodge:     { name: "幻影秘法", label: "闪避",     pct: 1 },
+    atk:       { name: "破军秘法", label: "攻击",     pct: 0.2 },
+    def:       { name: "金刚秘法", label: "防御",     pct: 0.2 },
+    cultivate: { name: "聚元秘法", label: "修炼速度", pct: 0.2 },
+    hp:        { name: "血元秘法", label: "气血",     pct: 0.2 },
+    mana:      { name: "灵虚秘法", label: "法力",     pct: 0.2 },
+    hit:       { name: "鹰目秘法", label: "命中",     pct: 0.2 },
+    dodge:     { name: "幻影秘法", label: "闪避",     pct: 0.2 },
   },
 };
