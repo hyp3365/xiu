@@ -24,9 +24,9 @@ CFG.gongfa = {
   // 身法(命中)、遁术(闪避)：每层 = HIT_DODGE_K × 门派星级 × 阶倍率
   HIT_DODGE_K: 1,
   // 法术：攻击百分比 = PCT_BASE + PCT_PER_STAR × (星级-1)；每层固定伤害 = 攻击基础 × 门派强度 × SPELL_FLAT × 阶倍率
-  PCT_BASE: 100, PCT_PER_STAR: 60, SPELL_FLAT: 0.9,
+  PCT_BASE: 100, PCT_PER_STAR: 40, SPELL_FLAT: 0.6,
   // 法术法力消耗 = 法力基础 × 门派强度 × SPELL_MANA × (1 + 阶序 × 0.4)
-  SPELL_MANA: 2.5,
+  SPELL_MANA: 3.5,
   // 功法殿学习所需帮贡 = 基数 × 星级² × 阶消耗倍率
   LEARN_GF: 100,      // 功法
   LEARN_SP: 80,      // 法术
