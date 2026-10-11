@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------
  * 每个门派的悟道室有 7 种秘法：攻击 防御 修炼速度 气血 法力 命中 闪避。
  * 秘法属性 = 门派属性；同星级 12 个门派金木水火土雷各 2 个，所以每种秘法每个属性各 2 部。
- * 用灵石学习 / 升级（自己选学哪种），效果按百分比加在最终属性上；
+ * 用灵石学习 / 升级（自己选学哪种），效果按百分比只加「境界基础属性」（不加装备、功法、丹药），灵根对秘法无效；
  * 学会的秘法离开门派也一直有效（可以在不同门派学不同的秘法，效果叠加）。
  * 数值全部在 js/config/wudao.js。
  * 存档：mifa { "门派id:类型": 等级 }
@@ -60,6 +60,6 @@ G.sectWudaoView = function () {
         <div><button class="sm" onclick="G.learnMifa('${t}')" ${max || s.stone < c ? "disabled" : ""}>${lv ? "提升" : "学习"}</button>
         <button class="sm" onclick="G.learnMifa('${t}',10)" ${max || s.stone < c ? "disabled" : ""}>×10</button></div></div>`;
     }).join("") +
-    `<p class="desc">秘法按百分比加在最终属性上；各门派学的秘法效果叠加，离开门派也一直有效。</p></div>
+    `<p class="desc">秘法按百分比只加境界基础属性（不加装备、功法、丹药），灵根对秘法无效；各门派学的秘法效果叠加，离开门派也一直有效。</p></div>
     <div class="card"><h3>秘法总加成</h3><div class="stats">${Object.keys(W.types).map(t => `<div><span>${W.types[t].label}</span>+${U.num(tot[t] || 0)}%</div>`).join("")}</div></div>`;
 };
