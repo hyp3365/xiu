@@ -127,6 +127,13 @@ const G = {
       this.save();
       this.render();
     }
+    this.bars();
+  },
+
+  // 进度条：每一帧按时间直接算宽度（不用 CSS 过渡），页面每秒重绘也不会一顿一顿
+  bars() {
+    if (!this.s) return;
+    const now = Date.now();
     // 修炼进度条（10 秒走满）
     const pct = this.tickPct() + "%";
     const tb = $("#tick-bar");
@@ -177,6 +184,8 @@ const G = {
     this._lastTick = Date.now();
     this.save(true); this.render(); this.renderLog();
     setInterval(() => this.loop(), 200);
+    const frame = () => { if (!this._stopped) this.bars(); requestAnimationFrame(frame); };
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(frame);
     // 倒计时刷新（只在有倒计时的页面）
     setInterval(() => { if (this.s && this.s.explore) this.advanceExplore(); }, 1000); // 自动探索每秒走一步
     setInterval(() => { if (this.s && this.s.trib) this.advanceTrib(); if (this.tribOpen) this.showTrib(); }, 1000); // 雷劫每秒一回合
