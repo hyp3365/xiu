@@ -26,9 +26,9 @@ CFG.mats = {
 //   pct：练气品质加成 %，每高一品质 ×(1 + GRADE_STEP)；dur：持续修炼次数
 //   price：练气品质坊市售价，每高一品质 × PRICE_STEP
 CFG.pills = {
-  juqi:    { name: "聚气丹", pct: 30,  dur: 180, price: 10,  desc: "增加修炼速度" },
-  juling:  { name: "聚灵丹", pct: 70,  dur: 180, price: 30, desc: "大幅增加修炼速度" },
-  peiyuan: { name: "培元丹", pct: 150, dur: 180, price: 60, desc: "极大增加修炼速度" },
+  juqi:    { name: "聚气丹", pct: 10,  dur: 180, price: 10,  desc: "增加修炼速度" },
+  juling:  { name: "聚灵丹", pct: 20,  dur: 180, price: 30, desc: "大幅增加修炼速度" },
+  peiyuan: { name: "培元丹", pct: 50, dur: 180, price: 60, desc: "极大增加修炼速度" },
 };
 
 CFG.price = {
