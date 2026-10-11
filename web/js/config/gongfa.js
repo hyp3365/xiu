@@ -18,7 +18,7 @@ CFG.gongfa = {
   // 四阶：mult 效果倍率，cost 消耗倍率（贡献、修为）
   tiers: { huang: { mult: 1, cost: 1 }, xuan: { mult: 1.2, cost: 2 }, di: { mult: 1.4, cost: 4 }, tian: { mult: 1.6, cost: 7 } },
   // 功法效果：每层加成 = 基础属性 × EFFECT × 门派强度 × 阶倍率
-  EFFECT: 0.45,
+  EFFECT: 0.95,
   // 星级倍率：1~9 星门派的功法效果、法术固定伤害再乘这个（第 1 个是 1 星）
   STAR_MULT: [1, 1.3, 1.6, 1.9, 2.2, 2.5, 2.7, 3, 3.3, 3.6],
   // 身法(命中)、遁术(闪避)：每层 = HIT_DODGE_K × 门派星级 × 阶倍率
