@@ -12,28 +12,10 @@ CFG.explore = {
   STOP: 0.3,         // 气血低于上限这个比例，停止探索
   HEAL_STEP: 0.01,   // 历练/探索中每走一步恢复气血、法力上限的比例（0.02 = 2%）
   // 每次探索（100 步）固定遇到：普通怪 10 个、精英怪 3 个、首领 1 个（最后一步）、
-  // 灵药 5~10 次、矿石 5~10 次，其余步数无事发生，顺序随机（怪物属性见上面 monster.regions）
+  // 灵药 5~10 次、矿石 5~10 次，其余步数无事发生，顺序随机（怪物属性见 config/monster.js）
   MONSTERS: 10, ELITES: 3, BOSS: 1,
   HERB_MIN: 5, HERB_MAX: 10,
   ORE_MIN: 5, ORE_MAX: 10,
-  // ---- 掉落 ----
-  STONE_BASE: 2,    // 击败怪物灵石 = 2 × 1.15^区域层序 × (1~2.5 随机) × STONE_RATE
-  STONE_GROW: 1.15,
-  STONE_RATE: 1,     // 灵石掉落倍率
-  MAP_MAX: 1.1,       // 地图越高掉得越多：第 1 张 ×1，往后平均递增，第 9 张 ×10（灵石另按怪物等级）
-  // 各事件掉落的材料：kinds = 随机几种 [最少, 最多]，n = 每种几个 [最少, 最多]（数量再 × 地图倍率）
-  //   种类按 MAT_WEIGHT 随机且不重复；kinds 填 [0, 0] 就不掉这类
-  drop: {
-    herbEvent: { herb: { kinds: [1, 2], n: [1, 2] }, ore: { kinds: [0, 0], n: [0, 0] } }, // 发现灵药
-    oreEvent:  { herb: { kinds: [0, 0], n: [0, 0] }, ore: { kinds: [1, 2], n: [1, 2] } }, // 发现矿脉
-    monster:   { herb: { kinds: [1, 2], n: [1, 2] }, ore: { kinds: [1, 2], n: [1, 2] } }, // 击败普通怪（另有灵石）
-    elite:     { herb: { kinds: [1, 2], n: [1, 2] }, ore: { kinds: [1, 2], n: [1, 2] } }, // 击败精英怪（另有灵石）
-    boss:      { herb: { kinds: [1, 2], n: [1, 3] }, ore: { kinds: [1, 3], n: [1, 3] } }, // 击败首领（另有灵石）
-  },
-  // 6 种药材 / 矿石的出现权重（按 mats 里的顺序，第一种最常见）
-  MAT_WEIGHT: [20, 20, 15, 15, 10, 10],
-  // 怪物不掉丹药、装备
-  ELITE_DROP: 2,     // 精英：灵石 × 2（材料见上面 drop.elite）
-  BOSS_DROP: 3,      // 首领：灵石 × 3（材料见上面 drop.boss）
+  // 掉落（灵石、药材、矿石）全部在 config/drops.js
   LOSE_STONE: 0.1,   // 战败遗失灵石比例
 };
