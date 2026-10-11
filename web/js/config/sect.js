@@ -37,10 +37,10 @@ CFG.sect = {
   },
   // 练功房：pct 修炼速度加成 %、cost 每次修炼消耗贡献（都 × 门派星级）
   rooms: [
-    { name: "下品练功房", pct: 30,  cost: 1 },
-    { name: "中品练功房", pct: 50,  cost: 2 },
-    { name: "上品练功房", pct: 80, cost: 4 },
-    { name: "天字练功房", pct: 120, cost: 6 },
+    { name: "下品练功房", pct: 20,  cost: 1 },
+    { name: "中品练功房", pct: 30,  cost: 2 },
+    { name: "上品练功房", pct: 50, cost: 4 },
+    { name: "天字练功房", pct: 80, cost: 6 },
   ],
   // 试炼塔（单独设置属性）：第 n 层守关者层序 = 门派入门层序 + n × STEP
   //   属性 = base × GROW^守关者层序（暴击不成长）；首通贡献 = REWARD × n
