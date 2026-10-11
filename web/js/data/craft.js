@@ -29,7 +29,7 @@ DATA.dans = {};                                                      // 只含�
 for (const t in _AL.recipes) if (!_AL.recipes[t].speed) DATA.dans[t] = _AL.recipes[t];
 DATA.isSpeedRecipe = type => !!(_AL.recipes[type] && _AL.recipes[type].speed);
 // 一阶破军丹；修炼速度丹显示为 一阶聚气丹（练气期）
-DATA.danName = (type, g) => DATA.JIE[g] + _AL.recipes[type].name + (DATA.isSpeedRecipe(type) ? `（${DATA.realms[g]}期）` : "");
+DATA.danName = (type, g) => DATA.JIE[g] + _AL.recipes[type].name + (DATA.isSpeedRecipe(type) ? `（${DATA.realmLabel(g)}）` : "");
 // 丹方效果说明
 DATA.recipeEffect = (type, g) => DATA.isSpeedRecipe(type) ? `修炼速度+${Math.round(DATA.pillPct(type, g))}%` : `${_AL.recipes[type].label}+${U.num(_AL.recipes[type].val[g])}`;
 DATA.danVal = (type, g) => _AL.recipes[type].val[g];
