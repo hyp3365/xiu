@@ -187,3 +187,22 @@ CFG.monster = {
     ],   
   ],
 };
+
+/* ---------- v15 新增：怪物 法力 / 抗性 / 法术 / 法宝 ----------
+ * 按怪物种类（普通 / 精英 / 首领）设置，数值相对怪物自身属性：
+ *   MANA    法力上限 = 攻击 × MANA
+ *   RES     每系抗性 = 防御 × RES；本属性（怪物的 el）抗性再 × OWN_RES
+ *   spell   法术：chance 每回合施放几率 %，pct 伤害 = 攻击 × pct%，cost 每次耗法力 = 法力上限 × cost
+ *           法术伤害 = 威力 - (对方防御 + 对方该属性抗性) × 战斗.DEF_RATE
+ *   fabao   法宝：chance 每回合祭出几率 %（法术没放出时才判定），pct 伤害 = 攻击 × pct%，cost 同上
+ *           法宝伤害只算防御
+ * 怪物属性 el：没写就每次随机（金木水火土雷）。
+ * 也可以在上面 regions 里单个怪物直接写：mana: 500, el: "huo", res: { jin: 10, mu: 10, shui: 10, huo: 30, tu: 10, lei: 10 }
+ * 试炼塔守关者按 tower 种类；雷劫不受影响。 */
+CFG.monster.magic = {
+  OWN_RES: 2,
+  normal: { MANA: 3, RES: 0.3, spell: { chance: 25, pct: 120, cost: 0.25 }, fabao: { chance: 10, pct: 150, cost: 0.4 } },
+  elite:  { MANA: 4, RES: 0.4, spell: { chance: 30, pct: 140, cost: 0.25 }, fabao: { chance: 15, pct: 170, cost: 0.4 } },
+  boss:   { MANA: 5, RES: 0.5, spell: { chance: 35, pct: 160, cost: 0.2 },  fabao: { chance: 20, pct: 200, cost: 0.35 } },
+  tower:  { MANA: 4, RES: 0.4, spell: { chance: 30, pct: 140, cost: 0.25 }, fabao: { chance: 15, pct: 170, cost: 0.4 } },
+};
