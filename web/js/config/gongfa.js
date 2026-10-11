@@ -12,9 +12,9 @@ CFG.gongfa = {
   QUEUE: 15,         // 修炼队列上限
   STUDY_STEP: 5,     // 修炼期间每几秒扣一次修为
   // 每层修炼所需时间（分钟）：1→2 层 3 分钟 …… 11→12 层 15 小时
-  STUDY_MIN: [3, 10, 30, 60, 120, 240, 360, 480, 600, 720, 900],
+  STUDY_MIN: [3, 5, 10, 30, 50, 80, 120, 180, 240, 320, 400],
   // 修炼一层消耗的修为 = STUDY_EXP_RATE × 修为需求(门派入门层序 + 当前层 - 1) × 阶消耗倍率
-  STUDY_EXP_RATE: 1.5,
+  STUDY_EXP_RATE: 2,
   // 四阶：mult 效果倍率，cost 消耗倍率（贡献、修为）
   tiers: { huang: { mult: 1, cost: 1 }, xuan: { mult: 1.2, cost: 2 }, di: { mult: 1.4, cost: 4 }, tian: { mult: 1.6, cost: 7 } },
   // 功法效果：每层加成 = 基础属性 × EFFECT × 门派强度 × 阶倍率
