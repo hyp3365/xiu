@@ -22,25 +22,25 @@ CFG.gongfa = {
   QUEUE: 15,         // 修炼队列上限
   STUDY_STEP: 5,     // 修炼期间每几秒扣一次修为
   // 每层修炼所需时间（分钟）：1→2 层 3 分钟 …… 11→12 层
-  STUDY_MIN: [3, 5, 10, 30, 50, 80, 120, 180, 240, 320, 400],
+  STUDY_MIN: [2, 5, 10, 30, 50, 80, 120, 180, 240, 320, 400],
 };
 
 /* ================= 宗门功法 & 法术 ================= */
 CFG.gongfa.sect = {
   // 基础属性（1 星、黄阶、类型倍率 1、EFFECT 1 时的数值）
   base: {
-    def: 1.3,        // 心法 → 每层防御
-    atk: 1.3,        // 功诀 → 每层攻击
-    hp: 6,           // 真经 → 每层气血
-    cultivate: 1,    // 秘诀 → 每层修炼速度
-    hit: 1,          // 身法 → 每层命中
-    dodge: 1,        // 遁术 → 每层闪避
+    def: 2,        // 心法 → 每层防御
+    atk: 2,        // 功诀 → 每层攻击
+    hp: 8,           // 真经 → 每层气血
+    cultivate: 5,    // 秘诀 → 每层修炼速度
+    hit: 5,          // 身法 → 每层命中
+    dodge: 5,        // 遁术 → 每层闪避
     mana: 3,         // 法诀 → 每层法力
-    res: 1.12,       // 真诀 → 每层本门属性抗性
-    spell: 3,        // 法术 → 每层固定伤害
+    res: 2.5,       // 真诀 → 每层本门属性抗性
+    spell: 10,        // 法术 → 每层固定伤害
     pct: 100,        // 法术 → 攻击百分比（不随层数变化）
-    spellMana: 5,    // 法术 → 每次施放消耗法力
-    study: 200,      // 修炼升一层消耗的修为
+    spellMana: 10,    // 法术 → 每次施放消耗法力
+    study: 100,      // 修炼升一层消耗的修为
     learn: 100,      // 功法殿首次学习消耗的贡献
   },
   // 类型倍率：每类功法 / 法术单独一个
@@ -52,7 +52,7 @@ CFG.gongfa.sect = {
   // 各项自己的 EFFECT（互不影响）
   EFFECT_GONGFA: 1,  // 功法效果
   EFFECT_SPELL: 1,   // 法术固定伤害
-  EFFECT_PCT: 1,     // 法术攻击百分比
+  EFFECT_PCT: 1.12,     // 法术攻击百分比
   EFFECT_MANA: 1,    // 法术耗法力
   EFFECT_STUDY: 1,   // 修炼消耗修为
   EFFECT_LEARN: 1,   // 学习消耗贡献
@@ -66,12 +66,12 @@ CFG.gongfa.sect = {
 // 1~6 星，每星 4 阶，每类功法 2 本、法术 2 本；用灵石购买，买下即学会第 1 层
 CFG.gongfa.shop = {
   base: {
-    def: 1, atk: 1, hp: 5, cultivate: 0.8, hit: 0.8, dodge: 0.8, mana: 2.5, res: 1,
-    spell: 2.5, pct: 100, spellMana: 5,
-    study: 200,      // 修炼升一层消耗的修为
+    def: 2, atk: 2, hp: 8, cultivate: 5, hit: 5, dodge: 5, mana: 3, res: 2.5,
+    spell: 10, pct: 100, spellMana: 10,
+    study: 100,      // 修炼升一层消耗的修为
     price: 500,      // 坊市售价（灵石）
   },
-  TYPE_MULT: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1 },
+  TYPE_MULT: { xinfa: 0.8, gongjue: 0.8, zhenjing: 0.8, mijue: 0.8, shenfa: 0.8, dunshu: 0.8, fajue: 0.8, zhenjue: 0.8, spell: 0.8 },
   STAR_MULT: [1, 1.3, 1.6, 1.9, 2.2, 2.5],
   TIER_MULT: { huang: 1, xuan: 1.2, di: 1.4, tian: 1.6 },
   EFFECT_GONGFA: 1,
@@ -80,7 +80,7 @@ CFG.gongfa.shop = {
   EFFECT_MANA: 1,
   EFFECT_STUDY: 1,
   EFFECT_PRICE: 1,   // 售价
-  STUDY_LV: [1, 2, 3, 5, 8, 12, 18, 27, 40, 60, 90],
+  STUDY_LV: [1, 3, 10, 20, 30, 50, 80, 120, 180, 300, 500],
   // 1~6 星需要的境界序号（0 练气、1 筑基、2 金丹 ……）
   REQ_REALM: [0, 1, 2, 3, 4, 5],
 };
