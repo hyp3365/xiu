@@ -1,5 +1,5 @@
 /* =====================================================================
- * 数据：丹方、炼丹炉/炼器炉、灵田（数值都在 js/config/numbers.js 第八~十一部分）
+ * 数据：丹方、炼丹炉/炼器炉、灵田（数值都在 js/config/ 下的数值文件 第八~十一部分）
  * ---------------------------------------------------------------------
  * 材料只有 药材 herb、矿石 ore（各 6 种），背包里按 名字 区分，g 是它在列表里的序号（0~5）。
  * 配方里直接写药材/矿石名字，这里把名字换成 { kind, g, n }。
@@ -19,7 +19,7 @@ DATA.matFull = (kind, g) => DATA.matName(kind, g);
 // [[名字, 数量], ...] → [{ kind, g, n }]，名字写错会在控制台报错
 DATA.parseMats = list => list.map(([name, n]) => {
   const m = DATA.matByName[name];
-  if (!m) { console.error("numbers.js 里有不存在的材料名：" + name); return { kind: "herb", g: 0, n: 1e15 }; }
+  if (!m) { console.error("js/config/ 数值文件 里有不存在的材料名：" + name); return { kind: "herb", g: 0, n: 1e15 }; }
   return { kind: m.kind, g: m.g, n };
 });
 
