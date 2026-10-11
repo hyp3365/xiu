@@ -41,8 +41,12 @@ G.module({
 
   api: {
     sectInfo() { return DATA.sectById[this.s.sect]; },
-    roomPct(i) { return DATA.rooms[i].pct * this.sectInfo().star; },
-    roomCost(i) { return DATA.rooms[i].cost * this.sectInfo().star; },
+    // 星级倍率、职务倍率（config/sect.js 的 STAR_MULT / RANK_MULT）
+    starMul() { const v = (CFG.sect.STAR_MULT || [])[this.sectInfo().star - 1]; return v === undefined ? this.sectInfo().star : v; },
+    rankMul(i = this.s.rank) { const v = (CFG.sect.RANK_MULT || [])[i]; return v === undefined ? 1 : v; },
+    roomPct(i) { return DATA.rooms[i].pct * this.starMul(); },
+    roomCost(i) { return Math.floor(DATA.rooms[i].cost * this.starMul()); },
+    roomLocked(i) { return (DATA.rooms[i].rank || 0) > this.s.rank; },
     setSectStar(n) { this.sectStar = n; this.render(); },
     setSectTab(t) { this.sectTab = t; this.render(); },
 
@@ -62,14 +66,14 @@ G.module({
 
     /* ---------- 宗门大殿 ---------- */
     rankReqRealm(i) { return Math.min(DATA.realms.length - 1, this.sectInfo().reqRealm + DATA.ranks[i].realm); },
-    rankCost(i) { return DATA.ranks[i].cost * this.sectInfo().star; },
+    rankCost(i) { return Math.floor(DATA.ranks[i].cost * this.starMul()); },
     promote() {
       const i = this.s.rank + 1; if (i >= DATA.ranks.length) return;
       if (this.r() < this.rankReqRealm(i) || this.s.contrib < this.rankCost(i)) return;
       this.s.contrib -= this.rankCost(i); this.s.rank = i;
       this.log(`晋升为【${DATA.ranks[i].name}】！`, "gold"); this.after();
     },
-    salary() { return Math.floor(DATA.ranks[this.s.rank].daily * this.sectInfo().star * Math.pow(DATA.STONE_GROW, this.s.L)); },
+    salary() { return Math.floor(DATA.ranks[this.s.rank].daily * this.starMul() * this.rankMul()); },
     today() { return new Date(this.now()).toDateString(); },
     claimSalary() {
       if (this.s.salaryDay === this.today()) return;
@@ -83,15 +87,17 @@ G.module({
     setLibEl(e) { this.libEl = e; this.render(); },
     learnGongfa(id) {
       const g = DATA.skillInfo(id);
-      if (this.hasGongfa(id) || this.s.contrib < g.cost) return;
+      if (!g || g.src !== "sect" || this.hasGongfa(id) || this.s.contrib < g.cost) return;
+      const need = DATA.tierRank(g.tier);
+      if (this.s.rank < need) return this.log(`${g.tier.name}功法需要职务【${DATA.ranks[need].name}】以上。`, "sys");
       this.s.contrib -= g.cost; this.s.gongfa[id] = 1;
       if (g.kind === "sp") this.autoSlotSpell(id); // 法术栏有空位就自动放入（见 bag.js）
       this.log(`习得《${g.name}》（${g.tier.name}）第 1 层，可在功法栏修炼提升。`, "gold"); this.after();
     },
 
     /* ---------- 事务堂 ---------- */
-    affairContrib(i) { const t = DATA.affairs[i]; return Math.floor(t.contrib * (CFG.sect.affair.CONTRIB_STAR ? this.sectInfo().star : 1)); },
-    affairStone(i) { return Math.floor(DATA.affairs[i].stone * Math.pow(DATA.STONE_GROW, this.s.L)); },
+    affairContrib(i) { return Math.floor(DATA.affairs[i].contrib * this.starMul() * this.rankMul()); },
+    affairStone(i) { return Math.floor(DATA.affairs[i].stone * this.starMul() * this.rankMul()); },
     affairReward(i) {
       const c = this.affairContrib(i), st = this.affairStone(i);
       this.s.contrib += c; this.s.stone += st;
@@ -108,7 +114,10 @@ G.module({
     },
 
     /* ---------- 练功房 ---------- */
-    enterRoom(i) { this.s.room = this.s.room === i ? -1 : i; this.after(); },
+    enterRoom(i) {
+      if (this.s.room !== i && this.roomLocked(i)) return this.log(`需要职务【${DATA.ranks[DATA.rooms[i].rank].name}】。`, "sys");
+      this.s.room = this.s.room === i ? -1 : i; this.after();
+    },
 
     /* ---------- 宗门宝库 ---------- */
     treasuryCost(it) { return it.cost; },
@@ -126,7 +135,7 @@ G.module({
       if (it.item) { if (!this.addCustom(it.item)) return; }
       else if (it.kind === "furnace") { if (!this.addFurnaceItem(it.fk, it.g)) return; }
       else if (it.kind === "pill") { if (!this.addPill(it.type, this.r())) return; }
-      else this.s.stone += Math.floor(it.n * Math.pow(DATA.STONE_GROW, this.s.L));
+      else this.s.stone += Math.floor(it.n * this.starMul());
       this.s.contrib -= c;
       this.log("兑换成功。", "good"); this.after();
     },
@@ -160,24 +169,27 @@ G.module({
     },
 
     /* ---------- 试炼塔 ---------- */
-    // 试炼塔守关者属性（js/config/ 数值文件 的 sect.tower 单独设置）
+    // 守关者属性 = base × 星级倍率 × GROW^(层数-1)（config/sect.js 的 sect.tower）
     makeTowerGuard(floor) {
-      const T = CFG.sect.tower, Lm = this.towerLevel(floor), f = Math.pow(T.GROW, Lm), b = T.base;
-      return this.addMagic({ name: `第${floor}层守关者`, Lm, boss: false, crit: b.crit,
+      const T = CFG.sect.tower, f = this.starMul() * Math.pow(T.GROW, floor - 1), b = T.base;
+      return this.addMagic({ name: `第${floor}层守关者`, boss: false, crit: b.crit,
         hp: b.hp * f, atk: b.atk * f, def: b.def * f, speed: b.speed * f, hit: b.hit * f, dodge: b.dodge * f }, "tower");
     },
-    towerLevel(floor) { return Math.min(DATA.realms.length * DATA.LAYERS - 1, this.sectInfo().reqRealm * DATA.LAYERS + floor * DATA.TOWER_STEP); },
+    // 点「挑战」：立即算出结果，打开战斗画面逐回合播放（3 秒后可跳过）
     challengeTower() {
       const f = this.s.tower + 1; if (f > DATA.TOWER_MAX) return;
       const st = this.stats();
       if (this.s.hp < st.hp * CFG.battle.TOWER_HP_MIN) return this.log("气血不足三成，先休养片刻。", "sys");
-      const Lm = this.towerLevel(f), m = this.makeTowerGuard(f);
+      const m = this.makeTowerGuard(f);
       const res = this.battle(m);
+      let txt;
       if (res.win) {
         this.s.tower = f; const c = DATA.towerReward(f); this.s.contrib += c;
-        this.log(`${res.rounds}回合击败试炼塔第 ${f} 层守关者，贡献 +${c}。`, "gold");
-      } else this.log(`挑战试炼塔第 ${f} 层失败。`, "bad");
+        txt = `${res.rounds}回合击败试炼塔第 ${f} 层守关者，贡献 +${c}。`;
+        this.log(txt, "gold");
+      } else { txt = `挑战试炼塔第 ${f} 层失败${res.lose ? "" : "（回合耗尽，各自退去）"}。`; this.log(txt, "bad"); }
       this.after();
+      this.playBattle(res.detail, `试炼塔 · 第 ${f} 层`, txt, res.win);   // 见 world.js
     },
 
     /* ---------- 宗门秘境 ---------- */
@@ -187,7 +199,7 @@ G.module({
       this.s.contrib -= c;
       const roll = Math.random(), g = this.r(), SC = CFG.sect.secret;
       if (roll < SC.stone.chance) {
-        const n = Math.floor(DATA.STONE_BASE * SC.stone.mult * Math.pow(DATA.STONE_GROW, this.s.L) * (1 + Math.random()));
+        const n = Math.floor(SC.stone.mult * this.starMul() * (1 + Math.random()));
         this.s.stone += n; this.log(`秘境中寻得一处灵石矿脉，灵石 +${U.fmt(n)}。`, "gold");
       } else if (roll < SC.stone.chance + SC.pill.chance) {
         const t = U.pick(Object.keys(DATA.pills)), n = U.rand(SC.pill.n[0], SC.pill.n[1]);
@@ -229,24 +241,26 @@ G.module({
         ${next < 0 ? `<p class="desc">你已是一宗之主。</p>` : `<div class="line"><div>晋升【${DATA.ranks[next].name}】
           <small>需${DATA.realms[this.rankReqRealm(next)]}期 · ${U.fmt(this.rankCost(next))} 贡献</small></div>
           <button class="sm" onclick="G.promote()" ${this.r() < this.rankReqRealm(next) || s.contrib < this.rankCost(next) ? "disabled" : ""}>晋升</button></div>`}</div>
-        <div class="card"><h3>职务一览</h3>${DATA.ranks.map((r, i) => `<div class="line"><div>${r.name}<small>俸禄 ${U.fmt(r.daily)} × 星级 · 晋升 ${U.fmt(r.cost)} × 星级</small></div>${i === s.rank ? "<b>当前</b>" : i < s.rank ? "<small>已历</small>" : ""}</div>`).join("")}</div>
+        <div class="card"><h3>职务一览</h3>${DATA.ranks.map((r, i) => `<div class="line"><div>${r.name}<small>俸禄 ${U.fmt(Math.floor(r.daily * this.starMul() * this.rankMul(i)))} 灵石 · 晋升 ${U.fmt(this.rankCost(i))} 贡献</small></div>${i === s.rank ? "<b>当前</b>" : i < s.rank ? "<small>已历</small>" : ""}</div>`).join("")}</div>
         <div class="btns"><button onclick="G.leaveSect()">叛出门派</button></div>`;
     } else if (tab === "lib") {
       // 功法殿：本星级全部门派的功法、法术；按 阶 和 属性 筛选
       const tier = this.libTier || "huang", el = this.libEl || x.el;
+      const need = DATA.tierRank(DATA.tierById[tier]), rankLock = s.rank < need;
       const btn = g => { const has = this.hasGongfa(g.id);
-        return `<button class="sm" onclick="G.learnGongfa('${g.id}')" ${has || s.contrib < g.cost ? "disabled" : ""}>${has ? "已学会" : "学习"}</button>`; };
+        return `<button class="sm" onclick="G.learnGongfa('${g.id}')" ${has || rankLock || s.contrib < g.cost ? "disabled" : ""}>${has ? "已学会" : rankLock ? "职务不足" : "学习"}</button>`; };
       const sects = DATA.sects.filter(o => o.star === x.star && (el === "all" || o.el === el));
       h += `<div class="room-grid">${DATA.tiers.map(t => `<button class="${tier === t.id ? "active" : ""}" onclick="G.setLibTier('${t.id}')">${t.name}</button>`).join("")}</div>
         <div class="room-grid">${[["all", "全部"], ...DATA.elements.map(e => [e.id, e.name])].map(([k, n]) =>
           `<button class="${el === k ? "active" : ""}" onclick="G.setLibEl('${k}')">${n}</button>`).join("")}</div>` +
+        (need ? `<p class="desc">${DATA.tierById[tier].name}功法、法术需要职务【${DATA.ranks[need].name}】以上才能学习${rankLock ? "（你的职务不足）" : ""}。</p>` : "") +
         sects.map(o => `<div class="card"><h3>${o.name}<span class="tag">${DATA.elById[o.el].name}</span><small>${DATA.tierById[tier].name}</small></h3>` +
           DATA.gongfaTypes.map(t => {
             const g = DATA.gongfaInfo(DATA.gongfaId(o.id, t.id, tier));
-            return `<div class="line"><div>《${g.name}》<span class="tag">${t.name}</span><small>每层${g.label} +${this.gfValue(g, g.perLv)} · ${U.fmt(g.cost)} 贡献</small></div>${btn(g)}</div>`;
+            return `<div class="line"><div>《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${t.name}</span><small>每层${g.label} +${this.gfValue(g, g.perLv)} · ${U.fmt(g.cost)} 贡献</small></div>${btn(g)}</div>`;
           }).join("") + (() => {
             const g = DATA.spellInfo(DATA.spellId(o.id, o.el, tier));
-            return `<div class="line"><div>《${g.name}》<span class="tag">法术</span><small>攻击×${g.pct}% + ${U.fmt(g.perLv)}/层 · 耗法力 ${U.fmt(g.mana)} · ${U.fmt(g.cost)} 贡献</small></div>${btn(g)}</div>`;
+            return `<div class="line"><div>《${g.name}》<span class="tag">${g.star}星</span><span class="tag">法术</span><small>攻击×${g.pct}% + ${U.fmt(g.perLv)}/层 · 耗法力 ${U.fmt(g.mana)} · ${U.fmt(g.cost)} 贡献</small></div>${btn(g)}</div>`;
           })() + `</div>`).join("");
     } else if (tab === "affair") {
       const a = s.affair, cur = a.task >= 0 ? DATA.affairs[a.task] : null;
@@ -259,9 +273,9 @@ G.module({
             <button class="sm ${on ? "on" : ""}" onclick="G.startAffair(${i})" ${lock ? "disabled" : ""}>${lock ? "职务不足" : on ? "停止" : "执行"}</button></div>`; }).join("") + `</div>`;
     } else if (tab === "room") {
       h += `<div class="card"><h3>练功房<small>修炼时每次消耗贡献</small></h3>` + DATA.rooms.map((r, i) => {
-        const on = s.room === i;
-        return `<div class="line"><div>${r.name}<span class="tag">+${this.roomPct(i)}%</span><small>每次修炼消耗 ${this.roomCost(i)} 贡献</small></div>
-          <button class="sm ${on ? "on" : ""}" onclick="G.enterRoom(${i})">${on ? "使用中" : "进入"}</button></div>`;
+        const on = s.room === i, lock = !on && this.roomLocked(i);
+        return `<div class="line"><div>${r.name}<span class="tag">+${U.num(this.roomPct(i))}%</span>${r.rank ? `<span class="tag">${DATA.ranks[r.rank].name}专用</span>` : ""}<small>每次修炼消耗 ${U.fmt(this.roomCost(i))} 贡献</small></div>
+          <button class="sm ${on ? "on" : ""}" onclick="G.enterRoom(${i})" ${lock ? "disabled" : ""}>${on ? "使用中" : lock ? "职务不足" : "进入"}</button></div>`;
       }).join("") + `</div>`;
     } else if (tab === "treasury") {
       const tt = this.treasuryTab || "pill", maxG = this.treasuryMaxG();
@@ -302,7 +316,7 @@ G.module({
     } else if (tab === "tower") {
       const f = s.tower + 1, done = s.tower >= DATA.TOWER_MAX;
       h += `<div class="card"><h3>试炼塔<small>已通关 ${s.tower} / ${DATA.TOWER_MAX} 层</small></h3>
-        ${done ? `<p class="desc">你已登顶试炼塔！</p>` : `<div class="line"><div>第 ${f} 层守关者<small>${this.realmName(this.towerLevel(f))} · 首通贡献 +${DATA.towerReward(f)}</small></div>
+        ${done ? `<p class="desc">你已登顶试炼塔！</p>` : `<div class="line"><div>第 ${f} 层守关者<small>首通贡献 +${DATA.towerReward(f)}</small></div>
         <button class="sm" onclick="G.challengeTower()">挑战</button></div>`}</div>`;
     } else if (tab === "secret") {
       const c = DATA.secretCost(x.star);
