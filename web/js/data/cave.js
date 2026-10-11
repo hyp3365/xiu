@@ -8,7 +8,7 @@
  *   - 1 灵石换灵气     = STONE_LING × factor
  * cost(lv)：从 lv 升到 lv+1 需要的灵石
  * ===================================================================== */
-// 数值在 js/config/numbers.js 的 array 部分
+// 数值在 js/config/ 下的数值文件 的 array 部分
 const _A = CFG.array;
 DATA.array = {
   MAX: _A.MAX,
