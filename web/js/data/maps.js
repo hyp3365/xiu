@@ -13,8 +13,10 @@ DATA.worlds = [
 /* =====================================================================
  * 数据：凡界地图（9 张，对应 练气 → 渡劫）
  * ---------------------------------------------------------------------
- * monsters：普通怪物名字（随机遇到）；boss：首领名字（各方面更强）
- * 所有地图掉落的药材、矿石种类都一样（9 种药材、9 种矿石），只是数量不同：
+ * monsters：普通怪物名字（随机遇到，精英怪 = "精英·" + 名字）；boss：北域首领名字
+ * 每张地图分 东 西 南 北 四个区域（DATA.regionDirs），每个区域的怪物属性在 numbers.js 的 monster.regions；
+ *   东/西/南 三域首领名 = "X域·" + 普通怪名 + "王"，北域首领 = boss
+ * 所有地图掉落的药材、矿石种类都一样（6 种药材、6 种矿石），只是数量不同：
  *   地图越高，掉得越多（第 1 张 ×1 → 第 9 张 ×10，见 js/config/numbers.js 的 explore 部分）
  * ===================================================================== */
 DATA.maps = [
@@ -38,13 +40,20 @@ DATA.maps = [
     monsters: ["雷灵", "劫雷兽", "心魔", "雷鹏", "紫电蛟", "天罚使者", "劫火灵", "雷霆巨人"] },
 ];
 
-// 9 种药材、9 种矿石：名字和价格在 js/config/numbers.js 的 mats（序号 0~8，越往后越稀有）
+// 6 种药材、6 种矿石：名字和价格在 js/config/numbers.js 的 mats（序号 0~5，越往后越稀有）
 DATA.herbs = Object.keys(CFG.mats.herb);
 DATA.ores  = Object.keys(CFG.mats.ore);
 DATA.PIN = ["一品", "二品", "三品", "四品", "五品", "六品", "七品", "八品", "九品"];
 // 丹药、炉子、丹方分九阶
 DATA.JIE = ["一阶", "二阶", "三阶", "四阶", "五阶", "六阶", "七阶", "八阶", "九阶"];
 DATA.matKinds = { herb: "药材", ore: "矿石" };
+
+/* ---------- 东西南北四域 ---------- */
+DATA.regionDirs = ["东", "西", "南", "北"];
+DATA.regionCount = 4;
+DATA.region = (a, r) => CFG.monster.regions[a][r];          // 数值（numbers.js）
+DATA.regionName = (a, r) => DATA.maps[a].name + "·" + DATA.regionDirs[r] + "域";
+DATA.regionBoss = (a, r) => r === 3 ? DATA.maps[a].boss : DATA.regionDirs[r] + "域·" + DATA.maps[a].monsters[r * 2] + "王";
 
 // 无事发生时的随机描述
 DATA.exploreIdle = ["四下寂静，无事发生。", "山风拂过，草木沙沙。", "踏过一片乱石。", "远处传来几声兽吼。",
