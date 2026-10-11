@@ -10,11 +10,11 @@ window.CFG = window.CFG || {};
 CFG.array = {
   MAX: 3000,         // 最高等级
   GATHER_BASE: 2,   // 0 级每 10 秒聚集的灵气
-  GATHER_RATE: 1.01, // 聚灵倍率：每 10 秒聚灵 = GATHER_BASE × GATHER_RATE^等级
-  SPEED_RATE: 1.003,  // 每级修炼速度加成倍率（聚灵阵常开）：加成 = 1.03^等级 - 1
+  GATHER_RATE: 1.05, // 聚灵倍率：每 10 秒聚灵 = GATHER_BASE × GATHER_RATE^等级
+  SPEED_RATE: 1.002,  // 每级修炼速度加成倍率（聚灵阵常开）：加成 = 1.03^等级 - 1
   STONE_LING: 100,    // 1 灵石换的灵气（固定数值，不随等级变化）
   COST_BASE: 100,    // 0 → 1 级需要的灵石
-  COST_RATE: 1.132,  // 每级升级灵石 × 这个倍率
+  COST_RATE: 1.182,  // 每级升级灵石 × 这个倍率
   CAP_GATHER: 3600,   // 灵气上限 = 每10秒聚灵 × 3600 + 修炼速度 × 60
   CAP_SPEED: 60,
 };
