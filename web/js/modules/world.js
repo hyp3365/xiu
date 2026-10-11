@@ -65,56 +65,80 @@ G.module({
       return m;
     },
 
-    // 通用战斗：速度高者先手，判闪避、暴击。返回 { win, lose, rounds }，并更新玩家气血
+    // 通用战斗：速度高者先手，判闪避、暴击。返回 { win, lose, rounds, why, log }，并更新玩家气血、法力
+    //   log：完整战斗过程（点「详情」查看），格式见 battleDetail
     battle(m) {
       const st = this.stats(), s = this.s;
       const spells = s.spellSlots.slice(0, this.slotCount()).map(id => DATA.spellInfo(id, s.gongfa[id])).filter(Boolean);
-      let si = 0;
+      let si = 0, act = null;   // act：这一下出手的方式 { k: 0 普通攻击 / 1 法术 / 2 法宝, sp 法术名序号, f: 0 命中 / 1 被闪避 / 2 暴击 }
       const BT = CFG.battle, rnd = () => BT.RAND_MIN + Math.random() * (BT.RAND_MAX - BT.RAND_MIN);
-      const hit = (A, D) => {
-        if (Math.random() * 100 < DATA.dodgeChance(A.hit, D.dodge)) return 0;     // 闪避（看命中与闪避之比）
-        let d = Math.max(A.atk * BT.MIN_DMG, A.atk - D.def * BT.DEF_RATE) * rnd();
-        if (Math.random() * 100 < Math.min(DATA.CRIT_CAP, A.crit)) d *= BT.CRIT_MULT; // 暴击
+      const roll = (A, D, raw, k, sp) => {
+        act = { k, sp, f: 0 };
+        if (Math.random() * 100 < DATA.dodgeChance(A.hit, D.dodge)) { act.f = 1; return 0; } // 闪避（看命中与闪避之比）
+        let d = raw * rnd();
+        if (Math.random() * 100 < Math.min(DATA.CRIT_CAP, A.crit)) { d *= BT.CRIT_MULT; act.f = 2; } // 暴击
         return d;
       };
+      const hit = (A, D) => roll(A, D, Math.max(A.atk * BT.MIN_DMG, A.atk - D.def * BT.DEF_RATE), 0);
       // 玩家出手：按顺序施放法术，法力不足则普通攻击
+      const spNames = spells.map(sp => sp.name);
       const myHit = () => {
         for (let k = 0; k < spells.length; k++) {
-          const sp = spells[(si + k) % spells.length];
+          const j = (si + k) % spells.length, sp = spells[j];
           if (s.mana >= sp.mana) {
-            si = (si + k + 1) % spells.length; s.mana -= sp.mana;
-            if (Math.random() * 100 < DATA.dodgeChance(st.hit, m.dodge)) return 0;
-            let d = Math.max(st.atk * BT.MIN_DMG, (st.atk * sp.pct / 100 + sp.flat) * this.lingenSpell(sp.el.id) - (m.def + ((m.res || {})[sp.el.id] || 0)) * BT.DEF_RATE) * rnd();
-            if (Math.random() * 100 < st.crit) d *= BT.CRIT_MULT;
-            return d;
+            si = (j + 1) % spells.length; s.mana -= sp.mana;
+            return roll(st, m, Math.max(st.atk * BT.MIN_DMG, (st.atk * sp.pct / 100 + sp.flat) * this.lingenSpell(sp.el.id) - (m.def + ((m.res || {})[sp.el.id] || 0)) * BT.DEF_RATE), 1, j);
           }
         }
         return hit(st, m);
       };
       let php = s.hp, mhp = m.hp, rounds = 0, dealt = 0, taken = 0;
-      const hp0 = s.hp, meFirst = st.speed >= m.speed;
+      const hp0 = s.hp, mana0 = s.mana, meFirst = st.speed >= m.speed;
       // 怪物出手：先判法术（带属性，算 防御 + 抗性），再判法宝（只算防御），都没有就普通攻击
       let mSp = 0, mFb = 0;
       const mCast = (k, el) => {
         const c = m[k], cost = c ? m.maxMana * c.cost : 0;
         if (!c || m.mana < cost || Math.random() * 100 >= c.chance) return -1;
         m.mana -= cost; k === "spell" ? mSp++ : mFb++;
-        if (Math.random() * 100 < DATA.dodgeChance(m.hit, st.dodge)) return 0;
-        let d = Math.max(m.atk * BT.MIN_DMG, m.atk * c.pct / 100 - (st.def + (el ? st.res[el] || 0 : 0)) * BT.DEF_RATE) * rnd();
-        if (Math.random() * 100 < Math.min(DATA.CRIT_CAP, m.crit)) d *= BT.CRIT_MULT;
-        return d;
+        return roll(m, st, Math.max(m.atk * BT.MIN_DMG, m.atk * c.pct / 100 - (st.def + (el ? st.res[el] || 0 : 0)) * BT.DEF_RATE), k === "spell" ? 1 : 2);
       };
       const mobHit = () => { let d = mCast("spell", m.el); if (d < 0) d = mCast("fabao"); return d < 0 ? hit(m, st) : d; };
-      const me = () => { const d = myHit(); mhp -= d; dealt += d; }, him = () => { const d = mobHit(); php -= d; taken += d; };
+      // 每一下记一条：[回合, 谁(0 你 / 1 对方), 方式, 法术名序号, 结果, 伤害, 你的气血, 你的法力, 对方气血, 对方法力]
+      const log = [], R = Math.round;
+      const rec = (w, d) => log.push([rounds, w, act.k, act.sp === undefined ? -1 : act.sp, act.f, R(d), R(Math.max(0, php)), R(s.mana), R(Math.max(0, mhp)), R(m.mana || 0)]);
+      const me = () => { const d = myHit(); mhp -= d; dealt += d; rec(0, d); }, him = () => { const d = mobHit(); php -= d; taken += d; rec(1, d); };
       while (php > 0 && mhp > 0 && rounds < BT.MAX_ROUNDS) {
         rounds++;
         if (meFirst) { me(); if (mhp > 0) him(); }
         else { him(); if (php > 0) me(); }
       }
       s.hp = Math.max(1, php);
-      // 失败原因说明（显示在探索信息里）
+      // 战斗说明（显示在探索信息里）
       const why = `你出战时气血 ${U.fmt(hp0)}，共造成 ${U.fmt(dealt)} 伤害（对方剩余气血 ${U.fmt(Math.max(0, mhp))}/${U.fmt(m.hp)}），承受 ${U.fmt(taken)} 伤害；对方攻击 ${U.fmt(m.atk)} 防御 ${U.fmt(m.def)}${m.el ? `，${DATA.elById[m.el].name}属性，施法术 ${mSp} 次、法宝 ${mFb} 次` : ""}`;
-      return { win: mhp <= 0 && php > 0, lose: php <= 0, rounds, why };
+      const detail = { name: m.name, el: m.el || "", sp: spNames, first: meFirst ? 0 : 1, log,
+        me: [R(hp0), R(st.hp), R(mana0), R(st.mana)], mob: [R(m.hp), R(m.hp), R(m.maxMana || 0), R(m.maxMana || 0)] };
+      return { win: mhp <= 0 && php > 0, lose: php <= 0, rounds, why, detail };
+    },
+
+    // 完整战斗过程弹窗：src = "cur" 本次探索 / "last" 上一次结果，i = 事件序号
+    showBattle(src, i) {
+      const s = this.s, list = src === "cur" ? (s.explore && s.explore.ev) : (s.lastRun && s.lastRun.ev), e = list && list[i];
+      if (!e || !e.b) return;
+      const b = e.b, K = ["普通攻击", "法术", "法宝"], el = b.el ? DATA.elById[b.el].name : "";
+      const rows = b.log.map(([r, w, k, sp, f, d, ph, pm, mh, mm]) => {
+        const who = w ? b.name : "你", how = k === 1 ? (w ? `${el}系法术` : `《${b.sp[sp] || "法术"}》`) : K[k];
+        const res = f === 1 ? "被闪避" : `造成 <b>${U.fmt(d)}</b> 伤害${f === 2 ? "（暴击）" : ""}`;
+        return `<p class="${w ? "bad" : "good"}"><b>第${r}回合</b> ${who}${k ? "施放" : ""}${how}，${res}<br><small>你 气血 ${U.fmt(ph)}/${U.fmt(b.me[1])} 法力 ${U.fmt(pm)}/${U.fmt(b.me[3])} · 对方 气血 ${U.fmt(mh)}/${U.fmt(b.mob[1])} 法力 ${U.fmt(mm)}/${U.fmt(b.mob[3])}</small></p>`;
+      }).join("");
+      // 各方式伤害合计
+      const sum = (w, k) => b.log.filter(x => x[1] === w && x[2] === k).reduce((t, x) => t + x[5], 0);
+      const cnt = (w, k) => b.log.filter(x => x[1] === w && x[2] === k).length;
+      const line = w => K.map((n, k) => cnt(w, k) ? `${n} ${cnt(w, k)} 次 ${U.fmt(sum(w, k))}` : "").filter(Boolean).join("，") || "无";
+      this.modal(`<h2>战斗详情 · ${b.name}${el ? `（${el}属性）` : ""}</h2>
+        <p class="desc">${b.first ? "对方先手" : "你先手"}<br>开战：你 气血 ${U.fmt(b.me[0])}/${U.fmt(b.me[1])} 法力 ${U.fmt(b.me[2])}/${U.fmt(b.me[3])} · 对方 气血 ${U.fmt(b.mob[0])} 法力 ${U.fmt(b.mob[2])}<br>
+        你造成：${line(0)}<br>对方造成：${line(1)}</p>
+        <div class="explore-log">${rows || "<p>无</p>"}</div>
+        <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
 
     /* ---------- 掉落 ---------- */
@@ -207,7 +231,7 @@ G.module({
       // 每走一步恢复少量气血、法力
       const st = this.stats(), H = CFG.explore.HEAL_STEP;
       this.s.hp = Math.min(st.hp, this.s.hp + st.hp * H); this.s.mana = Math.min(st.mana, this.s.mana + st.mana * H);
-      let t = "", c = "";
+      let t = "", c = "", bd = null;
       if (type === "herb") { t = `发现灵药，采得 ${this.rollEvent(x.loot, "herbEvent", a) || "无"}`; c = "good"; }
       else if (type === "ore") { t = `发现矿脉，挖得 ${this.rollEvent(x.loot, "oreEvent", a) || "无"}`; c = "good"; }
       else if (type === "monster" || type === "elite" || type === "boss") {
@@ -216,8 +240,9 @@ G.module({
         if (res.win) { this.s.kills++; t = `遭遇${tag}，${res.rounds}回合击败，获得 ${this.rollMonsterLoot(x.loot, m, a)}`; c = m.boss ? "gold" : ""; }
         else if (res.lose) { t = `遭遇${tag}，第 ${res.rounds} 回合不敌重伤，遗失灵石 ${U.fmt(this.loseStone())}。${res.why}`; c = "bad"; }
         else { t = `遭遇${tag}，缠斗 ${res.rounds} 回合，各自退去`; }
+        bd = res.detail;
       } else t = U.pick(DATA.exploreIdle);
-      x.ev.unshift({ n: x.step, t, c });
+      x.ev.unshift(bd ? { n: x.step, t, c, b: bd } : { n: x.step, t, c });   // b：完整战斗过程（点「详情」看）
       if (x.ev.length > CFG.explore.TIME) x.ev.length = CFG.explore.TIME;
       return c === "bad"; // 战败：本次提前结束
     },
@@ -266,6 +291,8 @@ G.module({
       if (changed) this.dirty();
     },
     setExploreOpen(v) { this.exploreOpen = v; this.render(); },
+    // 探索信息一行：战斗事件后面带「详情」按钮
+    evLine(e, src, i) { return `<p class="${e.c}"><b>第${e.n}步</b> ${e.t}${e.b ? ` <button class="sm" onclick="G.showBattle('${src}',${i})">详情</button>` : ""}</p>`; },
     setLastOpen(v) { this.lastOpen = v; this.render(); },
     setMapSel(a) { this.mapSel = a; this.render(); },
 
@@ -315,10 +342,10 @@ G.module({
             <button class="sm" onclick="G.setExploreOpen(${!this.exploreOpen})">${this.exploreOpen ? "收起信息" : "探索信息"}</button>
             <button class="sm" onclick="G.toggleExplore(${x.map},${x.reg || 0},${!!x.once})">停止</button></span></div>
           <p class="desc">本次收获（结束后放入背包）：灵石 ${U.fmt(L.stone)}${mats.length ? "、" + mats.join("、") : ""}</p>
-          ${this.exploreOpen ? `<div class="explore-log">${x.ev.map(e => `<p class="${e.c}"><b>第${e.n}步</b> ${e.t}</p>`).join("") || "<p>出发……</p>"}</div>` : ""}</div>`; })()
+          ${this.exploreOpen ? `<div class="explore-log">${x.ev.map((e, i) => this.evLine(e, "cur", i)).join("") || "<p>出发……</p>"}</div>` : ""}</div>`; })()
         : s.lastRun ? `<div class="card"><h3>本次结果<small><button class="sm" onclick="G.setLastOpen(${!this.lastOpen})">${this.lastOpen ? "收起" : "详细"}</button></small></h3>
           <p class="desc ${s.lastRun.bad ? "q5" : ""}">${s.lastRun.title}</p>
-          ${this.lastOpen ? `<div class="explore-log">${s.lastRun.ev.map(e => `<p class="${e.c}"><b>第${e.n}步</b> ${e.t}</p>`).join("")}</div>` : ""}</div>` : ""}
+          ${this.lastOpen ? `<div class="explore-log">${s.lastRun.ev.map((e, i) => this.evLine(e, "last", i)).join("")}</div>` : ""}</div>` : ""}
         ${(() => {
           // 地图选择（9 张）+ 选中地图的 东西南北 四个区域
           const sel = this.mapSel !== undefined ? this.mapSel : s.explore ? s.explore.map : Math.min(this.r(), DATA.maps.length - 1);
