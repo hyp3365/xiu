@@ -52,16 +52,17 @@ G.module({
     computeStats() {
       const L = this.s.L, f = Math.pow(DATA.GROW, L), B = DATA.playerBase, F = DATA.playerFixed;
       const eq = this.equipTotal(), gf = this.gongfaBonus(), dn = this.danBonus(); // gongfaBonus 见 gongfa.js，danBonus（属性丹）见 craft.js
-      const mf = this.wudaoPct(), p = k => 1 + (mf[k] || 0) / 100;               // 宗门秘法（悟道室）百分比加成，见 wudao.js
+      // 宗门秘法（悟道室）：只按百分比加「境界基础属性」，不加装备、功法、丹药部分（见 wudao.js）
+      const mf = this.wudaoPct(), p = k => 1 + (mf[k] || 0) / 100;
       return {
-        hp:      (B.hp * f + eq.hp + gf.hp + dn.hp) * (1 + eq.hpPct / 100) * p("hp"),
-        atk:     (B.atk * f + eq.atk + gf.atk + dn.atk) * p("atk"),
-        def:     (B.def * f + eq.def + gf.def + dn.def) * p("def"),
-        mana:    (B.mana * f + eq.mana + gf.mana + dn.mana) * p("mana"),
-        cultivate: B.cultivate * f,
+        hp:      (B.hp * f * p("hp") + eq.hp + gf.hp + dn.hp) * (1 + eq.hpPct / 100),
+        atk:     B.atk * f * p("atk") + eq.atk + gf.atk + dn.atk,
+        def:     B.def * f * p("def") + eq.def + gf.def + dn.def,
+        mana:    B.mana * f * p("mana") + eq.mana + gf.mana + dn.mana,
+        cultivate: B.cultivate * f * p("cultivate"),
         speed:   B.speed * f + eq.speed,
-        hit:     (B.hit * f + eq.hit + gf.hit + dn.hit) * p("hit"),
-        dodge:   (B.dodge * f + eq.dodge + gf.dodge + dn.dodge) * p("dodge"),
+        hit:     B.hit * f * p("hit") + eq.hit + gf.hit + dn.hit,
+        dodge:   B.dodge * f * p("dodge") + eq.dodge + gf.dodge + dn.dodge,
         crit:    Math.min(DATA.CRIT_CAP, F.crit + eq.crit + dn.crit),
       };
     },
