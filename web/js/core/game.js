@@ -101,7 +101,9 @@ const G = {
     const sec = (Date.now() - this.s.last) / 1000;
     let n = Math.floor(sec / DATA.TICK);
     if (n < 1) return;
-    const before = { exp: this.s.exp, ling: this.s.ling, stone: this.s.stone, contrib: this.s.contrib || 0 };
+    const before = { exp: this.s.exp, ling: this.s.ling, stone: this.s.stone, contrib: this.s.contrib || 0, kills: this.s.kills || 0, bag: this.bagCount() };
+    // 离线账本：探索结算（world.js giveLoot）、事务堂（sect.js affairReward）往这里记
+    this._off = { exRuns: 0, exStone: 0, exItems: {}, exLost: 0, afN: 0, afStone: 0, afContrib: 0 };
     this.silent = true;
     const MAX = 3e6; // 安全上限（约 347 天），防止浏览器卡死
     const runs = Math.min(n, MAX);
@@ -110,16 +112,36 @@ const G = {
     this._simNow = 0;
     this.silent = false;
     this.s.last = Date.now() - (sec % DATA.TICK) * 1000;
-    const parts = [];
-    if (this.s.exp > before.exp) parts.push(`修为 +${U.fmt(this.s.exp - before.exp)}`);
-    if (this.s.stone !== before.stone) parts.push(`灵石 ${this.s.stone > before.stone ? "+" : "-"}${U.fmt(Math.abs(this.s.stone - before.stone))}`);
-    if ((this.s.contrib || 0) > before.contrib) parts.push(`贡献 +${U.fmt(this.s.contrib - before.contrib)}`);
-    // 离线期间在做的事（灵石、贡献主要来自事务堂任务，不是聚灵阵）
-    const doing = [];
-    if (this.s.explore) doing.push("自动探索"); else if (this.s.auto) doing.push("自动修炼");
-    if (this.s.affair && this.s.affair.task != null && this.s.affair.task >= 0) doing.push("事务堂任务");
-    this.log(`你离开了 ${U.dur(sec)}${doing.length ? "，" + doing.join("、") + "未曾停歇" : ""}${parts.length ? "。离线收获：" + parts.join("，") : ""}。`, "gold");
+    const o = this._off; this._off = null;
+    this.offlineReport(sec, before, o);
     this.dirty();
+  },
+  // 背包里每种物品的数量（按名字），用来算离线新增
+  bagCount() { const m = {}; for (const it of this.s.bag) { const k = this.itemName(it); m[k] = (m[k] || 0) + (it.n || 1); } return m; },
+  // 离线收益明细：写进信息栏 + 弹窗
+  offlineReport(sec, b, o) {
+    const s = this.s, f = U.fmt, sign = v => (v >= 0 ? "+" : "-") + f(Math.abs(v)), rows = [];
+    const dExp = s.exp - b.exp, dStone = s.stone - b.stone, dContrib = (s.contrib || 0) - b.contrib, dLing = s.ling - b.ling;
+    rows.push(`<b>总计</b>`);
+    rows.push(`修为 ${sign(dExp)}　灵石 ${sign(dStone)}　灵气 ${sign(dLing)}${s.sect || dContrib ? `　贡献 ${sign(dContrib)}` : ""}`);
+    if (o.exRuns || s.explore) {
+      const it = Object.keys(o.exItems).map(k => `${k}×${f(o.exItems[k])}`).join("、");
+      rows.push(`<b>自动探索</b>`);
+      rows.push(`结算 ${o.exRuns} 次，击败 ${f((s.kills || 0) - b.kills)} 只，灵石 +${f(o.exStone)}${it ? "<br>" + it : ""}${o.exLost ? `<br><span class="bad">背包已满，遗失 ${o.exLost} 件</span>` : ""}`);
+      if (s.explore && s.explore.step) rows.push(`当前这次已走 ${s.explore.step} 步，收获在走完后结算`);
+      if (!s.explore && o.exRuns) rows.push(`<span class="bad">离线期间自动探索已停止（气血不足或战败）</span>`);
+    }
+    if (o.afN) { rows.push(`<b>事务堂</b>`); rows.push(`完成 ${f(o.afN)} 轮，灵石 +${f(o.afStone)}，贡献 +${f(o.afContrib)}`); }
+    const other = dStone - o.exStone - o.afStone;
+    if (other) rows.push(`<b>其他灵石</b>`, `${sign(other)}（自动补充灵气、种田、炼制等收支）`);
+    // 背包新增（探索以外：灵药园收获、炼丹、炼器出炉等）
+    const now = this.bagCount(), gain = [];
+    for (const k in now) { const d = now[k] - (b.bag[k] || 0) - (o.exItems[k] || 0); if (d > 0) gain.push(`${k}×${f(d)}`); }
+    if (gain.length) rows.push(`<b>其他新增物品</b>`, gain.join("、"));
+    const short = [`修为 ${sign(dExp)}`, `灵石 ${sign(dStone)}`]; if (o.exRuns) short.push(`探索 ${o.exRuns} 次`); if (o.afN) short.push(`事务堂 ${o.afN} 轮`);
+    this.log(`你离开了 ${U.dur(sec)}，离线收益：${short.join("，")}。`, "gold");
+    this.lastOffline = rows;
+    try { this.modal(`<h2>离线 ${U.dur(sec)}</h2><div class="explore-log">${rows.map(r => `<p>${r}</p>`).join("")}</div><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`); } catch (e) {}
   },
 
   /* ---------- 主循环（每 0.2 秒检查一次） ---------- */
