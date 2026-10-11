@@ -68,6 +68,7 @@ DATA.STONE_GROW = CFG.drop.STONE_GROW;
 DATA.mapDrop = (a, ev) => { const m = (CFG.mapDrops || [])[a]; return m && m[ev]; };  // 该地图的掉落组
 DATA.mapStone = a => { const m = (CFG.mapDrops || [])[a]; return m && m.stone !== undefined ? m.stone : 1; };
 DATA.mapMat = a => { const m = (CFG.mapDrops || [])[a]; return m && m.mat !== undefined ? m.mat : 1; };
+DATA.mapReq = a => { const v = (CFG.monster.MAP_REALM || [])[a]; return v === undefined ? a : v; }; // 该地图需要的境界
 DATA.mapMob = a => (CFG.monster.mapMult || [])[a] || {};   // 该地图怪物属性倍率
 // 凡界地图会掉的全部药材、矿石名字（坊市只卖这些）
 DATA.fanMats = () => {
