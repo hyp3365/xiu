@@ -101,7 +101,7 @@ const G = {
     const sec = (Date.now() - this.s.last) / 1000;
     let n = Math.floor(sec / DATA.TICK);
     if (n < 1) return;
-    const before = { exp: this.s.exp, ling: this.s.ling, stone: this.s.stone };
+    const before = { exp: this.s.exp, ling: this.s.ling, stone: this.s.stone, contrib: this.s.contrib || 0 };
     this.silent = true;
     const MAX = 3e6; // 安全上限（约 347 天），防止浏览器卡死
     const runs = Math.min(n, MAX);
@@ -113,7 +113,12 @@ const G = {
     const parts = [];
     if (this.s.exp > before.exp) parts.push(`修为 +${U.fmt(this.s.exp - before.exp)}`);
     if (this.s.stone !== before.stone) parts.push(`灵石 ${this.s.stone > before.stone ? "+" : "-"}${U.fmt(Math.abs(this.s.stone - before.stone))}`);
-    this.log(`你离开了 ${U.dur(sec)}，${this.s.explore ? "自动探索未曾停歇" : this.s.auto ? "自动修炼未曾停歇" : "聚灵阵仍在运转"}${parts.length ? "：" + parts.join("，") : ""}。`, "gold");
+    if ((this.s.contrib || 0) > before.contrib) parts.push(`贡献 +${U.fmt(this.s.contrib - before.contrib)}`);
+    // 离线期间在做的事（灵石、贡献主要来自事务堂任务，不是聚灵阵）
+    const doing = [];
+    if (this.s.explore) doing.push("自动探索"); else if (this.s.auto) doing.push("自动修炼");
+    if (this.s.affair && this.s.affair.task != null && this.s.affair.task >= 0) doing.push("事务堂任务");
+    this.log(`你离开了 ${U.dur(sec)}${doing.length ? "，" + doing.join("、") + "未曾停歇" : ""}${parts.length ? "。离线收获：" + parts.join("，") : ""}。`, "gold");
     this.dirty();
   },
 
