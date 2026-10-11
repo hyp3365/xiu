@@ -44,15 +44,23 @@ G.module({
 
     // 汇总装备加成
     equipTotal() {
-      const add = { atk: 0, hp: 0, def: 0, mana: 0, crit: 0, hit: 0, dodge: 0, speed: 0, hpPct: 0 };
+      const add = { atk: 0, hp: 0, def: 0, mana: 0, crit: 0, hit: 0, dodge: 0, speed: 0, hpPct: 0, res: {} };
       const all = [...Object.values(this.s.equip), ...this.s.fabao.slice(0, this.slotCount())]; // 装备 + 法宝
-      for (const e of all) if (e) { const st = this.equipStats(e); for (const k in st) add[k] += st[k]; }
+      for (const e of all) if (e) {
+        const st = this.equipStats(e);
+        for (const k in st) {
+          if (k === "res") { for (const el in st.res) add.res[el] = (add.res[el] || 0) + st.res[el]; }   // 自定义装备的抗性
+          else if (k in add) add[k] += st[k];
+        }
+      }
       return add;
     },
 
     computeStats() {
       const L = this.s.L, f = Math.pow(DATA.GROW, L), B = DATA.playerBase, F = DATA.playerFixed;
-      const eq = this.equipTotal(), gf = this.gongfaBonus(), dn = this.danBonus(); // gongfaBonus 见 gongfa.js，danBonus（属性丹）见 craft.js
+      const eq = this.equipTotal(), gf = this.gongfaBonus(), dn0 = this.danBonus(), cu = this.customBonus();
+      // 属性丹 + 自定义物品永久属性（content/items.js 里 type: "perm"）合在一起
+      const dn = {}; for (const k of ["hp", "atk", "def", "mana", "hit", "dodge", "crit"]) dn[k] = (dn0[k] || 0) + (cu[k] || 0); // gongfaBonus 见 gongfa.js，danBonus（属性丹）见 craft.js
       // 宗门秘法（悟道室）：只按百分比加「境界基础属性」，不加装备、功法、丹药部分（见 wudao.js）
       const mf = this.wudaoPct(), p = k => 1 + (mf[k] || 0) / 100;
       return {
@@ -61,11 +69,11 @@ G.module({
         def:     B.def * f * p("def") + eq.def + gf.def + dn.def,
         mana:    B.mana * f * p("mana") + eq.mana + gf.mana + dn.mana,
         cultivate: B.cultivate * f * p("cultivate"),
-        speed:   B.speed * f + eq.speed,
+        speed:   B.speed * f + eq.speed + cu.speed,
         hit:     B.hit * f * p("hit") + eq.hit + gf.hit + dn.hit,
         dodge:   B.dodge * f * p("dodge") + eq.dodge + gf.dodge + dn.dodge,
         crit:    Math.min(DATA.CRIT_CAP, F.crit + eq.crit + dn.crit),
-        res:     Object.fromEntries(DATA.elements.map(e => [e.id, (CFG.player.RES_BASE || 0) * f + (gf.res[e.id] || 0)])),
+        res:     Object.fromEntries(DATA.elements.map(e => [e.id, (CFG.player.RES_BASE || 0) * f + (gf.res[e.id] || 0) + (eq.res[e.id] || 0) + (cu.res[e.id] || 0)])),
       };
     },
   },
