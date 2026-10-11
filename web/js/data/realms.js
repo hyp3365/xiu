@@ -26,11 +26,9 @@ DATA.MORTAL_EXP = _R.MORTAL_EXP; // 凡人 → 练气一层
 DATA.GROW = _P.GROW;
 DATA.playerBase = _P.base;
 DATA.playerFixed = _P.fixed;
-// 闪避几率 = (防守方闪避 - 进攻方命中) ÷ DODGE_DIV %，最低 0，最高 DODGE_CAP
+// 闪避几率 % = (防守方闪避 - 进攻方命中) ÷ 进攻方命中 × 100 ÷ DODGE_DIV，最低 0，最高 DODGE_CAP
 DATA.DODGE_CAP = _P.DODGE_CAP;
-DATA.dodgeChance = (hit, dodge) => Math.min(_P.DODGE_CAP, Math.max(0, (dodge - hit) / _P.DODGE_DIV));
-DATA.MONSTER_HIT = CFG.monster.HIT_PER_L;
-DATA.MONSTER_DODGE = CFG.monster.DODGE_PER_L;
+DATA.dodgeChance = (hit, dodge) => Math.min(_P.DODGE_CAP, Math.max(0, (dodge - hit) / Math.max(1, hit) * 100 / _P.DODGE_DIV));
 DATA.CRIT_CAP = _P.CRIT_CAP;
 DATA.REGEN = _P.REGEN;
 
