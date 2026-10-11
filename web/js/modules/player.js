@@ -9,8 +9,9 @@
  *   法力 =  基础×成长^层序 + 装备 + 法诀
  *   （功法加成都是固定数值；以上各项再加 属性丹 永久加成）
  *   基础修炼速度 = 基础×成长^层序（不显示为属性）
- *   命中 = 固定基础值 + 装备 + 身法；闪避 = 固定基础值 + 装备 + 遁术（都是数值）
- *   速度 / 暴击：固定基础值 + 装备，不随境界成长
+ *   速度 = 基础×成长^层序 + 装备
+ *   命中 = 基础×成长^层序 + 装备 + 身法 + 丹药；闪避 = 基础×成长^层序 + 装备 + 遁术 + 丹药
+ *   暴击：固定基础值 + 装备 + 丹药，不随境界成长
  * ===================================================================== */
 G.module({
   id: "player",
@@ -57,9 +58,9 @@ G.module({
         def:     B.def * f + eq.def + gf.def + dn.def,
         mana:    B.mana * f + eq.mana + gf.mana + dn.mana,
         cultivate: B.cultivate * f,
-        speed:   F.speed + eq.speed,
-        hit:     F.hit + eq.hit + gf.hit + dn.hit,
-        dodge:   F.dodge + eq.dodge + gf.dodge + dn.dodge,
+        speed:   B.speed * f + eq.speed,
+        hit:     B.hit * f + eq.hit + gf.hit + dn.hit,
+        dodge:   B.dodge * f + eq.dodge + gf.dodge + dn.dodge,
         crit:    Math.min(DATA.CRIT_CAP, F.crit + eq.crit + dn.crit),
       };
     },
