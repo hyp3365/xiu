@@ -16,7 +16,7 @@ G.module({
   tab: "cave",
 
   defaults: () => ({
-    ling: 50,                                     // 当前灵气
+    ling: CFG.start.ling,                                     // 当前灵气
     array: { lv: 0, on: true, autoRefill: false }, // 聚灵阵（初始 0 级）
   }),
 
