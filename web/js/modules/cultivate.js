@@ -251,7 +251,7 @@ G.module({
   view() {
     const s = this.s, st = this.stats(), sp = this.speed(), cap = this.lingCap();
     const can = this.canBreak(), major = this.isMajor();
-    const next = s.mortal ? "引气入体（突破至练气期）" : major ? `突破至${DATA.realms[this.r() + 1]}期` : "突破";
+    const next = s.mortal ? "引气入体（突破至练气期）" : major ? `突破至${DATA.realmLabel(this.r() + 1)}` : "突破";
     const block = this.isCultivating() ? this.cultivateBlock() : "";
     const arrPct = (this.arrayFactor() - 1) * 100;
     return `
