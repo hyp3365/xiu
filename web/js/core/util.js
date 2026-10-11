@@ -21,7 +21,7 @@ const U = {
     if (!isFinite(n)) return "∞";
     n = Math.floor(n);
     if (n >= 1e52) return n.toExponential(2).replace("e+", "e");
-    for (const [v, u] of U.UNITS) if (n >= v) return (n / v).toFixed(n / v >= 100 ? 0 : 2).replace(/\.?0+$/, "") + u;
+    for (const [v, u] of U.UNITS) if (n >= v) { const x = (n / v).toFixed(n / v >= 100 ? 0 : 2); return (x.includes(".") ? x.replace(/\.?0+$/, "") : x) + u; } // 只去掉小数部分末尾的 0（400万 不能变成 4万）
     return String(n);
   },
   // 小数字保留 1 位小数（如 1.6），大数字同 fmt
