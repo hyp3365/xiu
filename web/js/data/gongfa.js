@@ -9,37 +9,40 @@
  * 必须学会至少一部秘诀才能修炼。
  *
  * 【法术】每个门派有 金木水火土雷 六系法术，同样分 天地玄黄 四阶。
- *   施放消耗法力。伤害 = 攻击 × 百分比 + 固定伤害
- *   百分比：1 星门派 100%，每多 1 星 +30%（9 星 340%）
- *   修炼法术层数只增加固定伤害（不加百分比）
+ *   施放消耗法力。伤害 = 攻击 × 百分比 + 固定伤害；修炼法术层数只增加固定伤害
+ *
+ * 【来源类型】功法内部标记来源：sect 宗门功法（功法殿，贡献）、shop 凡界坊市功法（坊市，灵石）
+ *   所有数值 = 基础属性 × 类型倍率 × 星级倍率 × 阶倍率 × 各自 EFFECT（config/gongfa.js）
  *
  * 功法、法术都是 12 层：功法殿首次学习消耗贡献，学会即第 1 层；
  * 之后在“功法”页修炼升层：需要时间（见 studyMin），修炼期间每 5 秒消耗一次修为；
  * 可排队，队列最多 GF_QUEUE 个。
  * ===================================================================== */
 
-// 四阶：mult 数值倍率，cost 学习/修炼消耗倍率（顺序：黄 → 天，越往后越强）
-// （倍率在 js/config/ 下的数值文件 的 gongfa.tiers）
+// 四阶（顺序：黄 → 天，越往后越强）；倍率在 config/gongfa.js 各来源的 TIER_MULT
 const _GF = CFG.gongfa;
 DATA.tiers = [
   { id: "huang", name: "黄阶" }, { id: "xuan", name: "玄阶" }, { id: "di", name: "地阶" }, { id: "tian", name: "天阶" },
-].map(t => Object.assign(t, _GF.tiers[t.id]));
+];
 DATA.tierById = Object.fromEntries(DATA.tiers.map((t, i) => [t.id, Object.assign(t, { idx: i })]));
 
-/* k：每层基础加成（config/gongfa.js 的 base；没写的项按 基础属性 × EFFECT / HIT_DODGE_K） */
-const _GB = _GF.base || {};
-const _gk = (stat, dflt) => _GB[stat] !== undefined ? _GB[stat] : dflt;
+// 功法类别：stat = 加成的属性（数值见 config/gongfa.js 的 base）
 DATA.gongfaTypes = [
-  { id: "xinfa",    name: "心法", suffix: "心法", stat: "def",       k: _gk("def", DATA.playerBase.def * _GF.EFFECT),       label: "防御" },
-  { id: "gongjue",  name: "功诀", suffix: "诀",   stat: "atk",       k: _gk("atk", DATA.playerBase.atk * _GF.EFFECT),       label: "攻击" },
-  { id: "zhenjing", name: "真经", suffix: "真经", stat: "hp",        k: _gk("hp", DATA.playerBase.hp * _GF.EFFECT),        label: "气血上限" },
-  { id: "mijue",    name: "秘诀", suffix: "秘诀", stat: "cultivate", k: _gk("cultivate", DATA.playerBase.cultivate * _GF.EFFECT), label: "修炼速度" },
-  { id: "shenfa",   name: "身法", suffix: "身法", stat: "hit",       k: _gk("hit", _GF.HIT_DODGE_K),                           label: "命中" },
-  { id: "dunshu",   name: "遁术", suffix: "遁术", stat: "dodge",     k: _gk("dodge", _GF.HIT_DODGE_K),                           label: "闪避" },
-  { id: "fajue",    name: "法诀", suffix: "法诀", stat: "mana",      k: _gk("mana", DATA.playerBase.mana * _GF.EFFECT),      label: "法力上限" },
-  { id: "zhenjue",  name: "真诀", suffix: "真诀", stat: "res",       k: _gk("res", 1.2),                                      label: "抗性" }, // 抗性属性 = 门派属性
+  { id: "xinfa",    name: "心法", suffix: "心法", stat: "def",       label: "防御" },
+  { id: "gongjue",  name: "功诀", suffix: "诀",   stat: "atk",       label: "攻击" },
+  { id: "zhenjing", name: "真经", suffix: "真经", stat: "hp",        label: "气血上限" },
+  { id: "mijue",    name: "秘诀", suffix: "秘诀", stat: "cultivate", label: "修炼速度" },
+  { id: "shenfa",   name: "身法", suffix: "身法", stat: "hit",       label: "命中" },
+  { id: "dunshu",   name: "遁术", suffix: "遁术", stat: "dodge",     label: "闪避" },
+  { id: "fajue",    name: "法诀", suffix: "法诀", stat: "mana",      label: "法力上限" },
+  { id: "zhenjue",  name: "真诀", suffix: "真诀", stat: "res",       label: "抗性" }, // 抗性属性 = 来源属性
 ];
-DATA.FLAT_STATS = ["hit", "dodge"]; // 只随星级、不随门派强度成长的属性
+
+/* 功法来源类型（内部标记）：sect 宗门功法、shop 凡界坊市功法；以后加新类型在这里加一行 + config 加一组 */
+DATA.gfSources = {
+  sect: { name: "宗门", cfg: () => _GF.sect },
+  shop: { name: "坊市", cfg: () => _GF.shop },
+};
 
 /* 六种属性。words：起名用的词（门派前缀 + 随机词 + 后缀，如 青阳 + 赤炎 + 心法）
  * 每个门派从 本属性词 + 通用词 里随机（按门派固定）选，保证同门派功法不重名。 */
@@ -76,55 +79,78 @@ DATA.spellName = (sect, el, tier) => {
   const w = DATA.sectWords(sect), d = (DATA.elements.indexOf(el) - DATA.elements.indexOf(DATA.elById[sect.el]) + 6) % 6;
   return sect.prefix + w[(28 + (d * 4 + tier.idx) % 12) % w.length] + DATA.spellSuffix[tier.idx];
 };
-DATA.starMult = sect => _GF.STAR_MULT[sect.star - 1] || 1;
-
 DATA.GONGFA_MAX = _GF.MAX;
 DATA.GF_QUEUE = _GF.QUEUE;
 DATA.STUDY_STEP = _GF.STUDY_STEP;
 DATA.studyMin = _GF.STUDY_MIN;
 
-// 门派强度：星级越高，数值越大
-DATA.sectL = sect => sect.reqRealm * DATA.LAYERS;
-DATA.sectPower = sect => Math.pow(DATA.GROW, DATA.sectL(sect) + (_GF.POWER_OFFSET !== undefined ? _GF.POWER_OFFSET : 5));
+/* ---------- 凡界坊市功法的「来源」（相当于一个门派，每星 2 个，id f星级_序号） ---------- */
+DATA.SHOP_GF_PREFIX = [["凡尘", "游侠"], ["市井", "散修"], ["江湖", "野狐"], ["云游", "隐士"], ["山野", "苦行"], ["红尘", "天涯"]];
+DATA.shopSources = [];
+DATA.SHOP_GF_PREFIX.forEach((pair, i) => pair.forEach((prefix, n) => {
+  const star = i + 1;
+  DATA.shopSources.push({ id: `f${star}_${n}`, src: "shop", star, prefix, name: prefix + "传承", el: DATA.elements[(star * 2 + n) % 6].id,
+    reqRealm: (_GF.shop.REQ_REALM || [])[i] || 0 });
+}));
+// 所有来源：门派（src = "sect"）+ 坊市
+DATA.gfSrcById = Object.assign({}, ...DATA.sects.map(x => ({ [x.id]: x })), ...DATA.shopSources.map(x => ({ [x.id]: x })));
+DATA.srcType = o => o.src || "sect";
+DATA.srcCfg = o => DATA.gfSources[DATA.srcType(o)].cfg();
 
-// 修炼升层总共消耗修为：0.5 × 修为需求(门派入门层序 + 当前层 - 1) × 阶倍率（分摊到每 5 秒扣）
-DATA.studyExp = info => Math.floor(_GF.STUDY_EXP_RATE * DATA.needExp(DATA.sectL(info.sect) + info.lv - 1) * info.tier.cost);
+/* 通用算法：基础属性 × 类型倍率 × 星级倍率 × 阶倍率 × EFFECT
+ *   o 来源（门派或坊市）、typeId 类别 id（法术 = "spell"）、key = base 里的项、eff = EFFECT 名 */
+DATA.gfCalc = (o, typeId, tier, key, eff) => {
+  const C = DATA.srcCfg(o), b = (C.base || {})[key] || 0;
+  const tm = (C.TYPE_MULT || {})[typeId], sm = (C.STAR_MULT || [])[o.star - 1], tr = (C.TIER_MULT || {})[tier.id], e = C[eff];
+  return b * (tm === undefined ? 1 : tm) * (sm === undefined ? 1 : sm) * (tr === undefined ? 1 : tr) * (e === undefined ? 1 : e);
+};
+
+// 修炼升层（当前层 → 下一层）消耗的修为（分摊到每 STUDY_STEP 秒扣）
+DATA.studyExp = info => {
+  const C = DATA.srcCfg(info.sect), lvm = (C.STUDY_LV || [])[info.lv - 1];
+  return Math.max(1, Math.floor(DATA.gfCalc(info.sect, info.kind === "sp" ? "spell" : info.type.id, info.tier, "study", "EFFECT_STUDY") * (lvm === undefined ? 1 : lvm)));
+};
+// 学习所需：宗门 = 贡献，坊市 = 灵石
+DATA.gfLearnCost = (o, typeId, tier) => DATA.srcType(o) === "shop"
+  ? Math.floor(DATA.gfCalc(o, typeId, tier, "price", "EFFECT_PRICE"))
+  : Math.floor(DATA.gfCalc(o, typeId, tier, "learn", "EFFECT_LEARN"));
+// 宗门功法学习需要的职务
+DATA.tierRank = tier => ((_GF.sect.TIER_RANK || {})[tier.id]) || 0;
 
 /* ---------- 功法 ----------
- * id 规则："门派id:类别id:阶id"，例如 "s1_0:mijue:huang" */
+ * id 规则："来源id:类别id:阶id"，例如 "s1_0:mijue:huang"（门派）、"f1_0:mijue:huang"（坊市） */
 DATA.gongfaId = (sectId, typeId, tierId) => `${sectId}:${typeId}:${tierId}`;
 DATA.gongfaInfo = (id, lv = 1) => {
   const [sectId, typeId, tierId] = id.split(":");
-  const sect = DATA.sectById[sectId], type = DATA.gongfaTypes.find(x => x.id === typeId), tier = DATA.tierById[tierId];
+  const sect = DATA.gfSrcById[sectId], type = DATA.gongfaTypes.find(x => x.id === typeId), tier = DATA.tierById[tierId];
   if (!sect || !type || !tier) return null;
-  const per = (DATA.FLAT_STATS.includes(type.stat) ? type.k * sect.star : type.k * DATA.sectPower(sect)) * tier.mult * DATA.starMult(sect);
+  const per = DATA.gfCalc(sect, type.id, tier, type.stat, "EFFECT_GONGFA");
   return {
-    kind: "gf", id, sect, type, tier, lv, el: DATA.elById[sect.el],
+    kind: "gf", id, sect, src: DATA.srcType(sect), star: sect.star, type, tier, lv, el: DATA.elById[sect.el],
     label: type.stat === "res" ? DATA.elById[sect.el].name + "抗性" : type.label, // 显示用：真诀写成「火抗性」等
     name: DATA.gongfaName(sect, type, tier),
     value: per * lv,                              // 当前加成（固定数值）
     perLv: per,                                   // 每层加成
-    cost: Math.floor(_GF.LEARN_GF * sect.star * sect.star * tier.cost), // 功法殿首次学习所需贡献
+    cost: DATA.gfLearnCost(sect, type.id, tier),  // 首次学习：宗门 = 贡献，坊市 = 灵石
   };
 };
 
 /* ---------- 法术 ----------
- * id 规则："门派id:sp:系id:阶id"，例如 "s1_0:sp:huo:huang" */
+ * id 规则："来源id:sp:系id:阶id"，例如 "s1_0:sp:huo:huang" */
 DATA.spellId = (sectId, elId, tierId) => `${sectId}:sp:${elId}:${tierId}`;
 DATA.isSpell = id => id.split(":")[1] === "sp";
 DATA.spellInfo = (id, lv = 1) => {
   const [sectId, , elId, tierId] = id.split(":");
-  const sect = DATA.sectById[sectId], el = DATA.elements.find(x => x.id === elId), tier = DATA.tierById[tierId];
+  const sect = DATA.gfSrcById[sectId], el = DATA.elements.find(x => x.id === elId), tier = DATA.tierById[tierId];
   if (!sect || !el || !tier) return null;
-  const P = DATA.sectPower(sect);
-  const per = DATA.playerBase.atk * P * _GF.SPELL_FLAT * tier.mult * DATA.starMult(sect); // 每层固定伤害
+  const per = DATA.gfCalc(sect, "spell", tier, "spell", "EFFECT_SPELL"); // 每层固定伤害
   return {
-    kind: "sp", id, sect, el, tier, lv,
+    kind: "sp", id, sect, src: DATA.srcType(sect), star: sect.star, el, tier, lv,
     name: DATA.spellName(sect, el, tier),
-    pct: _GF.PCT_BASE + _GF.PCT_PER_STAR * (sect.star - 1),                         // 攻击百分比
-    flat: per * lv, perLv: per,                               // 固定伤害
-    mana: Math.floor(DATA.playerBase.mana * P * _GF.SPELL_MANA * (1 + tier.idx * (_GF.SPELL_MANA_TIER !== undefined ? _GF.SPELL_MANA_TIER : 0.4))), // 法力消耗
-    cost: Math.floor(_GF.LEARN_SP * sect.star * sect.star * tier.cost), // 首次学习所需贡献
+    pct: Math.round(DATA.gfCalc(sect, "spell", tier, "pct", "EFFECT_PCT")),        // 攻击百分比
+    flat: per * lv, perLv: per,                                                    // 固定伤害
+    mana: Math.max(0, Math.floor(DATA.gfCalc(sect, "spell", tier, "spellMana", "EFFECT_MANA"))), // 法力消耗
+    cost: DATA.gfLearnCost(sect, "spell", tier),
   };
 };
 
