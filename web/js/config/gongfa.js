@@ -84,7 +84,7 @@ CFG.gongfa.shop = {
   // 售价 = base.price × PRICE_TYPE × PRICE_STAR × PRICE_TIER × EFFECT_PRICE
   PRICE_TYPE: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1 },
   PRICE_STAR: [1, 10, 30, 50, 100, 200],     // 1~6 星
-  PRICE_TIER: { huang: 1, xuan: 1.5, di: 2, tian: 2.5 },
+  PRICE_TIER: { huang: 1, xuan: 3, di: 6, tian: 10 },
   EFFECT_PRICE: 1,
   // 需要的境界：和同星级门派一样（config/sect.js 的 REQ_REALM）
 };
