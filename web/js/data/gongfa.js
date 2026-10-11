@@ -4,6 +4,7 @@
  * 【功法】六大类，每类加成一种属性（固定数值，不是百分比）：
  *   心法 → 防御      功诀 → 攻击      真经 → 气血上限
  *   秘诀 → 修炼速度  身法 → 命中      遁术 → 闪避      法诀 → 法力上限
+ *   真诀 → 本门派属性的抗性（金木水火土雷之一，v15）
  * 每个门派每类功法分 天、地、玄、黄 四阶，名字如：青阳心法（黄阶）
  * 必须学会至少一部秘诀才能修炼。
  *
@@ -36,6 +37,7 @@ DATA.gongfaTypes = [
   { id: "shenfa",   name: "身法", suffix: "身法", stat: "hit",       k: _gk("hit", _GF.HIT_DODGE_K),                           label: "命中" },
   { id: "dunshu",   name: "遁术", suffix: "遁术", stat: "dodge",     k: _gk("dodge", _GF.HIT_DODGE_K),                           label: "闪避" },
   { id: "fajue",    name: "法诀", suffix: "法诀", stat: "mana",      k: _gk("mana", DATA.playerBase.mana * _GF.EFFECT),      label: "法力上限" },
+  { id: "zhenjue",  name: "真诀", suffix: "真诀", stat: "res",       k: _gk("res", 1.2),                                      label: "抗性" }, // 抗性属性 = 门派属性
 ];
 DATA.FLAT_STATS = ["hit", "dodge"]; // 只随星级、不随门派强度成长的属性
 
@@ -98,6 +100,7 @@ DATA.gongfaInfo = (id, lv = 1) => {
   const per = (DATA.FLAT_STATS.includes(type.stat) ? type.k * sect.star : type.k * DATA.sectPower(sect)) * tier.mult * DATA.starMult(sect);
   return {
     kind: "gf", id, sect, type, tier, lv, el: DATA.elById[sect.el],
+    label: type.stat === "res" ? DATA.elById[sect.el].name + "抗性" : type.label, // 显示用：真诀写成「火抗性」等
     name: DATA.gongfaName(sect, type, tier),
     value: per * lv,                              // 当前加成（固定数值）
     perLv: per,                                   // 每层加成
