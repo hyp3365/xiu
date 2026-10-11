@@ -76,7 +76,7 @@ ITEMS.shop = [
 ITEMS.treasury = [
   { kind: "furnace", fk: "dan", g: 0, cost: 100 },
   { kind: "furnace", fk: "qi",  g: 0, cost: 100 },
-  { kind: "stone", n: 2000, cost: 100, name: "一袋灵石" },
+  { kind: "stone", n: 50, cost: 100, name: "一袋灵石" },
   // 示例：去掉行首的 // 就能兑换
   // { item: "淬体灵液", cost: 300 },
   // { item: "避火珠", cost: 1000, star: 2 },
