@@ -29,14 +29,14 @@ CFG.gongfa = {
 CFG.gongfa.sect = {
   // 基础属性（1 星、黄阶、类型倍率 1、EFFECT 1 时的数值）
   base: {
-    def: 2,        // 心法 → 每层防御
-    atk: 2,        // 功诀 → 每层攻击
-    hp: 8,           // 真经 → 每层气血
+    def: 5,        // 心法 → 每层防御
+    atk: 5,        // 功诀 → 每层攻击
+    hp: 10,           // 真经 → 每层气血
     cultivate: 5,    // 秘诀 → 每层修炼速度
     hit: 5,          // 身法 → 每层命中
     dodge: 5,        // 遁术 → 每层闪避
-    mana: 3,         // 法诀 → 每层法力
-    res: 2.5,       // 真诀 → 每层本门属性抗性
+    mana: 5,         // 法诀 → 每层法力
+    res: 4,       // 真诀 → 每层本门属性抗性
     spell: 10,        // 法术 → 每层固定伤害
     pct: 100,        // 法术 → 攻击百分比（不随层数变化）
     spellMana: 10,    // 法术 → 每次施放消耗法力
@@ -48,7 +48,7 @@ CFG.gongfa.sect = {
   // 星级倍率：第 1 个是 1 星门派 …… 第 10 个是 10 星
   STAR_MULT: [1, 1.3, 1.6, 1.9, 2.2, 2.5, 2.7, 3, 3.3, 3.6],
   // 天地玄黄四阶倍率
-  TIER_MULT: { huang: 1, xuan: 1.2, di: 1.4, tian: 1.6 },
+  TIER_MULT: { huang: 1, xuan: 1.3, di: 1.6, tian: 1.9 },
   // 各项自己的 EFFECT（互不影响）
   EFFECT_GONGFA: 1,  // 功法效果
   EFFECT_SPELL: 1,   // 法术固定伤害
@@ -73,7 +73,7 @@ CFG.gongfa.shop = {
   },
   TYPE_MULT: { xinfa: 0.8, gongjue: 0.8, zhenjing: 0.8, mijue: 0.8, shenfa: 0.8, dunshu: 0.8, fajue: 0.8, zhenjue: 0.8, spell: 0.8 },
   STAR_MULT: [1, 1.3, 1.6, 1.9, 2.2, 2.5],
-  TIER_MULT: { huang: 1, xuan: 1.2, di: 1.4, tian: 1.6 },
+  TIER_MULT: { huang: 1, xuan: 1.3, di: 1.6, tian: 1.9 },
   EFFECT_GONGFA: 1,
   EFFECT_SPELL: 1,
   EFFECT_PCT: 1,
@@ -83,8 +83,8 @@ CFG.gongfa.shop = {
   // ---- 售价单独设置（不受上面的类型/星级/阶倍率影响）----
   // 售价 = base.price × PRICE_TYPE × PRICE_STAR × PRICE_TIER × EFFECT_PRICE
   PRICE_TYPE: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1 },
-  PRICE_STAR: [1, 5, 20, 80, 300, 1000],     // 1~6 星
-  PRICE_TIER: { huang: 1, xuan: 2, di: 4, tian: 8 },
+  PRICE_STAR: [1, 10, 30, 50, 100, 200],     // 1~6 星
+  PRICE_TIER: { huang: 1, xuan: 1.5, di: 2, tian: 2.5 },
   EFFECT_PRICE: 1,
   // 需要的境界：和同星级门派一样（config/sect.js 的 REQ_REALM）
 };
