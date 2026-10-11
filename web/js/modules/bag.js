@@ -30,6 +30,7 @@ G.module({
   api: {
     // 旧存档：武器/护甲/饰品/法宝 四格 → 新装备栏
     fixEquip() {
+      this.fixRealmV2();
       const s = this.s, old = s.equip || {};
       if (!("helmet" in old)) {
         s.equip = Object.fromEntries(DATA.equipSlots.map(k => [k, null]));
@@ -62,7 +63,7 @@ G.module({
     // 法宝栏、法术栏当前开启格数：每个大境界 1 格
     // 背包排序：先按类型（修炼丹 → 属性丹 → 药材 → 矿石 → 装备），同类型再按品阶从低到高
     sortBag() {
-      const order = it => it.t === "pill" ? 0 : it.t === "dan" ? 1 : it.t === "mat" ? (it.kind === "herb" ? 2 : 3) : it.t === "fu" ? 4 : it.t === "bp" ? 5 : it.t === "eq" ? (it.e.slot === "fabao" ? 7 : 6) : it.t === "cu" ? 8 : 9;
+      const order = it => it.t === "pill" ? 0 : it.t === "dan" ? 1 : it.t === "mat" ? (it.kind === "herb" ? 2 : 3) : it.t === "fu" ? 4 : it.t === "bp" || it.t === "ss" ? 5 : it.t === "eq" ? (it.e.slot === "fabao" ? 7 : 6) : it.t === "cu" ? 8 : 9;
       const grade = it => it.t === "eq" ? it.e.g * 10 + it.e.q : it.g || 0;
       const sub = it => it.t === "pill" || it.t === "dan" ? it.type : it.t === "eq" ? it.e.slot : it.kind || "";
       this.s.bag.sort((a, b) => order(a) - order(b) || grade(a) - grade(b) || (sub(a) < sub(b) ? -1 : sub(a) > sub(b) ? 1 : 0));
@@ -71,6 +72,7 @@ G.module({
 
     /* ---------- 装备属性 ---------- */
     equipStats(e) {
+      if (e.attrs) { const out = {}; for (const a of e.attrs) out[a.k] = (out[a.k] || 0) + DATA.attrVal(a, e.g); return out; } // 炼制装备（data/forge.js）
       if (e.cid) { const d = this.cuDef(e.cid); return d ? this.cuStats(d) : {}; } // 自定义装备/法宝：属性见 content/items.js
       const Le = e.g * 10 + CFG.equip.LAYER_OFFSET, f = Math.pow(DATA.GROW, Le), m = DATA.qualMult[e.q], k = e.q + 1, B = DATA.playerBase;
       const K = DATA.equipK[e.slot] || {}, out = {};
@@ -83,10 +85,12 @@ G.module({
     },
     equipDesc(e) {
       const n = { atk: "攻击", hp: "气血", def: "防御", mana: "法力", crit: "暴击%", hit: "命中", dodge: "闪避", speed: "速度", hpPct: "气血%" };
+      if (e.attrs) return e.attrs.map(a => `<span class="ac${a.c}">${a.m ? "" : "附加 "}${DATA.attrNames[a.k]} +${U.num(DATA.attrVal(a, e.g))}（${CFG.forge.attr.colors[a.c].name}）</span>`).join("<br>");
       const st = this.equipStats(e);
       if (e.cid) { const d = this.cuDef(e.cid); return (d && d.desc ? d.desc + "<br>" : "") + this.cuStatText(st); }
       return Object.keys(st).map(k => `${n[k]}+${U.num(st[k])}`).join(" ");
     },
+    eqQual(e) { return e.attrs ? "" : (DATA.quals[e.q] || "") + " "; },   // 炼制装备没有「凡品」等品质名，按属性颜色区分
     makeEquip(slot, g, q) { return { slot, g, q, name: DATA.equipNames[slot][Math.min(5, q)] }; },
 
     /* ---------- 存取物品 ---------- */
@@ -118,7 +122,9 @@ G.module({
       if (it.t === "fu") return DATA.furnaceName(it.kind, it.g);
       if (it.t === "bp") return DATA.furnaceName(it.kind, it.g) + "图纸";
       if (it.t === "cu") return it.name;
+      if (it.t === "ss") return DATA.stoneName(it.g);
       if (it.e.cid) return it.e.name;
+      if (it.e.attrs) return `${DATA.JIE[it.e.g]}·${it.e.name}`;
       return `${DATA.realms[it.e.g]}·${it.e.name}`;
     },
     sellPrice(it) {
@@ -127,6 +133,8 @@ G.module({
       if (it.t === "mat") return DATA.matPrice(it.kind, it.g);
       if (it.t === "cu") { const d = this.cuDef(it.name); return d ? d.sell || 0 : 0; }
       if (it.t === "eq" && it.e.cid) { const d = this.cuDef(it.e.cid); if (d && d.sell !== undefined) return d.sell; }
+      if (it.t === "ss") return 0;
+      if (it.t === "eq" && it.e.attrs) return CFG.forge.equip.sell[it.e.g] || 0;
       if (it.t === "fu" || it.t === "bp") return Math.floor(DATA.blueprintCost(it.kind, it.g) * (it.t === "fu" ? 2 : 1));
       return Math.floor(CFG.price.EQUIP_SELL * Math.pow(DATA.STONE_GROW, it.e.g * 10) * (it.e.q + 1));
     },
@@ -140,10 +148,10 @@ G.module({
         ? `<button onclick="G.sellItem(${i},1)">出售1个（${U.fmt(this.sellPrice(it))}）</button><button onclick="G.sellItem(${i},${it.n})">全部出售</button>`
         : `<button onclick="G.sellItem(${i},1)">出售（${U.fmt(this.sellPrice(it))}）</button>`;
       const cq = it.t === "cu" ? ((this.cuDef(it.name) || {}).q || 0) : 0;
-      let h = `<h2 class="q${it.t === "eq" ? it.e.q : cq}">${it.t === "eq" ? DATA.quals[it.e.q] + " " : ""}${this.itemName(it)}${it.n ? " ×" + it.n : ""}</h2>`;
+      let h = `<h2 class="q${it.t === "eq" ? it.e.q : cq}">${it.t === "eq" ? this.eqQual(it.e) : ""}${this.itemName(it)}${it.n ? " ×" + it.n : ""}</h2>`;
       if (it.t === "pill") {
         const ok = this.canUsePill(it.g);
-        h += `<p>修炼速度 +${Math.round(DATA.pillPct(it.type, it.g))}%，持续 ${DATA.pills[it.type].dur} 次修炼。<br>只有${DATA.realms[it.g]}期可服用。
+        h += `<p>修炼速度 +${Math.round(DATA.pillPct(it.type, it.g))}%，持续 ${DATA.pills[it.type].dur} 次修炼。<br>只有${DATA.realmLabel(it.g)}可服用。
           ${ok ? "" : "<br><span class='q5'>与你当前境界不符，无法服用。</span>"}</p>
           <div class="btns"><button class="primary" onclick="G.usePill(${i});G.closeModal()" ${ok ? "" : "disabled"}>服用</button>${sell}</div>`;
       } else if (it.t === "dan") {
@@ -159,6 +167,11 @@ G.module({
         const has = this.s.blueprints[it.kind].includes(it.g);
         h += `<p>学习后可在洞府炼器室炼制${DATA.furnaceName(it.kind, it.g)}。<br>材料：${this.matsText(DATA.furnaceMats(it.kind, it.g))}${has ? "<br><span class='q5'>已学会。</span>" : ""}</p>
           <div class="btns"><button class="primary" onclick="G.learnBlueprint(${i})" ${has ? "disabled" : ""}>学习</button>${sell}</div>`;
+      } else if (it.t === "ss") {
+        const left = this.stoneLeft(it.g);
+        h += `<p>使用后储物格 +1。此阶已用 ${CFG.forge.stone.MAX_USE - left} / ${CFG.forge.stone.MAX_USE} 个。</p>
+          <div class="btns"><button class="primary" onclick="G.useStone(${i},1)" ${left > 0 ? "" : "disabled"}>使用</button>
+          <button onclick="G.useStone(${i},${it.n})" ${left > 0 && it.n > 1 ? "" : "disabled"}>全部使用</button></div>`;
       } else if (it.t === "cu") {
         h += this.customItemHtml(i, it, sell);   // 自定义物品，见 custom.js
       } else if (it.t === "mat") {
@@ -172,7 +185,7 @@ G.module({
     // 点装备栏 / 法宝栏
     openEquip(key) {
       const e = key.startsWith("fb") ? this.s.fabao[+key.slice(2)] : this.s.equip[key]; if (!e) return;
-      this.modal(`<h2 class="q${e.q}">${DATA.quals[e.q]} ${e.cid ? "" : DATA.realms[e.g] + "·"}${e.name}</h2><p>${DATA.slots[e.slot]} · ${this.equipDesc(e)}</p>
+      this.modal(`<h2 class="q${e.q}">${this.eqQual(e)}${this.itemName({ t: "eq", e })}</h2><p>${DATA.slots[e.slot]} · ${this.equipDesc(e)}</p>
         <div class="btns"><button onclick="G.unequip('${key}')">卸下</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
     equipItem(i) {
@@ -187,7 +200,7 @@ G.module({
         s.bag.splice(i, 1); s.equip[key] = e;
         if (old) s.bag.push({ t: "eq", e: old });
       }
-      this.log(`装备了${DATA.quals[e.q]}${e.name}。`, "good"); this.closeModal(); this.after();
+      this.log(`装备了${this.eqQual(e)}${e.name}。`, "good"); this.closeModal(); this.after();
     },
     unequip(key) {
       if (this.bagFull()) return this.log("背包已满。", "sys");
@@ -232,13 +245,13 @@ G.module({
       top = `<div class="card"><h3>装备</h3><div class="equip four">${DATA.equipSlots.map(k => cell(k, DATA.slots[DATA.slotOf(k)], s.equip[k])).join("")}</div></div>`;
     } else if (tab === "fb") {
       let h = "";
-      for (let i = 0; i < DATA.SLOT_MAX; i++) h += i < n ? cell("fb" + i, "法宝", s.fabao[i]) : `<div class="slot-eq lock"><b>法宝</b>${DATA.realms[i]}期开启</div>`;
+      for (let i = 0; i < DATA.SLOT_MAX; i++) h += i < n ? cell("fb" + i, "法宝", s.fabao[i]) : `<div class="slot-eq lock"><b>法宝</b>${DATA.realmLabel(i)}开启</div>`;
       top = `<div class="card"><h3>法宝<small>已开启 ${n} / ${DATA.SLOT_MAX} 格</small></h3><div class="equip four">${h}</div></div>`;
     } else {
       let h = "";
       for (let i = 0; i < DATA.SLOT_MAX; i++) {
         const id = s.spellSlots[i];
-        if (i >= n) h += `<div class="slot-eq lock"><b>法术</b>${DATA.realms[i]}期开启</div>`;
+        if (i >= n) h += `<div class="slot-eq lock"><b>法术</b>${DATA.realmLabel(i)}开启</div>`;
         else if (id) { const g = DATA.spellInfo(id, s.gongfa[id]); h += `<div class="slot-eq q${g.tier.idx + 1}" onclick="G.openSpellSlot(${i})"><b>法术</b>${g.name}</div>`; }
         else h += `<div class="slot-eq" onclick="G.openSpellPick()"><b>法术</b>空</div>`;
       }
@@ -257,7 +270,8 @@ G.module({
       else if (it.t === "mat") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${it.name}<span class="g">${DATA.matKinds[it.kind]}</span><span class="n">${U.fmt(it.n)}</span></div>`;
       else if (it.t === "fu") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${DATA.furnaceName(it.kind, it.g)}<span class="g">炉子</span>${it.n > 1 ? `<span class="n">${it.n}</span>` : ""}</div>`;
       else if (it.t === "bp") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${DATA.furnaceName(it.kind, it.g)}<span class="g">图纸</span></div>`;
- else if (it.t === "cu") { const d = this.cuDef(it.name); cells += `<div class="cell q${d ? d.q || 0 : 0}" onclick="G.openItem(${i})">${it.name}<span class="g">${d ? DATA.cuTypes[d.type] || "物品" : "失传"}</span><span class="n">${U.fmt(it.n)}</span></div>`; }
+ else if (it.t === "ss") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">空间石<span class="g">${DATA.JIE[it.g]}</span><span class="n">${it.n}</span></div>`;
+      else if (it.t === "cu") { const d = this.cuDef(it.name); cells += `<div class="cell q${d ? d.q || 0 : 0}" onclick="G.openItem(${i})">${it.name}<span class="g">${d ? DATA.cuTypes[d.type] || "物品" : "失传"}</span><span class="n">${U.fmt(it.n)}</span></div>`; }
       else cells += `<div class="cell q${it.e.q}" onclick="G.openItem(${i})">${it.e.name}<span class="g">${DATA.slots[it.e.slot]}</span></div>`;
     }
     return tabs + top + `<div class="card"><h3>储物格<small>${s.bag.length} / ${s.bagCap}</small></h3><div class="grid">${cells}</div></div>`;
