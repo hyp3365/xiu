@@ -26,13 +26,13 @@ CFG.sect = {
   affair: {
     CONTRIB_STAR: true,
     tasks: [
-      { name: "打扫山门",     rank: 0, time: 1,   contrib: 500,   stone: 1 },
-      { name: "护送商队",     rank: 1, time: 1,  contrib: 800,  stone: 2 },
-      { name: "镇守灵脉",     rank: 2, time: 1,  contrib: 1200,  stone: 3 },
-      { name: "斩杀魔修",     rank: 3, time: 1,  contrib: 1600,  stone: 4 },
-      { name: "传功讲道",     rank: 4, time: 1,  contrib: 20, stone: 5 },
-      { name: "镇压魔窟",     rank: 5, time: 1,  contrib: 25, stone: 6 },
-      { name: "统御宗门",     rank: 6, time: 1, contrib: 30, stone: 7 },
+      { name: "打扫山门",     rank: 0, time: 5,   contrib: 5,   stone: 1 },
+      { name: "护送商队",     rank: 1, time: 5,  contrib: 8,  stone: 2 },
+      { name: "镇守灵脉",     rank: 2, time: 5,  contrib: 12,  stone: 3 },
+      { name: "斩杀魔修",     rank: 3, time: 5,  contrib: 16,  stone: 4 },
+      { name: "传功讲道",     rank: 4, time: 5,  contrib: 20, stone: 5 },
+      { name: "镇压魔窟",     rank: 5, time: 5,  contrib: 25, stone: 6 },
+      { name: "统御宗门",     rank: 6, time: 5, contrib: 30, stone: 7 },
     ],
   },
   // 练功房：pct 修炼速度加成 %、cost 每次修炼消耗贡献（都 × 门派星级）
