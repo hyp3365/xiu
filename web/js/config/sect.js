@@ -44,7 +44,7 @@ CFG.sect = {
     { name: "中品练功房", pct: 30,  cost: 2 },
     { name: "上品练功房", pct: 50, cost: 4 },
     { name: "天字练功房", pct: 80, cost: 6 },
-    { name: "宗主练功房", pct: 120, cost: 10, rank: 6 },   // 宗主专用
+    { name: "宗主练功房", pct: 120, cost: 1, rank: 6 },   // 宗主专用
   ],
   // 试炼塔：第 n 层守关者属性 = base × 星级倍率 × GROW^(n-1)（暴击不成长）；首通贡献 = REWARD × n
   tower: { MAX: 100, REWARD: 20, GROW: 1.1,
