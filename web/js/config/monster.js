@@ -8,7 +8,7 @@ window.CFG = window.CFG || {};
 
 /* ================= 四、凡界地图 · 东西南北四域怪物 ================= */
 // 9 张地图 × 东西南北 4 个区域，每个区域的 普通怪 / 精英怪 / 首领 属性都可以单独改（直接写数值）。
-//   L：怪物层序（0 = 练气一层，用来显示境界和计算灵石掉落）
+//   L：区域层序（只用来计算灵石掉落，不显示）
 //   hp 气血  atk 攻击  def 防御  speed 速度（高者先手）  hit 命中  dodge 闪避  crit 暴击%
 //   实际遇到时，气血/攻击/防御/速度/命中/闪避 会在 ±RAND 范围内随机浮动
 CFG.monster = {
@@ -206,3 +206,17 @@ CFG.monster.magic = {
   boss:   { MANA: 5, RES: 0.5, spell: { chance: 35, pct: 160, cost: 0.2 },  fabao: { chance: 20, pct: 200, cost: 0.35 } },
   tower:  { MANA: 4, RES: 0.4, spell: { chance: 30, pct: 140, cost: 0.25 }, fabao: { chance: 15, pct: 170, cost: 0.4 } },
 };
+
+// ---------- v20 新增：每张地图单独的怪物倍率 ----------
+// 第 1 个 = 第 1 张地图（青云山林）…… 第 9 个 = 雷劫之地。该地图东西南北四域所有怪物的属性再乘这里的倍率
+CFG.monster.mapMult = [
+  { hp: 1, atk: 1, def: 1, speed: 1, hit: 1, dodge: 1 },   // 1 青云山林
+  { hp: 1, atk: 1, def: 1, speed: 1, hit: 1, dodge: 1 },   // 2 黑风谷
+  { hp: 1, atk: 1, def: 1, speed: 1, hit: 1, dodge: 1 },   // 3 万妖岭
+  { hp: 1, atk: 1, def: 1, speed: 1, hit: 1, dodge: 1 },   // 4 幽冥沼泽
+  { hp: 1, atk: 1, def: 1, speed: 1, hit: 1, dodge: 1 },   // 5 落星海
+  { hp: 1, atk: 1, def: 1, speed: 1, hit: 1, dodge: 1 },   // 6 虚空裂隙
+  { hp: 1, atk: 1, def: 1, speed: 1, hit: 1, dodge: 1 },   // 7 天魔战场
+  { hp: 1, atk: 1, def: 1, speed: 1, hit: 1, dodge: 1 },   // 8 九幽深渊
+  { hp: 1, atk: 1, def: 1, speed: 1, hit: 1, dodge: 1 },   // 9 雷劫之地
+];
