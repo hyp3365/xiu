@@ -5,7 +5,7 @@
  *   - 对应属性的法术伤害：每级 +SPELL_PCT %
  *   - 对应属性的功法效果：每级 +GONGFA_PCT %
  * 门派功法、法术的属性 = 门派属性（见 data/sects.js）。
- * 数值在 js/config/numbers.js 的 lingen 部分。
+ * 数值在 js/config/ 下的数值文件 的 lingen 部分。
  * 存档字段：lingen: { jin: 0, mu: 0, shui: 0, huo: 0, tu: 0, lei: 0 }
  * ===================================================================== */
 G.module({
