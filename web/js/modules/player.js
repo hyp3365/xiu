@@ -12,6 +12,7 @@
  *   速度 = 基础×成长^层序 + 装备
  *   命中 = 基础×成长^层序 + 装备 + 身法 + 丹药；闪避 = 基础×成长^层序 + 装备 + 遁术 + 丹药
  *   暴击：固定基础值 + 装备 + 丹药，不随境界成长
+ *   抗性（金木水火土雷各一）= RES_BASE×成长^层序 + 本系真诀；法术伤害按 防御 + 对应抗性 抵消
  * ===================================================================== */
 G.module({
   id: "player",
@@ -64,6 +65,7 @@ G.module({
         hit:     B.hit * f * p("hit") + eq.hit + gf.hit + dn.hit,
         dodge:   B.dodge * f * p("dodge") + eq.dodge + gf.dodge + dn.dodge,
         crit:    Math.min(DATA.CRIT_CAP, F.crit + eq.crit + dn.crit),
+        res:     Object.fromEntries(DATA.elements.map(e => [e.id, (CFG.player.RES_BASE || 0) * f + (gf.res[e.id] || 0)])),
       };
     },
   },
