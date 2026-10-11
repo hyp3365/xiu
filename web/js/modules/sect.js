@@ -158,8 +158,8 @@ G.module({
     // 试炼塔守关者属性（js/config/ 数值文件 的 sect.tower 单独设置）
     makeTowerGuard(floor) {
       const T = CFG.sect.tower, Lm = this.towerLevel(floor), f = Math.pow(T.GROW, Lm), b = T.base;
-      return { name: `第${floor}层守关者`, Lm, boss: false, crit: b.crit,
-        hp: b.hp * f, atk: b.atk * f, def: b.def * f, speed: b.speed * f, hit: b.hit * f, dodge: b.dodge * f };
+      return this.addMagic({ name: `第${floor}层守关者`, Lm, boss: false, crit: b.crit,
+        hp: b.hp * f, atk: b.atk * f, def: b.def * f, speed: b.speed * f, hit: b.hit * f, dodge: b.dodge * f }, "tower");
     },
     towerLevel(floor) { return Math.min(DATA.realms.length * DATA.LAYERS - 1, this.sectInfo().reqRealm * DATA.LAYERS + floor * DATA.TOWER_STEP); },
     challengeTower() {
@@ -238,7 +238,7 @@ G.module({
         sects.map(o => `<div class="card"><h3>${o.name}<span class="tag">${DATA.elById[o.el].name}</span><small>${DATA.tierById[tier].name}</small></h3>` +
           DATA.gongfaTypes.map(t => {
             const g = DATA.gongfaInfo(DATA.gongfaId(o.id, t.id, tier));
-            return `<div class="line"><div>《${g.name}》<span class="tag">${t.name}</span><small>每层${t.label} +${this.gfValue(g, g.perLv)} · ${U.fmt(g.cost)} 贡献</small></div>${btn(g)}</div>`;
+            return `<div class="line"><div>《${g.name}》<span class="tag">${t.name}</span><small>每层${g.label} +${this.gfValue(g, g.perLv)} · ${U.fmt(g.cost)} 贡献</small></div>${btn(g)}</div>`;
           }).join("") + (() => {
             const g = DATA.spellInfo(DATA.spellId(o.id, o.el, tier));
             return `<div class="line"><div>《${g.name}》<span class="tag">法术</span><small>攻击×${g.pct}% + ${U.fmt(g.perLv)}/层 · 耗法力 ${U.fmt(g.mana)} · ${U.fmt(g.cost)} 贡献</small></div>${btn(g)}</div>`;
