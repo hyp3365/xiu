@@ -2,7 +2,7 @@
  * 模块：世界（六界：凡界 仙界 魔界 冥界 神界 天外天，目前只开放凡界）
  * 凡界内：9 张地图（练气 → 渡劫），每张分 东 西 南 北 四个区域；坊市、设置
  * ---------------------------------------------------------------------
- * 每个区域的 普通怪 / 精英怪 / 首领 属性在 numbers.js 的 monster.regions 单独设置。
+ * 每个区域的 普通怪 / 精英怪 / 首领 属性在 js/config/ 数值文件 的 monster.regions 单独设置。
  * 历练：和自动探索一样走 100 步，但只走一次；走完且没战败 = 通过，解锁该区域的自动探索。
  * 自动探索：每次 100 秒，每秒走一步；固定遇到 10 个普通怪、3 个精英怪、灵药 5~10 次、矿石 5~10 次，
  *   最后一步遇到首领，其余无事发生（顺序随机）。怪物掉 灵石、药材、矿石（不掉丹药、装备）。
@@ -11,7 +11,7 @@
  *   一次探索中获得的东西先记下，100 秒结束后一起放进背包；
  *   气血够（≥ 三成）就继续下一次，不够就停止；探索时不能修炼；离线也继续。
  *   探索信息栏显示每一步发生的事，每秒刷新。
- * 数值全部在 js/config/numbers.js 的 monster / explore 部分。
+ * 数值全部在 js/config/ 下的数值文件 的 monster / explore 部分。
  * ===================================================================== */
 G.module({
   id: "world",
@@ -43,7 +43,7 @@ G.module({
     regionKey(a, r) { return a * DATA.regionCount + r; },
     isTrained(a, r) { return this.s.trainedR.includes(this.regionKey(a, r)); },
 
-    // 生成怪物：a 地图、r 区域、kind = normal 普通 / elite 精英 / boss 首领（属性见 numbers.js monster.regions）
+    // 生成怪物：a 地图、r 区域、kind = normal 普通 / elite 精英 / boss 首领（属性见 js/config/ 数值文件 monster.regions）
     makeMob(a, r, kind) {
       const R = DATA.region(a, r), b = R[kind], map = DATA.maps[a], k = CFG.monster.RAND;
       const v = x => x * (1 - k + Math.random() * 2 * k);
@@ -57,10 +57,11 @@ G.module({
       const st = this.stats(), s = this.s;
       const spells = s.spellSlots.slice(0, this.slotCount()).map(id => DATA.spellInfo(id, s.gongfa[id])).filter(Boolean);
       let si = 0;
+      const BT = CFG.battle, rnd = () => BT.RAND_MIN + Math.random() * (BT.RAND_MAX - BT.RAND_MIN);
       const hit = (A, D) => {
-        if (Math.random() * 100 < DATA.dodgeChance(A.hit, D.dodge)) return 0;     // 闪避（看命中与闪避之差）
-        let d = Math.max(A.atk * 0.1, A.atk - D.def * 0.5) * (0.9 + Math.random() * 0.2);
-        if (Math.random() * 100 < Math.min(DATA.CRIT_CAP, A.crit)) d *= 2;        // 暴击
+        if (Math.random() * 100 < DATA.dodgeChance(A.hit, D.dodge)) return 0;     // 闪避（看命中与闪避之比）
+        let d = Math.max(A.atk * BT.MIN_DMG, A.atk - D.def * BT.DEF_RATE) * rnd();
+        if (Math.random() * 100 < Math.min(DATA.CRIT_CAP, A.crit)) d *= BT.CRIT_MULT; // 暴击
         return d;
       };
       // 玩家出手：按顺序施放法术，法力不足则普通攻击
@@ -70,8 +71,8 @@ G.module({
           if (s.mana >= sp.mana) {
             si = (si + k + 1) % spells.length; s.mana -= sp.mana;
             if (Math.random() * 100 < DATA.dodgeChance(st.hit, m.dodge)) return 0;
-            let d = Math.max(st.atk * 0.1, (st.atk * sp.pct / 100 + sp.flat) * this.lingenSpell(sp.el.id) - m.def * 0.5) * (0.9 + Math.random() * 0.2);
-            if (Math.random() * 100 < st.crit) d *= 2;
+            let d = Math.max(st.atk * BT.MIN_DMG, (st.atk * sp.pct / 100 + sp.flat) * this.lingenSpell(sp.el.id) - m.def * BT.DEF_RATE) * rnd();
+            if (Math.random() * 100 < st.crit) d *= BT.CRIT_MULT;
             return d;
           }
         }
@@ -80,7 +81,7 @@ G.module({
       let php = s.hp, mhp = m.hp, rounds = 0, dealt = 0, taken = 0;
       const hp0 = s.hp, meFirst = st.speed >= m.speed;
       const me = () => { const d = myHit(); mhp -= d; dealt += d; }, him = () => { const d = hit(m, st); php -= d; taken += d; };
-      while (php > 0 && mhp > 0 && rounds < 60) {
+      while (php > 0 && mhp > 0 && rounds < BT.MAX_ROUNDS) {
         rounds++;
         if (meFirst) { me(); if (mhp > 0) him(); }
         else { him(); if (php > 0) me(); }
@@ -93,8 +94,28 @@ G.module({
 
     /* ---------- 掉落 ---------- */
     newLoot() { return { stone: 0, mats: {}, pills: [], equips: [] }; },
-    // 按配置掉落材料：spec = { herb: {kinds, n}, ore: {kinds, n} }，返回描述
+    // 掉落：先看 config/drops.js 里该地图单独设置的掉落组，没有就用 explore.js 的通用设置
+    rollEvent(loot, ev, a) {
+      const groups = DATA.mapDrop(a, ev);
+      if (!groups) return this.rollDrop(loot, CFG.explore.drop[ev], a);
+      const got = [];
+      for (const gr of groups) {
+        const names = Object.keys(gr.items || {}).filter(n => DATA.matByName[n]), w = names.map(n => gr.items[n]);
+        const kinds = U.rand(gr.kinds[0], gr.kinds[1]);
+        for (let i = 0; i < kinds && w.some(x => x > 0); i++) {
+          const j = U.weighted(w); w[j] = 0;   // 同一组不重复
+          const name = names[j], m = DATA.matByName[name], n = U.rand(gr.n[0], gr.n[1]);
+          if (n <= 0) continue;
+          const key = m.kind + "|" + name;
+          (loot.mats[key] = loot.mats[key] || { kind: m.kind, name, g: m.g, n: 0 }).n += n;
+          got.push(`${name}×${U.fmt(n)}`);
+        }
+      }
+      return got.join("、");
+    },
+    // 通用掉落：spec = { herb: {kinds, n}, ore: {kinds, n} }，返回描述
     rollDrop(loot, spec, a) {
+      if (!spec) return "";
       const E = CFG.explore, got = [];
       for (const kind of ["herb", "ore"]) {
         const d = spec[kind]; if (!d) continue;
@@ -112,9 +133,9 @@ G.module({
     // 击败怪物的掉落，写进 loot，返回描述文字
     rollMonsterLoot(loot, m, a) {
       const E = CFG.explore, mult = m.boss ? E.BOSS_DROP : m.elite ? E.ELITE_DROP : 1;
-      const stone = Math.floor(E.STONE_BASE * Math.pow(E.STONE_GROW, m.Lm) * (1 + Math.random() * 1.5) * E.STONE_RATE * mult);
+      const stone = Math.floor(E.STONE_BASE * Math.pow(E.STONE_GROW, m.Lm) * (1 + Math.random() * 1.5) * E.STONE_RATE * mult * DATA.mapStone(a));
       loot.stone += stone;
-      const mats = this.rollDrop(loot, E.drop[m.boss ? "boss" : m.elite ? "elite" : "monster"], a);
+      const mats = this.rollEvent(loot, m.boss ? "boss" : m.elite ? "elite" : "monster", a);
       return `灵石${U.fmt(stone)}${mats ? "、" + mats : ""}`; // 怪物不掉丹药、装备
     },
     // 把收获放进背包，返回简短描述
@@ -162,8 +183,8 @@ G.module({
       const st = this.stats(), H = CFG.explore.HEAL_STEP;
       this.s.hp = Math.min(st.hp, this.s.hp + st.hp * H); this.s.mana = Math.min(st.mana, this.s.mana + st.mana * H);
       let t = "", c = "";
-      if (type === "herb") { t = `发现灵药，采得 ${this.rollDrop(x.loot, CFG.explore.drop.herbEvent, a) || "无"}`; c = "good"; }
-      else if (type === "ore") { t = `发现矿脉，挖得 ${this.rollDrop(x.loot, CFG.explore.drop.oreEvent, a) || "无"}`; c = "good"; }
+      if (type === "herb") { t = `发现灵药，采得 ${this.rollEvent(x.loot, "herbEvent", a) || "无"}`; c = "good"; }
+      else if (type === "ore") { t = `发现矿脉，挖得 ${this.rollEvent(x.loot, "oreEvent", a) || "无"}`; c = "good"; }
       else if (type === "monster" || type === "elite" || type === "boss") {
         const kind = type === "monster" ? "normal" : type, m = this.makeMob(a, r, kind);
         const res = this.battle(m), tag = `${m.boss ? "【首领】" : m.elite ? "【精英】" : ""}${m.name}（${this.realmName(m.Lm)}）`;
