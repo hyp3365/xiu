@@ -50,10 +50,10 @@ ITEMS.list = {
  *   任意一行都可以加：price 固定价格（覆盖自动价格）  realm 需要的境界序号（0 练气 1 筑基 …，不够就不显示）
  */
 ITEMS.shop = [
-  { kind: "pill", type: "juqi" },
-  { kind: "pill", type: "juling" },
-  { kind: "pill", type: "peiyuan" },
-  { kind: "eq", slot: "helmet", q: 1 },
+  { kind: "pill", type: "juqi" , price: 100 },
+  { kind: "pill", type: "juling", price: 300 },
+  { kind: "pill", type: "peiyuan", price: 600 },
+  { kind: "eq", slot: "helmet", q: 1, price: 300 },
   { kind: "eq", slot: "armor", q: 1 },
   { kind: "eq", slot: "weapon", q: 1 },
   { kind: "eq", slot: "legs", q: 1 },
