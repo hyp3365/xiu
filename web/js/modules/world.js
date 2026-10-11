@@ -260,7 +260,7 @@ G.module({
     toggleExplore(a, r, once) {
       const s = this.s;
       if (s.explore && s.explore.map === a && s.explore.reg === r && !!s.explore.once === !!once) { this.stopExplore(once ? "放弃历练" : "停止自动探索"); return this.after(); }
-      if (this.r() < a) return;
+      if (!this.realmOK(DATA.mapReq(a))) return;
       if (!once && !this.isTrained(a, r)) return this.log("需先在此区域历练通过，才能自动探索。", "sys");
       if (s.explore) this.stopExplore("更换");
       if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("气血不足三成，先休养片刻（每 10 秒恢复 1%）。", "sys");
@@ -374,7 +374,8 @@ G.module({
       let k = 0;
       for (; k < n; k++) {
         if (this.s.stone < it.price) { this.log("灵石不足。", "sys"); break; }
-        const ok = it.kind === "pill" ? this.addPill(it.type, it.g) : it.kind === "cu" ? this.addCustom(it.name) : this.addEquip(this.makeEquip(it.slot, it.g, it.q));
+        const ok = it.kind === "pill" ? this.addPill(it.type, it.g) : it.kind === "cu" ? this.addCustom(it.name)
+          : this.addEquip(DATA.forgeSlots.includes(it.slot) ? DATA.rollForged(it.slot, 0) : this.makeEquip(it.slot, it.g, it.q)); // 头盔~吊坠：一阶炼器装备（随机属性）
         if (!ok) break;
         this.s.stone -= it.price;
       }
@@ -397,7 +398,7 @@ G.module({
     buyGongfa(id) {
       const g = DATA.skillInfo(id);
       if (!g || g.src !== "shop" || this.hasGongfa(id)) return;
-      if (this.r() < g.sect.reqRealm) return this.log(`需要${DATA.realms[g.sect.reqRealm]}期。`, "sys");
+      if (!this.realmOK(g.sect.reqRealm)) return this.log(`需要${DATA.realmLabel(g.sect.reqRealm)}。`, "sys");
       if (this.s.stone < g.cost) return this.log("灵石不足。", "sys");
       this.s.stone -= g.cost; this.s.gongfa[id] = 1;
       if (g.kind === "sp") this.autoSlotSpell(id);
@@ -411,9 +412,9 @@ G.module({
         const rows = this.shopList().map((it, i) => {
           if (it.tab !== t) return "";
           const cd = it.kind === "cu" ? this.cuDef(it.name) : null, multi = it.kind === "pill" || (cd && cd.type !== "equip" && cd.type !== "fabao");
-          const name = cd ? `<span class="q${cd.q || 0}">${it.name}</span>` : it.kind === "pill" ? `${DATA.realms[it.g]}·${DATA.pills[it.type].name}` : `${DATA.quals[it.q]} ${DATA.realms[it.g]}·${DATA.equipNames[it.slot][Math.min(5, it.q)]}`;
+          const name = cd ? `<span class="q${cd.q || 0}">${it.name}</span>` : it.kind === "pill" ? `${DATA.realms[it.g]}·${DATA.pills[it.type].name}` : DATA.forgeSlots.includes(it.slot) ? DATA.forgeEqName(it.slot, 0) : `${DATA.quals[it.q]} ${DATA.realms[it.g]}·${DATA.equipNames[it.slot][Math.min(5, it.q)]}`;
           const desc = cd ? `${DATA.cuTypes[cd.type] || ""}${cd.desc ? " · " + cd.desc : ""}${["perm", "equip", "fabao"].includes(cd.type) ? " · " + this.cuStatText(this.cuStats(cd)) : ""}`
-            : it.kind === "pill" ? `修炼速度 +${Math.round(DATA.pillPct(it.type, it.g))}%，${DATA.pills[it.type].dur}次修炼` : `${DATA.slots[it.slot]} · ${this.equipDesc(this.makeEquip(it.slot, it.g, it.q))}`;
+            : it.kind === "pill" ? `修炼速度 +${Math.round(DATA.pillPct(it.type, it.g))}%，${DATA.pills[it.type].dur}次修炼` : DATA.forgeSlots.includes(it.slot) ? `${DATA.slots[it.slot]} · 2 条主属性 + 1~5 条附加属性（颜色随机）` : `${DATA.slots[it.slot]} · ${this.equipDesc(this.makeEquip(it.slot, it.g, it.q))}`;
           return `<div class="line"><div>${name}<small>${desc}</small></div><div>
             <button class="sm" onclick="G.buy(${i})" ${s.stone < it.price ? "disabled" : ""}>${U.fmt(it.price)}</button>
             ${multi ? `<button class="sm" onclick="G.buy(${i},10)" ${s.stone < it.price * 10 ? "disabled" : ""}>×10</button>` : ""}</div></div>`;
@@ -422,14 +423,14 @@ G.module({
       }
       if (t === "gf") {
         const star = this.shopStar || 1, tier = this.shopTier || "huang", T = DATA.tierById[tier], N = DATA.SHOP_GF_PREFIX.length;
-        const srcs = DATA.shopSources.filter(o => o.star === star), lock = this.r() < (srcs[0] ? srcs[0].reqRealm : 0);
+        const srcs = DATA.shopSources.filter(o => o.star === star), lock = !this.realmOK(srcs[0] ? srcs[0].reqRealm : 0);
         const line = g => { const has = this.hasGongfa(g.id);
           const desc = g.kind === "sp" ? `${g.el.name}系 · 攻击×${g.pct}% + ${U.fmt(g.perLv)}/层 · 耗法力 ${U.fmt(g.mana)}` : `每层${g.label} +${U.num(g.perLv)}`;
           return `<div class="line"><div>《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.kind === "sp" ? "法术" : g.type.name}</span><small>${desc} · ${U.fmt(g.cost)} 灵石</small></div>
             <button class="sm" onclick="G.buyGongfa('${g.id}')" ${has || lock || s.stone < g.cost ? "disabled" : ""}>${has ? "已学会" : lock ? "境界不足" : "购买"}</button></div>`; };
         return tabs + `<div class="room-grid">${Array.from({ length: N }, (_, i) => `<button class="${star === i + 1 ? "active" : ""}" onclick="G.setShopStar(${i + 1})">${i + 1}星</button>`).join("")}</div>
           <div class="room-grid">${DATA.tiers.map(x => `<button class="${tier === x.id ? "active" : ""}" onclick="G.setShopTier('${x.id}')">${x.name}</button>`).join("")}</div>
-          <p class="desc">凡界坊市功法 ${star}星 · 需${DATA.realms[srcs[0] ? srcs[0].reqRealm : 0]}期 · 灵石 ${U.fmt(s.stone)} · 买下即学会第 1 层</p>` +
+          <p class="desc">凡界坊市功法 ${star}星 · 需${DATA.realmLabel(srcs[0] ? srcs[0].reqRealm : 0)} · 灵石 ${U.fmt(s.stone)} · 买下即学会第 1 层</p>` +
           srcs.map(o => `<div class="card"><h3>${o.name}<span class="tag">${DATA.elById[o.el].name}</span><small>${T.name}</small></h3>` +
             DATA.gongfaTypes.map(ty => line(DATA.gongfaInfo(DATA.gongfaId(o.id, ty.id, tier)))).join("") +
             line(DATA.spellInfo(DATA.spellId(o.id, o.el, tier))) + `</div>`).join("");
@@ -475,13 +476,13 @@ G.module({
         ${(() => {
           // 地图选择（9 张）+ 选中地图的 东西南北 四个区域
           const sel = this.mapSel !== undefined ? this.mapSel : s.explore ? s.explore.map : Math.min(this.r(), DATA.maps.length - 1);
-          const map = DATA.maps[sel], lock = this.r() < sel;
-          return `<div class="room-grid five">${DATA.maps.map((m, a) => `<button class="${sel === a ? "active" : ""}" onclick="G.setMapSel(${a})">${m.name}${this.r() < a ? `<small>需${DATA.realms[a]}期</small>` : ""}</button>`).join("")}</div>
-          <div class="card"><h3>${map.name}<small>需${DATA.realms[sel]}期 · 历练一次 100 秒，通过后才能自动探索</small></h3>` +
+          const map = DATA.maps[sel], lock = !this.realmOK(DATA.mapReq(sel));
+          return `<div class="room-grid five">${DATA.maps.map((m, a) => `<button class="${sel === a ? "active" : ""}" onclick="G.setMapSel(${a})">${m.name}${!this.realmOK(DATA.mapReq(a)) ? `<small>需${DATA.realmLabel(DATA.mapReq(a))}</small>` : ""}</button>`).join("")}</div>
+          <div class="card"><h3>${map.name}<small>需${DATA.realmLabel(DATA.mapReq(sel))} · 历练一次 100 秒，通过后才能自动探索</small></h3>` +
           DATA.regionDirs.map((d, r) => {
             const R = DATA.region(sel, r), ok = this.isTrained(sel, r), x = s.explore && s.explore.map === sel && (s.explore.reg || 0) === r ? s.explore : null;
             return `<div class="line"><div>${d}域<small>首领 ${DATA.regionBoss(sel, r)} · ${ok ? "已通过历练" : "未历练"}</small></div>
-              ${lock ? `<button class="sm" disabled>需${DATA.realms[sel]}期</button>` : `<div><button class="sm ${x && x.once ? "on" : ""}" onclick="G.toggleExplore(${sel},${r},true)">${x && x.once ? "停止" : "历练"}</button>
+              ${lock ? `<button class="sm" disabled>需${DATA.realmLabel(DATA.mapReq(sel))}</button>` : `<div><button class="sm ${x && x.once ? "on" : ""}" onclick="G.toggleExplore(${sel},${r},true)">${x && x.once ? "停止" : "历练"}</button>
               <button class="sm ${x && !x.once ? "on" : ""}" onclick="G.toggleExplore(${sel},${r})" ${ok ? "" : "disabled"}>${x && !x.once ? "停止" : "探索"}</button></div>`}</div>`;
           }).join("") + `<p class="desc">期间无法修炼；气血低于三成停止。</p></div>`;
         })()}`;
