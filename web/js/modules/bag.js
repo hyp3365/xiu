@@ -19,8 +19,8 @@ G.module({
   tab: "bag",
 
   defaults: () => ({
-    stone: 100,                                               // 灵石
-    bag: [{ t: "pill", type: "juqi", g: 0, n: 3 }],          // 开局送 3 枚聚气丹
+    stone: CFG.start.stone,                                   // 开局灵石（config/start.js）
+    bag: CFG.start.pills.map(([type, g, n]) => ({ t: "pill", type, g, n })), // 开局丹药
     bagCap: DATA.BAG_START,
     equip: Object.fromEntries(DATA.equipSlots.map(k => [k, null])), // 装备栏
     fabao: [],                                                // 法宝栏
@@ -71,7 +71,7 @@ G.module({
 
     /* ---------- 装备属性 ---------- */
     equipStats(e) {
-      const Le = e.g * 10 + 5, f = Math.pow(DATA.GROW, Le), m = DATA.qualMult[e.q], k = e.q + 1, B = DATA.playerBase;
+      const Le = e.g * 10 + CFG.equip.LAYER_OFFSET, f = Math.pow(DATA.GROW, Le), m = DATA.qualMult[e.q], k = e.q + 1, B = DATA.playerBase;
       const K = DATA.equipK[e.slot] || {}, out = {};
       for (const key in K) {
         if (key in B) out[key] = B[key] * f * m * K[key];               // 攻击/气血/防御/法力：随境界成长
@@ -202,7 +202,13 @@ G.module({
           <button class="sm" onclick="G.slotSpell('${id}')">放入</button></div>`; }).join("") + `<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
     slotSpell(id) { if (this.s.spellSlots.length < this.slotCount()) this.s.spellSlots.push(id); this.closeModal(); this.after(); },
-    unslotSpell(i) { this.s.spellSlots.splice(i, 1); this.after(); },
+    unslotSpell(i) { this.s.spellSlots.splice(i, 1); this.closeModal(); this.after(); },
+    // 点法术栏：显示详细，可卸下
+    openSpellSlot(i) {
+      const id = this.s.spellSlots[i], g = id && DATA.spellInfo(id, this.s.gongfa[id]); if (!g) return;
+      this.modal(`<h2 class="q${g.tier.idx + 1}">《${g.name}》</h2><p>${g.el.name}系 · ${g.tier.name} · ${g.lv} 层<br>伤害 = 攻击 × ${g.pct}% + ${U.fmt(g.flat)}<br>耗法力 ${U.fmt(g.mana)}</p>
+        <div class="btns"><button onclick="G.unslotSpell(${i})">卸下</button><button onclick="G.closeModal()">关闭</button></div>`);
+    },
   },
 
   view() {
@@ -210,7 +216,7 @@ G.module({
     const tabs = `<div class="sub-tabs">${[["eq", "装备"], ["fb", "法宝"], ["sp", "法术"]].map(([k, t]) =>
       `<button class="${tab === k ? "active" : ""}" onclick="G.setBagTab('${k}')">${t}</button>`).join("")}</div>`;
     const cell = (key, label, e) => `<div class="slot-eq ${e ? "q" + e.q : ""}" onclick="G.openEquip('${key}')"><b>${label}</b>
-        ${e ? `${DATA.quals[e.q]}<br>${e.name}<br><span class="g">${DATA.realms[e.g]}</span>` : "空"}</div>`;
+        ${e ? e.name : "空"}</div>`; // 只显示名字，点击看详细
 
     let top;
     if (tab === "eq") {
@@ -224,10 +230,10 @@ G.module({
       for (let i = 0; i < DATA.SLOT_MAX; i++) {
         const id = s.spellSlots[i];
         if (i >= n) h += `<div class="slot-eq lock"><b>法术</b>${DATA.realms[i]}期开启</div>`;
-        else if (id) { const g = DATA.spellInfo(id, s.gongfa[id]); h += `<div class="slot-eq q${g.tier.idx + 1}" onclick="G.unslotSpell(${i})"><b>${g.el.name}</b>${g.name}<br><span class="g">${g.tier.name} ${g.lv}层</span></div>`; }
+        else if (id) { const g = DATA.spellInfo(id, s.gongfa[id]); h += `<div class="slot-eq q${g.tier.idx + 1}" onclick="G.openSpellSlot(${i})"><b>法术</b>${g.name}</div>`; }
         else h += `<div class="slot-eq" onclick="G.openSpellPick()"><b>法术</b>空</div>`;
       }
-      top = `<div class="card"><h3>法术<small>已开启 ${n} / ${DATA.SLOT_MAX} 格 · 点法术卸下</small></h3><div class="equip four">${h}</div>
+      top = `<div class="card"><h3>法术<small>已开启 ${n} / ${DATA.SLOT_MAX} 格 · 点法术看详细</small></h3><div class="equip four">${h}</div>
         <p class="desc">战斗中按顺序轮流施放，法力不足时普通攻击。</p></div>`;
     }
 
@@ -236,12 +242,13 @@ G.module({
     for (let i = 0; i < s.bagCap; i++) {
       const it = s.bag[i];
       if (!it) cells += `<div class="cell"></div>`;
-      else if (it.t === "pill") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 3))}" onclick="G.openItem(${i})">${DATA.pills[it.type].name}<span class="g">${DATA.realms[it.g]}</span><span class="n">${it.n}</span></div>`;
-      else if (it.t === "dan") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${DATA.dans[it.type].name}<span class="g">${DATA.JIE[it.g]}</span><span class="n">${it.n}</span></div>`;
+      // 格子里只显示名字和类型，点击才看品质、境界、效果
+      else if (it.t === "pill") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 3))}" onclick="G.openItem(${i})">${DATA.pills[it.type].name}<span class="g">修炼丹</span><span class="n">${it.n}</span></div>`;
+      else if (it.t === "dan") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${DATA.dans[it.type].name}<span class="g">属性丹</span><span class="n">${it.n}</span></div>`;
       else if (it.t === "mat") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${it.name}<span class="g">${DATA.matKinds[it.kind]}</span><span class="n">${U.fmt(it.n)}</span></div>`;
       else if (it.t === "fu") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${DATA.furnaceName(it.kind, it.g)}<span class="g">炉子</span>${it.n > 1 ? `<span class="n">${it.n}</span>` : ""}</div>`;
       else if (it.t === "bp") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${DATA.furnaceName(it.kind, it.g)}<span class="g">图纸</span></div>`;
-      else cells += `<div class="cell q${it.e.q}" onclick="G.openItem(${i})">${it.e.name}<span class="g">${DATA.realms[it.e.g]}</span></div>`;
+      else cells += `<div class="cell q${it.e.q}" onclick="G.openItem(${i})">${it.e.name}<span class="g">${DATA.slots[it.e.slot]}</span></div>`;
     }
     return tabs + top + `<div class="card"><h3>储物格<small>${s.bag.length} / ${s.bagCap}</small></h3><div class="grid">${cells}</div></div>`;
   },
