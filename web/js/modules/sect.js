@@ -1,7 +1,7 @@
 /* =====================================================================
  * 模块：门派
  * ---------------------------------------------------------------------
- * 未入门：按 1~9 星浏览 90 个门派，境界够了即可拜入。
+ * 未入门：按 1~10 星浏览 120 个门派，境界够了即可拜入。
  * 入门后有九个去处：
  *   宗门大殿  晋升职务（外门弟子 → 宗主），每天领取职务俸禄（灵石）
  *   功法殿    用贡献学习本门功法、法术（天地玄黄四阶；学会为第 1 层，之后去“功法”页修炼）
@@ -13,7 +13,7 @@
  *   炼器室    学习炼器（暂未开放）
  *   试炼塔    100 层，逐层挑战，首次通关得贡献
  *   宗门秘境  消耗贡献进入探索，随机奖励
- * 数值都在 js/config/numbers.js 的 sect。
+ * 数值都在 js/config/ 下的数值文件 的 sect。
  * ===================================================================== */
 G.module({
   id: "sect",
@@ -155,7 +155,7 @@ G.module({
     },
 
     /* ---------- 试炼塔 ---------- */
-    // 试炼塔守关者属性（numbers.js 的 sect.tower 单独设置）
+    // 试炼塔守关者属性（js/config/ 数值文件 的 sect.tower 单独设置）
     makeTowerGuard(floor) {
       const T = CFG.sect.tower, Lm = this.towerLevel(floor), f = Math.pow(T.GROW, Lm), b = T.base;
       return { name: `第${floor}层守关者`, Lm, boss: false, crit: b.crit,
@@ -165,7 +165,7 @@ G.module({
     challengeTower() {
       const f = this.s.tower + 1; if (f > DATA.TOWER_MAX) return;
       const st = this.stats();
-      if (this.s.hp < st.hp * 0.3) return this.log("气血不足三成，先休养片刻。", "sys");
+      if (this.s.hp < st.hp * CFG.battle.TOWER_HP_MIN) return this.log("气血不足三成，先休养片刻。", "sys");
       const Lm = this.towerLevel(f), m = this.makeTowerGuard(f);
       const res = this.battle(m);
       if (res.win) {
@@ -180,15 +180,15 @@ G.module({
       const x = this.sectInfo(), c = DATA.secretCost(x.star);
       if (this.s.contrib < c) return;
       this.s.contrib -= c;
-      const roll = Math.random(), g = this.r();
-      if (roll < 0.4) {
-        const n = Math.floor(DATA.STONE_BASE * 30 * Math.pow(DATA.STONE_GROW, this.s.L) * (1 + Math.random()));
+      const roll = Math.random(), g = this.r(), SC = CFG.sect.secret;
+      if (roll < SC.stone.chance) {
+        const n = Math.floor(DATA.STONE_BASE * SC.stone.mult * Math.pow(DATA.STONE_GROW, this.s.L) * (1 + Math.random()));
         this.s.stone += n; this.log(`秘境中寻得一处灵石矿脉，灵石 +${U.fmt(n)}。`, "gold");
-      } else if (roll < 0.75) {
-        const t = U.pick(Object.keys(DATA.pills)), n = U.rand(2, 5);
+      } else if (roll < SC.stone.chance + SC.pill.chance) {
+        const t = U.pick(Object.keys(DATA.pills)), n = U.rand(SC.pill.n[0], SC.pill.n[1]);
         this.addPill(t, g, n); this.log(`秘境中发现前人遗留的${DATA.pills[t].name} ×${n}。`, "gold");
-      } else if (roll < 0.9) {
-        const e = this.makeEquip(U.pick(Object.keys(DATA.slots)), g, U.rand(2, 4));
+      } else if (roll < SC.stone.chance + SC.pill.chance + SC.equip.chance) {
+        const e = this.makeEquip(U.pick(Object.keys(DATA.slots)), g, U.rand(SC.equip.q[0], SC.equip.q[1]));
         if (this.addEquip(e)) this.log(`秘境深处得到<span class="q${e.q}">${DATA.quals[e.q]}${e.name}</span>！`, "gold");
       } else this.log("秘境中迷雾重重，一无所获。", "sys");
       this.after();
@@ -200,8 +200,8 @@ G.module({
     // ---------- 未加入门派：按星级浏览 ----------
     if (!s.sect) {
       const star = this.sectStar || 1;
-      const stars = Array.from({ length: 9 }, (_, i) => `<button class="${star === i + 1 ? "active" : ""}" onclick="G.setSectStar(${i + 1})">${i + 1}★</button>`).join("");
-      return `<div class="room-grid five">${stars}</div><div class="card"><h3>${star} 星门派<small>需${DATA.realms[(star - 1) * 2]}期</small></h3>` +
+      const stars = Array.from({ length: DATA.SECT_STARS }, (_, i) => `<button class="${star === i + 1 ? "active" : ""}" onclick="G.setSectStar(${i + 1})">${i + 1}★</button>`).join("");
+      return `<div class="room-grid five">${stars}</div><div class="card"><h3>${star} 星门派<small>需${DATA.realms[DATA.sectReq(star)]}期</small></h3>` +
         DATA.sects.filter(x => x.star === star).map(x => {
           const lock = this.r() < x.reqRealm;
           return `<div class="line"><div>${x.name}<span class="tag">${DATA.elById[x.el].name}</span><small>${DATA.elById[x.el].name}属性功法、法术 · 可学本星级全部门派功法</small></div>
@@ -212,7 +212,7 @@ G.module({
     // ---------- 已入门 ----------
     const x = this.sectInfo(), tab = this.sectTab || "hall";
     const TABS = [["hall", "宗门大殿"], ["lib", "功法殿"], ["affair", "事务堂"], ["room", "练功房"], ["treasury", "宗门宝库"],
-                  ["alchemy", "炼丹房"], ["forge", "炼器室"], ["tower", "试炼塔"], ["secret", "宗门秘境"]];
+                  ["alchemy", "炼丹房"], ["forge", "炼器室"], ["wudao", "悟道室"], ["tower", "试炼塔"], ["secret", "宗门秘境"]];
     let h = `<div class="card"><h3>${x.name} <span class="tag">${x.star}星</span><span class="tag">${DATA.elById[x.el].name}</span><small>${DATA.ranks[s.rank].name} · 贡献 ${U.fmt(s.contrib)}</small></h3></div>
       <div class="room-grid">${TABS.map(([k, n]) => `<button class="${tab === k ? "active" : ""}" onclick="G.setSectTab('${k}')">${n}</button>`).join("")}</div>`;
 
@@ -288,6 +288,8 @@ G.module({
       }
     } else if (tab === "alchemy") {
       h += this.sectAlchemyView(); // 见 craft.js
+    } else if (tab === "wudao") {
+      h += this.sectWudaoView();   // 见 wudao.js
     } else if (tab === "forge") {
       h += `<div class="card"><h3>炼器室 · 器谱</h3><p class="desc">长老闭关中，暂未开放传授。</p></div>`;
     } else if (tab === "tower") {
