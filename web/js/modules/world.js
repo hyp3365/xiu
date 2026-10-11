@@ -208,13 +208,22 @@ G.module({
     },
     // 把收获放进背包，返回简短描述
     giveLoot(loot) {
-      const s = this.s, parts = [];
+      const s = this.s, parts = [], o = this._off;
+      if (o) {   // 离线账本（core/game.js offlineReport）
+        o.exRuns++; o.exStone += loot.stone;
+        const add = (k, n) => { o.exItems[k] = (o.exItems[k] || 0) + n; };
+        for (const k in loot.mats) { const x = loot.mats[k]; add(DATA.matFull(x.kind, x.g), x.n); }
+        loot.pills.forEach(p => add(`${DATA.realms[p.g]}·${DATA.pills[p.t].name}`, 1));
+        loot.equips.forEach(e => add(this.itemName({ t: "eq", e }), 1));
+        for (const name in loot.cu || {}) add(name, loot.cu[name]);
+      }
       s.stone += loot.stone; if (loot.stone) parts.push(`灵石${U.fmt(loot.stone)}`);
       let lost = 0;
       for (const k in loot.mats) { const x = loot.mats[k]; if (this.addMat(x.kind, x.name, x.g, x.n)) parts.push(`${DATA.matFull(x.kind, x.g)}×${U.fmt(x.n)}`); else lost++; }
       loot.pills.forEach(p => { if (this.addPill(p.t, p.g)) parts.push(`${DATA.realms[p.g]}·${DATA.pills[p.t].name}`); else lost++; });
       loot.equips.forEach(e => { if (this.addEquip(e)) parts.push(`<span class="q${e.q}">${DATA.quals[e.q]}${e.name}</span>`); else lost++; });
       for (const name in loot.cu || {}) { if (this.addCustom(name, loot.cu[name])) parts.push(`${name}×${U.fmt(loot.cu[name])}`); else lost++; } // 自定义物品
+      if (o) o.exLost += lost;
       return parts.join("、") + (lost ? `（背包已满，遗失 ${lost} 件）` : "");
     },
     // 战败损失
