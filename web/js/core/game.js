@@ -65,7 +65,7 @@ const G = {
 
   /* ---------- 存档 ---------- */
   newSave(name) {
-    let s = { v: 5, name, last: Date.now(), log: [] };
+    let s = { v: 5, realmV: 2, name, last: Date.now(), log: [] };   // realmV 2 = 24 境界版
     for (const m of this.modules) if (m.defaults) Object.assign(s, m.defaults());
     return s;
   },
