@@ -8,6 +8,8 @@
  *   最后一步遇到首领，其余无事发生（顺序随机）。怪物掉 灵石、药材、矿石（不掉丹药、装备）。
  *   历练、自动探索期间都不能修炼。
  * 战斗：速度高者先手，判闪避、暴击；法术栏法术轮流施放（耗法力），不足时普通攻击；战败遗失部分灵石。
+ *   法术伤害 = 威力 - (对方防御 + 对方该属性抗性) × DEF_RATE；普通攻击、法宝只算防御。
+ *   怪物也有法力、六系抗性、法术和法宝（见 config/monster.js 的 monster.magic）。
  *   一次探索中获得的东西先记下，100 秒结束后一起放进背包；
  *   气血够（≥ 三成）就继续下一次，不够就停止；探索时不能修炼；离线也继续。
  *   探索信息栏显示每一步发生的事，每秒刷新。
@@ -48,8 +50,19 @@ G.module({
       const R = DATA.region(a, r), b = R[kind], map = DATA.maps[a], k = CFG.monster.RAND;
       const v = x => x * (1 - k + Math.random() * 2 * k);
       const name = kind === "boss" ? DATA.regionBoss(a, r) : (kind === "elite" ? "精英·" : "") + U.pick(map.monsters);
-      return { name, Lm: R.L, kind, boss: kind === "boss", elite: kind === "elite",
-        hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), crit: b.crit };
+      return this.addMagic({ name, Lm: R.L, kind, boss: kind === "boss", elite: kind === "elite",
+        hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), crit: b.crit }, kind, b);
+    },
+
+    // 给怪物加 法力 / 属性 / 六系抗性 / 法术 / 法宝（js/config/monster.js 的 monster.magic；b = regions 里单独写的数值）
+    addMagic(m, kind, b = {}) {
+      const M = (CFG.monster.magic || {})[kind] || {}, O = (CFG.monster.magic || {}).OWN_RES || 1;
+      m.el = b.el || U.pick(DATA.elements).id;
+      m.mana = m.maxMana = b.mana !== undefined ? b.mana : m.atk * (M.MANA || 0);
+      m.res = {};
+      for (const e of DATA.elements) m.res[e.id] = b.res && b.res[e.id] !== undefined ? b.res[e.id] : m.def * (M.RES || 0) * (e.id === m.el ? O : 1);
+      m.spell = M.spell; m.fabao = M.fabao;
+      return m;
     },
 
     // 通用战斗：速度高者先手，判闪避、暴击。返回 { win, lose, rounds }，并更新玩家气血
@@ -71,7 +84,7 @@ G.module({
           if (s.mana >= sp.mana) {
             si = (si + k + 1) % spells.length; s.mana -= sp.mana;
             if (Math.random() * 100 < DATA.dodgeChance(st.hit, m.dodge)) return 0;
-            let d = Math.max(st.atk * BT.MIN_DMG, (st.atk * sp.pct / 100 + sp.flat) * this.lingenSpell(sp.el.id) - m.def * BT.DEF_RATE) * rnd();
+            let d = Math.max(st.atk * BT.MIN_DMG, (st.atk * sp.pct / 100 + sp.flat) * this.lingenSpell(sp.el.id) - (m.def + ((m.res || {})[sp.el.id] || 0)) * BT.DEF_RATE) * rnd();
             if (Math.random() * 100 < st.crit) d *= BT.CRIT_MULT;
             return d;
           }
@@ -80,7 +93,19 @@ G.module({
       };
       let php = s.hp, mhp = m.hp, rounds = 0, dealt = 0, taken = 0;
       const hp0 = s.hp, meFirst = st.speed >= m.speed;
-      const me = () => { const d = myHit(); mhp -= d; dealt += d; }, him = () => { const d = hit(m, st); php -= d; taken += d; };
+      // 怪物出手：先判法术（带属性，算 防御 + 抗性），再判法宝（只算防御），都没有就普通攻击
+      let mSp = 0, mFb = 0;
+      const mCast = (k, el) => {
+        const c = m[k], cost = c ? m.maxMana * c.cost : 0;
+        if (!c || m.mana < cost || Math.random() * 100 >= c.chance) return -1;
+        m.mana -= cost; k === "spell" ? mSp++ : mFb++;
+        if (Math.random() * 100 < DATA.dodgeChance(m.hit, st.dodge)) return 0;
+        let d = Math.max(m.atk * BT.MIN_DMG, m.atk * c.pct / 100 - (st.def + (el ? st.res[el] || 0 : 0)) * BT.DEF_RATE) * rnd();
+        if (Math.random() * 100 < Math.min(DATA.CRIT_CAP, m.crit)) d *= BT.CRIT_MULT;
+        return d;
+      };
+      const mobHit = () => { let d = mCast("spell", m.el); if (d < 0) d = mCast("fabao"); return d < 0 ? hit(m, st) : d; };
+      const me = () => { const d = myHit(); mhp -= d; dealt += d; }, him = () => { const d = mobHit(); php -= d; taken += d; };
       while (php > 0 && mhp > 0 && rounds < BT.MAX_ROUNDS) {
         rounds++;
         if (meFirst) { me(); if (mhp > 0) him(); }
@@ -88,7 +113,7 @@ G.module({
       }
       s.hp = Math.max(1, php);
       // 失败原因说明（显示在探索信息里）
-      const why = `你出战时气血 ${U.fmt(hp0)}，共造成 ${U.fmt(dealt)} 伤害（对方剩余气血 ${U.fmt(Math.max(0, mhp))}/${U.fmt(m.hp)}），承受 ${U.fmt(taken)} 伤害；对方攻击 ${U.fmt(m.atk)} 防御 ${U.fmt(m.def)}`;
+      const why = `你出战时气血 ${U.fmt(hp0)}，共造成 ${U.fmt(dealt)} 伤害（对方剩余气血 ${U.fmt(Math.max(0, mhp))}/${U.fmt(m.hp)}），承受 ${U.fmt(taken)} 伤害；对方攻击 ${U.fmt(m.atk)} 防御 ${U.fmt(m.def)}${m.el ? `，${DATA.elById[m.el].name}属性，施法术 ${mSp} 次、法宝 ${mFb} 次` : ""}`;
       return { win: mhp <= 0 && php > 0, lose: php <= 0, rounds, why };
     },
 
