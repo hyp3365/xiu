@@ -90,7 +90,7 @@ DATA.shopSources = [];
 DATA.SHOP_GF_PREFIX.forEach((pair, i) => pair.forEach((prefix, n) => {
   const star = i + 1;
   DATA.shopSources.push({ id: `f${star}_${n}`, src: "shop", star, prefix, name: prefix + "传承", el: DATA.elements[(star * 2 + n) % 6].id,
-    reqRealm: (_GF.shop.REQ_REALM || [])[i] || 0 });
+    reqRealm: DATA.sectReq(star) });   // 境界要求 = 同星级门派
 }));
 // 所有来源：门派（src = "sect"）+ 坊市
 DATA.gfSrcById = Object.assign({}, ...DATA.sects.map(x => ({ [x.id]: x })), ...DATA.shopSources.map(x => ({ [x.id]: x })));
@@ -111,9 +111,12 @@ DATA.studyExp = info => {
   return Math.max(1, Math.floor(DATA.gfCalc(info.sect, info.kind === "sp" ? "spell" : info.type.id, info.tier, "study", "EFFECT_STUDY") * (lvm === undefined ? 1 : lvm)));
 };
 // 学习所需：宗门 = 贡献，坊市 = 灵石
-DATA.gfLearnCost = (o, typeId, tier) => DATA.srcType(o) === "shop"
-  ? Math.floor(DATA.gfCalc(o, typeId, tier, "price", "EFFECT_PRICE"))
-  : Math.floor(DATA.gfCalc(o, typeId, tier, "learn", "EFFECT_LEARN"));
+DATA.gfLearnCost = (o, typeId, tier) => {
+  if (DATA.srcType(o) !== "shop") return Math.floor(DATA.gfCalc(o, typeId, tier, "learn", "EFFECT_LEARN"));
+  // 坊市售价单独设置：base.price × PRICE_TYPE × PRICE_STAR × PRICE_TIER × EFFECT_PRICE
+  const C = _GF.shop, v = (x, d = 1) => x === undefined ? d : x;
+  return Math.floor(v(C.base.price, 0) * v((C.PRICE_TYPE || {})[typeId]) * v((C.PRICE_STAR || [])[o.star - 1]) * v((C.PRICE_TIER || {})[tier.id]) * v(C.EFFECT_PRICE));
+};
 // 宗门功法学习需要的职务
 DATA.tierRank = tier => ((_GF.sect.TIER_RANK || {})[tier.id]) || 0;
 
