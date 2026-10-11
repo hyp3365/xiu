@@ -80,7 +80,7 @@ CFG.gongfa.shop = {
   EFFECT_MANA: 1,
   EFFECT_STUDY: 1,
   EFFECT_PRICE: 1,   // 售价
-  STUDY_LV: [1, 3, 10, 20, 30, 50, 80, 120, 180, 300, 500],
+  STUDY_LV: [1, 2, 3, 5, 8, 12, 18, 27, 40, 60, 90],
   // 1~6 星需要的境界序号（0 练气、1 筑基、2 金丹 ……）
   REQ_REALM: [0, 1, 2, 3, 4, 5],
 };
