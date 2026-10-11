@@ -95,6 +95,7 @@ G.module({
     affairReward(i) {
       const c = this.affairContrib(i), st = this.affairStone(i);
       this.s.contrib += c; this.s.stone += st;
+      if (this._off) { this._off.afN++; this._off.afStone += st; this._off.afContrib += c; } // 离线账本
       this.log(`完成「${DATA.affairs[i].name}」，贡献 +${U.fmt(c)}，灵石 +${U.fmt(st)}。`, "good");
     },
     // 点任务：开始循环执行；再点一次停止（停止时本次进度作废）
