@@ -95,8 +95,8 @@ G.module({
       let pill = 0;
       for (const t in s.buffs) { const b = s.buffs[t]; if (b && b.left > 0) pill += b.pct; }
       const room = s.room >= 0 && s.sect ? this.roomPct(s.room) : 0;
-      const mifa = this.wudaoPct().cultivate || 0;          // 宗门秘法（悟道室）
-      return { base, arr, pill, room, mifa, total: base * arr * (1 + pill / 100) * (1 + room / 100) * (1 + mifa / 100),
+      const mifa = this.wudaoPct().cultivate || 0;          // 宗门秘法（悟道室）：已算进 st.cultivate（只加境界基础），这里只用于显示
+      return { base, arr, pill, room, mifa, total: base * arr * (1 + pill / 100) * (1 + room / 100),
         gather: this.gatherAmount() };                                     // 每 10 秒聚灵（开关不影响）
     },
 
@@ -264,7 +264,7 @@ G.module({
         <span class="${arrPct > 0 ? "on" : ""}">聚灵阵 +${U.num(arrPct)}%</span>
         <span class="${sp.pill ? "on" : ""}">丹药 +${Math.round(sp.pill)}%</span>
         <span class="${sp.room ? "on" : ""}">练功房 +${Math.round(sp.room)}%</span>
-        <span class="${sp.mifa ? "on" : ""}">秘法 +${U.num(sp.mifa)}%</span></div>
+        <span class="${sp.mifa ? "on" : ""}">秘法 基础+${U.num(sp.mifa)}%</span></div>
       <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>
       <div class="bar ling"><div style="width:${Math.min(100, s.ling / cap * 100)}%"></div></div>
       <div class="btns">
@@ -285,7 +285,7 @@ G.module({
       <div class="line"><div>基础修炼速度<small>境界 ${U.num(st.cultivate)} + 秘诀 ${U.num(this.gongfaBonus().cultivate)}</small></div><b>${U.num(sp.base)}</b></div>
       <div class="line"><div>聚灵阵<small>${s.array.lv} 级</small></div><b>×${sp.arr >= 100 ? U.fmt(sp.arr) : sp.arr.toFixed(2)}</b></div>
       <div class="line"><div>丹药</div><b>+${Math.round(sp.pill)}%</b></div>
-      <div class="line"><div>宗门秘法<small>悟道室</small></div><b>+${U.num(sp.mifa)}%</b></div>
+      <div class="line"><div>宗门秘法<small>悟道室 · 只加境界基础修炼速度</small></div><b>+${U.num(sp.mifa)}%</b></div>
       <div class="line"><div>门派练功房<small>${s.room >= 0 && s.sect ? DATA.rooms[s.room].name : "未使用"}</small></div><b>+${Math.round(sp.room)}%</b></div>
     </div>
     <div class="card"><h3>丹药<small>只增加修炼速度</small></h3>
