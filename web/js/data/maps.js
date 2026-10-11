@@ -17,7 +17,7 @@ DATA.worlds = [
  * 每张地图分 东 西 南 北 四个区域（DATA.regionDirs），每个区域的怪物属性在 js/config/ 数值文件 的 monster.regions；
  *   东/西/南 三域首领名 = "X域·" + 普通怪名 + "王"，北域首领 = boss
  * 所有地图掉落的药材、矿石种类都一样（6 种药材、6 种矿石），只是数量不同：
- *   地图越高，掉得越多（第 1 张 ×1 → 第 9 张 ×10，见 js/config/ 下的数值文件 的 explore 部分）
+ *   各地图掉落见 js/config/drops.js
  * ===================================================================== */
 DATA.maps = [
   { name: "青云山林", boss: "青云山君·吊睛白虎",
@@ -59,15 +59,22 @@ DATA.regionBoss = (a, r) => r === 3 ? DATA.maps[a].boss : DATA.regionDirs[r] + "
 DATA.exploreIdle = ["四下寂静，无事发生。", "山风拂过，草木沙沙。", "踏过一片乱石。", "远处传来几声兽吼。",
   "沿着小径继续前行。", "林间雾气渐浓。", "脚下泥泞难行。", "抬头望见一群飞鸟掠过。"];
 
-// 以下数值来自 js/config/ 下的数值文件
+// 以下数值来自 js/config/ 下的数值文件（explore.js 探索流程，drops.js 掉落）
 const _E = CFG.explore;
 DATA.EXPLORE_STOP = _E.STOP;
 DATA.EXPLORE_TIME = _E.TIME;
-DATA.STONE_BASE = _E.STONE_BASE;
-DATA.STONE_GROW = _E.STONE_GROW;
-DATA.mapMult = a => 1 + (_E.MAP_MAX - 1) * a / (DATA.maps.length - 1); // 通用掉落倍率（没在 config/drops.js 单独设置时用）
-DATA.mapDrop = (a, ev) => { const m = (CFG.mapDrops || [])[a]; return m && m[ev]; };  // 该地图单独设置的掉落组
+DATA.STONE_BASE = CFG.drop.STONE_BASE;
+DATA.STONE_GROW = CFG.drop.STONE_GROW;
+DATA.mapDrop = (a, ev) => { const m = (CFG.mapDrops || [])[a]; return m && m[ev]; };  // 该地图的掉落组
 DATA.mapStone = a => { const m = (CFG.mapDrops || [])[a]; return m && m.stone !== undefined ? m.stone : 1; };
+DATA.mapMat = a => { const m = (CFG.mapDrops || [])[a]; return m && m.mat !== undefined ? m.mat : 1; };
+DATA.mapMob = a => (CFG.monster.mapMult || [])[a] || {};   // 该地图怪物属性倍率
+// 凡界地图会掉的全部药材、矿石名字（坊市只卖这些）
+DATA.fanMats = () => {
+  const set = new Set();
+  for (const m of CFG.mapDrops || []) for (const ev in m) if (Array.isArray(m[ev])) m[ev].forEach(gr => Object.keys(gr.items || {}).forEach(n => set.add(n)));
+  return set;
+};
 // 材料出售价、宗门兑换贡献（js/config/ 数值文件 的 mats）
 DATA.matPrice = (kind, g) => CFG.mats[kind][DATA[kind === "herb" ? "herbs" : "ores"][g]][0];
 DATA.matContrib = (kind, g) => CFG.mats[kind][DATA[kind === "herb" ? "herbs" : "ores"][g]][1];
