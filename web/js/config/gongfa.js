@@ -24,9 +24,9 @@ CFG.gongfa = {
   // 身法(命中)、遁术(闪避)：每层 = HIT_DODGE_K × 门派星级 × 阶倍率
   HIT_DODGE_K: 1,
   // 法术：攻击百分比 = PCT_BASE + PCT_PER_STAR × (星级-1)；每层固定伤害 = 攻击基础 × 门派强度 × SPELL_FLAT × 阶倍率
-  PCT_BASE: 100, PCT_PER_STAR: 30, SPELL_FLAT: 0.3,
+  PCT_BASE: 100, PCT_PER_STAR: 30, SPELL_FLAT: 0.6,
   // 法术法力消耗 = 法力基础 × 门派强度 × SPELL_MANA × (1 + 阶序 × 0.4)
-  SPELL_MANA: 1.1,
+  SPELL_MANA: 2.5,
   // 功法殿学习所需帮贡 = 基数 × 星级² × 阶消耗倍率
   LEARN_GF: 100,      // 功法
   LEARN_SP: 80,      // 法术
@@ -50,4 +50,4 @@ CFG.gongfa.SPELL_MANA_TIER = 0.4; // 法术耗法力 × (1 + 阶序 × 0.4)
 
 // ---------- v15 新增：真诀（每个门派一部，加本门派属性的抗性，如 火属性门派 → 火抗性） ----------
 // 每层抗性 = res × 门派强度 × 阶倍率 × 星级倍率（同属性灵根也会加成，和其它功法一样）
-CFG.gongfa.base.res = 1.2;
+CFG.gongfa.base.res = 1.12;
