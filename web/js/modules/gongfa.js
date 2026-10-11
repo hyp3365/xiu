@@ -58,11 +58,14 @@ G.module({
 
     // 所有已学功法的加成合计（法术不算）
     gongfaBonus() {
-      const b = { def: 0, atk: 0, hp: 0, cultivate: 0, hit: 0, dodge: 0, mana: 0 };
+      const b = { def: 0, atk: 0, hp: 0, cultivate: 0, hit: 0, dodge: 0, mana: 0, res: {} }; // res：真诀加的各系抗性
       for (const id in this.s.gongfa) {
         if (DATA.isSpell(id)) continue;
         const info = DATA.gongfaInfo(id, this.s.gongfa[id]);
-        if (info) b[info.type.stat] += info.value * this.lingenGongfa(info.el.id); // 灵根加成
+        if (!info) continue;
+        const v = info.value * this.lingenGongfa(info.el.id);  // 灵根加成
+        if (info.type.stat === "res") b.res[info.el.id] = (b.res[info.el.id] || 0) + v;
+        else b[info.type.stat] += v;
       }
       return b;
     },
@@ -115,7 +118,7 @@ G.module({
       const lg = this.s.lingen[g.el.id] || 0, lgTxt = lg ? `（${g.el.name}灵根 +${lg * (g.kind === "sp" ? CFG.lingen.SPELL_PCT : CFG.lingen.GONGFA_PCT)}%）` : "";
       const desc = g.kind === "sp"
         ? `伤害 攻击×${g.pct}% + ${U.fmt(g.flat)}${lgTxt}，耗法力 ${U.fmt(g.mana)}${max ? "" : `，下一层 +${U.fmt(g.perLv * (g.lv + 1))}`}`
-        : `${g.type.label} +${this.gfValue(g, g.value * this.lingenGongfa(g.el.id))}${lgTxt}${max ? "" : `，下一层 +${this.gfValue(g, g.perLv * (g.lv + 1) * this.lingenGongfa(g.el.id))}`}`;
+        : `${g.label} +${this.gfValue(g, g.value * this.lingenGongfa(g.el.id))}${lgTxt}${max ? "" : `，下一层 +${this.gfValue(g, g.perLv * (g.lv + 1) * this.lingenGongfa(g.el.id))}`}`;
       const cost = max ? 0 : DATA.studyExp(g), steps = max ? 1 : DATA.studyMin[g.lv - 1] * 60 / DATA.STUDY_STEP;
       return `<div class="line"><div>《${g.name}》<span class="tag">${g.el.name}</span><span class="tag">${g.tier.name}</span><span class="tag">${g.lv}/${DATA.GONGFA_MAX}层</span>
         <small>${desc}${max ? "" : `<br>下一层：${U.dur(DATA.studyMin[g.lv - 1] * 60)} · 每5秒 ${U.fmt(Math.max(1, Math.ceil(cost / steps)))} 修为（共 ${U.fmt(cost)}）`}${plan > g.lv ? `<br>已排至第 ${plan} 层` : ""}</small></div>
