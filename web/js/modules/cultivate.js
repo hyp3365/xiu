@@ -8,7 +8,7 @@
  * 每 10 秒修炼一次：消耗 灵气 = 修炼速度，获得同等修为（1 灵气 = 1 修为）
  * 灵气不够时，只能把剩下的灵气全部转化；灵气为 0 时无法修炼（进度条不走）。
  * 修为满了不会自动突破，必须手动点“突破”。修为会继续累积，不会浪费。
- * 雷劫：从 numbers.js trib.START 层开始（默认突破筑基期一层起），每层突破都要渡雷劫：
+ * 雷劫：从 js/config/ 数值文件 trib.START 层开始（默认突破筑基期一层起），每层突破都要渡雷劫：
  *   弹出窗口，50 秒内人物和雷劫每秒互相攻击一次；打掉雷劫全部气血且自己没死 = 突破成功，
  *   否则失败并损失修为。窗口手动关闭，关了也会继续，可再次打开查看。按 G.now() 计时，离线也会算完。
  * 没有雷劫的突破：小境界 100% 成功；大境界有成功率，失败损失 30% 修为。
@@ -95,7 +95,8 @@ G.module({
       let pill = 0;
       for (const t in s.buffs) { const b = s.buffs[t]; if (b && b.left > 0) pill += b.pct; }
       const room = s.room >= 0 && s.sect ? this.roomPct(s.room) : 0;
-      return { base, arr, pill, room, total: base * arr * (1 + pill / 100) * (1 + room / 100),
+      const mifa = this.wudaoPct().cultivate || 0;          // 宗门秘法（悟道室）
+      return { base, arr, pill, room, mifa, total: base * arr * (1 + pill / 100) * (1 + room / 100) * (1 + mifa / 100),
         gather: this.gatherAmount() };                                     // 每 10 秒聚灵（开关不影响）
     },
 
@@ -118,7 +119,7 @@ G.module({
     needTrib() { return !this.s.mortal && this.s.L + 1 >= CFG.trib.START; },
 
     /* ---------- 雷劫 ---------- */
-    // 雷劫属性：numbers.js trib.realms 里该大境界「一层」的数值 × LAYER_GROW^层
+    // 雷劫属性：js/config/ 数值文件 trib.realms 里该大境界「一层」的数值 × LAYER_GROW^层
     makeTrib(L) {
       const T = CFG.trib, R = DATA.realms[Math.floor(L / DATA.LAYERS)], b = T.realms[R] || T.realms[Object.keys(T.realms).pop()];
       const f = Math.pow(T.LAYER_GROW, L % DATA.LAYERS);
@@ -134,7 +135,8 @@ G.module({
     advanceTrib() {
       const s = this.s, x = s.trib; if (!x || x.result) return;
       const T = CFG.trib, st = this.stats();
-      const dmg = (atk, def, crit) => { let d = Math.max(atk * 0.1, atk - def * 0.5) * (0.9 + Math.random() * 0.2); const c = Math.random() * 100 < crit; return [c ? d * 2 : d, c]; };
+      const BT = CFG.battle;
+      const dmg = (atk, def, crit) => { let d = Math.max(atk * BT.MIN_DMG, atk - def * BT.DEF_RATE) * (BT.RAND_MIN + Math.random() * (BT.RAND_MAX - BT.RAND_MIN)); const c = Math.random() * 100 < crit; return [c ? d * BT.CRIT_MULT : d, c]; };
       while (!x.result && this.now() >= x.start + (x.sec + 1) * 1000) {
         x.sec++;
         const [d1, c1] = dmg(st.atk, x.def, st.crit); x.hp -= d1; x.dealt += d1;
@@ -261,7 +263,8 @@ G.module({
       <div class="chips">
         <span class="${arrPct > 0 ? "on" : ""}">聚灵阵 +${U.num(arrPct)}%</span>
         <span class="${sp.pill ? "on" : ""}">丹药 +${Math.round(sp.pill)}%</span>
-        <span class="${sp.room ? "on" : ""}">练功房 +${Math.round(sp.room)}%</span></div>
+        <span class="${sp.room ? "on" : ""}">练功房 +${Math.round(sp.room)}%</span>
+        <span class="${sp.mifa ? "on" : ""}">秘法 +${U.num(sp.mifa)}%</span></div>
       <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>
       <div class="bar ling"><div style="width:${Math.min(100, s.ling / cap * 100)}%"></div></div>
       <div class="btns">
@@ -282,6 +285,7 @@ G.module({
       <div class="line"><div>基础修炼速度<small>境界 ${U.num(st.cultivate)} + 秘诀 ${U.num(this.gongfaBonus().cultivate)}</small></div><b>${U.num(sp.base)}</b></div>
       <div class="line"><div>聚灵阵<small>${s.array.lv} 级</small></div><b>×${sp.arr >= 100 ? U.fmt(sp.arr) : sp.arr.toFixed(2)}</b></div>
       <div class="line"><div>丹药</div><b>+${Math.round(sp.pill)}%</b></div>
+      <div class="line"><div>宗门秘法<small>悟道室</small></div><b>+${U.num(sp.mifa)}%</b></div>
       <div class="line"><div>门派练功房<small>${s.room >= 0 && s.sect ? DATA.rooms[s.room].name : "未使用"}</small></div><b>+${Math.round(sp.room)}%</b></div>
     </div>
     <div class="card"><h3>丹药<small>只增加修炼速度</small></h3>
