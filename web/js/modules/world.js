@@ -144,7 +144,26 @@ G.module({
     /* ---------- 掉落 ---------- */
     newLoot() { return { stone: 0, mats: {}, pills: [], equips: [] }; },
     // 掉落：先看 config/drops.js 里该地图单独设置的掉落组，没有就用 explore.js 的通用设置
+    //   之后再加 content/items.js 里 ITEMS.drops 的自定义物品掉落
     rollEvent(loot, ev, a) {
+      const base = this.rollEventMats(loot, ev, a), extra = this.rollCustom(loot, ev, a);
+      return [base, extra].filter(Boolean).join("、");
+    },
+    // 自定义物品掉落（ITEMS.drops）：按地图、区域、事件、几率
+    rollCustom(loot, ev, a) {
+      const r = this.s.explore ? this.s.explore.reg || 0 : 0, got = [];
+      for (const d of ITEMS.drops || []) {
+        if (!d || d.event !== ev || !this.cuDef(d.item)) continue;
+        if (d.map !== "all" && d.map !== undefined && +d.map !== a) continue;
+        if (d.region !== "all" && d.region !== undefined && +d.region !== r) continue;
+        if (Math.random() * 100 >= (d.chance || 0)) continue;
+        const nn = d.n || [1, 1], n = U.rand(nn[0], nn[1]); if (n <= 0) continue;
+        loot.cu = loot.cu || {}; loot.cu[d.item] = (loot.cu[d.item] || 0) + n;
+        got.push(`${d.item}×${U.fmt(n)}`);
+      }
+      return got.join("、");
+    },
+    rollEventMats(loot, ev, a) {
       const groups = DATA.mapDrop(a, ev);
       if (!groups) return this.rollDrop(loot, CFG.explore.drop[ev], a);
       const got = [];
@@ -195,6 +214,7 @@ G.module({
       for (const k in loot.mats) { const x = loot.mats[k]; if (this.addMat(x.kind, x.name, x.g, x.n)) parts.push(`${DATA.matFull(x.kind, x.g)}×${U.fmt(x.n)}`); else lost++; }
       loot.pills.forEach(p => { if (this.addPill(p.t, p.g)) parts.push(`${DATA.realms[p.g]}·${DATA.pills[p.t].name}`); else lost++; });
       loot.equips.forEach(e => { if (this.addEquip(e)) parts.push(`<span class="q${e.q}">${DATA.quals[e.q]}${e.name}</span>`); else lost++; });
+      for (const name in loot.cu || {}) { if (this.addCustom(name, loot.cu[name])) parts.push(`${name}×${U.fmt(loot.cu[name])}`); else lost++; } // 自定义物品
       return parts.join("、") + (lost ? `（背包已满，遗失 ${lost} 件）` : "");
     },
     // 战败损失
@@ -296,11 +316,16 @@ G.module({
     setLastOpen(v) { this.lastOpen = v; this.render(); },
     setMapSel(a) { this.mapSel = a; this.render(); },
 
-    // 坊市货单（当前境界品质）
+    // 坊市货单：content/items.js 的 ITEMS.shop（修炼丹、装备为当前境界品质；自定义物品按 item 名）
     shopList() {
       const g = this.r(), list = [];
-      for (const t in DATA.pills) list.push({ kind: "pill", type: t, g, price: DATA.pillPrice(t, g) });
-      for (const sl in DATA.slots) if (sl !== "fabao") list.push({ kind: "eq", slot: sl, g, q: 1, price: Math.floor(CFG.price.SHOP_EQUIP * Math.pow(DATA.STONE_GROW, g * 10)) });
+      const src = ITEMS.shop || [...Object.keys(DATA.pills).map(t => ({ kind: "pill", type: t })), ...Object.keys(DATA.slots).filter(sl => sl !== "fabao").map(sl => ({ kind: "eq", slot: sl, q: 1 }))];
+      for (const x of src) {
+        if (!x || (x.realm !== undefined && g < x.realm)) continue;
+        if (x.item) { if (this.cuDef(x.item)) list.push({ kind: "cu", name: x.item, price: x.price || 0 }); }
+        else if (x.kind === "pill" && DATA.pills[x.type]) list.push({ kind: "pill", type: x.type, g, price: x.price || DATA.pillPrice(x.type, g) });
+        else if (x.kind === "eq" && DATA.equipNames[x.slot]) list.push({ kind: "eq", slot: x.slot, g, q: x.q || 1, price: x.price || Math.floor(CFG.price.SHOP_EQUIP * Math.pow(DATA.STONE_GROW, g * 10)) });
+      }
       return list;
     },
     buy(i, n = 1) {
@@ -308,7 +333,7 @@ G.module({
       let k = 0;
       for (; k < n; k++) {
         if (this.s.stone < it.price) { this.log("灵石不足。", "sys"); break; }
-        const ok = it.kind === "pill" ? this.addPill(it.type, it.g) : this.addEquip(this.makeEquip(it.slot, it.g, it.q));
+        const ok = it.kind === "pill" ? this.addPill(it.type, it.g) : it.kind === "cu" ? this.addCustom(it.name) : this.addEquip(this.makeEquip(it.slot, it.g, it.q));
         if (!ok) break;
         this.s.stone -= it.price;
       }
@@ -363,11 +388,13 @@ G.module({
 
     if (wt === "shop") {
       return tabs + `<div class="card"><h3>坊市<small>${DATA.realms[this.r()]}期货品</small></h3>` + this.shopList().map((it, i) => {
-        const name = it.kind === "pill" ? `${DATA.realms[it.g]}·${DATA.pills[it.type].name}` : `灵品 ${DATA.realms[it.g]}·${DATA.equipNames[it.slot][1]}`;
-        const desc = it.kind === "pill" ? `修炼速度 +${Math.round(DATA.pillPct(it.type, it.g))}%，${DATA.pills[it.type].dur}次修炼` : `${DATA.slots[it.slot]} · ${this.equipDesc(this.makeEquip(it.slot, it.g, 1))}`;
+        const cd = it.kind === "cu" ? this.cuDef(it.name) : null, multi = it.kind === "pill" || (cd && cd.type !== "equip" && cd.type !== "fabao");
+        const name = cd ? `<span class="q${cd.q || 0}">${it.name}</span>` : it.kind === "pill" ? `${DATA.realms[it.g]}·${DATA.pills[it.type].name}` : `${DATA.quals[it.q]} ${DATA.realms[it.g]}·${DATA.equipNames[it.slot][Math.min(5, it.q)]}`;
+        const desc = cd ? `${DATA.cuTypes[cd.type] || ""}${cd.desc ? " · " + cd.desc : ""}${["perm", "equip", "fabao"].includes(cd.type) ? " · " + this.cuStatText(this.cuStats(cd)) : ""}`
+          : it.kind === "pill" ? `修炼速度 +${Math.round(DATA.pillPct(it.type, it.g))}%，${DATA.pills[it.type].dur}次修炼` : `${DATA.slots[it.slot]} · ${this.equipDesc(this.makeEquip(it.slot, it.g, it.q))}`;
         return `<div class="line"><div>${name}<small>${desc}</small></div><div>
           <button class="sm" onclick="G.buy(${i})" ${s.stone < it.price ? "disabled" : ""}>${U.fmt(it.price)}</button>
-          ${it.kind === "pill" ? `<button class="sm" onclick="G.buy(${i},10)" ${s.stone < it.price * 10 ? "disabled" : ""}>×10</button>` : ""}</div></div>`;
+          ${multi ? `<button class="sm" onclick="G.buy(${i},10)" ${s.stone < it.price * 10 ? "disabled" : ""}>×10</button>` : ""}</div></div>`;
       }).join("") + `</div>`;
     }
 
