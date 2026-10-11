@@ -10,10 +10,10 @@ DATA.slots = { helmet: "头盔", armor: "护甲", weapon: "武器", legs: "腿�
 // 装备栏位（ring0~ring5 都放戒指）
 DATA.equipSlots = ["helmet", "armor", "weapon", "legs", "boots", "pendant", "ring0", "ring1", "ring2", "ring3", "ring4", "ring5"];
 DATA.slotOf = key => key.startsWith("ring") ? "ring" : key; // 栏位 → 部位
-DATA.SLOT_MAX = 12; // 法宝栏、法术栏最多格数
+DATA.SLOT_MAX = CFG.equip.SLOT_MAX; // 法宝栏、法术栏最多格数（config/equip.js）
 
 DATA.quals = ["凡品", "灵品", "宝品", "玄品", "地品", "天品"];
-DATA.qualMult = [0.1, 0.18, 0.3, 0.5, 0.8, 1.3];
+DATA.qualMult = CFG.equip.QUAL_MULT;   // 品质倍率（config/equip.js）
 DATA.equipNames = {
   helmet:  ["布帽", "青云冠", "玄铁盔", "紫金冠", "凤翅盔", "混元冠"],
   armor:   ["布衣", "青云袍", "玄龟甲", "紫霞衣", "金乌战甲", "混沌道衣"],
@@ -27,16 +27,7 @@ DATA.equipNames = {
 /* 各部位属性系数（× 玩家同境界基础属性 × 品质倍率）
  * atk/hp/def/mana：按基础属性倍数；crit/speed/hpPct：× (品质+1)
  * hit/dodge（命中、闪避，数值）：× (品质+1) × (境界+1) */
-DATA.equipK = {
-  helmet:  { hp: 1, def: 1 },
-  armor:   { hp: 2, def: 2 },
-  weapon:  { atk: 3, crit: 1 },
-  legs:    { hp: 1.5, def: 1 },
-  boots:   { speed: 2, dodge: 3 },
-  pendant: { mana: 2, hit: 2 },
-  ring:    { atk: 0.5, crit: 0.5, hit: 1 },
-  fabao:   { atk: 1, def: 1, hpPct: 2 },
-};
+DATA.equipK = CFG.equip.K;             // 数值在 config/equip.js
 
 // 背包
-DATA.BAG_START = CFG.bag.START; // 储物格初始数量（numbers.js 的 bag.START）
+DATA.BAG_START = CFG.bag.START; // 储物格初始数量（config/items.js 的 bag.START）
