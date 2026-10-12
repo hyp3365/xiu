@@ -199,8 +199,9 @@ const G = {
     $("#log-wrap").style.display = main ? "" : "none";
     const v = $("#view"), top = v.scrollTop;
     // 某个页面出错时不再整页空白：显示错误信息，其它页面照常可用
-    try { v.innerHTML = this.views[this.tab] ? this.views[this.tab].call(this) : ""; }
-    catch (err) { console.error(err); v.innerHTML = `<div class="card"><h3>页面出错</h3><p class="desc">${String(err && err.message || err)}<br>如果刚改过 js/config/ 里的数值，请检查有没有写错（例如少了小数点、多了问号）。</p></div>`; }
+    // 内容没变就不重绘：避免每秒重绘时按钮被替换、点了没反应，也省手机电量
+    try { const html = this.views[this.tab] ? this.views[this.tab].call(this) : ""; if (html !== this._viewHtml || v.innerHTML === "") { v.innerHTML = html; this._viewHtml = html; } }
+    catch (err) { console.error(err); this._viewHtml = null; v.innerHTML = `<div class="card"><h3>页面出错</h3><p class="desc">${String(err && err.message || err)}<br>如果刚改过 js/config/ 里的数值，请检查有没有写错（例如少了小数点、多了问号）。</p></div>`; }
     v.scrollTop = top;
   },
   renderLog() { $("#log").innerHTML = this.s.log.map(l => `<p class="${l.c}">${l.m}</p>`).join(""); },
@@ -218,7 +219,7 @@ const G = {
     // 倒计时刷新（只在有倒计时的页面）
     setInterval(() => { if (this.s && this.s.explore) this.advanceExplore(); }, 1000); // 自动探索每秒走一步
     setInterval(() => { if (this.s && this.s.trib) this.advanceTrib(); if (this.tribOpen) this.showTrib(); }, 1000); // 雷劫每秒一回合
-    setInterval(() => { if ((this.tab === "gongfa" && this.s.gfStudy) || (this.tab === "sect" && (this.sectTab === "affair" || this.sectTab === "alchemy")) || (this.tab === "world" && this.s.explore) || this.tab === "cave") this.render(); }, 1000);
+    setInterval(() => { if ((this.tab === "gongfa" && (this.s.gfStudy || this.s.cqStudy)) || (this.tab === "sect" && (this.sectTab === "affair" || this.sectTab === "alchemy" || (this.sectTab === "gfroom" && this.freeGfOn()))) || (this.tab === "world" && this.s.explore) || this.tab === "cave") this.render(); }, 1000);
     // 切到后台 / 关闭页面时立即上传
     document.addEventListener("visibilitychange", () => { if (document.hidden && !this._stopped) { this.save(); API.beacon(this.s); } });
     window.addEventListener("pagehide", () => { if (!this._stopped) API.beacon(this.s); });
