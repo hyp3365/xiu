@@ -29,7 +29,7 @@ CFG.gongfa = {
   STUDY_MIN: [2, 5, 10, 30, 60, 120, 160, 240, 320, 420, 600],
   // 每 5 秒消耗修为 = STUDY_RATE × STUDY_STAR[星级-1]
   STUDY_RATE: 5,
-  STUDY_STAR: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],   // 1 ~ 10 星
+  STUDY_STAR: [1, 3, 7, 12, 18, 25, 33, 41, 50, 60],   // 1 ~ 10 星
 
   // ---------- 基础数值（所有功法、法术通用） ----------
   base: {
@@ -61,7 +61,7 @@ CFG.gongfa.sect = {
   // 各项自己的 EFFECT（互不影响）
   EFFECT_GONGFA: 1,  // 功法效果
   EFFECT_SPELL: 1,   // 法术固定伤害
-  EFFECT_PCT: 1.12,  // 法术攻击百分比
+  EFFECT_PCT: 1,  // 法术攻击百分比
   EFFECT_MANA: 1,    // 法术耗法力
   EFFECT_LEARN: 1,   // 学习消耗贡献
   // 学习需要的门派职务（0 外门 1 内门 2 真传 3 核心 4 长老 5 供奉 6 宗主）
@@ -91,7 +91,7 @@ CFG.gongfa.shop = {
 /* ================= 试炼塔秘诀 ================= */
 // 每星一部，试炼塔每 10 层奖励 +1 层，也可以在功法页用修为修炼
 CFG.gongfa.tower = {
-  TYPE_MULT: { mijue: 1.6 },
+  TYPE_MULT: { mijue: 1.3 },
   STAR_MULT: [1.1, 1.4, 1.7, 2, 2.3, 2.6, 2.9, 3.2, 3.5, 3.8],
   TIER_MULT: { huang: 1, xuan: 1.3, di: 1.6, tian: 1.9 },
   EFFECT_GONGFA: 1,
