@@ -104,6 +104,9 @@ G.module({
       this.s.gfStudy = null; this.nextStudy(); this.after();
     },
     setGfFilter(t) { this.gfFilter = t; this.render(); },
+    // 排序方式：star 按星级（默认）/ lv 按等级；隐藏满级（圆满）
+    setGfSort(k) { this.gfSort = k; this.render(); },
+    toggleGfHideMax() { this.gfHideMax = !this.gfHideMax; this.render(); },
 
     // 数值显示：身法是闪避（两位小数），其余取整
     gfValue(info, v) { return U.num(v); },
@@ -111,6 +114,25 @@ G.module({
     countdown(ms) {
       const t = Math.max(0, Math.ceil(ms / 1000)), h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = t % 60;
       return (h ? h + "小时" : "") + (h || m ? m + "分" : "") + s + "秒";
+    },
+    // 「修炼队列」页：正在修炼（倒计时、进度、消耗）+ 排队中的
+    gfQueueView() {
+      const s = this.s;
+      let html = "";
+      if (s.gfStudy) {
+        const info = DATA.skillInfo(s.gfStudy.id, s.gongfa[s.gfStudy.id]);
+        const st = s.gfStudy, done = st.stalled ? st.done : Math.min(st.total, st.done + Math.max(0, Date.now() - st.at)), left = st.total - done;
+        html += `<div class="card"><h3>修炼中 ·《${info ? info.name : st.id}》<small>${info ? `第 ${info.lv} → ${info.lv + 1} 层` : ""}</small></h3>
+        <div class="bar tick"><div style="width:${done / st.total * 100}%"></div></div>
+        <div class="row small"><span>${st.stalled ? "<b class='q5'>修为不足，暂停中</b>" : `倒计时 <b>${this.countdown(left)}</b>`}</span><button class="sm" onclick="G.stopStudy()">中断</button></div>
+        <div class="row small"><span>每 5 秒消耗修为 <b>${U.fmt(st.per)}</b></span><span>已消耗 <b>${U.fmt(st.spent)}</b> / ${U.fmt(st.per * st.total / (DATA.STUDY_STEP * 1000))}</span></div></div>`;
+      } else html += `<div class="card"><p class="desc">当前没有在修炼的功法。在各分类里点「修炼」加入队列。</p></div>`;
+      html += `<div class="card"><h3>排队中<small>${s.gfQueue.length} / ${DATA.GF_QUEUE}</small></h3>` +
+        (s.gfQueue.length ? s.gfQueue.map((id, i) => {
+          const q = DATA.skillInfo(id); if (!q) return "";
+          return `<div class="line"><div>${i + 1}. 《${q.name}》<span class="tag">${q.star}星</span><span class="tag">${q.tier.name}</span></div><button class="sm" onclick="G.removeQueue(${i})">移除</button></div>`; }).join("")
+          : `<p class="desc">队列为空。</p>`) + `</div>`;
+      return html;
     },
     // 一行：功法或法术，带修炼按钮
     skillLine(g) {
@@ -120,7 +142,7 @@ G.module({
         ? `伤害 攻击×${g.pct}% + ${U.fmt(g.flat)}${lgTxt}，耗法力 ${U.fmt(g.mana)}${max ? "" : `，下一层 +${U.fmt(g.perLv * (g.lv + 1))}`}`
         : `${g.label} +${this.gfValue(g, g.value * this.lingenGongfa(g.el.id))}${lgTxt}${max ? "" : `，下一层 +${this.gfValue(g, g.perLv * (g.lv + 1) * this.lingenGongfa(g.el.id))}`}`;
       const cost = max ? 0 : DATA.studyExp(g), steps = max ? 1 : DATA.studyMin[g.lv - 1] * 60 / DATA.STUDY_STEP;
-      return `<div class="line"><div>《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${DATA.gfSources[g.src].name}</span><span class="tag">${g.el.name}</span><span class="tag">${g.tier.name}</span><span class="tag">${g.lv}/${DATA.GONGFA_MAX}层</span>
+      return `<div class="line"><div>《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.el.name}</span><span class="tag">${g.tier.name}</span><span class="tag">${g.lv}/${DATA.GONGFA_MAX}层</span>
         <small>${desc}${max ? "" : `<br>下一层：${U.dur(DATA.studyMin[g.lv - 1] * 60)} · 每5秒 ${U.fmt(Math.max(1, Math.ceil(cost / steps)))} 修为（共 ${U.fmt(cost)}）`}${plan > g.lv ? `<br>已排至第 ${plan} 层` : ""}</small></div>
         ${max ? `<button class="sm" disabled>圆满</button>` :
           `<button class="sm" onclick="G.studyGongfa('${g.id}')" ${full || s.gfQueue.length >= DATA.GF_QUEUE ? "disabled" : ""}>${full ? "已排满" : "修炼"}</button>`}</div>`;
@@ -131,30 +153,30 @@ G.module({
     const s = this.s, ids = Object.keys(s.gongfa), filter = this.gfFilter || "all";
     if (!ids.length) return `<div class="card"><h3>功法</h3><p class="desc">你尚未习得任何功法。拜入门派后在功法殿用贡献学习，或在世界 · 坊市用灵石购买。<br>注意：至少学会一部秘诀才能修炼。</p></div>`;
 
-    const cats = [["all", "全部"], ...DATA.gongfaTypes.map(t => [t.id, t.name]), ["spell", "法术"]];
+    // 分类按钮 + 「修炼队列」按钮（修炼中的功法、排队情况都在这里看）
+    const qn = (s.gfStudy ? 1 : 0) + s.gfQueue.length;
+    const cats = [["all", "全部"], ...DATA.gongfaTypes.map(t => [t.id, t.name]), ["spell", "法术"], ["queue", `修炼队列${qn ? `(${qn})` : ""}`]];
     const tabs = `<div class="room-grid">${cats.map(([k, n]) => `<button class="${filter === k ? "active" : ""}" onclick="G.setGfFilter('${k}')">${n}</button>`).join("")}</div>`;
 
-    // 正在修炼（倒计时）
-    let study = "";
-    if (s.gfStudy) {
-      const info = DATA.skillInfo(s.gfStudy.id, s.gongfa[s.gfStudy.id]);
-      const st = s.gfStudy, done = st.stalled ? st.done : Math.min(st.total, st.done + (Date.now() - st.at)), left = st.total - done;
-      study = `<div class="card"><h3>修炼中 ·《${info.name}》<small>第 ${info.lv} → ${info.lv + 1} 层</small></h3>
-        <div class="bar tick"><div style="width:${done / st.total * 100}%"></div></div>
-        <div class="row small"><span>${st.stalled ? "<b class='q5'>修为不足，暂停中</b>" : `倒计时 <b>${this.countdown(left)}</b>`}</span><button class="sm" onclick="G.stopStudy()">中断</button></div>
-        <div class="row small"><span>每 5 秒消耗修为 <b>${U.fmt(st.per)}</b></span><span>已消耗 <b>${U.fmt(st.spent)}</b> / ${U.fmt(st.per * st.total / (DATA.STUDY_STEP * 1000))}</span></div>
-        ${s.gfQueue.length ? `<h3 style="margin-top:8px">修炼队列<small>${s.gfQueue.length} / ${DATA.GF_QUEUE}</small></h3>` + s.gfQueue.map((id, i) => {
-          const q = DATA.skillInfo(id); return `<div class="line"><div>${i + 1}. 《${q.name}》<span class="tag">${q.star}星</span><span class="tag">${q.tier.name}</span></div><button class="sm" onclick="G.removeQueue(${i})">移除</button></div>`; }).join("") : ""}</div>`;
-    }
+    if (filter === "queue") return tabs + this.gfQueueView();
 
-    const all = ids.map(id => DATA.skillInfo(id, s.gongfa[id])).filter(Boolean);
+    // 排序 / 隐藏满级
+    const sort = this.gfSort || "star", hide = !!this.gfHideMax;
+    const tools = `<div class="row small" style="gap:6px;justify-content:flex-start;margin:6px 0">
+      <button class="sm ${sort === "star" ? "active" : ""}" onclick="G.setGfSort('star')">按星级</button>
+      <button class="sm ${sort === "lv" ? "active" : ""}" onclick="G.setGfSort('lv')">按等级</button>
+      <button class="sm ${hide ? "active" : ""}" onclick="G.toggleGfHideMax()">${hide ? "显示满级" : "隐藏满级"}</button></div>`;
+
+    const all = ids.map(id => DATA.skillInfo(id, s.gongfa[id])).filter(Boolean).filter(g => !hide || g.lv < DATA.GONGFA_MAX);
     const groups = [...DATA.gongfaTypes.map(t => ({ key: t.id, title: t.name, sub: t.label, items: all.filter(g => g.kind === "gf" && g.type.id === t.id) })),
                     { key: "spell", title: "法术", sub: "放入背包法术栏后战斗中施放", items: all.filter(g => g.kind === "sp") }];
+    const byStar = (a, b) => b.star - a.star || b.tier.idx - a.tier.idx || b.lv - a.lv;   // 星级高 → 低，天 → 黄
+    const byLv = (a, b) => b.lv - a.lv || byStar(a, b);                                    // 等级高 → 低
     const body = groups.filter(gr => filter === "all" || gr.key === filter).map(gr => {
-      if (!gr.items.length) return filter === "all" ? "" : `<div class="card"><p class="desc">尚未学会任何${gr.title}。</p></div>`;
-      gr.items.sort((a, b) => a.star - b.star || a.tier.idx - b.tier.idx); // 星级低 → 高，黄 → 天
+      if (!gr.items.length) return filter === "all" ? "" : `<div class="card"><p class="desc">${hide ? "没有未满级的" : "尚未学会任何"}${gr.title}。</p></div>`;
+      gr.items.sort(sort === "lv" ? byLv : byStar);
       return `<div class="card"><h3>${gr.title}<small>${gr.sub}</small></h3>${gr.items.map(g => this.skillLine(g)).join("")}</div>`;
     }).join("");
-    return tabs + study + body;
+    return tabs + tools + (body || `<div class="card"><p class="desc">没有可显示的功法。</p></div>`);
   },
 });
