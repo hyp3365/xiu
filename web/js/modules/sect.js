@@ -380,24 +380,25 @@ G.module({
           const c = this.treasuryCost(it), lock = (it.star || 1) > x.star, cd = it.item ? this.cuDef(it.item) : null;
           const desc = it.kind === "furnace" ? `${it.fk === "dan" ? "炼丹" : "炼器"}时间 -${DATA.furnaceBonus(it.fk, it.g)}% · `
             : cd ? `${DATA.cuTypes[cd.type] || ""}${cd.desc ? " · " + cd.desc : ""}${["perm", "equip", "fabao"].includes(cd.type) ? " · " + this.cuStatText(this.cuStats(cd)) : ""} · ` : "";
-          return `<div class="line"><div>${cd ? `<span class="q${cd.q || 0}">${this.treasuryName(it)}</span>` : this.treasuryName(it)}<small>${desc}${U.fmt(c)} 贡献</small></div>
+          const img = cd ? DATA.cuIcon(cd) : it.kind === "furnace" ? DATA.furnaceIcon(it.fk) : it.kind === "pill" ? DATA.pillIcon(it.type) : DATA.iconImg("stone");
+          return `<div class="line"><div>${DATA.li(img)}${cd ? `<span class="q${cd.q || 0}">${this.treasuryName(it)}</span>` : this.treasuryName(it)}<small>${desc}${U.fmt(c)} 贡献</small></div>
             <button class="sm" onclick="G.exchange(${i})" ${lock || s.contrib < c ? "disabled" : ""}>${lock ? `需${it.star}星` : "兑换"}</button></div>`;
         }).join("") + `</div>`;
       } else if (tt === "seed") {
         h += `<div class="card"><h3>灵药种子<small>${x.star}星门派可换前 ${Math.min(maxG + 1, DATA.herbs.length)} 种 · 每种兑换一次</small></h3>` + DATA.herbs.map((n, g) => { const c = DATA.seedCost(g), has = s.seeds.includes(g), lock = g > maxG;
-          return `<div class="line"><div>${n}种子<small>${U.fmt(c)} 贡献 · ${U.dur(DATA.growTime(g) / 1000)}成熟</small></div>
+          return `<div class="line"><div>${DATA.li(DATA.matImg("herb", g))}${n}种子<small>${U.fmt(c)} 贡献 · ${U.dur(DATA.growTime(g) / 1000)}成熟</small></div>
             <button class="sm" onclick="G.exchangeSeed(${g})" ${has || lock || s.contrib < c ? "disabled" : ""}>${has ? "已拥有" : lock ? `需${g + 1}星` : "兑换"}</button></div>`; }).join("") + `</div>`;
       } else if (tt === "bp") {
         h += ["dan", "qi"].map(k => `<div class="card"><h3>${DATA.furnaces[k].name}图纸<small>${x.star}星门派可换 一阶~${DATA.JIE[maxG]} · 放进背包后点「学习」</small></h3>` + DATA.JIE.map((jn, g) => {
           const c = DATA.blueprintCost(k, g), has = s.blueprints[k].includes(g) || s.bag.some(it => it.t === "bp" && it.kind === k && it.g === g), lock = g > maxG;
-          return `<div class="line"><div>${DATA.furnaceName(k, g)}图纸<small>${U.fmt(c)} 贡献</small></div>
+          return `<div class="line"><div>${DATA.li(DATA.iconImg("bp"))}${DATA.furnaceName(k, g)}图纸<small>${U.fmt(c)} 贡献</small></div>
             <button class="sm" onclick="G.exchangeBlueprint('${k}',${g})" ${has || lock || s.contrib < c ? "disabled" : ""}>${has ? (s.blueprints[k].includes(g) ? "已学会" : "在背包") : lock ? `需${g + 1}星` : "兑换"}</button></div>`; }).join("") + `</div>`).join("");
       } else {
         const names = tt === "herb" ? DATA.herbs : DATA.ores;
         h += `<div class="card"><h3>${DATA.matKinds[tt]}<small>凡界全部可换 · 贡献 ${U.fmt(s.contrib)}</small></h3>
           <div class="line"><div>兑换数量</div><input id="tr-n" type="number" min="1" value="${this.trN || 1}" oninput="G.trN=+this.value" style="width:110px"></div>` +
           names.map((n, g) => { const c = DATA.matContrib(tt, g);
-          return `<div class="line"><div>${DATA.matFull(tt, g)}<small>${U.fmt(c)} 贡献/个 · 已有 ${U.fmt(this.countMat(tt, g))}</small></div>
+          return `<div class="line"><div>${DATA.li(DATA.matImg(tt, g))}${DATA.matFull(tt, g)}<small>${U.fmt(c)} 贡献/个 · 已有 ${U.fmt(this.countMat(tt, g))}</small></div>
             <button class="sm" onclick="G.exchangeMat('${tt}',${g})" ${s.contrib < c ? "disabled" : ""}>兑换</button></div>`; }).join("") + `</div>`;
       }
     } else if (tab === "alchemy") {

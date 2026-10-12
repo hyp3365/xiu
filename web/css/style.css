@@ -117,3 +117,6 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24
 #tabs button img{width:28px;height:28px;margin-bottom:1px;opacity:.75}
 #tabs button.active img{opacity:1;filter:drop-shadow(0 0 4px #e9c46a99)}
 .ico.t-mifa{border-color:#3f9a8a;color:#7fe0cc;box-shadow:0 0 5px #3f9a8a80}
+
+/* 列表里的物品小图 */
+.li{width:34px;height:34px;float:left;margin:0 6px 0 0;object-fit:contain}

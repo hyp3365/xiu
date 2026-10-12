@@ -124,7 +124,7 @@ G.module({
       const log = [], R = Math.round;
       const rec = (w, d) => log.push([rounds, w, act.k, act.sp === undefined ? -1 : act.sp, act.f, R(d), R(Math.max(0, php)), R(s.mana), R(Math.max(0, mhp)), R(m.mana || 0)]);
       const me = () => { const d = myHit(); mhp -= d; dealt += d; rec(0, d); }, him = () => { const d = mobHit(); php -= d; taken += d; rec(1, d); };
-      const rg = this.regen(true);   // 战斗中每回合恢复（config/player.js REGEN_BATTLE + 宗门秘法）
+      const rg = this.regen(true);   // 战斗中每回合恢复（只有宗门秘法「斗灵 / 斗血」）
       while (php > 0 && mhp > 0 && rounds < BT.MAX_ROUNDS) {
         rounds++;
         if (meFirst) { me(); if (mhp > 0) him(); }
@@ -453,7 +453,8 @@ G.module({
           const name = cd ? `<span class="q${cd.q || 0}">${it.name}</span>` : it.kind === "pill" ? `${DATA.realms[it.g]}·${DATA.pills[it.type].name}` : DATA.forgeSlots.includes(it.slot) ? DATA.forgeEqName(it.slot, 0) : `${DATA.quals[it.q]} ${DATA.realms[it.g]}·${DATA.equipNames[it.slot][Math.min(5, it.q)]}`;
           const desc = cd ? `${DATA.cuTypes[cd.type] || ""}${cd.desc ? " · " + cd.desc : ""}${["perm", "equip", "fabao"].includes(cd.type) ? " · " + this.cuStatText(this.cuStats(cd)) : ""}`
             : it.kind === "pill" ? `修炼速度 +${Math.round(DATA.pillPct(it.type, it.g))}%，${DATA.pills[it.type].dur}次修炼` : DATA.forgeSlots.includes(it.slot) ? `${DATA.slots[it.slot]} · 2 条主属性 + 1~5 条附加属性（颜色随机）` : `${DATA.slots[it.slot]} · ${this.equipDesc(this.makeEquip(it.slot, it.g, it.q))}`;
-          return `<div class="line"><div>${name}<small>${desc}</small></div><div>
+          const img = cd ? DATA.cuIcon(cd) : it.kind === "pill" ? DATA.pillIcon(it.type) : DATA.iconImg("eq_" + it.slot);
+          return `<div class="line"><div>${DATA.li(img)}${name}<small>${desc}</small></div><div>
             <button class="sm" onclick="G.buy(${i})" ${s.stone < it.price ? "disabled" : ""}>${U.fmt(it.price)}</button>
             ${multi ? `<button class="sm" onclick="G.buy(${i},10)" ${s.stone < it.price * 10 ? "disabled" : ""}>×10</button>` : ""}</div></div>`;
         }).join("");
@@ -477,7 +478,7 @@ G.module({
       return tabs + `<div class="card"><h3>${DATA.matKinds[t]}<small>凡界地图产出 · 灵石 ${U.fmt(s.stone)}</small></h3>
         <div class="line"><div>购买数量</div><input id="shop-n" type="number" min="1" value="${this.shopN || 1}" oninput="G.shopN=+this.value" style="width:110px"></div>` +
         names.map((n, g) => { if (!fan.has(n)) return ""; const c = this.shopMatPrice(t, g);
-          return `<div class="line"><div>${DATA.matFull(t, g)}<small>${U.fmt(c)} 灵石/个 · 已有 ${U.fmt(this.countMat(t, g))}</small></div>
+          return `<div class="line"><div>${DATA.li(DATA.matImg(t, g))}${DATA.matFull(t, g)}<small>${U.fmt(c)} 灵石/个 · 已有 ${U.fmt(this.countMat(t, g))}</small></div>
             <button class="sm" onclick="G.buyMat('${t}',${g})" ${s.stone < c ? "disabled" : ""}>购买</button></div>`; }).join("") + `</div>`;
     },
   },

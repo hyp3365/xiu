@@ -29,8 +29,17 @@ DATA.stoneName = g => DATA.JIE[g] + "空间石";
 DATA.stoneMats = g => DATA.parseMats(_FG.stone.mats[g]);
 DATA.stoneTime = g => _FG.stone.time[g] * 60000;
 
-// v25：法宝名字（每阶一种，炼成时随机属性，显示如 一阶·火·铜镜）
-DATA.forgeNames.fabao = ["铜镜", "铁印", "赤炎葫", "寒玉瓶", "紫金铃", "星辰盘", "太虚鼎", "混元珠", "鸿蒙钟", "道源塔"];
+// 法宝：每阶 36 种（config/forge.js 的 fabao.types），属性由种类决定，显示如 一阶·火·赤炎鼎
+//   法宝在存档里多一个 ft = 种类序号、enh = 强化次数
+DATA.fabaoTypes = _FG.fabao.types;
+DATA.forgeNames.fabao = DATA.JIE.map(() => "法宝");        // 门派炼器室图谱名：一阶·法宝
+// 旧法宝（没有种类）：按属性归到该属性的第一种
+DATA.fixFabao = e => {
+  if (!e || e.slot !== "fabao" || !e.attrs || e.ft !== undefined) return;
+  let ft = DATA.fabaoTypes.findIndex(t => t.el === e.el); if (ft < 0) ft = 0;
+  e.ft = ft; e.el = DATA.fabaoTypes[ft].el; e.name = DATA.fabaoTypes[ft].name;
+};
+DATA.fabaoEnhMult = e => 1 + (e.enh || 0) * (CFG.forge.enhance.FLAT_ADD || 0) / 100;
 DATA.forgeSlots = Object.keys(DATA.forgeNames);            // 能炼的部位（含法宝）
 DATA.eqSlots6 = DATA.forgeSlots.filter(x => x !== "fabao"); // 头盔 ~ 吊坠
 // v25：戒指 9 种（主属性见 config/forge.js 的 forge.ring.main）
@@ -65,9 +74,10 @@ DATA.attrVal = (a, g, e) => {
     const last = DATA.colorRange(A.colors.length - 1, g)[1] || 1;
     return TOP[a.k][g] * DATA.rangeMult(a, g) / last;
   }
-  if (e && e.slot === "fabao" && e.attrs) {   // 法宝
-    const F = _FG.fabao, grow = DATA.FB_PCT.includes(a.k) ? (F.PCT_GROW[g] || 1) : (F.GROW[g] || 1);
-    return (F.base[a.k] || 0) * grow * DATA.rangeMult(a, g);
+  if (e && e.slot === "fabao" && e.attrs) {   // 法宝：主属性再 × 种类倍率，属性伤害再 × 强化
+    const F = _FG.fabao, grow = DATA.FB_PCT.includes(a.k) ? (F.PCT_GROW[g] || 1) : (F.GROW[g] || 1), T = DATA.fabaoTypes[e.ft] || {};
+    const mul = !a.m ? 1 : a.k === "pct" ? (T.pct || 1) : a.k === "flat" ? (T.flat || 1) * DATA.fabaoEnhMult(e) : 1;
+    return (F.base[a.k] || 0) * grow * DATA.rangeMult(a, g) * mul;
   }
   const grow = a.k === "crit" ? g + 1 : (A.GROW[g] || 1);
   return (A.base[a.k] || 0) * grow * DATA.rangeMult(a, g) * (a.m ? 1 : A.AFFIX_MULT) * (e && e.slot === "ring" ? (_FG.ring.MULT || 1) : 1);
@@ -78,12 +88,12 @@ DATA.rollAttr = (k, m, el) => { const a = { k, c: U.weighted(_FG.attr.colors.map
 // 随机生成一件装备 / 戒指（r = 戒指种类）/ 法宝
 DATA.rollForged = (slot, g, r) => {
   const A = _FG.attr;
-  if (slot === "fabao") {
-    const F = _FG.fabao, el = U.pick(DATA.elements).id;
+  if (slot === "fabao") {   // r = 法宝种类序号（不填就随机）
+    const F = _FG.fabao, ft = r === undefined ? Math.floor(Math.random() * DATA.fabaoTypes.length) : r, T = DATA.fabaoTypes[ft];
     const attrs = [DATA.rollAttr("pct", 1), DATA.rollAttr("flat", 1)];
     const n = U.weighted(F.AFFIX_COUNT) + 1;
     for (let i = 0; i < n; i++) attrs.push(DATA.rollAttr(U.pick(F.pool), 0, U.pick(DATA.elements).id));
-    return { slot, g, el, name: DATA.forgeNames.fabao[g], q: DATA.bestQ(attrs), attrs };
+    return { slot, g, ft, el: T.el, name: T.name, enh: 0, q: DATA.bestQ(attrs), attrs };
   }
   if (slot === "ring" && r === undefined) r = Math.floor(Math.random() * DATA.ringNames.length);
   const main = (slot === "ring" ? _FG.ring.main[r] : A.main[slot] || []).slice(0, 2), attrs = main.map(k => DATA.rollAttr(k, 1));
@@ -98,7 +108,7 @@ DATA.upgradeForged = (prev, g) => {
   const e = JSON.parse(JSON.stringify(prev));
   e.attrs.forEach(a => { if (a.p === undefined) a.p = DATA.attrPos(a); delete a.r; });
   e.g = g;
-  e.name = e.slot === "ring" ? DATA.ringNames[e.r] : DATA.forgeNames[e.slot][g];
+  e.name = e.slot === "ring" ? DATA.ringNames[e.r] : e.slot === "fabao" ? DATA.fabaoTypes[e.ft].name : DATA.forgeNames[e.slot][g];
   return e;
 };
 // 火髓重置：locks = 锁定的属性序号；没锁的重新随机
@@ -149,15 +159,27 @@ DATA.fabaoInfo = e => {
  * 浏览器缓存 30 天（nginx 设置）；换了图片把 IMG_V 加 1，玩家就会重新下载
  *   img/mats/herb0.png ……  药材、矿石（按 config/items.js 里的顺序）
  *   img/icons/eq_部位.png  装备、戒指；fb_属性.png 法宝；gf_属性.png 功法；sp_属性.png 法术
- *   img/icons/pill_丹药id.png、hx.png 火髓、bp.png 图纸 */
+ *   img/icons/pill_丹药id.png 修炼丹、dan_类型.png 属性丹、fu_dan / fu_qi.png 炉子、ss.png 空间石
+ *   fbt序号.png 36 种法宝、mifa.png 秘法、seed.png 种子、stone.png 灵石、cu_*.png 自定义物品
+ *   hx.png 火髓、bp.png 图纸 */
 DATA.IMG_V = 1;
 DATA.matImg = (kind, g) => `img/mats/${kind}${g}.png?v=${DATA.IMG_V}`;
 DATA.iconImg = n => `img/icons/${n}.png?v=${DATA.IMG_V}`;
 DATA.ICON_EQ = ["helmet", "armor", "weapon", "legs", "boots", "pendant", "ring"];
-// 装备 / 法宝的图片（自定义物品没有图片，返回 ""）
+// 自定义物品的图片：content/items.js 里写了 img（图片路径）就用它，没写按类型给一张
+DATA.cuIcon = d => {
+  if (!d) return DATA.iconImg("cu_misc");
+  if (d.img) return d.img;
+  if (d.type === "equip") return DATA.iconImg("eq_" + (DATA.ICON_EQ.includes(d.slot) ? d.slot : "weapon"));
+  if (d.type === "fabao") return DATA.iconImg("fb_" + (Object.keys(d.res || {})[0] || "jin"));
+  return DATA.iconImg({ use: "cu_use", perm: "dan_crit", box: "cu_box" }[d.type] || "cu_misc");
+};
+// 装备 / 法宝的图片
 DATA.eqIcon = e => {
-  if (!e || e.cid) return "";
-  if (e.slot === "fabao") {   // 炼制法宝按属性；旧法宝按名字挑一个
+  if (!e) return "";
+  if (e.cid) return DATA.cuIcon((window.ITEMS && ITEMS.list || {})[e.cid]);
+  if (e.slot === "fabao") {   // 炼制法宝按种类；自定义 / 旧法宝按名字挑一个属性图
+    if (e.ft !== undefined) return DATA.iconImg("fbt" + e.ft);
     const el = e.el || DATA.elements[[...(e.name || "")].reduce((a, c) => a + c.charCodeAt(0), 0) % 6].id;
     return DATA.iconImg("fb_" + el);
   }
@@ -165,8 +187,13 @@ DATA.eqIcon = e => {
 };
 DATA.PILL_ICONS = ["juqi", "juling", "peiyuan"];
 DATA.pillIcon = type => DATA.iconImg("pill_" + (DATA.PILL_ICONS.includes(type) ? type : DATA.PILL_ICONS[Math.max(0, Object.keys(DATA.pills).indexOf(type)) % 3]));
-// 功法 / 法术：按属性选图，按阶（黄玄地天）换边框
-DATA.skillIcon = g => DATA.iconImg((g.kind === "sp" ? "sp_" : "gf_") + g.el.id);
+// 属性丹（修炼速度丹用修炼丹的图）、炉子
+DATA.danIcon = type => DATA.isSpeedRecipe(type) ? DATA.pillIcon(type) : DATA.iconImg("dan_" + type);
+DATA.furnaceIcon = kind => DATA.iconImg("fu_" + kind);
+// 列表里的小图：DATA.li(图片地址)
+DATA.li = src => src ? `<img class="li" src="${src}" alt="" loading="lazy">` : "";
+// 功法 / 法术：按属性选图，按阶（黄玄地天）换边框；秘法统一一张卷轴
+DATA.skillIcon = g => g.kind === "mf" ? DATA.iconImg("mifa") : DATA.iconImg((g.kind === "sp" ? "sp_" : "gf_") + g.el.id);
 DATA.skillIco = g => `<span class="ico t-${g.tier.id}"><img src="${DATA.skillIcon(g)}" alt="" loading="lazy"><b>${g.tier.name[0]}</b></span>`;
 // 炼制物品（装备 / 戒指 / 法宝）的小图标：按阶换边框
 DATA.eqIco = e => { const src = DATA.eqIcon(e); return src ? `<span class="ico ${e.attrs ? "j" + e.g : "q" + e.q}"><img src="${src}" alt="" loading="lazy">${e.attrs ? `<b>${e.g + 1}</b>` : ""}</span>` : ""; };

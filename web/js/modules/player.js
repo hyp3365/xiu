@@ -72,9 +72,10 @@ G.module({
 
     // 恢复百分比：battle = true 战斗中每回合，false 平时每 10 秒（config/player.js + 宗门秘法）
     regen(battle) {
-      const P = CFG.player, b = (battle ? P.REGEN_BATTLE : P.REGEN_IDLE) || {}, m = this.mifaBonus();
-      const d = battle ? 0 : (P.REGEN !== undefined ? P.REGEN * 100 : 0);
-      return { hp: (b.hp !== undefined ? b.hp : d) + (battle ? m.hpBattle : m.hpIdle), mana: (b.mana !== undefined ? b.mana : d) + (battle ? m.mpBattle : m.mpIdle) };
+      const m = this.mifaBonus();
+      if (battle) return { hp: m.hpBattle, mana: m.mpBattle };   // 战斗中只有秘法恢复
+      const b = CFG.player.REGEN_IDLE || {};
+      return { hp: (b.hp || 0) + m.hpIdle, mana: (b.mana || 0) + m.mpIdle };
     },
     computeStats() {
       const L = this.s.L, f = Math.pow(DATA.GROW, L), B = DATA.playerBase, F = DATA.playerFixed;

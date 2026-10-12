@@ -77,9 +77,9 @@ G.module({
       return b;
     },
     hasGongfa(id) { return !!this.s.gongfa[id]; },
-    // 这一层的修炼时间（秒）= STUDY_MIN − 宗门秘法「悟法 / 悟道」减少的秒数，最少 STUDY_MIN_SEC
+    // 这一层的修炼时间（秒）= STUDY_MIN − 宗门秘法「悟法 / 悟道」减少的秒数，最少 STUDY_MIN_SEC（修炼秘法本身不减少）
     studySec(g) {
-      const m = this.mifaBonus(), red = g.kind === "sp" ? m.spStudy : m.gfStudy;
+      const m = this.mifaBonus(), red = g.kind === "mf" ? 0 : g.kind === "sp" ? m.spStudy : m.gfStudy;
       return Math.max(Math.min(CFG.wudao.STUDY_MIN_SEC || 10, DATA.studyMin[g.lv - 1] * 60), DATA.studyMin[g.lv - 1] * 60 - red);
     },
     // 是否学会了秘诀（修炼的前提）

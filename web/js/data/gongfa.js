@@ -192,6 +192,13 @@ DATA.mifaKinds = [
   { id: "expSpeed",  name: "聚元秘法", label: "修为修炼速度", unit: "", sign: "+", el: "huo" },
   { id: "bodySpeed", name: "炼体秘法", label: "气血修炼速度", unit: "", sign: "+", el: "tu" },
   { id: "explore",   name: "神行秘法", label: "历练探索每步", unit: "秒", sign: "-", el: "jin" },
+  { id: "danTime",   name: "丹火秘法", label: "炼丹时间", unit: "%", sign: "-", el: "huo" },
+  { id: "danRate",   name: "丹心秘法", label: "炼丹成功率", unit: "%", sign: "+", el: "huo" },
+  { id: "danExtra",  name: "丹灵秘法", label: "炼丹额外一颗几率", unit: "%", sign: "+", el: "huo" },
+  { id: "qiTime",    name: "器火秘法", label: "炼器时间", unit: "%", sign: "-", el: "jin" },
+  { id: "qiRate",    name: "器心秘法", label: "炼器成功率", unit: "%", sign: "+", el: "jin" },
+  { id: "plantTime", name: "育灵秘法", label: "灵药生长时间", unit: "%", sign: "-", el: "mu" },
+  { id: "plantYield",name: "丰灵秘法", label: "灵药收获数量", unit: "%", sign: "+", el: "mu" },
 ];
 DATA.mifaKindById = Object.fromEntries(DATA.mifaKinds.map(k => [k.id, k]));
 DATA.MIFA_PREFIX = ["一元", "两仪", "三才", "四象", "五行", "六合", "七星", "八荒", "九宫", "十方"];

@@ -7,6 +7,7 @@
  * - 成熟后自动收获（药材进背包，数量在范围内随机），并自动继续种同一种
  * - 灵田管理：更换种植类型（等当前这一季成熟后才换）、铲除（立即清空，本季作废）
  * - 每种药材的 成熟时间 / 收获数量 / 消耗灵气 / 种子贡献 在 js/config/ 数值文件 的 garden.herbs
+ * - 灵植夫（config/craftsman.js）阶数越高生长越快、收获越多；宗门秘法「育灵 / 丰灵」再叠加
  * - 按 G.now() 计时，写在 tick 里，离线也会继续
  * 存档：
  *   seeds  [序号...]                          已拥有的种子（药材序号 0~5）
@@ -23,9 +24,11 @@ G.module({
       if (f.g < 0) return;
       if (f.wait) { if (!this.payField(f, now)) return; }
       let guard = 0;
-      while (!f.wait && now >= f.start + DATA.growTime(f.g) && guard++ < 1e4) {
-        const end = f.start + DATA.growTime(f.g), Y = DATA.herbGrow(f.g).yield;
-        this.addMat("herb", DATA.herbs[f.g], f.g, U.rand(Y[0], Y[1]));
+      while (!f.wait && now >= f.start + this.fieldTime(f.g) && guard++ < 1e4) {
+        const end = f.start + this.fieldTime(f.g), Y = DATA.herbGrow(f.g).yield;
+        const n = Math.floor(U.rand(Y[0], Y[1]) * (1 + this.plantYieldPct() / 100));
+        this.addMat("herb", DATA.herbs[f.g], f.g, n);
+        this.addCraftExp("ling", n * (f.g + 1) * CFG.craftsman.ling.EXP_RATE);
         if (f.next != null) { f.g = f.next; f.next = null; } // 当季结束才换种
         this.payField(f, end);                               // 下一季：扣灵气
       }
@@ -33,6 +36,10 @@ G.module({
   },
 
   api: {
+    // 生长时间缩短 %（灵植夫 + 秘法，有上限）、收获增加 %
+    plantCut() { const L = CFG.craftsman.ling; return Math.min(CFG.wudao.TIME_CUT_MAX.plantTime || 80, (L.GROW_CUT[this.craftLv("ling") - 1] || 0) + (this.mifaBonus().plantTime || 0)); },
+    plantYieldPct() { return (CFG.craftsman.ling.YIELD_ADD[this.craftLv("ling") - 1] || 0) + (this.mifaBonus().plantYield || 0); },
+    fieldTime(g) { return Math.ceil(DATA.growTime(g) * (1 - this.plantCut() / 100)); },
     // 开始新的一季：扣灵气，不够就等待
     payField(f, at) {
       const need = DATA.herbGrow(f.g).ling;
@@ -49,8 +56,9 @@ G.module({
     openFieldMenu(i) {
       const s = this.s, f = s.fields[i];
       if (!s.seeds.length) return this.log("没有种子，可在门派 → 宗门宝库兑换。", "sys");
+      const k = 1 + this.plantYieldPct() / 100;
       const seeds = s.seeds.slice().sort((a, b) => a - b).map(g => { const H = DATA.herbGrow(g);
-        return `<button onclick="G.plantField(${i},${g})" ${f.g === g && f.next == null ? "disabled" : ""}>${DATA.herbs[g]}<small>${U.dur(H.grow * 60)} · ${H.yield[0]}~${H.yield[1]}株 · 灵气${U.fmt(H.ling)}</small></button>`; }).join("");
+        return `<button onclick="G.plantField(${i},${g})" ${f.g === g && f.next == null ? "disabled" : ""}><img class="mi" src="${DATA.matImg("herb", g)}" alt="" style="width:36px">${DATA.herbs[g]}<small>${U.dur(this.fieldTime(g) / 1000)} · ${Math.floor(H.yield[0] * k)}~${Math.floor(H.yield[1] * k)}株 · 灵气${U.fmt(H.ling)}</small></button>`; }).join("");
       this.modal(`<h2>第 ${i + 1} 块灵田</h2>
         <p>${f.g < 0 ? "空地，选择要种植的灵药：" : `正在种植 ${DATA.herbs[f.g]}${f.wait ? "（灵气不足，等待中）" : ""}${f.next != null ? `，本季结束后改种 ${DATA.herbs[f.next]}` : ""}。<br>更换种植类型要等这一季成熟后才生效。`}</p>
         <div class="room-grid">${seeds}</div>
@@ -79,13 +87,13 @@ G.caveViews.garden = function () {
   const s = this.s, n = s.fields.length, now = Date.now();
   const cells = s.fields.map((f, i) => {
     if (f.g < 0) return `<div class="slot-eq" onclick="G.openFieldMenu(${i})"><b>灵田${i + 1}</b>空地</div>`;
-    const T = DATA.growTime(f.g), p = f.wait ? 0 : Math.min(100, (now - f.start) / T * 100);
-    return `<div class="slot-eq q${Math.min(5, Math.floor(f.g / 2))}" onclick="G.openFieldMenu(${i})"><b>灵田${i + 1}</b>${DATA.herbs[f.g]}
+    const T = this.fieldTime(f.g), p = f.wait ? 0 : Math.min(100, (now - f.start) / T * 100);
+    return `<div class="slot-eq q${Math.min(5, Math.floor(f.g / 2))}" onclick="G.openFieldMenu(${i})"><b>灵田${i + 1}</b><img class="si" src="${DATA.matImg("herb", f.g)}" alt="">${DATA.herbs[f.g]}
       <br><span class="g">${f.wait ? "缺灵气" : U.dur(Math.max(0, f.start + T - now) / 1000 + 59)}</span>${f.next != null ? `<br><span class="g">→${DATA.herbs[f.next]}</span>` : ""}
       <div class="bar"><div style="width:${p}%"></div></div></div>`;
   }).join("");
   const full = n >= DATA.GARDEN_MAX, c = DATA.fieldCost(n);
-  return `<div class="card"><h3>灵药园<small>灵田 ${n} / ${DATA.GARDEN_MAX} · 种子 ${s.seeds.length} 种 · 灵气 ${U.fmt(s.ling)}</small></h3>
+  return this.craftsmanCard("ling") + `<div class="card"><h3>灵药园<small>灵田 ${n} / ${DATA.GARDEN_MAX} · 种子 ${s.seeds.length} 种 · 灵气 ${U.fmt(s.ling)}</small></h3>
     ${n ? `<div class="equip four">${cells}</div>` : `<p class="desc">还没有灵田。</p>`}
     <div class="btns"><button class="primary" onclick="G.openField()" ${full || s.stone < c ? "disabled" : ""}>${full ? "灵田已满" : `开辟灵田（${U.fmt(c)} 灵石）`}</button></div>
     <p class="desc">每季消耗灵气，成熟自动收获进背包并自动续种。点灵田可种植、换种、铲除。种子在门派宗门宝库兑换，每种只需一次。</p></div>`;
