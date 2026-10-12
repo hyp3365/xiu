@@ -55,5 +55,6 @@ DATA.affairs = _SC.affair.tasks;
 DATA.rooms = _SC.rooms;
 DATA.treasury = _SC.treasury;
 DATA.TOWER_MAX = _SC.tower.MAX;
+DATA.towerMax = star => ((_SC.trial || {}).FLOORS || [])[star - 1] || _SC.tower.MAX;   // v25：N 星试炼塔层数
 DATA.towerReward = floor => _SC.tower.REWARD * floor; // 首次通关奖励贡献
 DATA.secretCost = star => _SC.SECRET_COST * star;
