@@ -26,18 +26,18 @@ CFG.wudao = {
     mpIdle: 0.1,      // 平时法力恢复 %（每 10 秒）
     hpBattle: 0.1,    // 战斗气血恢复 %（每回合）
     hpIdle: 0.1,      // 平时气血恢复 %（每 10 秒）
-    spStudy: 5,       // 法术每层修炼时间减少（秒）
-    gfStudy: 5,       // 功法每层修炼时间减少（秒，秘法自己也算功法）
-    expSpeed: 2,      // 修为修炼速度 +（每 10 秒）
-    bodySpeed: 2,     // 气血修炼速度 +（每 10 秒，肉身修炼以后开放）
+    spStudy: 1,       // 法术每层修炼时间减少（秒）
+    gfStudy: 1,       // 功法每层修炼时间减少（秒，秘法自己也算功法）
+    expSpeed: 20,      // 修为修炼速度 +（每 10 秒）
+    bodySpeed: 20,     // 气血修炼速度 +（每 10 秒，肉身修炼以后开放）
     explore: 0.1,     // 修到圆满后：历练 / 探索每步时间减少（秒）
-    danTime: 0.2,     // 炼丹时间减少 %
-    danRate: 0.5,     // 炼丹成功率 +%
-    danExtra: 0.2,    // 炼成一颗时额外多出一颗的几率 %
-    qiTime: 0.2,      // 炼器时间减少 %
-    qiRate: 0.5,      // 炼器、法宝强化成功率 +%
-    plantTime: 0.2,   // 灵药生长时间减少 %
-    plantYield: 0.5,  // 灵药收获数量 +%
+    danTime: 0.1,     // 炼丹时间减少 %
+    danRate: 0.2,     // 炼丹成功率 +%
+    danExtra: 0.1,    // 炼成一颗时额外多出一颗的几率 %
+    qiTime: 0.1,      // 炼器时间减少 %
+    qiRate: 0.1,      // 炼器、法宝强化成功率 +%
+    plantTime: 0.1,   // 灵药生长时间减少 %
+    plantYield: 0.2,  // 灵药收获数量 +%
   },
   // 时间减少 % 的上限（多部秘法 + 其它加成合计后）
   TIME_CUT_MAX: { danTime: 80, qiTime: 80, plantTime: 80 },
@@ -46,8 +46,8 @@ CFG.wudao = {
 
   // 悟道室首次学习
   LEARN_STONE: 1000,
-  LEARN_CONTRIB: 100,
+  LEARN_CONTRIB: 3000,
   STAR_COST: [1, 3, 8, 20, 50, 120, 300, 700, 1500, 3000],      // 1 ~ 10 星学习价格倍率
   // 功法页修炼：每 5 秒消耗灵石 = STUDY_STONE × STAR_COST[星级-1] × 当前层数（修为另按功法的公式扣）
-  STUDY_STONE: 1,
+  STUDY_STONE: 10,
 };
