@@ -30,7 +30,7 @@ G.module({
     const s = this.s;
     if (s.trib) this.advanceTrib(); // 雷劫（离线也会算完）
     if (!this.isCultivating()) return;
-    if (!this.hasMijue() || s.explore) { s.manual = false; return; } // 未学秘诀 / 探索中：不能修炼
+    if (!this.hasMijue() || this.exBlocksCult()) { s.manual = false; return; } // 未学秘诀 / 探索中（出窍除外）：不能修炼
 
     // 1. 自动服丹：效果用完就吃背包里能吃的最高品质
     for (const t in DATA.pills) {
@@ -41,8 +41,10 @@ G.module({
       }
     }
 
-    // 2. 练功房：每次修炼扣门派贡献，不够就自动离开
-    if (s.room >= 0 && s.sect) {
+    // 2. 修炼室：免费修炼室（每天 N 次，每次若干次修炼）优先，用完再按付费修炼室扣
+    if (this.freeCultOn()) {
+      if (--s.freeCult.left <= 0) { s.freeCult.left = 0; s.freeCult.on = false; this.dirty(); this.log(`${CFG.sect.freeRoom.name}次数已用完。`, "sys"); }
+    } else if (s.room >= 0 && s.sect) {
       const c = this.roomCost(s.room);
       if (s.contrib >= c) s.contrib -= c;
       else { s.room = -1; this.dirty(); this.log("门派贡献不足，已离开修炼室。", "bad"); }
@@ -83,11 +85,13 @@ G.module({
   api: {
     isCultivating() { return this.s.auto || this.s.manual; },
     // 有灵气（或开了自动补充且有灵石）才能修炼
-    canCultivate() { return this.hasMijue() && !this.s.explore && (this.s.ling >= 1 || (this.s.array.autoRefill && this.s.stone >= 1)); },
+    // 探索、历练中不能修炼；元婴出窍探索时可以继续修炼
+    exBlocksCult() { return !!(this.s.explore && !this.s.explore.cq); },
+    canCultivate() { return this.hasMijue() && !this.exBlocksCult() && (this.s.ling >= 1 || (this.s.array.autoRefill && this.s.stone >= 1)); },
     // 不能修炼的原因（能修炼返回空）
     cultivateBlock() {
       if (!this.hasMijue()) return "未学秘诀，无法修炼（门派功法殿学习）";
-      if (this.s.explore) return this.s.explore.once ? "历练中，无法修炼" : "自动探索中，无法修炼";
+      if (this.exBlocksCult()) return this.s.explore.once ? "历练中，无法修炼" : "自动探索中，无法修炼";
       if (!this.canCultivate()) return "灵气耗尽，修炼停滞";
       return "";
     },
@@ -99,7 +103,7 @@ G.module({
       const arr = this.arrayFactor();                     // 聚灵阵常开
       let pill = 0;
       for (const t in s.buffs) { const b = s.buffs[t]; if (b && b.left > 0) pill += b.pct; }
-      const room = s.room >= 0 && s.sect ? this.roomPct(s.room) : s.shopRoom >= 0 && DATA.shopRooms.cult[s.shopRoom] ? DATA.shopRooms.cult[s.shopRoom].pct : 0;
+      const room = this.freeCultOn() ? this.freeCultPct() : s.room >= 0 && s.sect ? this.roomPct(s.room) : s.shopRoom >= 0 && DATA.shopRooms.cult[s.shopRoom] ? DATA.shopRooms.cult[s.shopRoom].pct : 0;
       // 所有百分比加成相加后再乘：总速度 = 基础 × (1 + (聚灵阵% + 丹药% + 修炼室%) / 100)，避免数值连乘爆炸
       const arrPct = (arr - 1) * 100;
       return { base, arr, pill, room, mifa, total: base * (1 + (arrPct + pill + room) / 100),
@@ -126,7 +130,7 @@ G.module({
         <div class="line"><div>基础修炼速度<small>境界 ${U.num(st.cultivate)} + 秘诀 ${U.num(this.gongfaBonus().cultivate)} + 秘法 ${U.num(sp.mifa)}</small></div><b>${U.num(sp.base)}</b></div>
         <div class="line"><div>聚灵阵<small>${s.array.lv} 级</small></div><b>+${U.num(arrPct)}%</b></div>
         <div class="line"><div>丹药</div><b>+${Math.round(sp.pill)}%</b></div>
-        <div class="line"><div>修炼室<small>${s.room >= 0 && s.sect ? DATA.rooms[s.room].name : s.shopRoom >= 0 && DATA.shopRooms.cult[s.shopRoom] ? "坊市 · " + DATA.shopRooms.cult[s.shopRoom].name : "未使用"}</small></div><b>+${Math.round(sp.room)}%</b></div>
+        <div class="line"><div>修炼室<small>${this.freeCultOn() ? `${CFG.sect.freeRoom.name}（剩余 ${s.freeCult.left} 次）` : s.room >= 0 && s.sect ? DATA.rooms[s.room].name : s.shopRoom >= 0 && DATA.shopRooms.cult[s.shopRoom] ? "坊市 · " + DATA.shopRooms.cult[s.shopRoom].name : "未使用"}</small></div><b>+${Math.round(sp.room)}%</b></div>
         <h3 style="margin-top:10px">丹药<small>只增加修炼速度</small></h3>
         ${Object.keys(DATA.pills).map(t => {
           const b = s.buffs[t], on = b && b.left > 0, i = this.bestPillIndex(t);
@@ -163,10 +167,9 @@ G.module({
       const T = CFG.trib, st = this.stats();
       const BT = CFG.battle;
       const dmg = (atk, def, crit) => { let d = Math.max(atk * BT.MIN_DMG, atk - def * BT.DEF_RATE) * (BT.RAND_MIN + Math.random() * (BT.RAND_MAX - BT.RAND_MIN)); const c = Math.random() * 100 < crit; return [c ? d * BT.CRIT_MULT : d, c]; };
-      const RS = CFG.battle.ROUND_SEC || 1, rg = this.regen(true);   // 每 ROUND_SEC 秒一回合；战斗恢复每回合
+      const RS = CFG.battle.ROUND_SEC || 1;   // 每 ROUND_SEC 秒一回合；雷劫中不恢复气血、法力
       while (!x.result && this.now() >= x.start + (x.sec + RS) * 1000) {
         x.sec = Math.min(T.TIME, x.sec + RS);
-        if (rg.hp) s.hp = Math.min(st.hp, s.hp + st.hp * rg.hp / 100);
         const [d1, c1] = dmg(st.atk, x.def, st.crit); x.hp -= d1; x.dealt += d1;
         let line = `第${x.sec}秒：你攻击雷劫 ${U.fmt(d1)}${c1 ? "（暴击）" : ""}`;
         if (x.hp > 0) {
