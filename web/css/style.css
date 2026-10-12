@@ -94,3 +94,10 @@ button.sm{padding:4px 10px;font-size:13px}
 /* v21 装备属性颜色：白 绿 紫 金 */
 .ac0{color:#e8dcc4}.ac1{color:#7ddc7d}.ac2{color:#c58bff}.ac3{color:#f2c94c}
 button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24 功法排序按钮选中 */
+/* v26：药材、矿石图片；背包分类、出售页 */
+.cell img.mi{width:58%;height:auto;margin-bottom:1px;pointer-events:none}
+.item-img{display:block;width:72px;height:72px;margin:0 auto 6px}
+.bag-tabs{display:flex;gap:4px;flex-wrap:wrap;margin:-2px 0 8px}
+.bag-tabs button{flex:1;padding:4px 2px;font-size:12px;min-width:0}
+.bag-tabs button.active{background:#5b4627;border-color:#e9c46a}
+.bag-tabs button.sell{color:#e9c46a}
