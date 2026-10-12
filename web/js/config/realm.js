@@ -8,8 +8,8 @@ window.CFG = window.CFG || {};
 
 /* ================= 一、境界 & 修为 ================= */
 CFG.realm = {
-  MORTAL_EXP: 300,   // 凡人 → 练气一层 需要的修为
-  FIRST_EXP: 500,     // 练气一层 → 二层 需要的修为
+  MORTAL_EXP: 500,   // 凡人 → 练气一层 需要的修为
+  FIRST_EXP: 1500,     // 练气一层 → 二层 需要的修为
   EXP_RATE: 1.386,       // 每层需要的修为 = 前一层 × 这个倍率
   MAJOR_FAIL_LOSS: 0.3, // 大境界突破失败，损失当前修为的比例
   // 大境界突破成功率 = 最高 MAJOR_BASE，每个大境界降低 MAJOR_DROP，最低 MAJOR_MIN
