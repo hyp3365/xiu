@@ -27,6 +27,10 @@ DATA.parseMats = list => list.map(([name, n]) => {
 DATA.recipes = _AL.recipes;                                         // 全部丹方（含修炼速度丹）
 DATA.dans = {};                                                      // 只含属性丹 { atk: {name, label, val[], ...} }
 for (const t in _AL.recipes) if (!_AL.recipes[t].speed) DATA.dans[t] = _AL.recipes[t];
+// v41：丹方分类（0 凡丹 1 仙丹 2 冥丹 3 魔丹 4 神丹）、学习需要的门派星级、加成的属性
+DATA.danCat = type => (_AL.recipes[type] && _AL.recipes[type].cat) || 0;
+DATA.danStar = (type, g) => ((_AL.CAT_STAR || [])[DATA.danCat(type)] || 1) + Math.floor(g / (_AL.STAR_TIERS || 1));
+DATA.danStat = type => (_AL.recipes[type] && _AL.recipes[type].stat) || type;
 DATA.isSpeedRecipe = type => !!(_AL.recipes[type] && _AL.recipes[type].speed);
 // 一阶破军丹；修炼速度丹显示为 一阶聚气丹（练气期）
 DATA.danName = (type, g) => DATA.JIE[g] + _AL.recipes[type].name + (DATA.isSpeedRecipe(type) ? `（${DATA.realmLabel(g)}）` : "");
