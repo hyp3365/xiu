@@ -287,7 +287,7 @@ G.module({
     // 兑换材料（药材、矿石，凡界全部可换）；n 不填就用输入框里的数量
     exchangeMat(kind, g, n) {
       n = Math.floor(n || +($("#tr-n") && $("#tr-n").value) || 1);
-      if (n <= 0) return;
+      if (n <= 0 || g >= (kind === "herb" ? DATA.FAN_HERB_N : DATA.FAN_ORE_N)) return;
       const c = DATA.matContrib(kind, g) * n;
       if (this.s.contrib < c) return this.log(`贡献不足，需要 ${U.fmt(c)}。`, "sys");
       if (!this.addMat(kind, DATA.matName(kind, g), g, n)) return;
@@ -297,7 +297,7 @@ G.module({
     // 兑换种子（每种一次，永久可种）
     exchangeSeed(g) {
       const c = DATA.seedCost(g);
-      if (g > this.treasuryMaxG() || this.s.seeds.includes(g) || this.s.contrib < c) return;
+      if (g > this.treasuryMaxG() || g >= DATA.FAN_HERB_N || this.s.seeds.includes(g) || this.s.contrib < c) return;
       this.s.contrib -= c; this.s.seeds.push(g);
       this.log(`获得${DATA.herbs[g]}种子，可在洞府灵药园种植。`, "gold"); this.after();
     },
@@ -510,7 +510,7 @@ G.module({
             <button class="sm" onclick="G.exchange(${i})" ${lock || s.contrib < c ? "disabled" : ""}>${lock ? `需${it.star}星` : "兑换"}</button></div>`;
         }).join("") + `</div>`;
       } else if (tt === "seed") {
-        h += `<div class="card"><h3>灵药种子<small>${x.star}星门派可换前 ${Math.min(maxG + 1, DATA.herbs.length)} 种 · 每种兑换一次</small></h3>` + DATA.herbs.map((n, g) => { const c = DATA.seedCost(g), has = s.seeds.includes(g), lock = g > maxG;
+        h += `<div class="card"><h3>灵药种子<small>${x.star}星门派可换前 ${Math.min(maxG + 1, DATA.FAN_HERB_N)} 种 · 每种兑换一次</small></h3>` + DATA.herbs.slice(0, DATA.FAN_HERB_N).map((n, g) => { const c = DATA.seedCost(g), has = s.seeds.includes(g), lock = g > maxG;
           return `<div class="line"><div>${DATA.li(DATA.matImg("herb", g))}${n}种子<small>${U.fmt(c)} 贡献 · ${U.dur(DATA.growTime(g) / 1000)}成熟</small></div>
             <button class="sm" onclick="G.exchangeSeed(${g})" ${has || lock || s.contrib < c ? "disabled" : ""}>${has ? "已拥有" : lock ? `需${g + 1}星` : "兑换"}</button></div>`; }).join("") + `</div>`;
       } else if (tt === "bp") {
@@ -519,7 +519,7 @@ G.module({
           return `<div class="line"><div>${DATA.li(DATA.iconImg("bp"))}${DATA.furnaceName(k, g)}图纸<small>${U.fmt(c)} 贡献</small></div>
             <button class="sm" onclick="G.exchangeBlueprint('${k}',${g})" ${has || lock || s.contrib < c ? "disabled" : ""}>${has ? (s.blueprints[k].includes(g) ? "已学会" : "在背包") : lock ? `需${g + 1}星` : "兑换"}</button></div>`; }).join("") + `</div>`).join("");
       } else {
-        const names = tt === "herb" ? DATA.herbs : DATA.ores;
+        const names = (tt === "herb" ? DATA.herbs : DATA.ores).slice(0, tt === "herb" ? DATA.FAN_HERB_N : DATA.FAN_ORE_N);   // 宝库只换凡界材料
         h += `<div class="card"><h3>${DATA.matKinds[tt]}<small>凡界全部可换 · 贡献 ${U.fmt(s.contrib)}</small></h3>
           <div class="line"><div>兑换数量</div><input id="tr-n" type="number" min="1" value="${this.trN || 1}" oninput="G.trN=+this.value" style="width:110px"></div>` +
           names.map((n, g) => { const c = DATA.matContrib(tt, g);
