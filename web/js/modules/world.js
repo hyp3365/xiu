@@ -627,7 +627,7 @@ G.module({
           <div class="room-grid">${DATA.tiers.map(x => `<button class="${tier === x.id ? "active" : ""}" onclick="G.setShopTier('${x.id}')">${x.name}</button>`).join("")}</div>
           <p class="desc">凡界坊市功法 ${star}星 · 需${DATA.realmLabel(srcs[0] ? srcs[0].reqRealm : 0)} · 灵石 ${U.fmt(s.stone)} · 买下即学会第 1 层</p>` +
           srcs.map(o => `<div class="card"><h3>${o.name}<span class="tag">${DATA.elById[o.el].name}</span><small>${T.name}</small></h3>` +
-            DATA.gongfaTypes.map(ty => line(DATA.gongfaInfo(DATA.gongfaId(o.id, ty.id, tier)))).join("") +
+            DATA.gongfaTypes.filter(ty => !ty.sectOnly).map(ty => line(DATA.gongfaInfo(DATA.gongfaId(o.id, ty.id, tier)))).join("") +
             line(DATA.spellInfo(DATA.spellId(o.id, o.el, tier))) + `</div>`).join("");
       }
       const names = t === "herb" ? DATA.herbs : DATA.ores, fan = DATA.fanMats();
