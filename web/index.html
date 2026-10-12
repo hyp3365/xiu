@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#14110f">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>问道长生 · 文字修仙</title>
-<link rel="stylesheet" href="css/style.css?v=23">
+<link rel="stylesheet" href="css/style.css?v=24">
 </head>
 <body>
 <div id="app">
@@ -43,54 +43,63 @@
 
 <!-- 加载顺序：数据 → 核心 → 模块（模块的 tick 按这里的顺序执行） -->
 <!-- 数值设置（改平衡只改这个） -->
-<script src="js/config/realm.js?v=23"></script>
-<script src="js/config/player.js?v=23"></script>
-<script src="js/config/array.js?v=23"></script>
-<script src="js/config/monster.js?v=23"></script>
-<script src="js/config/explore.js?v=23"></script>
-<script src="js/config/drops.js?v=23"></script>
-<script src="js/config/battle.js?v=23"></script>
-<script src="js/config/equip.js?v=23"></script>
-<script src="js/config/start.js?v=23"></script>
-<script src="js/config/gongfa.js?v=23"></script>
-<script src="js/config/lingen.js?v=23"></script>
-<script src="js/config/items.js?v=23"></script>
-<script src="js/config/alchemy.js?v=23"></script>
-<script src="js/config/furnace.js?v=23"></script>
-<script src="js/config/forge.js?v=23"></script>
-<script src="js/config/garden.js?v=23"></script>
-<script src="js/config/trib.js?v=23"></script>
-<script src="js/config/sect.js?v=23"></script>
-<script src="js/config/wudao.js?v=23"></script>
+<script>
+  // 数值文件写错（语法错误）时在页面顶部提示是哪个文件、第几行
+  window.addEventListener("error", function (e) {
+    if (!e.filename) return;
+    var b = document.getElementById("cfg-err") || document.body.insertBefore(Object.assign(document.createElement("div"), { id: "cfg-err" }), document.body.firstChild);
+    b.style.cssText = "background:#7a1f1f;color:#fff;padding:8px;font-size:13px;white-space:pre-wrap";
+    b.textContent += "脚本错误：" + e.filename.split("/").slice(-2).join("/").split("?")[0] + " 第 " + e.lineno + " 行：" + e.message + "\n";
+  });
+</script>
+<script src="js/config/realm.js?v=24"></script>
+<script src="js/config/player.js?v=24"></script>
+<script src="js/config/array.js?v=24"></script>
+<script src="js/config/monster.js?v=24"></script>
+<script src="js/config/explore.js?v=24"></script>
+<script src="js/config/drops.js?v=24"></script>
+<script src="js/config/battle.js?v=24"></script>
+<script src="js/config/equip.js?v=24"></script>
+<script src="js/config/start.js?v=24"></script>
+<script src="js/config/gongfa.js?v=24"></script>
+<script src="js/config/lingen.js?v=24"></script>
+<script src="js/config/items.js?v=24"></script>
+<script src="js/config/alchemy.js?v=24"></script>
+<script src="js/config/furnace.js?v=24"></script>
+<script src="js/config/forge.js?v=24"></script>
+<script src="js/config/garden.js?v=24"></script>
+<script src="js/config/trib.js?v=24"></script>
+<script src="js/config/sect.js?v=24"></script>
+<script src="js/config/wudao.js?v=24"></script>
 <!-- 自定义物品、坊市、宗门宝库、地图掉落（不是数值文件） -->
-<script src="js/content/items.js?v=23"></script>
-<script src="js/data/realms.js?v=23"></script>
-<script src="js/data/pills.js?v=23"></script>
-<script src="js/data/cave.js?v=23"></script>
-<script src="js/data/sects.js?v=23"></script>
-<script src="js/data/gongfa.js?v=23"></script>
-<script src="js/data/items.js?v=23"></script>
-<script src="js/data/maps.js?v=23"></script>
-<script src="js/data/craft.js?v=23"></script>
-<script src="js/data/forge.js?v=23"></script>
+<script src="js/content/items.js?v=24"></script>
+<script src="js/data/realms.js?v=24"></script>
+<script src="js/data/pills.js?v=24"></script>
+<script src="js/data/cave.js?v=24"></script>
+<script src="js/data/sects.js?v=24"></script>
+<script src="js/data/gongfa.js?v=24"></script>
+<script src="js/data/items.js?v=24"></script>
+<script src="js/data/maps.js?v=24"></script>
+<script src="js/data/craft.js?v=24"></script>
+<script src="js/data/forge.js?v=24"></script>
 
-<script src="js/core/util.js?v=23"></script>
-<script src="js/core/api.js?v=23"></script>
-<script src="js/core/game.js?v=23"></script>
+<script src="js/core/util.js?v=24"></script>
+<script src="js/core/api.js?v=24"></script>
+<script src="js/core/game.js?v=24"></script>
 
-<script src="js/modules/player.js?v=23"></script>
-<script src="js/modules/cave.js?v=23"></script>
-<script src="js/modules/bag.js?v=23"></script>
-<script src="js/modules/custom.js?v=23"></script>
-<script src="js/modules/gongfa.js?v=23"></script>
-<script src="js/modules/sect.js?v=23"></script>
-<script src="js/modules/cultivate.js?v=23"></script>
-<script src="js/modules/world.js?v=23"></script>
-<script src="js/modules/lingen.js?v=23"></script>
-<script src="js/modules/craft.js?v=23"></script>
-<script src="js/modules/wudao.js?v=23"></script>
-<script src="js/modules/garden.js?v=23"></script>
-<script src="js/modules/account.js?v=23"></script>
+<script src="js/modules/player.js?v=24"></script>
+<script src="js/modules/cave.js?v=24"></script>
+<script src="js/modules/bag.js?v=24"></script>
+<script src="js/modules/custom.js?v=24"></script>
+<script src="js/modules/gongfa.js?v=24"></script>
+<script src="js/modules/sect.js?v=24"></script>
+<script src="js/modules/cultivate.js?v=24"></script>
+<script src="js/modules/world.js?v=24"></script>
+<script src="js/modules/lingen.js?v=24"></script>
+<script src="js/modules/craft.js?v=24"></script>
+<script src="js/modules/wudao.js?v=24"></script>
+<script src="js/modules/garden.js?v=24"></script>
+<script src="js/modules/account.js?v=24"></script>
 
 <script>G.init();</script>
 </body>
