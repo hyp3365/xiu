@@ -147,7 +147,7 @@ G.module({
         ? `伤害 攻击×${g.pct}% + ${U.fmt(g.flat)}${lgTxt}，耗法力 ${U.fmt(g.mana)}${max ? "" : `，下一层 +${U.fmt(g.next)}`}`
         : `${g.label} +${this.gfValue(g, g.value * this.lingenGongfa(g.el.id))}${lgTxt}${max ? "" : `，下一层 +${this.gfValue(g, g.next * this.lingenGongfa(g.el.id))}`}`;
       const cost = max ? 0 : DATA.studyExp(g), per = max ? 0 : DATA.studyPer(g);
-      return `<div class="line"><div>《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.el.name}</span><span class="tag">${g.tier.name}</span><span class="tag">${g.lv}/${DATA.GONGFA_MAX}层</span>
+      return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.el.name}</span><span class="tag">${g.tier.name}</span><span class="tag">${g.lv}/${DATA.GONGFA_MAX}层</span>
         <small>${desc}${max ? "" : `<br>下一层：${U.dur(DATA.studyMin[g.lv - 1] * 60)} · 每5秒 ${U.fmt(per)} 修为（共 ${U.fmt(cost)}）`}${plan > g.lv ? `<br>已排至第 ${plan} 层` : ""}</small></div>
         ${max ? `<button class="sm" disabled>圆满</button>` :
           `<button class="sm" onclick="G.studyGongfa('${g.id}')" ${full || s.gfQueue.length >= DATA.GF_QUEUE ? "disabled" : ""}>${full ? "已排满" : "修炼"}</button>`}</div>`;
