@@ -37,14 +37,14 @@ CFG.sect = {
       { name: "统御宗门",     rank: 6, time: 5, contrib: 30, stone: 7 },
     ],
   },
-  // 练功房：pct 修炼速度加成 %、cost 每次修炼消耗贡献（都 × 星级倍率）
+  // 修炼室（v27 起改名，原「练功房」）：pct 修炼速度加成 %、cost 每次修炼消耗贡献（都 × 星级倍率）
   //   rank：需要的职务（0 外门 …… 6 宗主），不写 = 所有人可用
   rooms: [
-    { name: "下品练功房", pct: 20,  cost: 1 },
-    { name: "中品练功房", pct: 30,  cost: 2 },
-    { name: "上品练功房", pct: 50, cost: 4 },
-    { name: "天字练功房", pct: 80, cost: 6 },
-    { name: "宗主练功房", pct: 120, cost: 1, rank: 6 },   // 宗主专用
+    { name: "下品修炼室", pct: 20,  cost: 1 },
+    { name: "中品修炼室", pct: 30,  cost: 2 },
+    { name: "上品修炼室", pct: 50, cost: 4 },
+    { name: "天字修炼室", pct: 80, cost: 6 },
+    { name: "宗主修炼室", pct: 120, cost: 1, rank: 6 },   // 宗主专用
   ],
   // 试炼塔：第 n 层守关者属性 = base × 星级倍率 × GROW^(n-1)（暴击不成长）；首通贡献 = REWARD × n
   tower: { MAX: 100, REWARD: 20, GROW: 1.1,
@@ -99,4 +99,31 @@ CFG.sect.trial = {
     MAT_MAX: [1, 1, 2, 2, 3, 3, 4, 4, 5, 5],
   },
   MIJUE_DONE_STONE: 5000,
+};
+
+/* ---------- v27 新增：练功房（加快功法修炼） ----------
+ * 宗门练功房：pct 功法修炼速度加成 %，cost 每 5 秒消耗贡献（都 × 星级倍率），rank 需要的职务（不写 = 所有人）
+ *   只在功法修炼队列有功法在修炼时才扣贡献；贡献不够自动离开 */
+CFG.sect.gfRooms = [
+  { name: "下品练功房", pct: 20,  cost: 1 },
+  { name: "中品练功房", pct: 30,  cost: 2 },
+  { name: "上品练功房", pct: 50,  cost: 4 },
+  { name: "天字练功房", pct: 80,  cost: 6 },
+  { name: "宗主练功房", pct: 120, cost: 1, rank: 6 },
+];
+/* 坊市修炼室、练功房：用灵石，不分门派
+ *   cult：修炼室，pct 修炼速度加成 %，cost 每次修炼（10 秒）消耗灵石
+ *   gf：  练功房，pct 功法修炼速度加成 %，cost 每 5 秒消耗灵石（只在修炼功法时扣）
+ *   和宗门的同时只能用一个（进坊市的会自动离开宗门的，反过来也一样） */
+CFG.sect.shopRooms = {
+  cult: [
+    { name: "凡品修炼室", pct: 10, cost: 20 },
+    { name: "良品修炼室", pct: 20, cost: 60 },
+    { name: "上品修炼室", pct: 30, cost: 150 },
+  ],
+  gf: [
+    { name: "凡品练功房", pct: 10, cost: 10 },
+    { name: "良品练功房", pct: 20, cost: 30 },
+    { name: "上品练功房", pct: 30, cost: 80 },
+  ],
 };
