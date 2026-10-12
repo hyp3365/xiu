@@ -49,7 +49,6 @@ DATA.smByName = name => {
   return ft >= 0 ? { k: "mold", ft } : null;
 };
 DATA.smIcon = (k, ft) => k === "mold" ? DATA.iconImg("fbt" + (ft || 0)) : DATA.iconImg("sm_" + k);
-DATA.fabaoEnhMult = e => 1 + (e.enh || 0) * (CFG.forge.enhance.FLAT_ADD || 0) / 100;
 DATA.forgeSlots = Object.keys(DATA.forgeNames);            // 能炼的部位（含法宝）
 DATA.eqSlots6 = DATA.forgeSlots.filter(x => x !== "fabao"); // 头盔 ~ 吊坠
 // v25：戒指 9 种（主属性见 config/forge.js 的 forge.ring.main）
@@ -75,8 +74,20 @@ DATA.attrPos = a => {
   return Math.max(0, Math.min(1, (r - A.RAND_MIN) / ((A.RAND_MAX - A.RAND_MIN) || 1)));
 };
 DATA.rangeMult = (a, g) => { const [lo, hi] = DATA.colorRange(a.c, g); return lo + (hi - lo) * DATA.attrPos(a); };
-// 一条属性的数值（e = 整件装备，用来区分法宝 / 戒指）
-DATA.attrVal = (a, g, e) => {
+// v43 强化：每条属性 a.enh = 强化次数（config/forge.js 的 forge.enhance.equip / fabao）
+DATA.enhCfg = e => CFG.forge.enhance[e && e.slot === "fabao" ? "fabao" : "equip"];
+DATA.attrEnhOK = (a, e) => ((DATA.enhCfg(e).ADD || {})[a.k] || 0) > 0;
+DATA.enhMult = (a, e, n) => 1 + (n === undefined ? a.enh || 0 : n) * ((DATA.enhCfg(e).ADD || {})[a.k] || 0) / 100;
+// 旧存档：法宝整件强化次数 e.enh → 转到主属性「属性伤害」上
+DATA.fixEnh = e => {
+  if (!e || !e.enh || !e.attrs) return;
+  const f = e.attrs.find(a => a.m && a.k === "flat"); if (f) f.enh = (f.enh || 0) + e.enh;
+  e.enh = 0;
+};
+// 一条属性的数值（e = 整件装备，用来区分法宝 / 戒指），含强化
+DATA.attrVal = (a, g, e) => { if (e && e.enh) DATA.fixEnh(e); return DATA.attrBase(a, g, e) * (a.enh ? DATA.enhMult(a, e) : 1); };
+// 一条属性没强化时的数值
+DATA.attrBase = (a, g, e) => {
   const A = _FG.attr, fb = e && e.slot === "fabao" && e.attrs;
   // v26：附加属性单独设置了「每阶金色最高值」（AFFIX_TOP）
   const TOP = !a.m && (fb ? _FG.fabao.AFFIX_TOP : A.AFFIX_TOP);
@@ -86,7 +97,7 @@ DATA.attrVal = (a, g, e) => {
   }
   if (e && e.slot === "fabao" && e.attrs) {   // 法宝：主属性再 × 种类倍率，属性伤害再 × 强化
     const F = _FG.fabao, grow = DATA.FB_PCT.includes(a.k) ? (F.PCT_GROW[g] || 1) : (F.GROW[g] || 1), T = DATA.fabaoTypes[e.ft] || {};
-    const mul = !a.m ? 1 : a.k === "pct" ? (T.pct || 1) : a.k === "flat" ? (T.flat || 1) * DATA.fabaoEnhMult(e) : 1;
+    const mul = !a.m ? 1 : a.k === "pct" ? (T.pct || 1) : a.k === "flat" ? (T.flat || 1) : 1;
     return (F.base[a.k] || 0) * grow * DATA.rangeMult(a, g) * mul;
   }
   const grow = a.k === "crit" ? g + 1 : (A.GROW[g] || 1);
@@ -124,7 +135,7 @@ DATA.upgradeForged = (prev, g) => {
   e.name = e.slot === "ring" ? DATA.ringNames[e.r] : e.slot === "fabao" ? DATA.fabaoTypes[e.ft].name : DATA.forgeNames[e.slot][g];
   return e;
 };
-// 火髓重置（法宝叫洗练）：locks = 锁定的属性序号；没锁的重新随机
+// 火髓洗练：locks = 锁定的属性序号；没锁的重新随机
 DATA.resetCost = (e, nLock) => Math.ceil((_FG.reset.FIRE[e.g] || 1) * Math.pow(_FG.reset.LOCK_MULT || 2, nLock));
 DATA.rerollForged = (e, locks) => {
   const A = _FG.attr, fb = e.slot === "fabao", W = fb ? DATA.fabaoWashW() : A.colors.map(c => c.weight);   // 法宝洗练颜色权重单独设置
@@ -147,9 +158,9 @@ DATA.attrText = (a, e) => {
     const t = { pct: `伤害 攻击×${v}%`, flat: `${el}属性伤害 +${v}`, ignRes: `无视${el}抗性 ${v} 点`, ignResPct: `无视${el}抗性 ${v}%`,
       elDmg: `追加${el}属性伤害 +${v}`, elDmgPct: `追加${el}属性伤害 攻击×${v}%`, manaCut: `法力消耗 -${v}`, manaCutPct: `法力消耗 -${v}%` }[a.k] || a.k;
     const off = (a.k === "ignRes" || a.k === "ignResPct") && a.el !== e.el ? "（与法宝属性不同，不生效）" : "";
-    return `${a.m ? "" : "附加 "}${t}（${col}）${off}`;
+    return `${a.m ? "" : "附加 "}${t}（${col}${a.enh ? `·强化${a.enh}` : ""}）${off}`;
   }
-  return `${a.m ? "" : "附加 "}${DATA.attrNames[a.k]} +${v}（${col}）`;
+  return `${a.m ? "" : "附加 "}${DATA.attrNames[a.k]} +${v}（${col}${a.enh ? `·强化${a.enh}` : ""}）`;
 };
 // 法宝战斗数值：{ el, pct, flat, mana, ign, ignPct, extra: [{ el, flat, pct }] }
 DATA.fabaoInfo = e => {
@@ -164,7 +175,8 @@ DATA.fabaoInfo = e => {
     else if (a.k === "manaCut") o.cut += v; else if (a.k === "manaCutPct") o.cutPct += v;
   }
   o.ignPct = Math.min(F.CAP.ignResPct || 100, o.ignPct); o.cutPct = Math.min(F.CAP.manaCutPct || 80, o.cutPct);
-  o.mana = Math.max(0, (F.base.mana || 0) * (F.GROW[e.g] || 1) * (1 - o.cutPct / 100) - o.cut);
+  const m0 = F.MANA && F.MANA[e.g] !== undefined ? F.MANA[e.g] : (F.base.mana || 0) * (F.GROW[e.g] || 1);   // v43：MANA 单独设置
+  o.mana = Math.max(0, m0 * (1 - o.cutPct / 100) - o.cut);
   return o;
 };
 
