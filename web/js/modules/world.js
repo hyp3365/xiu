@@ -82,14 +82,29 @@ G.module({
         return d;
       };
       const hit = (A, D) => roll(A, D, Math.max(A.atk * BT.MIN_DMG, A.atk - D.def * BT.DEF_RATE), 0);
-      // 玩家出手：按顺序施放法术，法力不足则普通攻击
-      const spNames = spells.map(sp => sp.name);
+      // v25：炼制法宝也能祭出（金木水火土雷属性伤害，消耗法力）
+      const fabaos = s.fabao.slice(0, this.slotCount()).filter(e => e && e.attrs).map(e => DATA.fabaoInfo(e));
+      // 玩家出手：法术、法宝按顺序轮流（法术在前），法力不足的跳过，都放不出就普通攻击
+      const acts = [...spells.map(sp => ({ k: 1, sp })), ...fabaos.map(fb => ({ k: 2, fb }))];
+      const spNames = [...spells.map(sp => sp.name), ...fabaos.map(fb => fb.name)];
+      // 法宝伤害：主伤害（攻击×% + 属性伤害）按「防御×RES_RATE + 该系抗性 − 无视」减免；追加伤害只按对方该系抗性减免
+      const fabaoDmg = fb => {
+        const resMain = Math.max(0, resOf(m, fb.el) - fb.ign) * (1 - fb.ignPct / 100);
+        let d = Math.max(st.atk * BT.MIN_DMG, st.atk * fb.pct / 100 + fb.flat - resMain * BT.DEF_RATE);
+        for (const x of fb.extra) {
+          let r = (m.res || {})[x.el] || 0;
+          if (x.el === fb.el) r = Math.max(0, r - fb.ign) * (1 - fb.ignPct / 100);
+          d += Math.max(0, x.flat + st.atk * x.pct / 100 - r * BT.DEF_RATE);
+        }
+        return d;
+      };
       const myHit = () => {
-        for (let k = 0; k < spells.length; k++) {
-          const j = (si + k) % spells.length, sp = spells[j];
-          if (s.mana >= sp.mana) {
-            si = (j + 1) % spells.length; s.mana -= sp.mana;
-            return roll(st, m, Math.max(st.atk * BT.MIN_DMG, (st.atk * sp.pct / 100 + sp.flat) * this.lingenSpell(sp.el.id) - resOf(m, sp.el.id) * BT.DEF_RATE), 1, j);
+        for (let k = 0; k < acts.length; k++) {
+          const j = (si + k) % acts.length, a = acts[j], cost = a.k === 1 ? a.sp.mana : a.fb.mana;
+          if (s.mana >= cost) {
+            si = (j + 1) % acts.length; s.mana -= cost;
+            if (a.k === 1) { const sp = a.sp; return roll(st, m, Math.max(st.atk * BT.MIN_DMG, (st.atk * sp.pct / 100 + sp.flat) * this.lingenSpell(sp.el.id) - resOf(m, sp.el.id) * BT.DEF_RATE), 1, j); }
+            return roll(st, m, fabaoDmg(a.fb), 2, j);
           }
         }
         return hit(st, m);
@@ -104,7 +119,7 @@ G.module({
         m.mana -= cost; k === "spell" ? mSp++ : mFb++;
         return roll(m, st, Math.max(m.atk * BT.MIN_DMG, m.atk * c.pct / 100 - (el ? resOf(st, el) : st.def) * BT.DEF_RATE), k === "spell" ? 1 : 2);
       };
-      const mobHit = () => { let d = mCast("spell", m.el); if (d < 0) d = mCast("fabao"); return d < 0 ? hit(m, st) : d; };
+      const mobHit = () => { let d = mCast("spell", m.el); if (d < 0) d = mCast("fabao", m.el); return d < 0 ? hit(m, st) : d; };   // v25：怪物法宝也是属性伤害
       // 每一下记一条：[回合, 谁(0 你 / 1 对方), 方式, 法术名序号, 结果, 伤害, 你的气血, 你的法力, 对方气血, 对方法力]
       const log = [], R = Math.round;
       const rec = (w, d) => log.push([rounds, w, act.k, act.sp === undefined ? -1 : act.sp, act.f, R(d), R(Math.max(0, php)), R(s.mana), R(Math.max(0, mhp)), R(m.mana || 0)]);
@@ -126,7 +141,7 @@ G.module({
     battleRow(b, x) {
       const [r, w, k, sp, f, d, ph, pm, mh, mm] = x, el = b.el ? DATA.elById[b.el].name : "";
       const who = w ? b.name : "你", tgt = w ? "你" : b.name;
-      const how = k === 1 ? `施放${w ? `${el}系法术` : `《${b.sp[sp] || "法术"}》`}` : k === 2 ? "祭出法宝" : "发动普通攻击";
+      const how = k === 1 ? `施放${w ? `${el}系法术` : `《${b.sp[sp] || "法术"}》`}` : k === 2 ? (w || !b.sp[sp] ? "祭出法宝" : `祭出法宝「${b.sp[sp]}」`) : "发动普通攻击";
       const res = f === 1 ? `，被${tgt}闪避` : `，${f === 2 ? "暴击！" : ""}对${tgt}造成 <b>${U.fmt(d)}</b> 伤害`;
       return `<p class="${w ? "bad" : "good"}"><b>第${r}回合</b> ${who}${how}${res}<br><small>你 气血 ${U.fmt(ph)}/${U.fmt(b.me[1])} 法力 ${U.fmt(pm)}/${U.fmt(b.me[3])} · ${b.name} 气血 ${U.fmt(mh)}/${U.fmt(b.mob[1])} 法力 ${U.fmt(mm)}/${U.fmt(b.mob[3])}</small></p>`;
     },
