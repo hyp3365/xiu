@@ -104,28 +104,30 @@ DATA.gfSrcById = Object.assign({}, ...DATA.sects.map(x => ({ [x.id]: x })), ...D
 DATA.srcType = o => o.src || "sect";
 DATA.srcCfg = o => DATA.gfSources[DATA.srcType(o)].cfg();
 
-/* 通用算法：基础属性 × 类型倍率 × 星级倍率 × 阶倍率 × EFFECT
- *   o 来源（门派或坊市）、typeId 类别 id（法术 = "spell"）、key = base 里的项、eff = EFFECT 名 */
+/* 通用算法：基础数值 × 类型倍率 × 星级倍率 × 阶倍率 × EFFECT
+ *   基础数值：所有来源共用 CFG.gongfa.base；学习价格 learn 在各来源里
+ *   o 来源、typeId 类别 id（法术 = "spell"）、key = base 里的项、eff = EFFECT 名 */
+DATA.gfBase = (C, key) => { const B = _GF.base || {}; return B[key] !== undefined ? B[key] : C[key] !== undefined ? C[key] : (C.base || {})[key] || 0; };
 DATA.gfCalc = (o, typeId, tier, key, eff) => {
-  const C = DATA.srcCfg(o), b = (C.base || {})[key] || 0;
+  const C = DATA.srcCfg(o), b = DATA.gfBase(C, key);
   const tm = (C.TYPE_MULT || {})[typeId], sm = (C.STAR_MULT || [])[o.star - 1], tr = (C.TIER_MULT || {})[tier.id], e = C[eff];
   return b * (tm === undefined ? 1 : tm) * (sm === undefined ? 1 : sm) * (tr === undefined ? 1 : tr) * (e === undefined ? 1 : e);
 };
 
-// 修炼升层（当前层 → 下一层）消耗的修为（分摊到每 STUDY_STEP 秒扣）
-DATA.studyExp = info => {
-  const SC = _GF.STUDY_COST;   // v27：星级 × 消耗倍率
-  if (SC) { const a = (SC.STAR || [])[info.star - 1], b = (SC.LV || [])[info.lv - 1];
-    return Math.max(1, Math.floor((a === undefined ? 100 : a) * (b === undefined ? 1 : b))); }
-  const C = DATA.srcCfg(info.sect), lvm = (C.STUDY_LV || [])[info.lv - 1];
-  return Math.max(1, Math.floor(DATA.gfCalc(info.sect, info.kind === "sp" ? "spell" : info.type.id, info.tier, "study", "EFFECT_STUDY") * (lvm === undefined ? 1 : lvm)));
-};
+// 层数倍率：第 lv 层效果 = 每层效果 × LV_MULT[lv-1]（没写就是 lv）
+DATA.lvMul = lv => { const m = (_GF.LV_MULT || [])[lv - 1]; return m === undefined ? lv : m; };
+// 修炼：每 5 秒消耗修为 = STUDY_RATE × STUDY_STAR[星级-1]
+DATA.studyPer = info => { const r = _GF.STUDY_RATE === undefined ? 5 : _GF.STUDY_RATE, s = (_GF.STUDY_STAR || [])[info.star - 1];
+  return Math.max(1, Math.floor(r * (s === undefined ? info.star : s))); };
+// 当前层 → 下一层一共消耗的修为 = 每 5 秒消耗 × 次数（由这一层的修炼时间决定）
+DATA.studySteps = lv => Math.ceil(DATA.studyMin[lv - 1] * 60 / DATA.STUDY_STEP);
+DATA.studyExp = info => DATA.studyPer(info) * DATA.studySteps(info.lv);
 // 学习所需：宗门 = 贡献，坊市 = 灵石
 DATA.gfLearnCost = (o, typeId, tier) => {
   if (DATA.srcType(o) !== "shop") return Math.floor(DATA.gfCalc(o, typeId, tier, "learn", "EFFECT_LEARN"));
   // 坊市售价单独设置：base.price × PRICE_TYPE × PRICE_STAR × PRICE_TIER × EFFECT_PRICE
   const C = _GF.shop, v = (x, d = 1) => x === undefined ? d : x;
-  return Math.floor(v(C.base.price, 0) * v((C.PRICE_TYPE || {})[typeId]) * v((C.PRICE_STAR || [])[o.star - 1]) * v((C.PRICE_TIER || {})[tier.id]) * v(C.EFFECT_PRICE));
+  return Math.floor(v(C.price !== undefined ? C.price : (C.base || {}).price, 0) * v((C.PRICE_TYPE || {})[typeId]) * v((C.PRICE_STAR || [])[o.star - 1]) * v((C.PRICE_TIER || {})[tier.id]) * v(C.EFFECT_PRICE));
 };
 // 宗门功法学习需要的职务
 DATA.tierRank = tier => ((_GF.sect.TIER_RANK || {})[tier.id]) || 0;
@@ -142,7 +144,8 @@ DATA.gongfaInfo = (id, lv = 1) => {
     kind: "gf", id, sect, src: DATA.srcType(sect), star: sect.star, type, tier, lv, el: DATA.elById[sect.el],
     label: type.stat === "res" ? DATA.elById[sect.el].name + "抗性" : type.label, // 显示用：真诀写成「火抗性」等
     name: DATA.gongfaName(sect, type, tier),
-    value: per * lv,                              // 当前加成（固定数值）
+    value: per * DATA.lvMul(lv),                  // 当前加成（固定数值）
+    next: per * DATA.lvMul(lv + 1),               // 下一层的加成
     perLv: per,                                   // 每层加成
     cost: DATA.gfLearnCost(sect, type.id, tier),  // 首次学习：宗门 = 贡献，坊市 = 灵石
   };
@@ -161,7 +164,7 @@ DATA.spellInfo = (id, lv = 1) => {
     kind: "sp", id, sect, src: DATA.srcType(sect), star: sect.star, el, tier, lv,
     name: DATA.spellName(sect, el, tier),
     pct: Math.round(DATA.gfCalc(sect, "spell", tier, "pct", "EFFECT_PCT")),        // 攻击百分比
-    flat: per * lv, perLv: per,                                                    // 固定伤害
+    flat: per * DATA.lvMul(lv), next: per * DATA.lvMul(lv + 1), perLv: per,         // 固定伤害
     mana: Math.max(0, Math.floor(DATA.gfCalc(sect, "spell", tier, "spellMana", "EFFECT_MANA"))), // 法力消耗
     cost: DATA.gfLearnCost(sect, "spell", tier),
   };
