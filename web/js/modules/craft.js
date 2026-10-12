@@ -197,7 +197,7 @@ G.module({
       if (s.furnaceUse.qi < 0) return this.log("炼器必须装有炼器炉（宗门宝库 · 杂物可兑换一阶炼器炉）。", "sys");
       if (kind === "dan" || kind === "qi") { if (!s.blueprints[kind].includes(g)) return this.log("尚未学会该图纸。", "sys"); }
       else {
-        if (!s.forgeKnown.includes(this.forgeKey(kind, g, slot))) return this.log("尚未学会，去门派炼器室学习。", "sys");
+        if (kind === "ring" ? !this.ringKnown(job.r, g) : !s.forgeKnown.includes(this.forgeKey(kind, g, slot))) return this.log(kind === "ring" ? "尚未学会这张戒指图纸（试炼塔奖励）。" : "尚未学会，去门派炼器室学习。", "sys");
         if (s.furnaceUse.qi < g) return this.log(`需要使用${DATA.JIE[g]}及以上炼器炉。`, "sys");
       }
       if (s.forgeJob && q.length >= CFG.furnace.QUEUE) return this.log(`队列已满（最多 ${CFG.furnace.QUEUE} 个）。`, "sys");
@@ -230,15 +230,17 @@ G.module({
     setForgeTier(g) { this.forgeTier = g; this.render(); },
 
     /* ---------- 门派炼器室：学习装备图谱 / 空间石 ---------- */
-    forgeKey(kind, g, slot) { return kind === "eq" ? `eq:${slot}:${g}` : kind === "ring" ? `ring:${g}` : `ss:${g}`; },
-    forgeKeyName(key) { const [k, a, b] = key.split(":"); return k === "eq" ? DATA.forgeEqName(a, +b) + "图谱" : k === "ring" ? DATA.ringBpName(+a) : DATA.stoneName(+a) + "炼法"; },
+    // 戒指图纸 key：v26 起 ring:种类:阶（v25 的 ring:阶 = 该阶所有种类）
+    forgeKey(kind, g, slot) { return kind === "eq" ? `eq:${slot}:${g}` : kind === "ring" ? (slot === undefined ? `ring:${g}` : `ring:${slot}:${g}`) : `ss:${g}`; },
+    forgeKeyName(key) { const p = key.split(":"), k = p[0]; return k === "eq" ? DATA.forgeEqName(p[1], +p[2]) + "图谱" : k === "ring" ? (p.length > 2 ? DATA.ringBpName(+p[2], +p[1]) : DATA.ringBpName(+p[1])) : DATA.stoneName(+p[1]) + "炼法"; },
+    ringKnown(r, g) { const K = this.s.forgeKnown; return K.includes(`ring:${r}:${g}`) || K.includes(`ring:${g}`); },
     // v25：使用戒指图纸（试炼塔奖励）→ 学会该阶 9 种戒指的炼法
     learnRingBp(i) {
       const s = this.s, it = s.bag[i]; if (!it || it.t !== "rbp") return;
-      const key = this.forgeKey("ring", it.g);
-      if (s.forgeKnown.includes(key)) return this.log("已学会这张图纸。", "sys");
+      const key = this.forgeKey("ring", it.g, it.r);
+      if (it.r === undefined ? s.forgeKnown.includes(key) : this.ringKnown(it.r, it.g)) return this.log("已学会这张图纸。", "sys");
       s.forgeKnown.push(key); this.removeAt(i, 1);
-      this.log(`学会${DATA.ringBpName(it.g)}，可在洞府炼器室把${DATA.JIE[it.g - 1]}戒指升为${DATA.JIE[it.g]}。`, "gold"); this.closeModal(); this.after();
+      this.log(`学会${DATA.ringBpName(it.g, it.r)}，可在洞府炼器室把${DATA.JIE[it.g - 1]}${DATA.ringNames[it.r] || "戒指"}升为${DATA.JIE[it.g]}。`, "gold"); this.closeModal(); this.after();
     },
     setForgeLibTier(g) { this.forgeLibTier = g; this.render(); },
     learnForge(kind, g, slot) {
@@ -407,9 +409,10 @@ G.caveViews.forge = function () {
       ${btn(tierOK && prevOK && this.hasMats(mats), `G.craftFurnace('eq',${g},'${sl}')`)}</div>`;
   }
   // 戒指（试炼塔图纸学会，二阶起）
-  if (g > 0 && s.forgeKnown.includes(this.forgeKey("ring", g))) {
+  if (g > 0) {
     const mats = DATA.ringMats(g);
     DATA.ringNames.forEach((n, r) => {
+      if (!this.ringKnown(r, g)) return;
       const prevOK = this.prevEquipIndex("ring", g, r) >= 0;
       rows += `<div class="line"><div>${DATA.ringName(r, g)}<span class="tag">戒指</span>
         <small><span class="${prevOK ? "" : "q5"}">${DATA.ringName(r, g - 1)} ×1</span>、${this.matsText(mats)} · ${U.dur(this.forgePer("ring", g) / 1000)}</small></div>
