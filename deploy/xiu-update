@@ -26,5 +26,14 @@ systemctl restart xiu-server
 sleep 1
 systemctl is-active --quiet xiu-server && echo "存档服务运行中" || { echo "存档服务启动失败："; journalctl -u xiu-server -n 20 --no-pager; exit 1; }
 
+# nginx 配置有更新也一起装（装完检查不通过就还原）
+for NGX in /etc/nginx/conf.d/central_vps_users/*/xiuxian.conf /etc/nginx/snippets/xiuxian.conf; do
+  [ -f "$NGX" ] || continue
+  if ! cmp -s "$DIR/deploy/nginx-xiuxian.conf" "$NGX"; then
+    cp "$NGX" "$NGX.bak"; cp "$DIR/deploy/nginx-xiuxian.conf" "$NGX"
+    nginx -t >/dev/null 2>&1 && echo "nginx 配置已更新" || { mv "$NGX.bak" "$NGX"; echo "nginx 新配置检查失败，已还原"; }
+  fi
+done
+
 nginx -t >/dev/null 2>&1 && systemctl reload nginx
 echo ">>> 更新完成！刷新网页即可。"
