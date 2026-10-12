@@ -323,7 +323,7 @@ G.module({
         <p class="desc">点属性锁定 / 解锁，锁定的属性不变。每锁定一条，火髓消耗翻一倍。</p>` +
         e.attrs.map((a, i) => `<div class="line"><div><span class="ac${a.c}">${DATA.attrText(a, e)}</span></div>
           <button class="sm ${L.includes(i) ? "active" : ""}" onclick="G.toggleLock(${i})">${L.includes(i) ? "已锁定" : "锁定"}</button></div>`).join("") +
-        `<p>洗练后附加属性：锁定 ${e.attrs.filter((a, i) => !a.m && L.includes(i)).length} 条 + 随机 ${(r => r[0] === r[1] ? r[0] : r[0] + "~" + r[1])(DATA.washRange(e, L))} 条<br>消耗火髓 <b>${cost}</b>（拥有 ${this.fireCount()}）</p>
+        `<p>消耗火髓 <b>${cost}</b>（拥有 ${this.fireCount()}）</p>
         ${wash ? `<p class="desc">炼制、购买得到的法宝属性最高绿色，紫色、金色只能洗练得到。</p>` : ""}
         <div class="btns"><button class="primary" onclick="G.doReset()" ${this.fireCount() >= cost && L.length < e.attrs.length ? "" : "disabled"}>${nm}</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
