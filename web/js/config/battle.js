@@ -8,7 +8,7 @@ window.CFG = window.CFG || {};
 // 一次攻击伤害 = max(攻击 × MIN_DMG, 攻击 - 对方防御 × DEF_RATE) × 随机(RAND_MIN ~ RAND_MAX)
 // 暴击时伤害 × CRIT_MULT。历练、试炼塔、雷劫都用这里。
 CFG.battle = {
-  MIN_DMG: 0.01,      // 保底伤害 = 攻击 × 0.1
+  MIN_DMG: 0.01,      // 保底伤害 = 攻击 × MIN_DMG
   DEF_RATE: 0.9,     // 防御抵消比例
   RAND_MIN: 0.9,     // 伤害随机下限
   RAND_MAX: 1.1,     // 伤害随机上限
