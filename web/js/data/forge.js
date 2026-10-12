@@ -145,7 +145,28 @@ DATA.fabaoInfo = e => {
   return o;
 };
 
-// v26：药材、矿石图片（img/mats/herb0.png …… 按 config/items.js 里的顺序）
-// v27：图片让浏览器缓存 30 天（nginx 设置）；换了图片把 IMG_V 加 1，玩家就会重新下载
+/* ---------- 图片 ----------
+ * 浏览器缓存 30 天（nginx 设置）；换了图片把 IMG_V 加 1，玩家就会重新下载
+ *   img/mats/herb0.png ……  药材、矿石（按 config/items.js 里的顺序）
+ *   img/icons/eq_部位.png  装备、戒指；fb_属性.png 法宝；gf_属性.png 功法；sp_属性.png 法术
+ *   img/icons/pill_丹药id.png、hx.png 火髓、bp.png 图纸 */
 DATA.IMG_V = 1;
 DATA.matImg = (kind, g) => `img/mats/${kind}${g}.png?v=${DATA.IMG_V}`;
+DATA.iconImg = n => `img/icons/${n}.png?v=${DATA.IMG_V}`;
+DATA.ICON_EQ = ["helmet", "armor", "weapon", "legs", "boots", "pendant", "ring"];
+// 装备 / 法宝的图片（自定义物品没有图片，返回 ""）
+DATA.eqIcon = e => {
+  if (!e || e.cid) return "";
+  if (e.slot === "fabao") {   // 炼制法宝按属性；旧法宝按名字挑一个
+    const el = e.el || DATA.elements[[...(e.name || "")].reduce((a, c) => a + c.charCodeAt(0), 0) % 6].id;
+    return DATA.iconImg("fb_" + el);
+  }
+  return DATA.ICON_EQ.includes(e.slot) ? DATA.iconImg("eq_" + e.slot) : "";
+};
+DATA.PILL_ICONS = ["juqi", "juling", "peiyuan"];
+DATA.pillIcon = type => DATA.iconImg("pill_" + (DATA.PILL_ICONS.includes(type) ? type : DATA.PILL_ICONS[Math.max(0, Object.keys(DATA.pills).indexOf(type)) % 3]));
+// 功法 / 法术：按属性选图，按阶（黄玄地天）换边框
+DATA.skillIcon = g => DATA.iconImg((g.kind === "sp" ? "sp_" : "gf_") + g.el.id);
+DATA.skillIco = g => `<span class="ico t-${g.tier.id}"><img src="${DATA.skillIcon(g)}" alt="" loading="lazy"><b>${g.tier.name[0]}</b></span>`;
+// 炼制物品（装备 / 戒指 / 法宝）的小图标：按阶换边框
+DATA.eqIco = e => { const src = DATA.eqIcon(e); return src ? `<span class="ico ${e.attrs ? "j" + e.g : "q" + e.q}"><img src="${src}" alt="" loading="lazy">${e.attrs ? `<b>${e.g + 1}</b>` : ""}</span>` : ""; };
