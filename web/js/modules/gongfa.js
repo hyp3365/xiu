@@ -33,16 +33,18 @@ G.module({
       let R = this.gfRoomNow();
       if (R && Math.floor(s[R.cur] / Math.max(1, R.cost)) < Math.min(steps, Math.ceil((st.total - st.done) / STEP))) { this.leaveGfRoom(R.cur === "stone" ? "灵石不足" : "门派贡献不足"); R = null; }
       const mul = R ? 1 + R.pct / 100 : 1, per = st.per * mul;
-      // 修为够几步就走几步
-      const can = Math.min(steps, Math.floor(s.exp / per), Math.ceil((st.total - st.done) / (STEP * mul)));
+      // 修为（秘法还要灵石）够几步就走几步
+      const sp = (st.stone || 0) * mul;
+      const can = Math.min(steps, Math.floor(s.exp / per), sp ? Math.floor(s.stone / sp) : Infinity, Math.ceil((st.total - st.done) / (STEP * mul)));
       s.exp -= can * per; st.spent += can * per; st.done = Math.min(st.total, st.done + can * STEP * mul);
+      if (sp) { s.stone -= can * sp; st.spentStone = (st.spentStone || 0) + can * sp; }
       if (R) s[R.cur] -= can * R.cost;
-      st.stalled = can < steps && st.done < st.total;   // 修为不够，暂停
+      st.stalled = can < steps && st.done < st.total;   // 修为 / 灵石不够，暂停
       if (st.done < st.total) break;
       // 完成，升一层
       s.gongfa[st.id] = (s.gongfa[st.id] || 1) + 1;
       const info = DATA.skillInfo(st.id, s.gongfa[st.id]);
-      this.log(`修炼有成，《${info.name}》（${info.tier.name}）提升至第 ${info.lv} 层！共消耗修为 ${U.fmt(st.spent)}。`, "gold");
+      this.log(`修炼有成，《${info.name}》（${info.tier.name}）提升至第 ${info.lv} 层！共消耗修为 ${U.fmt(st.spent)}${st.spentStone ? `、灵石 ${U.fmt(st.spentStone)}` : ""}。`, "gold");
       s.gfStudy = null; this.dirty();
       this.nextStudy(st.at);
     }
@@ -75,6 +77,11 @@ G.module({
       return b;
     },
     hasGongfa(id) { return !!this.s.gongfa[id]; },
+    // 这一层的修炼时间（秒）= STUDY_MIN − 宗门秘法「悟法 / 悟道」减少的秒数，最少 STUDY_MIN_SEC
+    studySec(g) {
+      const m = this.mifaBonus(), red = g.kind === "sp" ? m.spStudy : m.gfStudy;
+      return Math.max(Math.min(CFG.wudao.STUDY_MIN_SEC || 10, DATA.studyMin[g.lv - 1] * 60), DATA.studyMin[g.lv - 1] * 60 - red);
+    },
     // 是否学会了秘诀（修炼的前提）
     hasMijue() { return Object.keys(this.s.gongfa).some(id => id.split(":")[1] === "mijue"); },
 
@@ -98,8 +105,8 @@ G.module({
       while (!s.gfStudy && s.gfQueue.length) {
         const id = s.gfQueue.shift(), lv = s.gongfa[id];
         if (!lv || lv >= DATA.GONGFA_MAX) continue;
-        const info = DATA.skillInfo(id, lv), total = DATA.studyMin[lv - 1] * 60000;
-        s.gfStudy = { id, total, done: 0, at: at || this.now(), per: DATA.studyPer(info), spent: 0 };   // per：每 5 秒消耗修为
+        const info = DATA.skillInfo(id, lv), total = this.studySec(info) * 1000;
+        s.gfStudy = { id, total, done: 0, at: at || this.now(), per: DATA.studyPer(info), spent: 0, stone: info.stonePer || 0 };   // per：每 5 秒消耗修为；stone：秘法每 5 秒灵石
       }
     },
     removeQueue(i) { this.s.gfQueue.splice(i, 1); this.after(); },
@@ -129,8 +136,8 @@ G.module({
         const st = s.gfStudy, done = st.stalled ? st.done : Math.min(st.total, st.done + Math.max(0, Date.now() - st.at) * mul), left = (st.total - done) / mul;
         html += `<div class="card"><h3>修炼中 ·《${info ? info.name : st.id}》<small>${info ? `第 ${info.lv} → ${info.lv + 1} 层` : ""}</small></h3>
         <div class="bar tick"><div style="width:${done / st.total * 100}%"></div></div>
-        <div class="row small"><span>${st.stalled ? "<b class='q5'>修为不足，暂停中</b>" : `倒计时 <b>${this.countdown(left)}</b>`}</span><button class="sm" onclick="G.stopStudy()">中断</button></div>
-        <div class="row small"><span>每 5 秒 <b>${U.fmt(st.per)}</b> · 已消耗 <b>${U.fmt(st.spent)}</b> / ${U.fmt(st.per * st.total / (DATA.STUDY_STEP * 1000))}</span><span>${R ? `${R.name} +${U.num(R.pct)}%` : "未进练功房"}</span></div></div>`;
+        <div class="row small"><span>${st.stalled ? `<b class='q5'>${st.stone ? "修为或灵石" : "修为"}不足，暂停中</b>` : `倒计时 <b>${this.countdown(left)}</b>`}</span><button class="sm" onclick="G.stopStudy()">中断</button></div>
+        <div class="row small"><span>每 5 秒 <b>${U.fmt(st.per)}</b>${st.stone ? ` + ${U.fmt(st.stone)} 灵石` : ""} · 已消耗 <b>${U.fmt(st.spent)}</b> / ${U.fmt(st.per * st.total / (DATA.STUDY_STEP * 1000))}</span><span>${R ? `${R.name} +${U.num(R.pct)}%` : "未进练功房"}</span></div></div>`;
       } else html += `<div class="card"><p class="desc">当前没有在修炼的功法。在各分类里点「修炼」加入队列。</p></div>`;
       html += `<div class="card"><h3>排队中<small>${s.gfQueue.length} / ${DATA.GF_QUEUE}</small></h3>` +
         (s.gfQueue.length ? s.gfQueue.map((id, i) => {
@@ -142,13 +149,16 @@ G.module({
     // 一行：功法或法术，带修炼按钮
     skillLine(g) {
       const s = this.s, max = g.lv >= DATA.GONGFA_MAX, plan = this.plannedLv(g.id), full = plan >= DATA.GONGFA_MAX;
-      const lg = this.s.lingen[g.el.id] || 0, lgTxt = lg ? `（${g.el.name}灵根 +${lg * (g.kind === "sp" ? CFG.lingen.SPELL_PCT : CFG.lingen.GONGFA_PCT)}%）` : "";
-      const desc = g.kind === "sp"
+      const lg = g.kind === "mf" ? 0 : this.s.lingen[g.el.id] || 0, lgTxt = lg ? `（${g.el.name}灵根 +${lg * (g.kind === "sp" ? CFG.lingen.SPELL_PCT : CFG.lingen.GONGFA_PCT)}%）` : "";
+      const mfv = v => `${g.mk.sign}${U.num(v)}${g.mk.unit}`;
+      const desc = g.kind === "mf"
+        ? (g.mk.id === "explore" ? `${g.label} ${max ? mfv(g.value) : `圆满后 ${mfv(g.perLv)}`}` : `${g.label} ${mfv(g.value)}${max ? "" : `，下一层 ${mfv(g.next)}`}`)
+        : g.kind === "sp"
         ? `伤害 攻击×${g.pct}% + ${U.fmt(g.flat)}${lgTxt}，耗法力 ${U.fmt(g.mana)}${max ? "" : `，下一层 +${U.fmt(g.next)}`}`
         : `${g.label} +${this.gfValue(g, g.value * this.lingenGongfa(g.el.id))}${lgTxt}${max ? "" : `，下一层 +${this.gfValue(g, g.next * this.lingenGongfa(g.el.id))}`}`;
-      const cost = max ? 0 : DATA.studyExp(g), per = max ? 0 : DATA.studyPer(g);
-      return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.el.name}</span><span class="tag">${g.tier.name}</span><span class="tag">${g.lv}/${DATA.GONGFA_MAX}层</span>
-        <small>${desc}${max ? "" : `<br>下一层：${U.dur(DATA.studyMin[g.lv - 1] * 60)} · 每5秒 ${U.fmt(per)} 修为（共 ${U.fmt(cost)}）`}${plan > g.lv ? `<br>已排至第 ${plan} 层` : ""}</small></div>
+      const sec = max ? 0 : this.studySec(g), n = Math.ceil(sec / DATA.STUDY_STEP), per = max ? 0 : DATA.studyPer(g), sp = max ? 0 : g.stonePer || 0;
+      return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span>${g.kind === "mf" ? "" : `<span class="tag">${g.el.name}</span>`}<span class="tag">${g.tier.name}</span><span class="tag">${g.lv}/${DATA.GONGFA_MAX}层</span>
+        <small>${desc}${max ? "" : `<br>下一层：${U.dur(sec)} · 每5秒 ${U.fmt(per)} 修为${sp ? ` + ${U.fmt(sp)} 灵石` : ""}（共 ${U.fmt(per * n)}${sp ? ` 修为、${U.fmt(sp * n)} 灵石` : ""}）`}${plan > g.lv ? `<br>已排至第 ${plan} 层` : ""}</small></div>
         ${max ? `<button class="sm" disabled>圆满</button>` :
           `<button class="sm" onclick="G.studyGongfa('${g.id}')" ${full || s.gfQueue.length >= DATA.GF_QUEUE ? "disabled" : ""}>${full ? "已排满" : "修炼"}</button>`}</div>`;
     },
@@ -160,7 +170,7 @@ G.module({
 
     // 分类按钮 + 「修炼队列」按钮（修炼中的功法、排队情况都在这里看）
     const qn = (s.gfStudy ? 1 : 0) + s.gfQueue.length;
-    const cats = [["all", "全部"], ...DATA.gongfaTypes.map(t => [t.id, t.name]), ["spell", "法术"], ["queue", `修炼队列${qn ? `(${qn})` : ""}`]];
+    const cats = [["all", "全部"], ...DATA.gongfaTypes.map(t => [t.id, t.name]), ["spell", "法术"], ["mifa", "秘法"], ["queue", `修炼队列${qn ? `(${qn})` : ""}`]];
     const tabs = `<div class="room-grid">${cats.map(([k, n]) => `<button class="${filter === k ? "active" : ""}" onclick="G.setGfFilter('${k}')">${n}</button>`).join("")}</div>`;
 
     if (filter === "queue") return tabs + this.gfQueueView();
@@ -174,7 +184,8 @@ G.module({
 
     const all = ids.map(id => DATA.skillInfo(id, s.gongfa[id])).filter(Boolean).filter(g => !hide || g.lv < DATA.GONGFA_MAX);
     const groups = [...DATA.gongfaTypes.map(t => ({ key: t.id, title: t.name, sub: t.label, items: all.filter(g => g.kind === "gf" && g.type.id === t.id) })),
-                    { key: "spell", title: "法术", sub: "放入背包法术栏后战斗中施放", items: all.filter(g => g.kind === "sp") }];
+                    { key: "spell", title: "法术", sub: "放入背包法术栏后战斗中施放", items: all.filter(g => g.kind === "sp") },
+                    { key: "mifa", title: "秘法", sub: "宗门悟道室学习 · 修炼消耗修为和灵石", items: all.filter(g => g.kind === "mf") }];
     const byStar = (a, b) => b.star - a.star || b.tier.idx - a.tier.idx || b.lv - a.lv;   // 星级高 → 低，天 → 黄
     const byLv = (a, b) => b.lv - a.lv || byStar(a, b);                                    // 等级高 → 低
     const body = groups.filter(gr => filter === "all" || gr.key === filter).map(gr => {
