@@ -48,12 +48,14 @@ def db():
     """每次请求开一个连接（SQLite 很轻量）。"""
     conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA synchronous=NORMAL")   # 配合 WAL：少刷盘，断电最多丢最后一次写入
     return conn
 
 
 def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     with db() as c:
+        c.execute("PRAGMA journal_mode=WAL")   # 读写互不阻塞，存档写入更快（设置一次永久生效）
         c.executescript("""
         CREATE TABLE IF NOT EXISTS users(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -130,6 +132,16 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def send_raw(self, code, body):
+        """已经是 JSON 文本，直接发出去（读存档时不用先解析再编码一遍）。"""
+        body = body.encode()
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
     def body(self):
         n = int(self.headers.get("Content-Length") or 0)
         if n > MAX_BODY:
@@ -168,7 +180,7 @@ class Handler(BaseHTTPRequestHandler):
             row = c.execute("SELECT data, updated FROM saves WHERE user_id=?", (uid,)).fetchone()
         if not row or row["data"] is None:
             return self.send(200, {"data": None})
-        return self.send(200, {"data": json.loads(row["data"]), "updated": row["updated"]})
+        return self.send_raw(200, '{"data":%s,"updated":%d}' % (row["data"], row["updated"]))
 
     # ---------- POST ----------
     def do_POST(self):
@@ -209,7 +221,7 @@ class Handler(BaseHTTPRequestHandler):
                 save = data.get("data")
                 c.execute("INSERT INTO saves(user_id,data,updated) VALUES(?,?,?) "
                           "ON CONFLICT(user_id) DO UPDATE SET data=excluded.data, updated=excluded.updated",
-                          (uid, None if save is None else json.dumps(save, ensure_ascii=False), int(time.time())))
+                          (uid, None if save is None else json.dumps(save, ensure_ascii=False, separators=(",", ":")), int(time.time())))
             return self.send(200, {"ok": True})
 
         if r == "admin/update":
