@@ -372,6 +372,9 @@ G.module({
     /* ---------- 炼丹 ---------- */
     danPer(type, g) { return Math.ceil(DATA.danTime(type, g) * (1 - DATA.furnaceBonus("dan", this.s.furnaceUse.dan) / 100) * (1 - this.mifaCut("danTime") / 100)); },
     setDanTier(g) { this.danTier = g; this.render(); },
+    // 丹药分类（config/alchemy.js 的 CATS）：0 = 现有丹方，其余暂时没有丹方
+    setDanCat(k, c) { this[k] = c; this.render(); },
+    danCatBar(k) { const cur = this[k] || 0, C = CFG.alchemy.CATS || []; return C.length > 1 ? `<div class="room-grid five">${C.map((n, c) => `<button class="${cur === c ? "active" : ""}" onclick="G.setDanCat('${k}',${c})">${n}</button>`).join("")}</div>` : ""; },
     // 炼丹：丹炉空闲就开炉，否则加入队列（都会先扣药材）
     startAlch(type, g, n) {
       const s = this.s, rec = DATA.danRecipe(type, g);
@@ -456,6 +459,8 @@ G.caveViews.alchemy = function () {
       s.alchQueue.map((q, i) => `<div class="line"><div>队列 ${i + 1}：${DATA.danName(q.type, q.g)} ×${q.n}</div><button class="sm" onclick="G.cancelAlchQ(${i})">取消</button></div>`).join("") +
       `<p class="desc">队列 ${s.alchQueue.length} / ${CFG.alchemy.QUEUE}，炼完自动开下一炉。</p></div>`;
   }
+  h += this.danCatBar("danCat");
+  if (this.danCat) return h + `<div class="card"><h3>${CFG.alchemy.CATS[this.danCat]}</h3><p class="desc">暂时还没有${CFG.alchemy.CATS[this.danCat]}丹方。</p></div>`;
   const list = Object.keys(DATA.recipes).filter(t => s.recipes.includes(t + "|" + tier));
   h += `<div class="card"><h3>炼丹<small>${fu >= 0 ? `可炼一阶~${DATA.JIE[fu]}` : "需要炼丹炉"} · 已学丹方 ${s.recipes.length}</small></h3>
     <div class="room-grid five">${DATA.JIE.map((n, g) => `<button class="${tier === g ? "active" : ""}" onclick="G.setDanTier(${g})">${n}</button>`).join("")}</div>` +
@@ -555,6 +560,8 @@ G.sectAlchemyView = function () {
   let h = "";
   if (st) { const [t, g] = st.key.split("|");
     h += `<div class="card"><h3>参悟中<small>《${DATA.danName(t, +g)}》</small></h3><p class="desc">剩余 ${U.dur(Math.max(0, st.end - Date.now()) / 1000 + 59)}</p></div>`; }
+  h += this.danCatBar("danLibCat");
+  if (this.danLibCat) return h + `<div class="card"><h3>炼丹房 · ${CFG.alchemy.CATS[this.danLibCat]}</h3><p class="desc">暂时还没有${CFG.alchemy.CATS[this.danLibCat]}丹方。</p></div>`;
   h += `<div class="room-grid five">${DATA.JIE.map((n, g) => `<button class="${tier === g ? "active" : ""}" onclick="G.setDanLibTier(${g})">${n}</button>`).join("")}</div>
     <div class="card"><h3>炼丹房 · 丹方<small>${star}星门派可学 一阶~${DATA.JIE[star - 1]} · 一次学一个</small></h3>` +
     Object.keys(DATA.recipes).map(t => {
