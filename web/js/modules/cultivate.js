@@ -94,12 +94,12 @@ G.module({
 
     computeSpeed() {
       const st = this.stats(), s = this.s;
-      const base = st.cultivate + this.gongfaBonus().cultivate;
+      const mifa = this.mifaBonus().expSpeed || 0;          // 宗门秘法「聚元」：固定加基础修炼速度
+      const base = st.cultivate + this.gongfaBonus().cultivate + mifa;
       const arr = this.arrayFactor();                     // 聚灵阵常开
       let pill = 0;
       for (const t in s.buffs) { const b = s.buffs[t]; if (b && b.left > 0) pill += b.pct; }
       const room = s.room >= 0 && s.sect ? this.roomPct(s.room) : s.shopRoom >= 0 && DATA.shopRooms.cult[s.shopRoom] ? DATA.shopRooms.cult[s.shopRoom].pct : 0;
-      const mifa = this.wudaoPct().cultivate || 0;          // 宗门秘法（悟道室）：已算进 st.cultivate（只加境界基础），这里只用于显示
       return { base, arr, pill, room, mifa, total: base * arr * (1 + pill / 100) * (1 + room / 100),
         gather: this.gatherAmount() };                                     // 每 10 秒聚灵（开关不影响）
     },
@@ -114,6 +114,26 @@ G.module({
       if (this.isCultivating()) return;
       if (!this.canCultivate()) return this.log(this.cultivateBlock() + "。", "bad");
       this.s.manual = true; this._lastTick = Date.now(); this.render();
+    },
+    // 修炼肉身界面（效果以后做）
+    openBody(on) { this.cultView = on ? "body" : ""; this.render(); },
+    // 修炼加成（弹窗）：修炼速度构成 + 丹药
+    openBoost() {
+      const s = this.s, st = this.stats(), sp = this.speed(), arrPct = (this.arrayFactor() - 1) * 100;
+      this.modal(`<h2>修炼加成<small> · ${U.num(sp.total)} 修为 / 10秒</small></h2>
+        <div class="line"><div>基础修炼速度<small>境界 ${U.num(st.cultivate)} + 秘诀 ${U.num(this.gongfaBonus().cultivate)} + 秘法 ${U.num(sp.mifa)}</small></div><b>${U.num(sp.base)}</b></div>
+        <div class="line"><div>聚灵阵<small>${s.array.lv} 级</small></div><b>+${U.num(arrPct)}%</b></div>
+        <div class="line"><div>丹药</div><b>+${Math.round(sp.pill)}%</b></div>
+        <div class="line"><div>修炼室<small>${s.room >= 0 && s.sect ? DATA.rooms[s.room].name : s.shopRoom >= 0 && DATA.shopRooms.cult[s.shopRoom] ? "坊市 · " + DATA.shopRooms.cult[s.shopRoom].name : "未使用"}</small></div><b>+${Math.round(sp.room)}%</b></div>
+        <h3 style="margin-top:10px">丹药<small>只增加修炼速度</small></h3>
+        ${Object.keys(DATA.pills).map(t => {
+          const b = s.buffs[t], on = b && b.left > 0, i = this.bestPillIndex(t);
+          const cnt = s.bag.filter(x => x.t === "pill" && x.type === t && this.canUsePill(x.g)).reduce((a, x) => a + x.n, 0);
+          return `<div class="line"><div><img src="${DATA.pillIcon(t)}" alt="" style="width:30px;height:30px;float:left;margin-right:6px">${DATA.pills[t].name}<small>${on ? `+${Math.round(b.pct)}%，剩余 ${b.left} 次修炼` : "未生效"} · 可用 ${cnt} 枚</small></div>
+          <div><button class="sm" onclick="G.manualPill('${t}');G.openBoost()" ${i < 0 ? "disabled" : ""}>服用</button>
+          <button class="sm ${s.autoPill[t] ? "on" : ""}" onclick="G.toggleAutoPill('${t}');G.openBoost()">自动${s.autoPill[t] ? "开" : "关"}</button></div></div>`;
+        }).join("")}
+        <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
 
     canBreak() { return this.s.exp >= this.needExp() && (this.s.mortal || this.s.L < DATA.realms.length * DATA.LAYERS - 1); },
@@ -135,14 +155,16 @@ G.module({
       this.log(`天雷滚滚，${this.realmName(L)}雷劫降临！`, "gold");
       this.tribOpen = true; this.showTrib(); this.after();
     },
-    // 每秒一回合：人物先出手，雷劫再劈下（雷劫无法闪避）
+    // 每 ROUND_SEC 秒一回合（config/battle.js）：人物先出手，雷劫再劈下（雷劫无法闪避）
     advanceTrib() {
       const s = this.s, x = s.trib; if (!x || x.result) return;
       const T = CFG.trib, st = this.stats();
       const BT = CFG.battle;
       const dmg = (atk, def, crit) => { let d = Math.max(atk * BT.MIN_DMG, atk - def * BT.DEF_RATE) * (BT.RAND_MIN + Math.random() * (BT.RAND_MAX - BT.RAND_MIN)); const c = Math.random() * 100 < crit; return [c ? d * BT.CRIT_MULT : d, c]; };
-      while (!x.result && this.now() >= x.start + (x.sec + 1) * 1000) {
-        x.sec++;
+      const RS = CFG.battle.ROUND_SEC || 1, rg = this.regen(true);   // 每 ROUND_SEC 秒一回合；战斗恢复每回合
+      while (!x.result && this.now() >= x.start + (x.sec + RS) * 1000) {
+        x.sec = Math.min(T.TIME, x.sec + RS);
+        if (rg.hp) s.hp = Math.min(st.hp, s.hp + st.hp * rg.hp / 100);
         const [d1, c1] = dmg(st.atk, x.def, st.crit); x.hp -= d1; x.dealt += d1;
         let line = `第${x.sec}秒：你攻击雷劫 ${U.fmt(d1)}${c1 ? "（暴击）" : ""}`;
         if (x.hp > 0) {
@@ -254,26 +276,26 @@ G.module({
 
   view() {
     const s = this.s, st = this.stats(), sp = this.speed(), cap = this.lingCap();
+    if (this.cultView === "body") return `<div class="card"><h3>修炼肉身<small>练体</small></h3>
+      <p class="desc">肉身修炼即将开放：以后在这里用气血修炼速度淬炼肉身。</p>
+      <div class="line"><div>气血修炼速度<small>宗门秘法「炼体」</small></div><b>+${U.num(this.mifaBonus().bodySpeed)} / 10秒</b></div>
+      <div class="btns"><button onclick="G.openBody(false)">返回修炼</button></div></div>`;
     const can = this.canBreak(), major = this.isMajor();
     const next = s.mortal ? "引气入体（突破至练气期）" : major ? `突破至${DATA.realmLabel(this.r() + 1)}` : "突破";
     const block = this.isCultivating() ? this.cultivateBlock() : "";
-    const arrPct = (this.arrayFactor() - 1) * 100;
+    const boost = sp.pill || sp.room || this.arrayFactor() > 1 || sp.mifa, R0 = this.regen(false), R1 = this.regen(true);
     return `
     <div class="card">
       <h3>${this.realmName()}<small>${this.needTrib() ? "下次突破需渡雷劫" : ""}</small></h3>
+      <div class="row small"><span>修炼速度 <b class="q4">${U.num(sp.total)}</b> 修为 / 10秒</span>
+        <button class="sm ${boost ? "on" : ""}" onclick="G.openBoost()">修炼加成${sp.pill ? ` · 丹药+${Math.round(sp.pill)}%` : ""}</button></div>
       <div class="row small"><span>本次修炼</span><span>${!this.isCultivating() ? "未修炼" : block ? `<b class='q5'>${block}</b>` : `${s.auto ? "自动修炼中" : "修炼中"} · <b id="tick-left"></b>`}</span></div>
       <div class="bar tick"><div id="tick-bar"></div></div>
-      <div class="row small"><span>修炼速度</span><b class="q4">${U.num(sp.total)} 修为 / 10秒</b></div>
-      <div class="chips">
-        <span class="${arrPct > 0 ? "on" : ""}">聚灵阵 +${U.num(arrPct)}%</span>
-        <span class="${sp.pill ? "on" : ""}">丹药 +${Math.round(sp.pill)}%</span>
-        <span class="${sp.room ? "on" : ""}">修炼室 +${Math.round(sp.room)}%</span>
-        <span class="${sp.mifa ? "on" : ""}">秘法 基础+${U.num(sp.mifa)}%</span></div>
       <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>
       <div class="bar ling"><div style="width:${Math.min(100, s.ling / cap * 100)}%"></div></div>
       <div class="btns">
         <button class="${s.auto ? "on" : "primary"}" onclick="G.toggleAuto()">自动修炼：${s.auto ? "开" : "关"}</button>
-        <button onclick="G.cultivateOnce()" ${this.isCultivating() ? "disabled" : ""}>修炼一次（10秒）</button>
+        <button onclick="G.openBody(true)">修炼肉身</button>
         <button class="primary" style="flex-basis:100%" onclick="G.breakthrough()" ${can || s.trib ? "" : "disabled"}>
           ${s.trib ? (s.trib.result ? "查看雷劫结果" : "渡劫中…查看雷劫") : can ? (this.needTrib() ? `${next}（渡雷劫 ${CFG.trib.TIME} 秒）` : `${next}（成功率 ${Math.round(this.breakChance() * 100)}%）`) : `修为未满，还差 ${U.fmt(this.needExp() - s.exp)}`}</button>
       </div>
@@ -285,22 +307,6 @@ G.module({
       <div><span>速度</span>${U.fmt(st.speed)}</div><div><span>暴击</span>${st.crit.toFixed(1)}%</div>
       ${DATA.elements.map(e => `<div><span>${e.name}抗</span>${U.fmt(st.res[e.id])}</div>`).join("")}
       <div style="grid-column:1/3"><span>修炼速度</span>${U.fmt(sp.total)} / 10秒</div>
-    </div><p class="desc" style="margin-top:4px">气血、法力每 10 秒恢复 1%</p></div>
-    <div class="card"><h3>修炼速度构成</h3>
-      <div class="line"><div>基础修炼速度<small>境界 ${U.num(st.cultivate)} + 秘诀 ${U.num(this.gongfaBonus().cultivate)}</small></div><b>${U.num(sp.base)}</b></div>
-      <div class="line"><div>聚灵阵<small>${s.array.lv} 级</small></div><b>×${sp.arr >= 100 ? U.fmt(sp.arr) : sp.arr.toFixed(2)}</b></div>
-      <div class="line"><div>丹药</div><b>+${Math.round(sp.pill)}%</b></div>
-      <div class="line"><div>宗门秘法<small>悟道室 · 只加境界基础修炼速度</small></div><b>+${U.num(sp.mifa)}%</b></div>
-      <div class="line"><div>修炼室<small>${s.room >= 0 && s.sect ? DATA.rooms[s.room].name : s.shopRoom >= 0 && DATA.shopRooms.cult[s.shopRoom] ? "坊市 · " + DATA.shopRooms.cult[s.shopRoom].name : "未使用"}</small></div><b>+${Math.round(sp.room)}%</b></div>
-    </div>
-    <div class="card"><h3>丹药<small>只增加修炼速度</small></h3>
-      ${Object.keys(DATA.pills).map(t => {
-        const b = s.buffs[t], on = b && b.left > 0, i = this.bestPillIndex(t);
-        const cnt = s.bag.filter(x => x.t === "pill" && x.type === t && this.canUsePill(x.g)).reduce((a, x) => a + x.n, 0);
-        return `<div class="line"><div>${DATA.pills[t].name}<small>${on ? `+${Math.round(b.pct)}%，剩余 ${b.left} 次修炼` : "未生效"} · 可用 ${cnt} 枚</small></div>
-        <div><button class="sm" onclick="G.manualPill('${t}')" ${i < 0 ? "disabled" : ""}>服用</button>
-        <button class="sm ${s.autoPill[t] ? "on" : ""}" onclick="G.toggleAutoPill('${t}')">自动${s.autoPill[t] ? "开" : "关"}</button></div></div>`;
-      }).join("")}
-    </div>`;
+    </div><p class="desc" style="margin-top:4px">平时每 10 秒恢复 气血 ${U.num(R0.hp)}% · 法力 ${U.num(R0.mana)}%；战斗每回合恢复 气血 ${U.num(R1.hp)}% · 法力 ${U.num(R1.mana)}%</p></div>`;
   },
 });
