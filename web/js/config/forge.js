@@ -157,3 +157,15 @@ CFG.forge.reset = {
   LOCK_MULT: 2,
   SELL: 5,                                      // 火髓出售价（灵石）
 };
+
+/* ---------- v26 新增：单独设置某条属性的数值（附加属性） ----------
+ * 写在这里的属性不再用「基础值 × 阶成长」，改成：每阶「金色最高」的数值，其它颜色按 RANGE 的比例缩小
+ *   例：crit 十阶写 4 → 十阶金色附加暴击最高 4%，白色约 4 × 0.9/2.53 ~ 4 × 1.1/2.53
+ * 想单独设置别的属性，照样加一行（装备/戒指可用 hp atk def mana speed hit dodge crit） */
+CFG.forge.attr.AFFIX_TOP = {
+  crit: [0.4, 0.8, 1.2, 1.6, 2, 2.4, 2.8, 3.2, 3.6, 4],   // 附加暴击%：一阶 ~ 十阶 金色最高
+};
+// 法宝附加属性同理（可用 ignRes ignResPct elDmg elDmgPct manaCut manaCutPct）
+CFG.forge.fabao.AFFIX_TOP = {
+  elDmgPct: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],              // 追加属性伤害%：一阶 ~ 十阶 金色最高
+};
