@@ -219,7 +219,7 @@ G.module({
     cqRefund(n) { const s = this.s; if (n > 0 && s.cqDay === this.bjDay()) s.cqUsed = Math.max(0, (s.cqUsed || 0) - n); },   // 跨天了就不用退（已经重置）
     // 第 lv 层 → lv+1 层的修炼消耗：每 step 秒扣 per 修为，共 n 次
     cqStudyCost(lv) {
-      const C = CFG.chuqiao, sec = Math.max(1, C.TIME), step = Math.max(1, C.EXP_SEC);
+      const C = CFG.chuqiao, sec = Math.max(1, C.TIME + (C.TIME_ADD || 0) * Math.floor(lv / (C.TIME_EVERY || 100))), step = Math.max(1, C.EXP_SEC);
       return { per: Math.floor(C.EXP_PER), step, n: Math.ceil(sec / step), sec, lu: Math.floor(C.LU_BASE + C.LU_ADD * Math.floor(lv / C.LU_EVERY)) };
     },
     studyCq() {
