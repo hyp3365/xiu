@@ -116,9 +116,16 @@ G.module({
       this.s.gfStudy = null; this.nextStudy(); this.after();
     },
     setGfFilter(t) { this.gfFilter = t; this.render(); },
-    // 排序方式：star 按星级（默认）/ lv 按等级；隐藏满级（圆满）
-    setGfSort(k) { this.gfSort = k; this.render(); },
-    toggleGfHideMax() { this.gfHideMax = !this.gfHideMax; this.render(); },
+    // 排序 / 隐藏满级：「按等级」（低层 → 高层）、「按星级」（高星 → 低星）默认都开，点击切换；
+    //   三个开关存在浏览器本地（localStorage），刷新网页不变
+    gfPref() {
+      if (!this._gfPref) { let p = {}; try { p = JSON.parse(localStorage.getItem("xiu_gf_pref") || "{}") || {}; } catch (e) {}
+        this._gfPref = { lv: p.lv !== false, star: p.star !== false, hide: !!p.hide }; }
+      return this._gfPref;
+    },
+    toggleGfPref(k) { const p = this.gfPref(); p[k] = !p[k]; try { localStorage.setItem("xiu_gf_pref", JSON.stringify(p)); } catch (e) {} this.render(); },
+    setGfSort(k) { this.toggleGfPref(k === "lv" ? "lv" : "star"); },
+    toggleGfHideMax() { this.toggleGfPref("hide"); },
 
     // 数值显示：身法是闪避（两位小数），其余取整
     gfValue(info, v) { return U.num(v); },
@@ -177,22 +184,22 @@ G.module({
     if (filter === "queue") return tabs + this.gfQueueView();
 
     // 排序 / 隐藏满级
-    const sort = this.gfSort || "star", hide = !!this.gfHideMax;
+    const P = this.gfPref(), hide = P.hide;
     const tools = `<div class="row small" style="gap:6px;justify-content:flex-start;margin:6px 0">
-      <button class="sm ${sort === "star" ? "active" : ""}" onclick="G.setGfSort('star')">按星级</button>
-      <button class="sm ${sort === "lv" ? "active" : ""}" onclick="G.setGfSort('lv')">按等级</button>
+      <button class="sm ${P.lv ? "active" : ""}" onclick="G.setGfSort('lv')">按等级</button>
+      <button class="sm ${P.star ? "active" : ""}" onclick="G.setGfSort('star')">按星级</button>
       <button class="sm ${hide ? "active" : ""}" onclick="G.toggleGfHideMax()">${hide ? "显示满级" : "隐藏满级"}</button></div>`;
 
     const all = ids.map(id => DATA.skillInfo(id, s.gongfa[id])).filter(Boolean).filter(g => !hide || g.lv < DATA.GONGFA_MAX);
     const groups = [...DATA.gongfaTypes.map(t => ({ key: t.id, title: t.name, sub: t.label, items: all.filter(g => g.kind === "gf" && g.type.id === t.id) })),
                     { key: "spell", title: "法术", sub: "放入背包法术栏后战斗中施放", items: all.filter(g => g.kind === "sp") },
                     { key: "mifa", title: "秘法", sub: "宗门悟道室学习 · 修炼消耗修为和灵石", items: all.filter(g => g.kind === "mf") }];
-    const byStar = (a, b) => b.star - a.star || b.tier.idx - a.tier.idx || b.lv - a.lv;   // 星级高 → 低，天 → 黄
-    const byLv = (a, b) => b.lv - a.lv || byStar(a, b);                                    // 等级高 → 低
+    // 两个都开：先按等级（低 → 高），同等级再按星级（高 → 低）；同星级 天 → 黄
+    const sortFn = (a, b) => (P.lv ? a.lv - b.lv : 0) || (P.star ? b.star - a.star : 0) || b.tier.idx - a.tier.idx;
     const body = groups.filter(gr => filter === "all" || gr.key === filter).map(gr => {
-      if (gr.key === "mifa" && s.cqLv) { gr.items.sort(sort === "lv" ? byLv : byStar); return `<div class="card"><h3>${gr.title}<small>${gr.sub}</small></h3>${this.cqLine()}${gr.items.map(g => this.skillLine(g)).join("")}</div>`; }   // 元婴出窍秘法
+      if (gr.key === "mifa" && s.cqLv) { gr.items.sort(sortFn); return `<div class="card"><h3>${gr.title}<small>${gr.sub}</small></h3>${this.cqLine()}${gr.items.map(g => this.skillLine(g)).join("")}</div>`; }   // 元婴出窍秘法
       if (!gr.items.length) return filter === "all" ? "" : `<div class="card"><p class="desc">${hide ? "没有未满级的" : "尚未学会任何"}${gr.title}。</p></div>`;
-      gr.items.sort(sort === "lv" ? byLv : byStar);
+      gr.items.sort(sortFn);
       return `<div class="card"><h3>${gr.title}<small>${gr.sub}</small></h3>${gr.items.map(g => this.skillLine(g)).join("")}</div>`;
     }).join("");
     return tabs + tools + (body || `<div class="card"><p class="desc">没有可显示的功法。</p></div>`);
