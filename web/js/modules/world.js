@@ -299,20 +299,22 @@ G.module({
       const s = this.s, C = CFG.chuqiao, x = s.explore;
       if (x && x.cq && x.map === a && (x.reg || 0) === r) { this.stopExplore("结束出窍"); return this.after(); }
       if (!s.cqLv) return this.log(`需先在宗门宝库兑换${C.NAME}。`, "sys");
+      if (this.cqLeftToday() <= 0) return this.log("今天的出窍次数已用完。", "sys");
       if (!this.realmOK(C.REALM)) return this.log(`出窍需要${DATA.realmLabel(C.REALM)}。`, "sys");
       if (!this.isTrained(a, r)) return this.log("需先在此区域历练通过，才能出窍探索。", "sys");
-      const max = this.cqMaxRuns();
+      const max = this.cqLeftToday();
       this.modal(`<h2>元婴出窍 · ${DATA.regionName(a, r)}</h2>
-        <p>${C.NAME}第 ${s.cqLv} 层，一次最多出窍探索 ${max} 次；出窍期间可以继续修炼。</p>
+        <p>${C.NAME}第 ${s.cqLv} 层，今天还能出窍探索 ${max} 次；出窍期间可以继续修炼。开始后就扣次数，中途停止不退还。</p>
         <div class="line"><div>出窍次数<small>1 ~ ${max}</small></div><input id="cq-n" type="number" min="1" max="${max}" value="${max}" style="width:110px"></div>
         <div class="btns"><button class="primary" onclick="G.startChuqiao(${a},${r})">出窍</button><button onclick="G.closeModal()">取消</button></div>`);
     },
     startChuqiao(a, r) {
-      const s = this.s, max = this.cqMaxRuns(), n = Math.min(max, Math.floor(+($("#cq-n") && $("#cq-n").value) || 0));
+      const s = this.s, max = this.cqLeftToday(), n = Math.min(max, Math.floor(+($("#cq-n") && $("#cq-n").value) || 0));
       if (n < 1) return;
       this.closeModal();
       if (s.explore) this.stopExplore("更换");
       if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("气血不足三成，先休养片刻（每 10 秒恢复 1%）。", "sys");
+      this.cqUse(n);   // 开始就扣次数，停止不退
       s.explore = { map: a, reg: r, once: false, cq: n, start: this.now(), step: 0, count: 0, loot: this.newLoot(), ev: [], last: "", plan: this.makePlan(), ms: this.exploreMs() };
       s.lastRun = null;
       this.exploreOpen = true;
@@ -459,6 +461,7 @@ G.module({
     mjStart(i, once, queue, x) {
       const s = this.s; this.mjState().used[i] = (this.mjState().used[i] || 0) + 1;
       const n = { map: -1, reg: 0, mj: i, once: !!once, queue: queue || [], start: x ? x.start + x.step * x.ms : this.now(), step: 0, count: 0, loot: this.newLoot(), ev: [], last: "", plan: this.makePlan(CFG.mijing), ms: this.exploreMs() };
+      if (this.mjDef(i).realm === CFG.chuqiao.LU_MJ_REALM && CFG.chuqiao.LU_DROP > 0) this.lootAdd(n.loot, DATA.smName("lu"), CFG.chuqiao.LU_DROP);   // 元婴期秘境必定掉落养神灵露
       s.explore = n; s.lastRun = x ? s.lastRun : null;
       this.log(`进入秘境「${this.mjDef(i).name}」${once ? "历练" : "探索"}（期间无法修炼）。`, "sys");
     },
@@ -506,10 +509,9 @@ G.module({
           ${lock ? `<button class="sm" disabled>境界不足</button>` : `<div><button class="sm ${on && x.once ? "on" : ""}" onclick="G.toggleMj(${i},true)" ${on ? "" : left > 0 ? "" : "disabled"}>${on && x.once ? "停止" : "历练"}</button>
           <button class="sm ${on && !x.once ? "on" : ""}" onclick="G.toggleMj(${i})" ${on ? "" : ok && left > 0 ? "" : "disabled"}>${on && !x.once ? "停止" : "探索"}</button></div>`}</div>`;
       }).join("");
-      return `<div class="card"><h3>秘境<small>已发现 ${m.found.length} / ${L.length} · 每处每天 ${CFG.mijing.DAILY} 次 · 一次 ${CFG.mijing.TIME} 步，每步 ${U.num(this.exploreMs() / 1000)} 秒</small></h3>
+      return `<div class="card"><h3>秘境<small>已发现 ${m.found.length} / ${L.length}</small></h3>
         ${rows || `<p class="desc">还没有发现秘境。在凡界地图历练、自动探索时，有几率探得秘境消息。</p>`}
-        ${m.found.length ? `<div class="btns"><button class="primary" onclick="G.mjAll()" ${ready ? "" : "disabled"}>一键探索（${ready} 处）</button></div>` : ""}
-        <p class="desc">先历练通过（走完不战败）才能自动探索；历练、探索都算今天的次数。秘境额外掉落火髓、空间晶核、炼宝玄晶、法宝模具。</p></div>`;
+        ${m.found.length ? `<div class="btns"><button class="primary" onclick="G.mjAll()" ${ready ? "" : "disabled"}>一键探索（${ready} 处）</button></div>` : ""}</div>`;
     },
     setExploreOpen(v) { this.exploreOpen = v; this.render(); },
     // 探索信息一行：战斗事件后面带「详情」按钮
@@ -651,7 +653,7 @@ G.module({
           if (L.hx) mats.push(`火髓×${U.fmt(L.hx)}`);
           for (const k in L.sm || {}) { const [kk, f] = k.split(":"); mats.push(`${DATA.smName(kk, f === undefined ? undefined : +f)}×${U.fmt(L.sm[k])}`); }
           for (const n in L.cu || {}) mats.push(`${n}×${U.fmt(L.cu[n])}`);
-          const sub = x.mj !== undefined ? (x.once ? "走完且不战败即通过" : x.queue && x.queue.length ? `一键探索 · 后面还有 ${x.queue.length} 处` : "秘境探索") : x.once ? "走完且不战败即通过" : x.cq ? `已完成 ${x.count} / ${x.cq} 次 · 可继续修炼` : `已完成 ${x.count} 次`;
+          const sub = x.mj !== undefined ? (x.once ? "" : x.queue && x.queue.length ? `一键探索 · 后面还有 ${x.queue.length} 处` : "秘境探索") : x.once ? "" : x.cq ? `已完成 ${x.count} / ${x.cq} 次` : `已完成 ${x.count} 次`;
           return `<div class="card"><h3>${x.once ? "历练中" : x.cq ? "出窍探索中" : "自动探索中"} · ${this.exName(x)}<small>${sub}</small></h3>
           <div class="bar tick"><div style="width:${x.step / T * 100}%"></div></div>
           <div class="row small"><span>第 ${x.step} / ${T} 步 · 剩余 ${U.dur(Math.ceil((T - x.step) * (x.ms || 1000) / 1000))}</span><span>
