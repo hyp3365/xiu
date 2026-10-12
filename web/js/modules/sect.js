@@ -23,7 +23,11 @@ G.module({
     sect: null,       // 门派 id
     contrib: 0,       // 门派贡献
     rank: 0,          // 职务（DATA.ranks 下标）
-    room: -1,         // 正在使用的练功房，-1 为未使用
+    room: -1,         // 正在使用的修炼室（原练功房），-1 为未使用
+    gfRoom: -1,       // v27：宗门练功房（加快功法修炼）
+    shopRoom: -1,     // v27：坊市修炼室
+    shopGfRoom: -1,   // v27：坊市练功房
+    merit: 0,         // v27：功德
     salaryDay: "",    // 上次领取俸禄的日期
     affair: { task: -1, start: 0, count: 0 },     // 事务堂：正在循环执行的任务（-1 = 无）
     tower: 0,         // 试炼塔已通关层数（当前门派星级，和 towers 同步，旧字段）
@@ -48,6 +52,17 @@ G.module({
     roomPct(i) { return DATA.rooms[i].pct * this.starMul(); },
     roomCost(i) { return Math.floor(DATA.rooms[i].cost * this.starMul()); },
     roomLocked(i) { return (DATA.rooms[i].rank || 0) > this.s.rank; },
+    gfRoomPct(i) { return DATA.gfRooms[i].pct * this.starMul(); },
+    gfRoomCost(i) { return Math.floor(DATA.gfRooms[i].cost * this.starMul()); },
+    gfRoomLocked(i) { return (DATA.gfRooms[i].rank || 0) > this.s.rank; },
+    // 当前练功房（宗门或坊市）：{ name, pct, cost, cur: "contrib"|"stone" } 或 null
+    gfRoomNow() {
+      const s = this.s;
+      if (s.gfRoom >= 0 && s.sect && DATA.gfRooms[s.gfRoom]) return { name: DATA.gfRooms[s.gfRoom].name, pct: this.gfRoomPct(s.gfRoom), cost: this.gfRoomCost(s.gfRoom), cur: "contrib" };
+      const r = DATA.shopRooms.gf[s.shopGfRoom];
+      return s.shopGfRoom >= 0 && r ? { name: r.name, pct: r.pct, cost: r.cost, cur: "stone" } : null;
+    },
+    leaveGfRoom(why) { const r = this.gfRoomNow(); this.s.gfRoom = -1; this.s.shopGfRoom = -1; if (r && why) this.log(`${why}，已离开${r.name}。`, "bad"); this.dirty(); },
     setSectStar(n) { this.sectStar = n; this.render(); },
     setSectTab(t) { this.sectTab = t; this.render(); },
 
@@ -118,7 +133,22 @@ G.module({
     /* ---------- 练功房 ---------- */
     enterRoom(i) {
       if (this.s.room !== i && this.roomLocked(i)) return this.log(`需要职务【${DATA.ranks[DATA.rooms[i].rank].name}】。`, "sys");
-      this.s.room = this.s.room === i ? -1 : i; this.after();
+      this.s.room = this.s.room === i ? -1 : i; if (this.s.room >= 0) this.s.shopRoom = -1; this.after();
+    },
+    enterGfRoom(i) {
+      if (this.s.gfRoom !== i && this.gfRoomLocked(i)) return this.log(`需要职务【${DATA.ranks[DATA.gfRooms[i].rank].name}】。`, "sys");
+      this.s.gfRoom = this.s.gfRoom === i ? -1 : i; if (this.s.gfRoom >= 0) this.s.shopGfRoom = -1; this.after();
+    },
+    // 坊市修炼室 / 练功房（灵石）
+    enterShopRoom(i) { this.s.shopRoom = this.s.shopRoom === i ? -1 : i; if (this.s.shopRoom >= 0) this.s.room = -1; this.after(); },
+    enterShopGfRoom(i) { this.s.shopGfRoom = this.s.shopGfRoom === i ? -1 : i; if (this.s.shopGfRoom >= 0) this.s.gfRoom = -1; this.after(); },
+    shopRoomView(kind) {
+      const s = this.s, cult = kind === "cult", list = DATA.shopRooms[kind] || [], cur = cult ? s.shopRoom : s.shopGfRoom;
+      return `<div class="card"><h3>坊市${cult ? "修炼室" : "练功房"}<small>${cult ? "加快修炼 · 每次修炼消耗灵石" : "加快功法修炼 · 修炼功法时每 5 秒消耗灵石"} · 灵石 ${U.fmt(s.stone)}</small></h3>` +
+        list.map((r, i) => { const on = cur === i;
+          return `<div class="line"><div>${r.name}<span class="tag">+${U.num(r.pct)}%</span><small>${cult ? "每次修炼" : "每 5 秒"}消耗 ${U.fmt(r.cost)} 灵石</small></div>
+            <button class="sm ${on ? "on" : ""}" onclick="G.${cult ? "enterShopRoom" : "enterShopGfRoom"}(${i})">${on ? "使用中" : "进入"}</button></div>`; }).join("") +
+        `<p class="desc">和宗门的${cult ? "修炼室" : "练功房"}同时只能用一个。</p></div>`;
     },
 
     /* ---------- 宗门宝库 ---------- */
@@ -285,7 +315,7 @@ G.module({
 
     // ---------- 已入门 ----------
     const x = this.sectInfo(), tab = this.sectTab || "hall";
-    const TABS = [["hall", "宗门大殿"], ["lib", "功法殿"], ["affair", "事务堂"], ["room", "练功房"], ["treasury", "宗门宝库"],
+    const TABS = [["hall", "宗门大殿"], ["lib", "功法殿"], ["affair", "事务堂"], ["room", "修炼室"], ["gfroom", "练功房"], ["treasury", "宗门宝库"],
                   ["alchemy", "炼丹房"], ["forge", "炼器室"], ["wudao", "悟道室"], ["tower", "试炼塔"], ["secret", "宗门秘境"]];
     let h = `<div class="card"><h3>${x.name} <span class="tag">${x.star}星</span><span class="tag">${DATA.elById[x.el].name}</span><small>${DATA.ranks[s.rank].name} · 贡献 ${U.fmt(s.contrib)}</small></h3></div>
       <div class="room-grid">${TABS.map(([k, n]) => `<button class="${tab === k ? "active" : ""}" onclick="G.setSectTab('${k}')">${n}</button>`).join("")}</div>`;
@@ -329,11 +359,17 @@ G.module({
           return `<div class="line"><div>${t.name}<span class="tag">${DATA.ranks[t.rank].name}</span><small>每次 ${U.dur(t.time * 60)} · 贡献 +${U.fmt(this.affairContrib(i))} · 灵石 +${U.fmt(this.affairStone(i))}</small></div>
             <button class="sm ${on ? "on" : ""}" onclick="G.startAffair(${i})" ${lock ? "disabled" : ""}>${lock ? "职务不足" : on ? "停止" : "执行"}</button></div>`; }).join("") + `</div>`;
     } else if (tab === "room") {
-      h += `<div class="card"><h3>练功房<small>修炼时每次消耗贡献</small></h3>` + DATA.rooms.map((r, i) => {
+      h += `<div class="card"><h3>修炼室<small>加快修炼 · 每次修炼消耗贡献</small></h3>` + DATA.rooms.map((r, i) => {
         const on = s.room === i, lock = !on && this.roomLocked(i);
         return `<div class="line"><div>${r.name}<span class="tag">+${U.num(this.roomPct(i))}%</span>${r.rank ? `<span class="tag">${DATA.ranks[r.rank].name}专用</span>` : ""}<small>每次修炼消耗 ${U.fmt(this.roomCost(i))} 贡献</small></div>
           <button class="sm ${on ? "on" : ""}" onclick="G.enterRoom(${i})" ${lock ? "disabled" : ""}>${on ? "使用中" : lock ? "职务不足" : "进入"}</button></div>`;
       }).join("") + `</div>`;
+    } else if (tab === "gfroom") {
+      h += `<div class="card"><h3>练功房<small>加快功法修炼 · 修炼功法时每 5 秒消耗贡献</small></h3>` + DATA.gfRooms.map((r, i) => {
+        const on = s.gfRoom === i, lock = !on && this.gfRoomLocked(i);
+        return `<div class="line"><div>${r.name}<span class="tag">功法修炼 +${U.num(this.gfRoomPct(i))}%</span>${r.rank ? `<span class="tag">${DATA.ranks[r.rank].name}专用</span>` : ""}<small>每 5 秒消耗 ${U.fmt(this.gfRoomCost(i))} 贡献</small></div>
+          <button class="sm ${on ? "on" : ""}" onclick="G.enterGfRoom(${i})" ${lock ? "disabled" : ""}>${on ? "使用中" : lock ? "职务不足" : "进入"}</button></div>`;
+      }).join("") + `<p class="desc">只在功法修炼队列有功法在修炼时才消耗；功法修炼时间缩短，消耗的修为不变。</p></div>`;
     } else if (tab === "treasury") {
       const tt = this.treasuryTab || "pill", maxG = this.treasuryMaxG();
       h += `<div class="sub-tabs">${[["pill", "杂物"], ["herb", "药材"], ["ore", "矿石"], ["seed", "种子"], ["bp", "图纸"]].map(([k, n]) =>
