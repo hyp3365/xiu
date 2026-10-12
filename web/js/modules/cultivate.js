@@ -285,7 +285,7 @@ G.module({
     const can = this.canBreak(), major = this.isMajor();
     const next = s.mortal ? "引气入体（突破至练气期）" : major ? `突破至${DATA.realmLabel(this.r() + 1)}` : "突破";
     const block = this.isCultivating() ? this.cultivateBlock() : "";
-    const boost = sp.pill || sp.room || this.arrayFactor() > 1 || sp.mifa, R0 = this.regen(false), R1 = this.regen(true);
+    const boost = sp.pill || sp.room || this.arrayFactor() > 1 || sp.mifa, R0 = this.regen(false), R1 = this.regenStep();
     return `
     <div class="card">
       <h3>${this.realmName()}<small>${this.needTrib() ? "下次突破需渡雷劫" : ""}</small></h3>
@@ -301,6 +301,8 @@ G.module({
         <button class="primary" style="flex-basis:100%" onclick="G.breakthrough()" ${can || s.trib ? "" : "disabled"}>
           ${s.trib ? (s.trib.result ? "查看雷劫结果" : "渡劫中…查看雷劫") : can ? (this.needTrib() ? `${next}（渡雷劫 ${CFG.trib.TIME} 秒）` : `${next}（成功率 ${Math.round(this.breakChance() * 100)}%）`) : `修为未满，还差 ${U.fmt(this.needExp() - s.exp)}`}</button>
       </div>
+      <div class="row small" style="margin-top:8px"><span>修为</span><span>${U.fmt(s.exp)} / ${U.fmt(this.needExp())}</span></div>
+      <div class="bar"><div style="width:${Math.min(100, s.exp / this.needExp() * 100)}%"></div></div>
     </div>
     <div class="card"><h3>人物属性</h3><div class="stats">
       <div><span>气血</span>${U.fmt(s.hp)}/${U.fmt(st.hp)}</div><div><span>法力</span>${U.fmt(s.mana)}/${U.fmt(st.mana)}</div>
@@ -309,6 +311,6 @@ G.module({
       <div><span>速度</span>${U.fmt(st.speed)}</div><div><span>暴击</span>${st.crit.toFixed(1)}%</div>
       ${DATA.elements.map(e => `<div><span>${e.name}抗</span>${U.fmt(st.res[e.id])}</div>`).join("")}
       <div style="grid-column:1/3"><span>修炼速度</span>${U.fmt(sp.total)} / 10秒</div>
-    </div><p class="desc" style="margin-top:4px">平时每 10 秒恢复 气血 ${U.num(R0.hp)}% · 法力 ${U.num(R0.mana)}%；战斗每回合恢复 气血 ${U.num(R1.hp)}% · 法力 ${U.num(R1.mana)}%</p></div>`;
+    </div><p class="desc" style="margin-top:4px">平时每 10 秒恢复 气血 ${U.num(R0.hp)}% · 法力 ${U.num(R0.mana)}%；历练/探索每走一步恢复 气血 ${U.num(R1.hp)}% · 法力 ${U.num(R1.mana)}%</p></div>`;
   },
 });
