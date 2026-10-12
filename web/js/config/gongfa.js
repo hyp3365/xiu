@@ -66,7 +66,7 @@ CFG.gongfa.sect = {
 // 1~6 星，每星 4 阶，每类功法 2 本、法术 2 本；用灵石购买，买下即学会第 1 层
 CFG.gongfa.shop = {
   base: {
-    def: 2, atk: 2, hp: 8, cultivate: 5, hit: 5, dodge: 5, mana: 3, res: 2.5,
+    def: 5, atk: 5, hp: 10, cultivate: 5, hit: 5, dodge: 5, mana: 5, res: 4,
     spell: 10, pct: 100, spellMana: 10,
     study: 100,      // 修炼升一层消耗的修为
     price: 500,      // 坊市售价基础（灵石）
@@ -93,7 +93,7 @@ CFG.gongfa.shop = {
 CFG.gongfa.tower = {
   base: { cultivate: 8, study: 100 },
   TYPE_MULT: { mijue: 1 },
-  STAR_MULT: [1, 1.3, 1.6, 1.9, 2.2, 2.5, 2.7, 3, 3.3, 3.6],
+  STAR_MULT: [1.1, 1.4, 1.7, 2, 2.3, 2.6, 2.9, 3.2, 3.5, 3.8],
   TIER_MULT: { huang: 1, xuan: 1.3, di: 1.6, tian: 1.9 },
   EFFECT_GONGFA: 1,
   EFFECT_STUDY: 1,
