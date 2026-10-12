@@ -1,12 +1,12 @@
 /* =====================================================================
- * 数据：六界（open: false 表示暂未开放）
+ * 数据：六界（open: false 表示暂未开放；仙冥魔神什么时候能进见 config/worldmaps.js 的 open）
  * ===================================================================== */
 DATA.worlds = [
   { id: "fan",   name: "凡界",   open: true,  desc: "凡人与修士杂居之地。" },
-  { id: "xian",  name: "仙界",   open: false, desc: "飞升之后的仙人居所。" },
-  { id: "mo",    name: "魔界",   open: false, desc: "魔气滔天，弱肉强食。" },
-  { id: "ming",  name: "冥界",   open: false, desc: "亡魂归处，轮回之所。" },
-  { id: "shen",  name: "神界",   open: false, desc: "诸神所居，至高天域。" },
+  { id: "xian",  name: "仙界",   open: true , desc: "飞升之后的仙人居所。" },
+  { id: "mo",    name: "魔界",   open: true , desc: "魔气滔天，弱肉强食。" },
+  { id: "ming",  name: "冥界",   open: true , desc: "亡魂归处，轮回之所。" },
+  { id: "shen",  name: "神界",   open: true , desc: "诸神所居，至高天域。" },
   { id: "tianwai",name:"天外天", open: false, desc: "三界之外，混沌无垠。" },
 ];
 
@@ -39,6 +39,28 @@ DATA.maps = [
   { name: "雷劫之地", boss: "九天雷祖·心魔化身",
     monsters: ["雷灵", "劫雷兽", "心魔", "雷鹏", "紫电蛟", "天罚使者", "劫火灵", "雷霆巨人"] },
 ];
+
+// v45：仙界 / 冥界 / 魔界 / 神界各 9 张地图（config/worldmaps.js）接在凡界后面，序号 9 起
+//   DATA.maps[a].w = 所在界；DATA.worldMapIdx[界] = 这一界的地图序号列表
+DATA.FAN_MAP_N = DATA.maps.length;
+DATA.maps.forEach(m => { m.w = "fan"; });
+DATA.worldMapIdx = { fan: DATA.maps.map((m, a) => a) };
+for (const w of ["xian", "ming", "mo", "shen"]) {
+  const W = (CFG.worldMaps || {})[w]; DATA.worldMapIdx[w] = [];
+  if (!W) continue;
+  W.maps.forEach((m, i) => {
+    const a = DATA.maps.length, D = CFG.worldDrops[w] || {}, K = CFG.worldDrop || {};
+    DATA.maps.push({ name: m.name, boss: m.boss, monsters: m.monsters, w, wi: i });
+    DATA.worldMapIdx[w].push(a);
+    CFG.monster.regions[a] = W.regions[i];
+    CFG.monster.mapMult[a] = m.mult || {};
+    CFG.monster.MAP_REALM[a] = m.realm;
+    const g = (items, ev) => ({ items, kinds: (K[ev] || {}).kinds || [1, 2], n: (K[ev] || {}).n || [1, 2] });
+    CFG.mapDrops[a] = { stone: m.stone === undefined ? 1 : m.stone, mat: m.mat === undefined ? 1 : m.mat,
+      herbEvent: [g(D.herb, "herbEvent")], oreEvent: [g(D.ore, "oreEvent")],
+      monster: [g(D.herb, "monster"), g(D.ore, "monster")], elite: [g(D.herb, "elite"), g(D.ore, "elite")], boss: [g(D.herb, "boss"), g(D.ore, "boss")] };
+  });
+}
 
 // 6 种药材、6 种矿石：名字和价格在 js/config/ 下的数值文件 的 mats（序号 0~5，越往后越稀有）
 // v41：仙界 / 冥界 / 魔界 / 神界的药材、矿石（config/items.js 的 matsOther）接在凡界后面，序号 6 起
@@ -77,7 +99,7 @@ DATA.mapMob = a => (CFG.monster.mapMult || [])[a] || {};   // 该地图怪物属
 // 凡界地图会掉的全部药材、矿石名字（坊市只卖这些）
 DATA.fanMats = () => {
   const set = new Set();
-  for (const m of CFG.mapDrops || []) for (const ev in m) if (Array.isArray(m[ev])) m[ev].forEach(gr => Object.keys(gr.items || {}).forEach(n => set.add(n)));
+  for (const m of (CFG.mapDrops || []).slice(0, DATA.FAN_MAP_N)) for (const ev in m) if (Array.isArray(m[ev])) m[ev].forEach(gr => Object.keys(gr.items || {}).forEach(n => set.add(n)));
   return set;
 };
 // 材料出售价、宗门兑换贡献（js/config/ 数值文件 的 mats）
