@@ -38,7 +38,7 @@ DATA.ringNames = ["破军戒", "磐石戒", "长生戒", "灵犀戒", "疾风戒
 DATA.ringName = (r, g) => DATA.JIE[g] + "·" + DATA.ringNames[r];
 DATA.ringMats = g => DATA.parseMats(_FG.ring.mats[g]);
 DATA.ringTime = g => _FG.ring.time[g] * 60000;
-DATA.ringBpName = g => DATA.JIE[g] + "戒指图纸";
+DATA.ringBpName = (g, r) => DATA.JIE[g] + (DATA.ringNames[r] || "戒指") + "图纸";   // v26：图纸分戒指种类（r）
 // 法宝属性名（附加属性带一个属性 el）
 DATA.fbAttrNames = { pct: "伤害", flat: "属性伤害", ignRes: "无视抗性", ignResPct: "无视抗性%", elDmg: "追加伤害", elDmgPct: "追加伤害%", manaCut: "法力消耗减少", manaCutPct: "法力消耗减少%" };
 DATA.FB_PCT = ["pct", "ignResPct", "elDmgPct", "manaCutPct"];   // 百分比类
@@ -58,7 +58,13 @@ DATA.attrPos = a => {
 DATA.rangeMult = (a, g) => { const [lo, hi] = DATA.colorRange(a.c, g); return lo + (hi - lo) * DATA.attrPos(a); };
 // 一条属性的数值（e = 整件装备，用来区分法宝 / 戒指）
 DATA.attrVal = (a, g, e) => {
-  const A = _FG.attr;
+  const A = _FG.attr, fb = e && e.slot === "fabao" && e.attrs;
+  // v26：附加属性单独设置了「每阶金色最高值」（AFFIX_TOP）
+  const TOP = !a.m && (fb ? _FG.fabao.AFFIX_TOP : A.AFFIX_TOP);
+  if (TOP && TOP[a.k] && TOP[a.k][g] !== undefined) {
+    const last = DATA.colorRange(A.colors.length - 1, g)[1] || 1;
+    return TOP[a.k][g] * DATA.rangeMult(a, g) / last;
+  }
   if (e && e.slot === "fabao" && e.attrs) {   // 法宝
     const F = _FG.fabao, grow = DATA.FB_PCT.includes(a.k) ? (F.PCT_GROW[g] || 1) : (F.GROW[g] || 1);
     return (F.base[a.k] || 0) * grow * DATA.rangeMult(a, g);
@@ -138,3 +144,6 @@ DATA.fabaoInfo = e => {
   o.mana = Math.max(0, (F.base.mana || 0) * (F.GROW[e.g] || 1) * (1 - o.cutPct / 100) - o.cut);
   return o;
 };
+
+// v26：药材、矿石图片（img/mats/herb0.png …… 按 config/items.js 里的顺序）
+DATA.matImg = (kind, g) => `img/mats/${kind}${g}.png`;
