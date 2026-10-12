@@ -422,7 +422,10 @@ G.module({
     shopView() {
       const s = this.s, t = this.shopTab || "pill";
       const tabs = `<div class="sub-tabs">${[["pill", "丹药"], ["eq", "装备"], ["gf", "功法"], ["herb", "药材"], ["ore", "矿石"]].map(([k, n]) =>
+        `<button class="${t === k ? "active" : ""}" onclick="G.setShopTab('${k}')">${n}</button>`).join("")}</div>
+        <div class="sub-tabs">${[["room", "修炼室"], ["gfroom", "练功房"]].map(([k, n]) =>
         `<button class="${t === k ? "active" : ""}" onclick="G.setShopTab('${k}')">${n}</button>`).join("")}</div>`;
+      if (t === "room" || t === "gfroom") return tabs + this.shopRoomView(t === "room" ? "cult" : "gf");
       if (t === "pill" || t === "eq") {
         const rows = this.shopList().map((it, i) => {
           if (it.tab !== t) return "";
