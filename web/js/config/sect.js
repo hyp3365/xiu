@@ -16,12 +16,12 @@ CFG.sect = {
   //   daily 每日俸禄灵石（× 星级倍率 × 职务倍率）
   ranks: [
     { name: "外门弟子", cost: 0,      realm: 0, daily: 20 },
-    { name: "内门弟子", cost: 50,    realm: 1, daily: 30 },
-    { name: "真传弟子", cost: 100,   realm: 2, daily: 40 },
-    { name: "核心弟子", cost: 200,   realm: 3, daily: 50 },
-    { name: "宗门长老", cost: 500,  realm: 4, daily: 60 },
-    { name: "宗门供奉", cost: 1000,  realm: 5, daily: 80 },
-    { name: "宗主",     cost: 2000, realm: 6, daily: 100 },
+    { name: "内门弟子", cost: 200,    realm: 1, daily: 30 },
+    { name: "真传弟子", cost: 500,   realm: 2, daily: 40 },
+    { name: "核心弟子", cost: 800,   realm: 3, daily: 50 },
+    { name: "宗门长老", cost: 1200,  realm: 4, daily: 60 },
+    { name: "宗门供奉", cost: 2000,  realm: 5, daily: 80 },
+    { name: "宗主",     cost: 3000, realm: 6, daily: 100 },
   ],
   // 事务堂：每个职务一个任务（rank = 需要的职务序号，0 = 外门弟子）。
   //   点任务后一直自动循环执行（离线也继续），一次只能执行一个
