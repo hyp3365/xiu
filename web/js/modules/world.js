@@ -111,7 +111,7 @@ G.module({
       };
       let php = s.hp, mhp = m.hp, rounds = 0, dealt = 0, taken = 0;
       const hp0 = s.hp, mana0 = s.mana, meFirst = st.speed >= m.speed;
-      // 怪物出手：先判法术（带属性，算 防御 + 抗性），再判法宝（只算防御），都没有就普通攻击
+      // 怪物出手：先判法术，再判法宝（都按 防御×RES_RATE + 该系抗性 减免），都没有就普通攻击
       let mSp = 0, mFb = 0;
       const mCast = (k, el) => {
         const c = m[k], cost = c ? m.maxMana * c.cost : 0;
@@ -419,6 +419,21 @@ G.module({
       if (g.kind === "sp") this.autoSlotSpell(id);
       this.log(`购得《${g.name}》（${g.star}星 ${g.tier.name}），习得第 1 层。`, "gold"); this.after();
     },
+    // 管理员：网页里更新游戏（服务器拉取 GitHub 最新代码，完成后刷新页面）
+    async webUpdate() {
+      if (this.updating || !confirm("从 GitHub 拉取最新代码并重启存档服务？（会先同步一次存档）")) return;
+      this.updating = true; this.render();
+      try { await this.save(true); } catch (e) {}
+      try { await API.adminUpdate(); } catch (e) { this.updating = false; this.log("更新失败：" + e.message, "bad"); return this.render(); }
+      const t0 = Date.now(), poll = async () => {
+        try { const j = await API.adminInfo(); this.adminInfo = j;
+          if (/更新完成|失败|error/i.test(j.log || "") && Date.now() - t0 > 3000) { this.updating = false; this.log(/更新完成/.test(j.log) ? "游戏已更新，点「刷新页面」载入新版本。" : "更新出错，看下面的输出。", /更新完成/.test(j.log) ? "gold" : "bad"); return this.render(); }
+        } catch (e) {}   // 存档服务重启的几秒连不上，继续等
+        if (Date.now() - t0 > 120000) { this.updating = false; this.log("等待超时，稍后刷新页面看看。", "bad"); return this.render(); }
+        this.render(); setTimeout(poll, 3000);
+      };
+      setTimeout(poll, 3000);
+    },
     shopView() {
       const s = this.s, t = this.shopTab || "pill";
       const tabs = `<div class="sub-tabs">${[["pill", "丹药"], ["eq", "装备"], ["gf", "功法"], ["herb", "药材"], ["ore", "矿石"]].map(([k, n]) =>
@@ -444,7 +459,7 @@ G.module({
         const srcs = DATA.shopSources.filter(o => o.star === star), lock = !this.realmOK(srcs[0] ? srcs[0].reqRealm : 0);
         const line = g => { const has = this.hasGongfa(g.id);
           const desc = g.kind === "sp" ? `${g.el.name}系 · 攻击×${g.pct}% + ${U.fmt(g.perLv)}/层 · 耗法力 ${U.fmt(g.mana)}` : `每层${g.label} +${U.num(g.perLv)}`;
-          return `<div class="line"><div>《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.kind === "sp" ? "法术" : g.type.name}</span><small>${desc} · ${U.fmt(g.cost)} 灵石</small></div>
+          return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.kind === "sp" ? "法术" : g.type.name}</span><small>${desc} · ${U.fmt(g.cost)} 灵石</small></div>
             <button class="sm" onclick="G.buyGongfa('${g.id}')" ${has || lock || s.stone < g.cost ? "disabled" : ""}>${has ? "已学会" : lock ? "境界不足" : "购买"}</button></div>`; };
         return tabs + `<div class="room-grid">${Array.from({ length: N }, (_, i) => `<button class="${star === i + 1 ? "active" : ""}" onclick="G.setShopStar(${i + 1})">${i + 1}星</button>`).join("")}</div>
           <div class="room-grid">${DATA.tiers.map(x => `<button class="${tier === x.id ? "active" : ""}" onclick="G.setShopTier('${x.id}')">${x.name}</button>`).join("")}</div>
@@ -508,7 +523,13 @@ G.module({
 
     if (wt === "shop") return tabs + this.shopView();
 
-    return tabs + `<div class="card"><h3>账号<small>${API.user}</small></h3>
+    if (this.adminInfo === undefined) { this.adminInfo = null; API.adminInfo().then(j => { this.adminInfo = j; this.render(); }).catch(() => {}); }
+    const A = this.adminInfo, upd = A && A.admin ? `<div class="card"><h3>游戏更新<small>管理员</small></h3>
+      <p class="desc">当前版本：${A.version || "未知"}</p>
+      <div class="btns"><button class="primary" onclick="G.webUpdate()" ${this.updating ? "disabled" : ""}>${this.updating ? "更新中…" : "从 GitHub 更新"}</button>
+      <button onclick="location.reload()">刷新页面</button></div>
+      ${A.log ? `<div class="explore-log" style="white-space:pre-wrap;font-size:11px">${A.log.replace(/</g, "&lt;")}</div>` : ""}</div>` : "";
+    return tabs + upd + `<div class="card"><h3>账号<small>${API.user}</small></h3>
       <p class="desc">存档保存在服务器，换手机、关浏览器都不会丢。离线期间修炼、聚灵阵持续进行，不封顶。</p>
       <div class="btns"><button onclick="G.save(true)">立即同步</button><button onclick="G.logout()">退出登录</button>
       <button onclick="G.restart()">删档重来</button></div></div>`;
