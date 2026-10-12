@@ -36,7 +36,7 @@ G.module({
     freeCult: { day: "", used: 0, left: 0, on: false },   // 免费修炼室：今天用了几次、本次剩余修炼次数
     freeGf: { day: "", used: 0, end: 0 },                 // 免费练功房：今天用了几次、本次结束时间
     cqLv: 0,          // 元婴出窍秘法层数
-    cqStudy: null,    // 元婴出窍秘法修炼中 { end, total }
+    cqStudy: null,    // 元婴出窍秘法修炼中 { total, done, at, spent }
     cqDay: "", cqUsed: 0,   // 元婴出窍：今天已用次数
   }),
 
@@ -217,37 +217,43 @@ G.module({
     cqLeftToday() { const s = this.s; return Math.max(0, this.cqMaxRuns() - (s.cqDay === this.bjDay() ? s.cqUsed || 0 : 0)); },
     cqUse(n) { const s = this.s; if (s.cqDay !== this.bjDay()) { s.cqDay = this.bjDay(); s.cqUsed = 0; } s.cqUsed += n; },
     cqRefund(n) { const s = this.s; if (n > 0 && s.cqDay === this.bjDay()) s.cqUsed = Math.max(0, (s.cqUsed || 0) - n); },   // 跨天了就不用退（已经重置）
-    // 第 lv 层 → lv+1 层的修炼消耗
+    // 第 lv 层 → lv+1 层的修炼消耗：每 step 秒扣 per 修为，共 n 次
     cqStudyCost(lv) {
-      const C = CFG.chuqiao;
-      return { exp: Math.floor(C.EXP), sec: Math.max(1, C.TIME), lu: Math.floor(C.LU_BASE + C.LU_ADD * Math.floor(lv / C.LU_EVERY)) };
+      const C = CFG.chuqiao, sec = Math.max(1, C.TIME), step = Math.max(1, C.EXP_SEC);
+      return { per: Math.floor(C.EXP_PER), step, n: Math.ceil(sec / step), sec, lu: Math.floor(C.LU_BASE + C.LU_ADD * Math.floor(lv / C.LU_EVERY)) };
     },
     studyCq() {
       const s = this.s, C = CFG.chuqiao, lv = s.cqLv || 0;
       if (!lv || lv >= C.MAX_LV || s.cqStudy) return;
       if (!this.realmOK(C.REALM)) return this.log(`修炼${C.NAME}需要${DATA.realmLabel(C.REALM)}。`, "sys");
       const c = this.cqStudyCost(lv);
-      if (s.exp < c.exp) return this.log(`修为不足，需要 ${U.fmt(c.exp)}。`, "sys");
       if (this.smCount("lu") < c.lu) return this.log(`${DATA.smName("lu")}不足，需要 ${c.lu} 个（元婴期秘境掉落）。`, "sys");
-      s.exp -= c.exp; this.takeSm("lu", c.lu);
-      s.cqStudy = { end: this.now() + c.sec * 1000, total: c.sec * 1000 };
+      this.takeSm("lu", c.lu);
+      s.cqStudy = { total: c.sec * 1000, done: 0, at: this.now(), spent: 0 };
       this.log(`开始修炼${C.NAME}（第 ${lv} → ${lv + 1} 层）。`, "sys"); this.after();
     },
-    // 修炼到时间就升一层（离线也会补算）
+    // 每 EXP_SEC 秒扣一次修为、进度前进；修为不够就暂停，够了接着修。到时间升一层（离线也会补算）
     cqTick() {
-      const s = this.s, x = s.cqStudy;
-      if (!x || this.now() < x.end) return;
-      s.cqStudy = null; s.cqLv = Math.min(CFG.chuqiao.MAX_LV, (s.cqLv || 0) + 1); this.dirty();
-      this.log(`${CFG.chuqiao.NAME}提升至第 ${s.cqLv} 层，每天可出窍探索 ${this.cqMaxRuns()} 次。`, "gold");
+      const s = this.s, x = s.cqStudy; if (!x) return;
+      const C = CFG.chuqiao, STEP = Math.max(1, C.EXP_SEC) * 1000, per = Math.floor(C.EXP_PER), now = this.now();
+      if (x.end !== undefined) { x.done = Math.max(0, x.total - (x.end - now)); x.at = now; x.spent = 0; delete x.end; }   // 旧格式
+      while (x.done < x.total && now - x.at >= STEP) {
+        if (s.exp < per) { x.stalled = true; x.at = now; break; }
+        s.exp -= per; x.spent += per; x.done += STEP; x.at += STEP; x.stalled = false;
+      }
+      if (x.done < x.total) return;
+      s.cqStudy = null; s.cqLv = Math.min(C.MAX_LV, (s.cqLv || 0) + 1); this.dirty();
+      this.log(`${C.NAME}提升至第 ${s.cqLv} 层，每天可出窍探索 ${this.cqMaxRuns()} 次。`, "gold");
     },
     // 功法页 · 秘法里的出窍秘法一行
     cqLine() {
       const s = this.s, C = CFG.chuqiao, lv = s.cqLv || 0; if (!lv) return "";
       const max = lv >= C.MAX_LV, x = s.cqStudy, c = this.cqStudyCost(lv);
-      const st = x ? `<br>修炼中 · 剩余 ${this.countdown(x.end - Date.now())}` : max ? "" : `<br>下一层：${U.dur(c.sec)} · ${U.fmt(c.exp)} 修为 + ${DATA.smName("lu")} ${c.lu} 个（已有 ${U.fmt(this.smCount("lu"))}）`;
+      const st = x ? `<br>修炼中 · ${x.stalled ? "<b class='q5'>修为不足，暂停中</b>" : `剩余 ${this.countdown(x.total - x.done - Math.max(0, Date.now() - x.at))}`} · 已消耗 ${U.fmt(x.spent || 0)} / ${U.fmt(c.per * c.n)} 修为`
+        : max ? "" : `<br>下一层：${U.dur(c.sec)} · 每 ${c.step} 秒 ${U.fmt(c.per)} 修为（共 ${U.fmt(c.per * c.n)}）+ ${DATA.smName("lu")} ${c.lu} 个（已有 ${U.fmt(this.smCount("lu"))}）`;
       return `<div class="line"><div>${DATA.li(DATA.iconImg("mifa"))}《${C.NAME}》<span class="tag">${lv}/${C.MAX_LV}层</span>
         <small>出窍探索时可继续修炼 · 每天可出窍 ${this.cqMaxRuns()} 次（今天还剩 ${this.cqLeftToday()} 次）${st}</small></div>
-        <button class="sm" onclick="G.studyCq()" ${max || x || s.exp < c.exp || this.smCount("lu") < c.lu ? "disabled" : ""}>${max ? "圆满" : x ? "修炼中" : "修炼"}</button></div>`;
+        <button class="sm" onclick="G.studyCq()" ${max || x || this.smCount("lu") < c.lu ? "disabled" : ""}>${max ? "圆满" : x ? "修炼中" : "修炼"}</button></div>`;
     },
     // 杂物页货单：content/items.js 的 ITEMS.treasury（没写就用 config/sect.js 的 treasury）
     treasuryList() { return ITEMS.treasury || DATA.treasury; },
