@@ -34,7 +34,7 @@ DATA.playerFixed = _P.fixed;
 DATA.DODGE_CAP = _P.DODGE_CAP;
 DATA.dodgeChance = (hit, dodge) => Math.min(_P.DODGE_CAP, Math.max(0, (dodge - hit) / Math.max(1, hit) * 100 / _P.DODGE_DIV));
 DATA.CRIT_CAP = _P.CRIT_CAP;
-DATA.REGEN = _P.REGEN;
+
 
 /* 突破：小境界 100%；大境界成功率随境界降低，失败损失部分修为 */
 DATA.majorBreakChance = realmIndex => Math.max(_R.MAJOR_MIN, _R.MAJOR_BASE - realmIndex * _R.MAJOR_DROP);
