@@ -149,19 +149,26 @@ CFG.sect.rankTrial = {
 CFG.sect.freeRoom   = { name: "免费修炼室", pct: 0, times: 500, daily: 1 };
 CFG.sect.freeGfRoom = { name: "免费练功房", pct: 0, minutes: 60, daily: 1 };
 
-/* ---------- 元婴出窍秘法（宗门宝库 · 杂物兑换） ----------
- * 学会后在世界地图「探索」旁边点「出窍」，输入次数后自动探索，期间可以继续修炼
- *   每步时间、宗门秘法「神行」减少的时间都和历练 / 探索一样
- * 第 1 层可出窍探索 PER_LV 次，每升一层多 PER_LV 次（一次出窍最多 层数 × PER_LV 次），最高 MAX_LV 层
- * 兑换（学会 / 升一层）消耗贡献 = COST_BASE + COST_ADD × 当前层数（不乘星级）
- * REALM：需要的境界序号（0 练气 1 筑基 2 金丹 3 元婴 ……），兑换和使用都要
- * STAR：需要的门派星级 */
+/* ---------- 元婴出窍秘法 ----------
+ * 宗门宝库「杂物」用贡献换取（LEARN_CONTRIB，不乘星级），学会即第 1 层，出现在「功法 → 秘法」，之后在那里修炼升层
+ * 修炼升一层（第 n 层 → n+1 层）：
+ *   修为 = EXP_BASE + EXP_ADD × n        时间（秒）= TIME_BASE + TIME_ADD × n
+ *   养神灵露 = LU_BASE + LU_ADD × floor(n / LU_EVERY)（默认每 100 层多 1 个）
+ * 养神灵露：需要境界为 LU_MJ_REALM 的秘境（3 = 元婴期秘境）每次历练 / 探索必定掉落 LU_DROP 个
+ * 效果：每层每天可出窍探索 PER_LV 次（今天可出窍次数 = 层数 × PER_LV），最高 MAX_LV 层
+ *   出窍开始时就扣掉输入的次数，手动停止、气血不足停止都不退还；每天 0 点恢复
+ *   出窍期间可以继续修炼；每步时间、宗门秘法「神行」减少的时间都和历练 / 探索一样
+ * REALM：需要的境界序号（0 练气 1 筑基 2 金丹 3 元婴 ……），换取、修炼、出窍都要
+ * STAR：换取需要的门派星级 */
 CFG.chuqiao = {
   NAME: "元婴出窍秘法",
   MAX_LV: 3000,
   PER_LV: 1,
-  COST_BASE: 500,
-  COST_ADD: 50,
+  LEARN_CONTRIB: 500,
+  EXP_BASE: 100000, EXP_ADD: 10000,
+  TIME_BASE: 60, TIME_ADD: 6,
+  LU_BASE: 1, LU_ADD: 1, LU_EVERY: 100,
+  LU_MJ_REALM: 3, LU_DROP: 10,
   REALM: 3,
   STAR: 1,
 };
