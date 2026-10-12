@@ -116,15 +116,17 @@ G.module({
       this.s.gfStudy = null; this.nextStudy(); this.after();
     },
     setGfFilter(t) { this.gfFilter = t; this.render(); },
-    // 排序 / 隐藏满级：「按等级」（低层 → 高层）、「按星级」（高星 → 低星）默认都开，点击切换；
-    //   三个开关存在浏览器本地（localStorage），刷新网页不变
+    // 排序 / 隐藏满级：「按等级」「按星级」一直开着，点击切换方向（v42）
+    //   默认 等级 低层 → 高层（lvUp = true）、星级 高星 → 低星（starUp = false）
+    //   三个设置存在浏览器本地（localStorage），刷新网页不变
     gfPref() {
-      if (!this._gfPref) { let p = {}; try { p = JSON.parse(localStorage.getItem("xiu_gf_pref") || "{}") || {}; } catch (e) {}
-        this._gfPref = { lv: p.lv !== false, star: p.star !== false, hide: !!p.hide }; }
+      if (!this._gfPref) { let p = {}; try { p = JSON.parse(localStorage.getItem("xiu_gf_pref2") || "{}") || {}; } catch (e) {}
+        let hide = p.hide; if (hide === undefined) { try { hide = !!(JSON.parse(localStorage.getItem("xiu_gf_pref") || "{}") || {}).hide; } catch (e) { hide = false; } }
+        this._gfPref = { lvUp: p.lvUp !== false, starUp: p.starUp === true, hide: !!hide }; }
       return this._gfPref;
     },
-    toggleGfPref(k) { const p = this.gfPref(); p[k] = !p[k]; try { localStorage.setItem("xiu_gf_pref", JSON.stringify(p)); } catch (e) {} this.render(); },
-    setGfSort(k) { this.toggleGfPref(k === "lv" ? "lv" : "star"); },
+    toggleGfPref(k) { const p = this.gfPref(); p[k] = !p[k]; try { localStorage.setItem("xiu_gf_pref2", JSON.stringify(p)); } catch (e) {} this.render(); },
+    setGfSort(k) { this.toggleGfPref(k === "lv" ? "lvUp" : "starUp"); },
     toggleGfHideMax() { this.toggleGfPref("hide"); },
 
     // 数值显示：身法是闪避（两位小数），其余取整
@@ -186,16 +188,16 @@ G.module({
     // 排序 / 隐藏满级
     const P = this.gfPref(), hide = P.hide;
     const tools = `<div class="row small" style="gap:6px;justify-content:flex-start;margin:6px 0">
-      <button class="sm ${P.lv ? "active" : ""}" onclick="G.setGfSort('lv')">按等级</button>
-      <button class="sm ${P.star ? "active" : ""}" onclick="G.setGfSort('star')">按星级</button>
+      <button class="sm active" onclick="G.setGfSort('lv')">按等级 ${P.lvUp ? "低→高" : "高→低"}</button>
+      <button class="sm active" onclick="G.setGfSort('star')">按星级 ${P.starUp ? "低→高" : "高→低"}</button>
       <button class="sm ${hide ? "active" : ""}" onclick="G.toggleGfHideMax()">${hide ? "显示满级" : "隐藏满级"}</button></div>`;
 
     const all = ids.map(id => DATA.skillInfo(id, s.gongfa[id])).filter(Boolean).filter(g => !hide || g.lv < DATA.GONGFA_MAX);
     const groups = [...DATA.gongfaTypes.map(t => ({ key: t.id, title: t.name, sub: t.label, items: all.filter(g => g.kind === "gf" && g.type.id === t.id) })),
                     { key: "spell", title: "法术", sub: "放入背包法术栏后战斗中施放", items: all.filter(g => g.kind === "sp") },
                     { key: "mifa", title: "秘法", sub: "宗门悟道室学习 · 修炼消耗修为和灵石", items: all.filter(g => g.kind === "mf") }];
-    // 两个都开：先按等级（低 → 高），同等级再按星级（高 → 低）；同星级 天 → 黄
-    const sortFn = (a, b) => (P.lv ? a.lv - b.lv : 0) || (P.star ? b.star - a.star : 0) || b.tier.idx - a.tier.idx;
+    // 先按等级，同等级再按星级；同星级 天 → 黄
+    const sortFn = (a, b) => (P.lvUp ? a.lv - b.lv : b.lv - a.lv) || (P.starUp ? a.star - b.star : b.star - a.star) || b.tier.idx - a.tier.idx;
     const body = groups.filter(gr => filter === "all" || gr.key === filter).map(gr => {
       if (gr.key === "mifa" && s.cqLv) { gr.items.sort(sortFn); return `<div class="card"><h3>${gr.title}<small>${gr.sub}</small></h3>${this.cqLine()}${gr.items.map(g => this.skillLine(g)).join("")}</div>`; }   // 元婴出窍秘法
       if (!gr.items.length) return filter === "all" ? "" : `<div class="card"><p class="desc">${hide ? "没有未满级的" : "尚未学会任何"}${gr.title}。</p></div>`;
