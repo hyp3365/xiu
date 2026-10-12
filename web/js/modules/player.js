@@ -94,11 +94,11 @@ G.module({
         def:     B.def * f + eq.def + gf.def + dn.def,
         mana:    B.mana * f + eq.mana + gf.mana + dn.mana,
         cultivate: B.cultivate * f,
-        speed:   B.speed * f + eq.speed + cu.speed + (bd.speed || 0),
+        speed:   B.speed * f + eq.speed + cu.speed + (bd.speed || 0) + (dn0.speed || 0),
         hit:     B.hit * f + eq.hit + gf.hit + dn.hit,
         dodge:   B.dodge * f + eq.dodge + gf.dodge + dn.dodge,
         crit:    Math.min(DATA.CRIT_CAP, F.crit + eq.crit + dn.crit),
-        res:     Object.fromEntries(DATA.elements.map(e => [e.id, (CFG.player.RES_BASE || 0) * f + (gf.res[e.id] || 0) + (eq.res[e.id] || 0) + (cu.res[e.id] || 0) + (bd.res || 0)])),
+        res:     Object.fromEntries(DATA.elements.map(e => [e.id, (CFG.player.RES_BASE || 0) * f + (gf.res[e.id] || 0) + (eq.res[e.id] || 0) + (cu.res[e.id] || 0) + (bd.res || 0) + (dn0.res || 0)])),
       };
     },
   },
