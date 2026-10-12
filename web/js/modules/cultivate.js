@@ -1,7 +1,7 @@
 /* =====================================================================
  * 模块：修炼（灵气 → 修为、突破、丹药加速）
  * ---------------------------------------------------------------------
- * 修炼速度 = 基础修炼速度 × 聚灵阵倍率 × (1 + 丹药%) × (1 + 练功房%)
+ * 修炼速度 = 基础修炼速度 × (1 + (聚灵阵% + 丹药% + 修炼室%) / 100)（百分比加成全部相加，不连乘）
  *   基础修炼速度 = 境界基础 + 秘诀（开局不再随机灵根）
  * 聚灵阵开关在本页；开关只影响修炼速度（关闭后没有聚灵阵倍率），不影响聚灵。
  * 修炼前提：学会至少一部秘诀，且不在自动探索中。
@@ -100,7 +100,9 @@ G.module({
       let pill = 0;
       for (const t in s.buffs) { const b = s.buffs[t]; if (b && b.left > 0) pill += b.pct; }
       const room = s.room >= 0 && s.sect ? this.roomPct(s.room) : s.shopRoom >= 0 && DATA.shopRooms.cult[s.shopRoom] ? DATA.shopRooms.cult[s.shopRoom].pct : 0;
-      return { base, arr, pill, room, mifa, total: base * arr * (1 + pill / 100) * (1 + room / 100),
+      // 所有百分比加成相加后再乘：总速度 = 基础 × (1 + (聚灵阵% + 丹药% + 修炼室%) / 100)，避免数值连乘爆炸
+      const arrPct = (arr - 1) * 100;
+      return { base, arr, pill, room, mifa, total: base * (1 + (arrPct + pill + room) / 100),
         gather: this.gatherAmount() };                                     // 每 10 秒聚灵（开关不影响）
     },
 
