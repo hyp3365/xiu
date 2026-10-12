@@ -41,8 +41,12 @@ DATA.maps = [
 ];
 
 // 6 种药材、6 种矿石：名字和价格在 js/config/ 下的数值文件 的 mats（序号 0~5，越往后越稀有）
-DATA.herbs = Object.keys(CFG.mats.herb);
-DATA.ores  = Object.keys(CFG.mats.ore);
+// v41：仙界 / 冥界 / 魔界 / 神界的药材、矿石（config/items.js 的 matsOther）接在凡界后面，序号 6 起
+DATA.FAN_HERB_N = Object.keys(CFG.mats.herb).length;
+DATA.FAN_ORE_N = Object.keys(CFG.mats.ore).length;
+DATA.herbs = [...Object.keys(CFG.mats.herb), ...Object.keys((CFG.matsOther || {}).herb || {})];
+DATA.ores  = [...Object.keys(CFG.mats.ore), ...Object.keys((CFG.matsOther || {}).ore || {})];
+DATA.matCfg = (kind, name) => (CFG.mats[kind] || {})[name] || ((CFG.matsOther || {})[kind] || {})[name] || [0, 0];
 DATA.PIN = ["一品", "二品", "三品", "四品", "五品", "六品", "七品", "八品", "九品"];
 // 丹药、炉子、丹方分十阶（一星门派对应一阶 …… 十星对应十阶）
 DATA.JIE = ["一阶", "二阶", "三阶", "四阶", "五阶", "六阶", "七阶", "八阶", "九阶", "十阶"];
@@ -77,5 +81,5 @@ DATA.fanMats = () => {
   return set;
 };
 // 材料出售价、宗门兑换贡献（js/config/ 数值文件 的 mats）
-DATA.matPrice = (kind, g) => CFG.mats[kind][DATA[kind === "herb" ? "herbs" : "ores"][g]][0];
-DATA.matContrib = (kind, g) => CFG.mats[kind][DATA[kind === "herb" ? "herbs" : "ores"][g]][1];
+DATA.matPrice = (kind, g) => DATA.matCfg(kind, DATA[kind === "herb" ? "herbs" : "ores"][g])[0];
+DATA.matContrib = (kind, g) => DATA.matCfg(kind, DATA[kind === "herb" ? "herbs" : "ores"][g])[1];
