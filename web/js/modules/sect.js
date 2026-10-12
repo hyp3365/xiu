@@ -32,6 +32,10 @@ G.module({
     affair: { task: -1, start: 0, count: 0 },     // 事务堂：正在循环执行的任务（-1 = 无）
     tower: 0,         // 试炼塔已通关层数（当前门派星级，和 towers 同步，旧字段）
     towers: {},       // v25：各星级试炼塔已通关层数 { 星级: 层数 }
+    rankPass: -1,     // 已通过考验、可以晋升的职务序号（-1 = 没有）
+    freeCult: { day: "", used: 0, left: 0, on: false },   // 免费修炼室：今天用了几次、本次剩余修炼次数
+    freeGf: { day: "", used: 0, end: 0 },                 // 免费练功房：今天用了几次、本次结束时间
+    cqLv: 0,          // 元婴出窍秘法层数
   }),
 
   // 每 10 秒：事务堂任务到时间就结算一次，并自动开始下一次（离线也会补算）
@@ -58,6 +62,7 @@ G.module({
     // 当前练功房（宗门或坊市）：{ name, pct, cost, cur: "contrib"|"stone" } 或 null
     gfRoomNow() {
       const s = this.s;
+      if (this.freeGfOn()) return { name: CFG.sect.freeGfRoom.name, pct: this.freeGfPct(), cost: 0, cur: "contrib", free: true };
       if (s.gfRoom >= 0 && s.sect && DATA.gfRooms[s.gfRoom]) return { name: DATA.gfRooms[s.gfRoom].name, pct: this.gfRoomPct(s.gfRoom), cost: this.gfRoomCost(s.gfRoom), cur: "contrib" };
       const r = DATA.shopRooms.gf[s.shopGfRoom];
       return s.shopGfRoom >= 0 && r ? { name: r.name, pct: r.pct, cost: r.cost, cur: "stone" } : null;
@@ -71,14 +76,14 @@ G.module({
       const x = DATA.sectById[id];
       if (!this.realmOK(x.reqRealm)) return;
       this.fixTower();
-      Object.assign(this.s, { sect: id, contrib: 0, rank: 0, room: -1, tower: this.s.towers[x.star] || 0, affair: { task: -1, start: 0, count: 0 } });
+      Object.assign(this.s, { sect: id, contrib: 0, rank: 0, room: -1, rankPass: -1, tower: this.s.towers[x.star] || 0, affair: { task: -1, start: 0, count: 0 } });
       this.sectTab = "hall";
       this.log(`你拜入${x.name}（${x.star}星），成为外门弟子。`, "gold"); this.after();
     },
     leaveSect() {
       if (!confirm("叛出门派将清空贡献和职务（已学功法保留），确定？")) return;
       this.log(`你离开了${this.sectInfo().name}。`, "bad");
-      this.s.sect = null; this.s.room = -1; this.s.affair = { task: -1, start: 0, count: 0 }; this.s.contrib = 0; this.s.rank = 0; this.after();
+      this.s.sect = null; this.s.room = -1; this.s.affair = { task: -1, start: 0, count: 0 }; this.s.contrib = 0; this.s.rank = 0; this.s.rankPass = -1; this.after();
     },
 
     /* ---------- 宗门大殿 ---------- */
@@ -87,8 +92,32 @@ G.module({
     promote() {
       const i = this.s.rank + 1; if (i >= DATA.ranks.length) return;
       if (!this.realmOK(this.rankReqRealm(i)) || this.s.contrib < this.rankCost(i)) return;
-      this.s.contrib -= this.rankCost(i); this.s.rank = i;
+      if (this.s.rankPass !== i) return this.log("需先通过晋升考验。", "sys");
+      this.s.contrib -= this.rankCost(i); this.s.rank = i; this.s.rankPass = -1;
       this.log(`晋升为【${DATA.ranks[i].name}】！`, "gold"); this.after();
+    },
+    /* ---------- 晋升考验（config/sect.js 的 sect.rankTrial） ---------- */
+    rankTrialCost(i) { return Math.floor(((CFG.sect.rankTrial.cost || [])[i] || 0) * this.starMul()); },
+    makeRankGuard(i) {
+      const T = CFG.sect.rankTrial, S = T.STAT || {}, B = DATA.playerBase;
+      const L = Math.max(0, this.rankReqRealm(i)) * DATA.LAYERS, d = (T.DIFF || [])[i] === undefined ? 1 : T.DIFF[i], f = Math.pow(DATA.GROW, L) * d;
+      const v = k => B[k] * f * (S[k] === undefined ? 1 : S[k]);
+      return this.addMagic({ name: `${DATA.ranks[i].name}考官`, boss: false, crit: T.crit || 0,
+        hp: v("hp"), atk: v("atk"), def: v("def"), speed: v("speed"), hit: v("hit"), dodge: v("dodge") }, "tower");
+    },
+    challengeRank() {
+      const s = this.s, i = s.rank + 1; if (i >= DATA.ranks.length || s.rankPass === i) return;
+      if (!this.realmOK(this.rankReqRealm(i))) return;
+      const c = this.rankTrialCost(i);
+      if (s.contrib < c) return this.log(`贡献不足，参加考验需要 ${U.fmt(c)}。`, "sys");
+      if (s.hp < this.stats().hp * CFG.battle.TOWER_HP_MIN) return this.log("气血不足三成，先休养片刻。", "sys");
+      s.contrib -= c;
+      const res = this.battle(this.makeRankGuard(i));
+      let txt;
+      if (res.win) { s.rankPass = i; txt = `${res.rounds}回合击败${DATA.ranks[i].name}考官，通过晋升考验！`; this.log(txt, "gold"); }
+      else { txt = `${DATA.ranks[i].name}晋升考验失败${res.lose ? "" : "（回合耗尽，各自退去）"}。`; this.log(txt, "bad"); }
+      this.after();
+      this.playBattle(res.detail, `晋升考验 · ${DATA.ranks[i].name}`, txt, res.win);   // 见 world.js
     },
     salary() { return Math.floor(DATA.ranks[this.s.rank].daily * this.starMul() * this.rankMul()); },
     today() { return new Date(this.now()).toDateString(); },
@@ -130,6 +159,31 @@ G.module({
       this.log(`开始执行「${DATA.affairs[i].name}」，完成后自动继续。`, "good"); this.after();
     },
 
+    /* ---------- 免费修炼室 / 免费练功房（config/sect.js 的 freeRoom / freeGfRoom） ---------- */
+    freeCultPct() { const p = CFG.sect.freeRoom.pct; return p ? p * this.starMul() : this.roomPct(0); },
+    freeGfPct() { const p = CFG.sect.freeGfRoom.pct; return p ? p * this.starMul() : this.gfRoomPct(0); },
+    freeCultOn() { const f = this.s.freeCult; return !!(this.s.sect && f && f.on && f.left > 0); },
+    freeGfOn() { const f = this.s.freeGf; return !!(this.s.sect && f && this.now() < f.end); },
+    freeUsed(f) { return f && f.day === this.today() ? f.used || 0 : 0; },
+    enterFreeRoom() {
+      const s = this.s, C = CFG.sect.freeRoom;
+      if (!s.freeCult) s.freeCult = { day: "", used: 0, left: 0, on: false };
+      const f = s.freeCult;
+      if (f.left > 0) { f.on = !f.on; return this.after(); }              // 本次还没用完：进入 / 离开
+      if (this.freeUsed(f) >= C.daily) return this.log(`${C.name}今天已用过。`, "sys");
+      Object.assign(f, { day: this.today(), used: this.freeUsed(f) + 1, left: C.times, on: true });
+      this.log(`进入${C.name}，可修炼 ${C.times} 次。`, "good"); this.after();
+    },
+    enterFreeGfRoom() {
+      const s = this.s, C = CFG.sect.freeGfRoom;
+      if (!s.freeGf) s.freeGf = { day: "", used: 0, end: 0 };
+      const f = s.freeGf;
+      if (this.freeGfOn()) return;
+      if (this.freeUsed(f) >= C.daily) return this.log(`${C.name}今天已用过。`, "sys");
+      Object.assign(f, { day: this.today(), used: this.freeUsed(f) + 1, end: this.now() + C.minutes * 60000 });
+      this.log(`进入${C.name}，持续 ${C.minutes} 分钟。`, "good"); this.after();
+    },
+
     /* ---------- 练功房 ---------- */
     enterRoom(i) {
       if (this.s.room !== i && this.roomLocked(i)) return this.log(`需要职务【${DATA.ranks[DATA.rooms[i].rank].name}】。`, "sys");
@@ -152,18 +206,30 @@ G.module({
     },
 
     /* ---------- 宗门宝库 ---------- */
-    treasuryCost(it) { return it.cost; },
+    treasuryCost(it) { return it.kind === "chuqiao" ? this.cqCost() : it.cost; },
+    // 元婴出窍秘法（config/sect.js 的 CFG.chuqiao）
+    cqCost() { const C = CFG.chuqiao; return Math.floor(C.COST_BASE + C.COST_ADD * (this.s.cqLv || 0)); },
+    cqMaxRuns() { return (this.s.cqLv || 0) * CFG.chuqiao.PER_LV; },
     // 杂物页货单：content/items.js 的 ITEMS.treasury（没写就用 config/sect.js 的 treasury）
     treasuryList() { return ITEMS.treasury || DATA.treasury; },
     treasuryName(it) {
       if (it.item) return it.item;
       if (it.kind === "furnace") return DATA.furnaceName(it.fk, it.g);
       if (it.kind === "pill") return `${DATA.realms[this.r()]}·${DATA.pills[it.type].name}`;
+      if (it.kind === "chuqiao") return CFG.chuqiao.NAME;
       return it.name || "灵石";
     },
     exchange(i) {
       const it = this.treasuryList()[i], c = this.treasuryCost(it);
       if (!it || this.s.contrib < c || (it.star || 1) > this.sectInfo().star) return;
+      if (it.kind === "chuqiao") {
+        const C = CFG.chuqiao, lv = this.s.cqLv || 0;
+        if (lv >= C.MAX_LV || C.STAR > this.sectInfo().star) return;
+        if (!this.realmOK(C.REALM)) return this.log(`${C.NAME}需要${DATA.realmLabel(C.REALM)}。`, "sys");
+        this.s.contrib -= c; this.s.cqLv = lv + 1;
+        this.log(lv ? `${C.NAME}提升至第 ${lv + 1} 层，一次可出窍探索 ${this.cqMaxRuns()} 次。` : `习得${C.NAME}第 1 层！可在世界地图点「出窍」探索，期间继续修炼。`, "gold");
+        return this.after();
+      }
       if (it.item) { if (!this.addCustom(it.item)) return; }
       else if (it.kind === "furnace") { if (!this.addFurnaceItem(it.fk, it.g)) return; }
       else if (it.kind === "pill") { if (!this.addPill(it.type, this.r())) return; }
@@ -326,8 +392,10 @@ G.module({
         <div class="line"><div>每日俸禄<small>${U.fmt(this.salary())} 灵石</small></div>
         <button class="sm" onclick="G.claimSalary()" ${got ? "disabled" : ""}>${got ? "今日已领" : "领取"}</button></div>
         ${next < 0 ? `<p class="desc">你已是一宗之主。</p>` : `<div class="line"><div>晋升【${DATA.ranks[next].name}】
-          <small>需${DATA.realmLabel(this.rankReqRealm(next))} · ${U.fmt(this.rankCost(next))} 贡献</small></div>
-          <button class="sm" onclick="G.promote()" ${!this.realmOK(this.rankReqRealm(next)) || s.contrib < this.rankCost(next) ? "disabled" : ""}>晋升</button></div>`}</div>
+          <small>需${DATA.realmLabel(this.rankReqRealm(next))} · ${U.fmt(this.rankCost(next))} 贡献 · ${s.rankPass === next ? "已通过考验" : "需先通过考验"}</small></div>
+          <button class="sm" onclick="G.promote()" ${s.rankPass !== next || !this.realmOK(this.rankReqRealm(next)) || s.contrib < this.rankCost(next) ? "disabled" : ""}>晋升</button></div>
+          <div class="line"><div>晋升考验 · ${DATA.ranks[next].name}考官<small>每次消耗 ${U.fmt(this.rankTrialCost(next))} 贡献 · 战斗胜利后才能晋升</small></div>
+          <button class="sm ${s.rankPass === next ? "on" : ""}" onclick="G.challengeRank()" ${s.rankPass === next || !this.realmOK(this.rankReqRealm(next)) || s.contrib < this.rankTrialCost(next) ? "disabled" : ""}>${s.rankPass === next ? "已通过" : "考验"}</button></div>`}</div>
         <div class="card"><h3>职务一览</h3>${DATA.ranks.map((r, i) => `<div class="line"><div>${r.name}<small>俸禄 ${U.fmt(Math.floor(r.daily * this.starMul() * this.rankMul(i)))} 灵石 · 晋升 ${U.fmt(this.rankCost(i))} 贡献</small></div>${i === s.rank ? "<b>当前</b>" : i < s.rank ? "<small>已历</small>" : ""}</div>`).join("")}</div>
         <div class="btns"><button onclick="G.leaveSect()">叛出门派</button></div>`;
     } else if (tab === "lib") {
@@ -359,13 +427,19 @@ G.module({
           return `<div class="line"><div>${t.name}<span class="tag">${DATA.ranks[t.rank].name}</span><small>每次 ${U.dur(t.time * 60)} · 贡献 +${U.fmt(this.affairContrib(i))} · 灵石 +${U.fmt(this.affairStone(i))}</small></div>
             <button class="sm ${on ? "on" : ""}" onclick="G.startAffair(${i})" ${lock ? "disabled" : ""}>${lock ? "职务不足" : on ? "停止" : "执行"}</button></div>`; }).join("") + `</div>`;
     } else if (tab === "room") {
-      h += `<div class="card"><h3>修炼室<small>加快修炼 · 每次修炼消耗贡献</small></h3>` + DATA.rooms.map((r, i) => {
+      const FC = CFG.sect.freeRoom, fc = s.freeCult || {}, fcOn = this.freeCultOn(), fcLeft = fc.left > 0, fcDone = !fcLeft && this.freeUsed(fc) >= FC.daily;
+      h += `<div class="card"><h3>修炼室<small>加快修炼 · 每次修炼消耗贡献</small></h3>
+        <div class="line"><div>${FC.name}<span class="tag">+${U.num(this.freeCultPct())}%</span><small>${fcLeft ? `本次剩余 ${fc.left} 次修炼` : `每天 ${FC.daily} 次 · 每次 ${FC.times} 次修炼 · 不消耗贡献`}</small></div>
+          <button class="sm ${fcOn ? "on" : ""}" onclick="G.enterFreeRoom()" ${fcDone ? "disabled" : ""}>${fcOn ? "使用中" : fcDone ? "今日已用" : "进入"}</button></div>` + DATA.rooms.map((r, i) => {
         const on = s.room === i, lock = !on && this.roomLocked(i);
         return `<div class="line"><div>${r.name}<span class="tag">+${U.num(this.roomPct(i))}%</span>${r.rank ? `<span class="tag">${DATA.ranks[r.rank].name}专用</span>` : ""}<small>每次修炼消耗 ${U.fmt(this.roomCost(i))} 贡献</small></div>
           <button class="sm ${on ? "on" : ""}" onclick="G.enterRoom(${i})" ${lock ? "disabled" : ""}>${on ? "使用中" : lock ? "职务不足" : "进入"}</button></div>`;
       }).join("") + `</div>`;
     } else if (tab === "gfroom") {
-      h += `<div class="card"><h3>练功房<small>加快功法修炼 · 修炼功法时每 5 秒消耗贡献</small></h3>` + DATA.gfRooms.map((r, i) => {
+      const FG = CFG.sect.freeGfRoom, fg = s.freeGf || {}, fgOn = this.freeGfOn(), fgDone = !fgOn && this.freeUsed(fg) >= FG.daily;
+      h += `<div class="card"><h3>练功房<small>加快功法修炼 · 修炼功法时每 5 秒消耗贡献</small></h3>
+        <div class="line"><div>${FG.name}<span class="tag">功法修炼 +${U.num(this.freeGfPct())}%</span><small>${fgOn ? `剩余 ${U.dur(Math.ceil((fg.end - this.now()) / 1000))}` : `每天 ${FG.daily} 次 · 每次 ${FG.minutes} 分钟 · 不消耗贡献`}</small></div>
+          <button class="sm ${fgOn ? "on" : ""}" onclick="G.enterFreeGfRoom()" ${fgOn || fgDone ? "disabled" : ""}>${fgOn ? "使用中" : fgDone ? "今日已用" : "进入"}</button></div>` + DATA.gfRooms.map((r, i) => {
         const on = s.gfRoom === i, lock = !on && this.gfRoomLocked(i);
         return `<div class="line"><div>${r.name}<span class="tag">功法修炼 +${U.num(this.gfRoomPct(i))}%</span>${r.rank ? `<span class="tag">${DATA.ranks[r.rank].name}专用</span>` : ""}<small>每 5 秒消耗 ${U.fmt(this.gfRoomCost(i))} 贡献</small></div>
           <button class="sm ${on ? "on" : ""}" onclick="G.enterGfRoom(${i})" ${lock ? "disabled" : ""}>${on ? "使用中" : lock ? "职务不足" : "进入"}</button></div>`;
@@ -377,6 +451,12 @@ G.module({
       if (tt === "pill") {
         h += `<div class="card"><h3>杂物<small>以贡献兑换 · 炉子放进背包后点「使用」</small></h3>` + this.treasuryList().map((it, i) => {
           if (!it || (it.item && !this.cuDef(it.item))) return "";
+          if (it.kind === "chuqiao") {
+            const C = CFG.chuqiao, lv = s.cqLv || 0, c = this.cqCost(), full = lv >= C.MAX_LV, rl = !this.realmOK(C.REALM), sl = C.STAR > x.star;
+            return `<div class="line"><div>${DATA.li(DATA.iconImg("mifa"))}<span class="q4">${C.NAME}</span>${lv ? `<span class="tag">${lv}/${C.MAX_LV}层</span>` : ""}
+              <small>出窍探索时可继续修炼 · 每层可出窍 ${C.PER_LV} 次 · 需${DATA.realmLabel(C.REALM)} · ${full ? "已满层" : `${U.fmt(c)} 贡献`}</small></div>
+              <button class="sm" onclick="G.exchange(${i})" ${full || rl || sl || s.contrib < c ? "disabled" : ""}>${full ? "已满层" : sl ? `需${C.STAR}星` : rl ? "境界不足" : lv ? "升级" : "兑换"}</button></div>`;
+          }
           const c = this.treasuryCost(it), lock = (it.star || 1) > x.star, cd = it.item ? this.cuDef(it.item) : null;
           const desc = it.kind === "furnace" ? `${it.fk === "dan" ? "炼丹" : "炼器"}时间 -${DATA.furnaceBonus(it.fk, it.g)}% · `
             : cd ? `${DATA.cuTypes[cd.type] || ""}${cd.desc ? " · " + cd.desc : ""}${["perm", "equip", "fabao"].includes(cd.type) ? " · " + this.cuStatText(this.cuStats(cd)) : ""} · ` : "";
