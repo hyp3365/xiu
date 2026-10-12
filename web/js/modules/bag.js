@@ -129,7 +129,7 @@ G.module({
       if (it.t === "cu") return it.name;
       if (it.t === "ss") return DATA.stoneName(it.g);
       if (it.t === "hx") return "火髓";
-      if (it.t === "rbp") return DATA.ringBpName(it.g);
+      if (it.t === "rbp") return DATA.ringBpName(it.g, it.r);
       if (it.e.cid) return it.e.name;
       if (it.e.attrs && it.e.slot === "fabao") return `${DATA.JIE[it.e.g]}·${DATA.elById[it.e.el].name}·${it.e.name}`;
       if (it.e.attrs) return `${DATA.JIE[it.e.g]}·${it.e.name}`;
@@ -150,11 +150,27 @@ G.module({
     },
 
     setBagTab(t) { this.bagTab = t; this.render(); },
+    setBagFilter(k) { this.bagFilter = k; this.bagSell = false; this.render(); },
+    openSellPage() { this.bagSell = true; this.render(); },
+    closeSellPage() { this.bagSell = false; this.render(); },
+    // v26：出售页（按上面的分类筛选），只有这里能卖东西
+    sellPageView(match) {
+      const s = this.s, flt = this.bagFilter || "all";
+      const rows = s.bag.map((it, i) => [it, i]).filter(([it]) => match(it)).map(([it, i]) => {
+        const p = this.sellPrice(it), n = it.n || 1, q = it.t === "eq" ? it.e.q : it.t === "cu" ? ((this.cuDef(it.name) || {}).q || 0) : 0;
+        const img = it.t === "mat" ? `<img src="${DATA.matImg(it.kind, it.g)}" alt="" style="width:28px;height:28px;vertical-align:middle;margin-right:4px">` : "";
+        return `<div class="line"><div>${img}<span class="q${q}">${it.t === "eq" ? this.eqQual(it.e) : ""}${this.itemName(it)}</span>${n > 1 ? ` ×${U.fmt(n)}` : ""}<small>单价 ${U.fmt(p)} 灵石</small></div>
+          <div><button class="sm" onclick="G.sellItem(${i},1)" ${p > 0 ? "" : "disabled"}>卖1个</button>${n > 1 ? ` <button class="sm" onclick="G.sellItem(${i},${n})" ${p > 0 ? "" : "disabled"}>全部</button>` : ""}</div></div>`;
+      }).join("");
+      return `<div class="card"><h3>出售<small>${{ all: "全部", dan: "丹药", herb: "药材", ore: "矿石" }[flt]} · 灵石 ${U.fmt(s.stone)}</small></h3>${rows || `<p class="desc">没有可出售的物品。</p>`}
+        <div class="btns"><button onclick="G.closeSellPage()">返回储物格</button></div></div>`;
+    },
 
     /* ---------- 弹窗：点储物格 ---------- */
     openItem(i) {
       const it = this.s.bag[i]; if (!it) return;
-      const sell = it.n > 1
+      const sell = "";   // v26：背包里不能直接出售，去「出售」页
+      const _sell = it.n > 1
         ? `<button onclick="G.sellItem(${i},1)">出售1个（${U.fmt(this.sellPrice(it))}）</button><button onclick="G.sellItem(${i},${it.n})">全部出售</button>`
         : `<button onclick="G.sellItem(${i},1)">出售（${U.fmt(this.sellPrice(it))}）</button>`;
       const cq = it.t === "cu" ? ((this.cuDef(it.name) || {}).q || 0) : 0;
@@ -185,13 +201,13 @@ G.module({
       } else if (it.t === "hx") {
         h += `<p>用来重置装备、戒指、法宝的属性（在装备详情里点「火髓重置」）。可以锁定属性，每锁定一条消耗翻一倍。</p><div class="btns">${sell}</div>`;
       } else if (it.t === "rbp") {
-        const has = this.s.forgeKnown.includes(this.forgeKey("ring", it.g));
-        h += `<p>学习后可在洞府炼器室把 9 种${DATA.JIE[it.g - 1]}戒指升为${DATA.JIE[it.g]}（上一阶同种戒指 + 三种矿石）。${has ? "<br><span class='q5'>已学会。</span>" : ""}</p>
+        const has = it.r === undefined ? this.s.forgeKnown.includes(this.forgeKey("ring", it.g)) : this.ringKnown(it.r, it.g);
+        h += `<p>学习后可在洞府炼器室把${DATA.JIE[it.g - 1]}${DATA.ringNames[it.r] || "戒指（全部 9 种）"}升为${DATA.JIE[it.g]}（上一阶同种戒指 + 三种矿石）。${has ? "<br><span class='q5'>已学会。</span>" : ""}</p>
           <div class="btns"><button class="primary" onclick="G.learnRingBp(${i})" ${has ? "disabled" : ""}>学习</button>${sell}</div>`;
       } else if (it.t === "cu") {
         h += this.customItemHtml(i, it, sell);   // 自定义物品，见 custom.js
       } else if (it.t === "mat") {
-        h += `<p>${{ herb: "药材，可用于炼丹。", ore: "矿石，可用于炼制炉子、日后炼器。" }[it.kind] || ""}</p><div class="btns">${sell}</div>`;
+        h += `<img class="item-img" src="${DATA.matImg(it.kind, it.g)}" alt=""><p>${{ herb: "药材，可用于炼丹。", ore: "矿石，可用于炼制炉子、日后炼器。" }[it.kind] || ""}</p><div class="btns">${sell}</div>`;
       } else {
         h += `<p>${DATA.slots[it.e.slot]} · ${this.equipDesc(it.e)}</p>
           <div class="btns"><button class="primary" onclick="G.equipItem(${i})">${it.e.slot === "fabao" ? "放入法宝栏" : "装备"}</button>${it.e.attrs ? `<button onclick="G.openReset('b${i}')">火髓重置</button>` : ""}${sell}</div>`;
@@ -318,22 +334,30 @@ G.module({
     }
 
     this.sortBag();
-    let cells = "";
+    // v26：储物格分类（全部 丹药 药材 矿石）+ 出售页
+    const flt = this.bagFilter || "all", match = it => flt === "all" || (flt === "dan" ? it.t === "pill" || it.t === "dan" : it.t === "mat" && it.kind === flt);
+    const ftabs = `<div class="bag-tabs">${[["all", "全部"], ["dan", "丹药"], ["herb", "药材"], ["ore", "矿石"]].map(([k, t]) =>
+      `<button class="${flt === k && !this.bagSell ? "active" : ""}" onclick="G.setBagFilter('${k}')">${t}</button>`).join("")}
+      <button class="sell ${this.bagSell ? "active" : ""}" onclick="G.openSellPage()">出售</button></div>`;
+    if (this.bagSell) return tabs + top + `<div class="card"><h3>储物格<small>${s.bag.length} / ${s.bagCap}</small></h3>${ftabs}</div>` + this.sellPageView(match);
+    let cells = "", shown = 0;
     for (let i = 0; i < s.bagCap; i++) {
       const it = s.bag[i];
-      if (!it) cells += `<div class="cell"></div>`;
+      if (it && !match(it)) continue;
+      shown++;
+      if (!it) { if (flt !== "all") continue; cells += `<div class="cell"></div>`; }
       // 格子里只显示名字和类型，点击才看品质、境界、效果
       else if (it.t === "pill") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 3))}" onclick="G.openItem(${i})">${DATA.pills[it.type].name}<span class="g">修炼丹</span><span class="n">${it.n}</span></div>`;
       else if (it.t === "dan") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${DATA.dans[it.type].name}<span class="g">属性丹</span><span class="n">${it.n}</span></div>`;
-      else if (it.t === "mat") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${it.name}<span class="g">${DATA.matKinds[it.kind]}</span><span class="n">${U.fmt(it.n)}</span></div>`;
+      else if (it.t === "mat") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.matImg(it.kind, it.g)}" alt="">${it.name}<span class="n">${U.fmt(it.n)}</span></div>`;
       else if (it.t === "fu") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${DATA.furnaceName(it.kind, it.g)}<span class="g">炉子</span>${it.n > 1 ? `<span class="n">${it.n}</span>` : ""}</div>`;
       else if (it.t === "bp") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${DATA.furnaceName(it.kind, it.g)}<span class="g">图纸</span></div>`;
  else if (it.t === "hx") cells += `<div class="cell q4" onclick="G.openItem(${i})">火髓<span class="g">材料</span><span class="n">${U.fmt(it.n)}</span></div>`;
-      else if (it.t === "rbp") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">戒指图纸<span class="g">${DATA.JIE[it.g]}</span>${it.n > 1 ? `<span class="n">${it.n}</span>` : ""}</div>`;
+      else if (it.t === "rbp") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${DATA.ringNames[it.r] || "戒指"}图纸<span class="g">${DATA.JIE[it.g]}</span>${it.n > 1 ? `<span class="n">${it.n}</span>` : ""}</div>`;
  else if (it.t === "ss") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">空间石<span class="g">${DATA.JIE[it.g]}</span><span class="n">${it.n}</span></div>`;
       else if (it.t === "cu") { const d = this.cuDef(it.name); cells += `<div class="cell q${d ? d.q || 0 : 0}" onclick="G.openItem(${i})">${it.name}<span class="g">${d ? DATA.cuTypes[d.type] || "物品" : "失传"}</span><span class="n">${U.fmt(it.n)}</span></div>`; }
       else cells += `<div class="cell q${it.e.q}" onclick="G.openItem(${i})">${it.e.name}<span class="g">${DATA.slots[it.e.slot]}</span></div>`;
     }
-    return tabs + top + `<div class="card"><h3>储物格<small>${s.bag.length} / ${s.bagCap}</small></h3><div class="grid">${cells}</div></div>`;
+    return tabs + top + `<div class="card"><h3>储物格<small>${s.bag.length} / ${s.bagCap}</small></h3>${ftabs}<div class="grid">${cells || `<p class="desc">没有这类物品。</p>`}</div></div>`;
   },
 });
