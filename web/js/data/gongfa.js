@@ -9,7 +9,9 @@
  * 必须学会至少一部秘诀才能修炼。
  *
  * 【法术】每个门派有 金木水火土雷 六系法术，同样分 天地玄黄 四阶。
- *   施放消耗法力。伤害 = 攻击 × 百分比 + 固定伤害；修炼法术层数只增加固定伤害
+ *   伤害 = 攻击 × 伤害倍率% + 固定伤害；伤害倍率、法力消耗随 星级 × 阶 × 层数 × 人物境界 增长（config/gongfa.js）
+ *
+ * 【宗门秘法】悟道室学习，同星级门派共用，1~10 星每星 9 部（config/wudao.js），id "w星级:mf:种类"
  *
  * 【来源类型】功法内部标记来源：sect 宗门功法（功法殿，贡献）、shop 凡界坊市功法（坊市，灵石）
  *   所有数值 = 基础属性 × 类型倍率 × 星级倍率 × 阶倍率 × 各自 EFFECT（config/gongfa.js）
@@ -155,20 +157,56 @@ DATA.gongfaInfo = (id, lv = 1) => {
  * id 规则："来源id:sp:系id:阶id"，例如 "s1_0:sp:huo:huang" */
 DATA.spellId = (sectId, elId, tierId) => `${sectId}:sp:${elId}:${tierId}`;
 DATA.isSpell = id => id.split(":")[1] === "sp";
-DATA.spellInfo = (id, lv = 1) => {
+DATA.spellInfo = (id, lv = 1, realm) => {
   const [sectId, , elId, tierId] = id.split(":");
   const sect = DATA.gfSrcById[sectId], el = DATA.elements.find(x => x.id === elId), tier = DATA.tierById[tierId];
   if (!sect || !el || !tier) return null;
   const per = DATA.gfCalc(sect, "spell", tier, "spell", "EFFECT_SPELL"); // 每层固定伤害
+  const C = DATA.srcCfg(sect), v = (x, d = 1) => x === undefined ? d : x, tm = v((C.TYPE_MULT || {}).spell);
+  const R = realm !== undefined ? realm : (window.G && G.s && !G.s.mortal ? Math.floor(G.s.L / DATA.LAYERS) : 0);
+  const ri = Math.min(R, 23), last = a => a && a.length ? v(a[ri], a[a.length - 1]) : 1;
   return {
     kind: "sp", id, sect, src: DATA.srcType(sect), star: sect.star, el, tier, lv,
     name: DATA.spellName(sect, el, tier),
-    pct: Math.round(DATA.gfCalc(sect, "spell", tier, "pct", "EFFECT_PCT")),        // 攻击百分比
+    // 伤害倍率% = SPELL_PCT × 星级 × 阶 × 层数 × 境界（× 来源倍率）
+    pct: Math.round(v(_GF.SPELL_PCT, 100) * v((_GF.SPELL_STAR || [])[sect.star - 1]) * v((_GF.SPELL_TIER || {})[tier.id]) * lv * last(_GF.SPELL_REALM) * tm * v(C.EFFECT_PCT)),
     flat: per * DATA.lvMul(lv), next: per * DATA.lvMul(lv + 1), perLv: per,         // 固定伤害
-    mana: Math.max(0, Math.floor(DATA.gfCalc(sect, "spell", tier, "spellMana", "EFFECT_MANA"))), // 法力消耗
+    // 法力消耗 = SPELL_MANA × 星级 × 阶 × 层数 × 境界（× 来源倍率）
+    mana: Math.max(1, Math.round(v(_GF.SPELL_MANA, 1) * v((_GF.MANA_STAR || [])[sect.star - 1]) * v((_GF.MANA_TIER || {})[tier.id]) * lv * last(_GF.MANA_REALM) * tm * v(C.EFFECT_MANA))),
     cost: DATA.gfLearnCost(sect, "spell", tier),
   };
 };
 
-// 通用：功法或法术
-DATA.skillInfo = (id, lv) => DATA.isSpell(id) ? DATA.spellInfo(id, lv) : DATA.gongfaInfo(id, lv);
+// 通用：功法、法术或秘法
+DATA.skillInfo = (id, lv) => DATA.isSpell(id) ? DATA.spellInfo(id, lv) : DATA.isMifa(id) ? DATA.mifaInfo(id, lv) : DATA.gongfaInfo(id, lv);
+
+/* ---------- 宗门秘法 ----------
+ * id 规则："w星级:mf:种类"，例如 "w3:mf:expSpeed"。el 只用来选图片，灵根对秘法无效 */
+DATA.mifaKinds = [
+  { id: "mpBattle",  name: "斗灵秘法", label: "战斗法力恢复", unit: "%", sign: "+", el: "shui" },
+  { id: "mpIdle",    name: "养灵秘法", label: "平时法力恢复", unit: "%", sign: "+", el: "shui" },
+  { id: "hpBattle",  name: "斗血秘法", label: "战斗气血恢复", unit: "%", sign: "+", el: "mu" },
+  { id: "hpIdle",    name: "养血秘法", label: "平时气血恢复", unit: "%", sign: "+", el: "mu" },
+  { id: "spStudy",   name: "悟法秘法", label: "法术修炼时间", unit: "秒", sign: "-", el: "lei" },
+  { id: "gfStudy",   name: "悟道秘法", label: "功法修炼时间", unit: "秒", sign: "-", el: "jin" },
+  { id: "expSpeed",  name: "聚元秘法", label: "修为修炼速度", unit: "", sign: "+", el: "huo" },
+  { id: "bodySpeed", name: "炼体秘法", label: "气血修炼速度", unit: "", sign: "+", el: "tu" },
+  { id: "explore",   name: "神行秘法", label: "历练探索每步", unit: "秒", sign: "-", el: "jin" },
+];
+DATA.mifaKindById = Object.fromEntries(DATA.mifaKinds.map(k => [k.id, k]));
+DATA.MIFA_PREFIX = ["一元", "两仪", "三才", "四象", "五行", "六合", "七星", "八荒", "九宫", "十方"];
+DATA.MIFA_TIER = { id: "mifa", name: "秘法", idx: 0 };
+DATA.mifaId = (star, kind) => `w${star}:mf:${kind}`;
+DATA.isMifa = id => id.split(":")[1] === "mf";
+DATA.mifaLearnCost = star => { const W = CFG.wudao, m = (W.STAR_COST || [])[star - 1] || 1; return { stone: Math.floor(W.LEARN_STONE * m), contrib: Math.floor(W.LEARN_CONTRIB * m) }; };
+DATA.mifaInfo = (id, lv = 1) => {
+  const [w, , kind] = id.split(":"), star = +w.slice(1), K = DATA.mifaKindById[kind], W = CFG.wudao;
+  if (!K || !(star >= 1 && star <= 10)) return null;
+  const per = (W.base[kind] || 0) * ((W.STAR_MULT || [])[star - 1] || 1), max = DATA.GONGFA_MAX;
+  // 神行：修到圆满才生效一次（不乘层数）
+  const val = l => kind === "explore" ? (l >= max ? per : 0) : per * DATA.lvMul(l);
+  return { kind: "mf", id, star, mk: K, tier: DATA.MIFA_TIER, lv, el: DATA.elById[K.el], label: K.label,
+    name: `${DATA.MIFA_PREFIX[star - 1] || star + "星"}·${K.name}`, value: val(lv), next: val(lv + 1), perLv: per,
+    cost: DATA.mifaLearnCost(star),
+    stonePer: Math.floor((W.STUDY_STONE || 0) * ((W.STAR_COST || [])[star - 1] || 1) * lv) };   // 修炼每 5 秒灵石
+};
