@@ -173,7 +173,7 @@ G.module({
       const s = this.s, key = type + "|" + g, c = DATA.danLearnCost(type, g);
       if (s.recipes.includes(key)) return;
       if (s.danStudy) return this.log("正在参悟其他丹方，一次只能学一个。", "sys");
-      if (g >= this.sectInfo().star) return this.log(`需要 ${g + 1} 星及以上门派才能学习。`, "sys");
+      if (DATA.danStar(type, g) > this.sectInfo().star) return this.log(`需要 ${DATA.danStar(type, g)} 星及以上门派才能学习。`, "sys");
       if (s.contrib < c) return this.log("贡献不足。", "sys");
       s.contrib -= c; s.danStudy = { key, end: this.now() + DATA.danLearnTime(type, g) };
       this.log(`开始参悟丹方《${DATA.danName(type, g)}》，需 ${U.dur(DATA.danLearnTime(type, g) / 1000)}。`, "good"); this.after();
@@ -291,7 +291,7 @@ G.module({
         DATA.fabaoTypes.map((T, ft) => {
           const prevOK = g === 0 ? this.smCount("mold", ft) >= M : this.prevEquipIndex("fabao", g, ft) >= 0;
           if (!prevOK) return "";
-          return `<div class="line"><div>${DATA.li(DATA.iconImg("fbt" + ft))}${DATA.JIE[g]}·${T.name}<span class="tag">${DATA.elById[T.el].name}</span>
+          return `<div class="line"><div>${DATA.eqTierIco(DATA.iconImg("fbt" + ft), g)}${DATA.JIE[g]}·${T.name}<span class="tag">${DATA.elById[T.el].name}</span>
             <small>${g ? `${DATA.JIE[g - 1]}·${T.name} ×1` : `${DATA.smName("mold", ft)} ${this.smCount("mold", ft)}/${M} · 伤害% ×${T.pct} · 属性伤害 ×${T.flat}`}</small></div>
             <button class="sm" onclick="G.craftFurnace('eq',${g},'fabao',${ft})" ${ok0 ? "" : "disabled"}>${s.forgeJob ? "排队" : "炼制"}</button></div>`;
         }).join("") + (!this.fabaoAnyBase(g) ? `<p class="desc">${g ? `背包里没有${DATA.JIE[g - 1]}法宝。` : "背包里没有法宝模具（秘境首领掉落）。"}</p>` : "") +
@@ -431,8 +431,8 @@ G.module({
     },
     // 所有已服用丹药的属性总和（computeStats 里用）
     danBonus() {
-      const b = { atk: 0, def: 0, hp: 0, mana: 0, hit: 0, dodge: 0, crit: 0 };
-      for (const key in this.s.danEaten) { const [t, g] = key.split("|"); if (t in b && DATA.dans[t]) b[t] += (DATA.danVal(t, +g) || 0) * this.s.danEaten[key]; }
+      const b = { atk: 0, def: 0, hp: 0, mana: 0, hit: 0, dodge: 0, crit: 0, speed: 0, res: 0 };   // speed、res（六系抗性）是 v41 魔丹 / 冥丹加的
+      for (const key in this.s.danEaten) { const [t, g] = key.split("|"), k = DATA.danStat(t); if (k in b && DATA.dans[t]) b[k] += (DATA.danVal(t, +g) || 0) * this.s.danEaten[key]; }
       return b;
     },
 
@@ -460,8 +460,8 @@ G.caveViews.alchemy = function () {
       `<p class="desc">队列 ${s.alchQueue.length} / ${CFG.alchemy.QUEUE}，炼完自动开下一炉。</p></div>`;
   }
   h += this.danCatBar("danCat");
-  if (this.danCat) return h + `<div class="card"><h3>${CFG.alchemy.CATS[this.danCat]}</h3><p class="desc">暂时还没有${CFG.alchemy.CATS[this.danCat]}丹方。</p></div>`;
-  const list = Object.keys(DATA.recipes).filter(t => s.recipes.includes(t + "|" + tier));
+  const cat = this.danCat || 0, catName = (CFG.alchemy.CATS || [])[cat] || "";
+  const list = Object.keys(DATA.recipes).filter(t => DATA.danCat(t) === cat && s.recipes.includes(t + "|" + tier));
   h += `<div class="card"><h3>炼丹<small>${fu >= 0 ? `可炼一阶~${DATA.JIE[fu]}` : "需要炼丹炉"} · 已学丹方 ${s.recipes.length}</small></h3>
     <div class="room-grid five">${DATA.JIE.map((n, g) => `<button class="${tier === g ? "active" : ""}" onclick="G.setDanTier(${g})">${n}</button>`).join("")}</div>` +
     (list.length ? list.map(t => {
@@ -471,7 +471,7 @@ G.caveViews.alchemy = function () {
         <small>${this.matsText(rec)} · 每枚 ${U.dur(this.danPer(t, tier) / 1000)} · 成功率 ${this.ratePct(this.craftRate("dan", tier))}${eaten}</small></div>
         <div><button class="sm" onclick="G.startAlch('${t}',${tier},1)" ${ok ? "" : "disabled"}>${a ? "排1" : "炼1"}</button>
         <button class="sm" onclick="G.startAlch('${t}',${tier},0)" ${ok ? "" : "disabled"}>全部</button></div></div>`;
-    }).join("") : `<p class="desc">尚未学会${DATA.JIE[tier]}丹方，可在门派 → 炼丹房学习。</p>`) +
+    }).join("") : `<p class="desc">尚未学会${DATA.JIE[tier]}${cat ? catName : ""}丹方，可在门派 → 炼丹房学习。</p>`) +
     `<p class="desc">必须装有炼丹炉，丹阶不能高于使用中的炼丹炉；「全部」= 用现有药材最多炼 ${CFG.alchemy.MAX_BATCH} 枚。每枚单独判定成功率，失败的药材不退。</p></div>`;
   return h;
 };
@@ -500,13 +500,13 @@ G.caveViews.forge = function () {
     const mats = DATA.forgeEqMats(g);
     if (sl === "fabao") {   // 法宝：36 种，点「选择」挑种类
       const prevOK = this.fabaoAnyBase(g);
-      rows += `<div class="line"><div>${DATA.li(DATA.iconImg("fbt0"))}${DATA.JIE[g]}法宝<span class="tag">${DATA.fabaoTypes.length} 种</span>
+      rows += `<div class="line"><div>${DATA.eqTierIco(DATA.iconImg("fbt0"), g)}${DATA.JIE[g]}法宝<span class="tag">${DATA.fabaoTypes.length} 种</span>
         <small><span class="${prevOK ? "" : "q5"}">${g ? `${DATA.JIE[g - 1]}同种法宝 ×1` : `同种模具 ×${CFG.forge.fabao.MOLD || 1}`}</span>、${this.matsText(mats)} · ${U.dur(this.forgePer("eq", g) / 1000)} · 成功率 ${rate}</small></div>
         <button class="sm" onclick="G.openFabaoPick(${g})" ${!has || full || !tierOK || !prevOK || !this.hasMats(mats) ? "disabled" : ""}>选择</button></div>`;
       continue;
     }
     const prevOK = g === 0 || this.prevEquipIndex(sl, g) >= 0;
-    rows += `<div class="line"><div>${DATA.li(DATA.iconImg("eq_" + sl))}${DATA.forgeEqName(sl, g)}<span class="tag">${DATA.slots[sl]}</span>
+    rows += `<div class="line"><div>${DATA.eqTierIco(DATA.iconImg("eq_" + sl), g)}${DATA.forgeEqName(sl, g)}<span class="tag">${DATA.slots[sl]}</span>
       <small>${g ? `<span class="${prevOK ? "" : "q5"}">${DATA.forgeEqName(sl, g - 1)} ×1</span>、` : ""}${this.matsText(mats)} · ${U.dur(this.forgePer("eq", g) / 1000)} · 成功率 ${rate}</small></div>
       ${btn(tierOK && prevOK && this.hasMats(mats), `G.craftFurnace('eq',${g},'${sl}')`)}</div>`;
   }
@@ -543,7 +543,7 @@ G.sectForgeView = function () {
   const line = (kind, sl, name, tag, desc) => {
     const key = this.forgeKey(kind, g, sl), has = s.forgeKnown.includes(key), C = kind === "eq" ? CFG.forge.equip : CFG.forge.stone, c = C.learnCost[g];
     const img = kind === "ss" ? DATA.iconImg("ss") : DATA.iconImg(sl === "fabao" ? "fbt0" : "eq_" + sl);
-    return `<div class="line"><div>${DATA.li(img)}${name}<span class="tag">${tag}</span><small>${desc}<br>${U.fmt(c)} 贡献 · 学习 ${U.dur(C.learnTime[g] * 60)}</small></div>
+    return `<div class="line"><div>${kind === "eq" ? DATA.eqTierIco(img, g) : DATA.li(img)}${name}<span class="tag">${tag}</span><small>${desc}<br>${U.fmt(c)} 贡献 · 学习 ${U.dur(C.learnTime[g] * 60)}</small></div>
       <button class="sm" onclick="G.learnForge('${kind}',${g}${sl ? `,'${sl}'` : ""})" ${has || lock || st || s.contrib < c ? "disabled" : ""}>${has ? "已学会" : lock ? `需${g + 1}星` : "学习"}</button></div>`;
   };
   h += `<div class="room-grid five">${DATA.JIE.map((n, i) => `<button class="${g === i ? "active" : ""}" onclick="G.setForgeLibTier(${i})">${n}</button>`).join("")}</div>
@@ -561,14 +561,15 @@ G.sectAlchemyView = function () {
   if (st) { const [t, g] = st.key.split("|");
     h += `<div class="card"><h3>参悟中<small>《${DATA.danName(t, +g)}》</small></h3><p class="desc">剩余 ${U.dur(Math.max(0, st.end - Date.now()) / 1000 + 59)}</p></div>`; }
   h += this.danCatBar("danLibCat");
-  if (this.danLibCat) return h + `<div class="card"><h3>炼丹房 · ${CFG.alchemy.CATS[this.danLibCat]}</h3><p class="desc">暂时还没有${CFG.alchemy.CATS[this.danLibCat]}丹方。</p></div>`;
+  const cat = this.danLibCat || 0, catName = (CFG.alchemy.CATS || [])[cat] || "", types = Object.keys(DATA.recipes).filter(t => DATA.danCat(t) === cat);
+  const rng = types.length ? (() => { const ok = DATA.JIE.map((_, g) => g).filter(g => DATA.danStar(types[0], g) <= star); return ok.length ? `可学 一阶~${DATA.JIE[ok[ok.length - 1]]}` : `${DATA.danStar(types[0], 0)}星起可学`; })() : "暂无丹方";
   h += `<div class="room-grid five">${DATA.JIE.map((n, g) => `<button class="${tier === g ? "active" : ""}" onclick="G.setDanLibTier(${g})">${n}</button>`).join("")}</div>
-    <div class="card"><h3>炼丹房 · 丹方<small>${star}星门派可学 一阶~${DATA.JIE[star - 1]} · 一次学一个</small></h3>` +
-    Object.keys(DATA.recipes).map(t => {
-      const key = t + "|" + tier, has = s.recipes.includes(key), c = DATA.danLearnCost(t, tier), lock = tier >= star;
+    <div class="card"><h3>炼丹房 · ${catName}丹方<small>${star}星门派${rng} · 一次学一个</small></h3>` +
+    types.map(t => {
+      const key = t + "|" + tier, has = s.recipes.includes(key), c = DATA.danLearnCost(t, tier), need = DATA.danStar(t, tier), lock = need > star;
       return `<div class="line"><div>${DATA.li(DATA.danIcon(t))}《${DATA.danName(t, tier)}》<span class="tag">${DATA.recipeEffect(t, tier)}</span>
         <small>${this.matsText(DATA.danRecipe(t, tier))}<br>${U.fmt(c)} 贡献 · 学习 ${U.dur(DATA.danLearnTime(t, tier) / 1000)}</small></div>
-        <button class="sm" onclick="G.learnRecipe('${t}',${tier})" ${has || lock || st || s.contrib < c ? "disabled" : ""}>${has ? "已学会" : lock ? `需${tier + 1}星` : "学习"}</button></div>`;
+        <button class="sm" onclick="G.learnRecipe('${t}',${tier})" ${has || lock || st || s.contrib < c ? "disabled" : ""}>${has ? "已学会" : lock ? `需${need}星` : "学习"}</button></div>`;
     }).join("") + `</div>`;
   return h;
 };
