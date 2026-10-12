@@ -45,7 +45,11 @@ G.module({
     if (s.room >= 0 && s.sect) {
       const c = this.roomCost(s.room);
       if (s.contrib >= c) s.contrib -= c;
-      else { s.room = -1; this.dirty(); this.log("门派贡献不足，已离开练功房。", "bad"); }
+      else { s.room = -1; this.dirty(); this.log("门派贡献不足，已离开修炼室。", "bad"); }
+    } else if (s.shopRoom >= 0 && DATA.shopRooms.cult[s.shopRoom]) {   // v27：坊市修炼室扣灵石
+      const c = DATA.shopRooms.cult[s.shopRoom].cost;
+      if (s.stone >= c) s.stone -= c;
+      else { s.shopRoom = -1; this.dirty(); this.log("灵石不足，已离开坊市修炼室。", "bad"); }
     }
 
     // 3. 灵气不足且开了自动补充：用灵石补
@@ -94,7 +98,7 @@ G.module({
       const arr = this.arrayFactor();                     // 聚灵阵常开
       let pill = 0;
       for (const t in s.buffs) { const b = s.buffs[t]; if (b && b.left > 0) pill += b.pct; }
-      const room = s.room >= 0 && s.sect ? this.roomPct(s.room) : 0;
+      const room = s.room >= 0 && s.sect ? this.roomPct(s.room) : s.shopRoom >= 0 && DATA.shopRooms.cult[s.shopRoom] ? DATA.shopRooms.cult[s.shopRoom].pct : 0;
       const mifa = this.wudaoPct().cultivate || 0;          // 宗门秘法（悟道室）：已算进 st.cultivate（只加境界基础），这里只用于显示
       return { base, arr, pill, room, mifa, total: base * arr * (1 + pill / 100) * (1 + room / 100),
         gather: this.gatherAmount() };                                     // 每 10 秒聚灵（开关不影响）
@@ -263,7 +267,7 @@ G.module({
       <div class="chips">
         <span class="${arrPct > 0 ? "on" : ""}">聚灵阵 +${U.num(arrPct)}%</span>
         <span class="${sp.pill ? "on" : ""}">丹药 +${Math.round(sp.pill)}%</span>
-        <span class="${sp.room ? "on" : ""}">练功房 +${Math.round(sp.room)}%</span>
+        <span class="${sp.room ? "on" : ""}">修炼室 +${Math.round(sp.room)}%</span>
         <span class="${sp.mifa ? "on" : ""}">秘法 基础+${U.num(sp.mifa)}%</span></div>
       <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>
       <div class="bar ling"><div style="width:${Math.min(100, s.ling / cap * 100)}%"></div></div>
@@ -287,7 +291,7 @@ G.module({
       <div class="line"><div>聚灵阵<small>${s.array.lv} 级</small></div><b>×${sp.arr >= 100 ? U.fmt(sp.arr) : sp.arr.toFixed(2)}</b></div>
       <div class="line"><div>丹药</div><b>+${Math.round(sp.pill)}%</b></div>
       <div class="line"><div>宗门秘法<small>悟道室 · 只加境界基础修炼速度</small></div><b>+${U.num(sp.mifa)}%</b></div>
-      <div class="line"><div>门派练功房<small>${s.room >= 0 && s.sect ? DATA.rooms[s.room].name : "未使用"}</small></div><b>+${Math.round(sp.room)}%</b></div>
+      <div class="line"><div>修炼室<small>${s.room >= 0 && s.sect ? DATA.rooms[s.room].name : s.shopRoom >= 0 && DATA.shopRooms.cult[s.shopRoom] ? "坊市 · " + DATA.shopRooms.cult[s.shopRoom].name : "未使用"}</small></div><b>+${Math.round(sp.room)}%</b></div>
     </div>
     <div class="card"><h3>丹药<small>只增加修炼速度</small></h3>
       ${Object.keys(DATA.pills).map(t => {
