@@ -208,7 +208,7 @@ G.module({
           <button onclick="G.eatDan(${i},${it.n})" ${left > 0 && it.n > 1 ? "" : "disabled"}>全部服用</button>${sell}</div>`;
       } else if (it.t === "fu") {
         const own = this.s.furnaces[it.kind].includes(it.g);
-        h += `<p>${it.kind === "dan" ? "炼丹" : "炼器"}时间 -${DATA.furnaceBonus(it.kind, it.g)}%${it.kind === "dan" ? `，可炼一阶~${DATA.JIE[it.g]}丹` : ""}。<br>使用后装进洞府${it.kind === "dan" ? "炼丹房" : "炼器室"}，可随时更换。${own ? "<br><span class='q5'>洞府里已有同阶炉子。</span>" : ""}</p>
+        h += `<p>${this.furnaceDesc(it.kind, it.g)}。<br>使用后装进洞府${DATA.isDanFu(it.kind) ? "炼丹房" : "炼器室"}，可随时更换。${own ? "<br><span class='q5'>洞府里已有同阶炉子。</span>" : ""}</p>
           <div class="btns"><button class="primary" onclick="G.installFurnace(${i})" ${own ? "disabled" : ""}>使用</button>${sell}</div>`;
       } else if (it.t === "bp") {
         const has = this.s.blueprints[it.kind].includes(it.g);
