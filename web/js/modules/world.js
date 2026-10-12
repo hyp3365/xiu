@@ -679,14 +679,14 @@ G.module({
             <button class="${sel === "mj" ? "active" : ""}" onclick="G.setMapSel('mj')">秘境<small>${this.mjState().found.length ? `已发现 ${this.mjState().found.length} 处` : "未发现"}</small></button></div>`;
           if (sel === "mj") return grid + this.mijingView();
           const map = DATA.maps[sel], lock = !this.realmOK(DATA.mapReq(sel));
-          return grid + `<div class="card"><h3>${map.name}<small>需${DATA.realmLabel(DATA.mapReq(sel))} · 历练一次 ${CFG.explore.TIME} 步，每步 ${U.num(this.exploreMs() / 1000)} 秒，通过后才能自动探索</small></h3>` +
+          return grid + `<div class="card"><h3>${map.name}</h3>` +
           DATA.regionDirs.map((d, r) => {
             const R = DATA.region(sel, r), ok = this.isTrained(sel, r), x = s.explore && s.explore.map === sel && (s.explore.reg || 0) === r ? s.explore : null;
             return `<div class="line"><div>${d}域<small>首领 ${DATA.regionBoss(sel, r)} · ${ok ? "已通过历练" : "未历练"}</small></div>
               ${lock ? `<button class="sm" disabled>需${DATA.realmLabel(DATA.mapReq(sel))}</button>` : `<div><button class="sm ${x && x.once ? "on" : ""}" onclick="G.toggleExplore(${sel},${r},true)" ${s.explore && s.explore.cq ? "disabled" : ""}>${x && x.once ? "停止" : "历练"}</button>
               <button class="sm ${x && !x.once && !x.cq ? "on" : ""}" onclick="G.toggleExplore(${sel},${r})" ${ok && !(s.explore && s.explore.cq) ? "" : "disabled"}>${x && !x.once && !x.cq ? "停止" : "探索"}</button>
               <button class="sm ${x && x.cq ? "on" : ""}" onclick="G.openChuqiao(${sel},${r})" ${x && x.cq || ok && s.cqLv && !(s.explore && s.explore.cq) ? "" : "disabled"}>${x && x.cq ? "停止" : "出窍"}</button></div>`}</div>`;
-          }).join("") + `<p class="desc">期间无法修炼；气血低于三成停止。</p></div>`;
+          }).join("") + `<p class="desc">历练、探索期间无法修炼；气血低于三成停止。</p></div>`;
         })()}`;
     }
 
