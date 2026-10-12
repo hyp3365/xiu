@@ -34,7 +34,17 @@ G.module({
   api: {
     setWorldTab(t) { this.worldTab = t; this.render(); },
 
-    setWorld(id) { this.worldId = id; this.render(); },
+    setWorld(id) { if (this.worldId !== id) this.mapSel = undefined; this.worldId = id; this.render(); },
+    // v45：这一界开放没有（config/worldmaps.js 的 open）
+    worldOpen(id) {
+      if (id === "fan") return true;
+      const W = (CFG.worldMaps || {})[id]; if (!W || !(DATA.worldMapIdx[id] || []).length) return false;
+      const o = W.open || {};
+      if (o.realm !== undefined && !this.realmOK(o.realm)) return false;
+      if (o.map) { const a = (DATA.worldMapIdx[o.map[0]] || [])[o.map[1] - 1]; if (a === undefined || !this.isTrained(a, 3)) return false; }
+      return true;
+    },
+    mapOpen(a) { return this.worldOpen(DATA.maps[a].w || "fan") && this.realmOK(DATA.mapReq(a)); },
 
     // 旧存档：按地图记录的历练 → 该地图东域已通过
     fixRegions() {
@@ -285,7 +295,7 @@ G.module({
       const s = this.s;
       if (s.explore && !s.explore.cq && s.explore.map === a && s.explore.reg === r && !!s.explore.once === !!once) { this.stopExplore(once ? "放弃历练" : "停止自动探索"); return this.after(); }
       if (this.cqBusy()) return;
-      if (!this.realmOK(DATA.mapReq(a))) return;
+      if (!this.mapOpen(a)) return;
       if (!once && !this.isTrained(a, r)) return this.log("需先在此区域历练通过，才能自动探索。", "sys");
       if (s.explore) this.stopExplore("更换");
       if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("气血不足三成，先休养片刻（每 10 秒恢复 1%）。", "sys");
@@ -304,6 +314,7 @@ G.module({
       if (this.cqLeftToday() <= 0) return this.log("今天的出窍次数已用完。", "sys");
       if (!this.realmOK(C.REALM)) return this.log(`出窍需要${DATA.realmLabel(C.REALM)}。`, "sys");
       if (!this.isTrained(a, r)) return this.log("需先在此区域历练通过，才能出窍探索。", "sys");
+      if (!this.mapOpen(a)) return;
       const max = this.cqLeftToday();
       this.modal(`<h2>元婴出窍 · ${DATA.regionName(a, r)}</h2>
         <p>${C.NAME}第 ${s.cqLv} 层，今天还能出窍探索 ${max} 次；出窍期间可以继续修炼。开始时先扣次数，中途停止只扣已完成和正在进行的，剩下的返还。</p>
@@ -643,9 +654,9 @@ G.module({
     const s = this.s, wt = this.worldTab || "explore", wid = this.worldId || "fan";
     // 六界选择
     const worlds = `<div class="room-grid">${DATA.worlds.map(w =>
-      `<button class="${wid === w.id ? "active" : ""}" onclick="G.setWorld('${w.id}')">${w.name}${w.open ? "" : "<small>未开放</small>"}</button>`).join("")}</div>`;
+      `<button class="${wid === w.id ? "active" : ""}" onclick="G.setWorld('${w.id}')">${w.name}${this.worldOpen(w.id) ? "" : "<small>未开放</small>"}</button>`).join("")}</div>`;
     const W = DATA.worlds.find(w => w.id === wid);
-    if (!W.open) return worlds + `<div class="card"><h3>${W.name}</h3><p class="desc">${W.desc}</p><p class="desc">界壁未开，以你如今的修为尚无法踏足。</p></div>`;
+    if (!this.worldOpen(wid)) return worlds + `<div class="card"><h3>${W.name}</h3><p class="desc">${W.desc}</p><p class="desc">界壁未开，以你如今的修为尚无法踏足。</p></div>`;
     const tabs = worlds + `<div class="sub-tabs">
       <button class="${wt === "explore" ? "active" : ""}" onclick="G.setWorldTab('explore')">历练</button>
       <button class="${wt === "shop" ? "active" : ""}" onclick="G.setWorldTab('shop')">坊市</button>
@@ -674,9 +685,13 @@ G.module({
           ${this.lastOpen ? `<div class="explore-log">${s.lastRun.ev.map((e, i) => this.evLine(e, "last", i)).join("")}</div>` : ""}</div>` : ""}
         ${(() => {
           // 地图选择（9 张）+ 选中地图的 东西南北 四个区域
-          const sel = this.mapSel !== undefined ? this.mapSel : s.explore ? (s.explore.mj !== undefined ? "mj" : s.explore.map) : Math.min(this.r(), DATA.maps.length - 1);
-          const grid = `<div class="room-grid five">${DATA.maps.map((m, a) => `<button class="${sel === a ? "active" : ""}" onclick="G.setMapSel(${a})">${m.name}${!this.realmOK(DATA.mapReq(a)) ? `<small>需${DATA.realmLabel(DATA.mapReq(a))}</small>` : ""}</button>`).join("")}
-            <button class="${sel === "mj" ? "active" : ""}" onclick="G.setMapSel('mj')">秘境<small>${this.mjState().found.length ? `已发现 ${this.mjState().found.length} 处` : "未发现"}</small></button></div>`;
+          // v45：只列当前这一界的 9 张地图；秘境只在凡界
+          const idx = DATA.worldMapIdx[wid] || [], fan = wid === "fan";
+          const ex = s.explore ? (s.explore.mj !== undefined ? (fan ? "mj" : undefined) : idx.includes(s.explore.map) ? s.explore.map : undefined) : undefined;
+          const ok = idx.filter(a => this.realmOK(DATA.mapReq(a)));
+          const sel = this.mapSel !== undefined && (this.mapSel === "mj" ? fan : idx.includes(this.mapSel)) ? this.mapSel : ex !== undefined ? ex : ok.length ? ok[ok.length - 1] : idx[0];
+          const grid = `<div class="room-grid five">${idx.map(a => { const m = DATA.maps[a]; return `<button class="${sel === a ? "active" : ""}" onclick="G.setMapSel(${a})">${m.name}${!this.realmOK(DATA.mapReq(a)) ? `<small>需${DATA.realmLabel(DATA.mapReq(a))}</small>` : ""}</button>`; }).join("")}
+            ${fan ? `<button class="${sel === "mj" ? "active" : ""}" onclick="G.setMapSel('mj')">秘境<small>${this.mjState().found.length ? `已发现 ${this.mjState().found.length} 处` : "未发现"}</small></button>` : ""}</div>`;
           if (sel === "mj") return grid + this.mijingView();
           const map = DATA.maps[sel], lock = !this.realmOK(DATA.mapReq(sel));
           return grid + `<div class="card"><h3>${map.name}</h3>` +
