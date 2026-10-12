@@ -31,7 +31,7 @@ G.module({
       st.at += steps * STEP;
       // v27：练功房（宗门扣贡献 / 坊市扣灵石）：进度 ×(1+pct%)，每步修为同比例多扣，总消耗不变
       let R = this.gfRoomNow();
-      if (R && Math.floor(s[R.cur] / Math.max(1, R.cost)) < Math.min(steps, Math.ceil((st.total - st.done) / STEP))) { this.leaveGfRoom(R.cur === "stone" ? "灵石不足" : "门派贡献不足"); R = null; }
+      if (R && R.cost > 0 && Math.floor(s[R.cur] / Math.max(1, R.cost)) < Math.min(steps, Math.ceil((st.total - st.done) / STEP))) { this.leaveGfRoom(R.cur === "stone" ? "灵石不足" : "门派贡献不足"); R = null; }
       const mul = R ? 1 + R.pct / 100 : 1, per = st.per * mul;
       // 修为（秘法还要灵石）够几步就走几步
       const sp = (st.stone || 0) * mul;
