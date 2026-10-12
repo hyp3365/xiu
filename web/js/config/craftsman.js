@@ -26,7 +26,7 @@ CFG.craftsman = {
   RATE_BASE: 50,        // 技艺阶 = 物品阶时的成功率 %
   RATE_STEP: 10,        // 技艺阶每高（低）物品阶一阶，成功率 +（−）这么多 %
   RATE_MIN: 1,          // 最低成功率 %
-  FAIL_EXP: 1,          // 炼制失败也给经验：× 这个倍率（0 = 失败不给经验）
+  FAIL_EXP: 0.3,          // 炼制失败也给经验：× 这个倍率（0 = 失败不给经验）
 
   dan:  { name: "炼丹师", EXP_RATE: 1 },
   qi:   { name: "炼器师", EXP_RATE: 10 },
