@@ -150,6 +150,8 @@ G.module({
     },
 
     setBagTab(t) { this.bagTab = t; this.render(); },
+    // 物品图片（没有就返回 ""）
+    itemIcon(it) { return it.t === "eq" ? DATA.eqIcon(it.e) : it.t === "mat" ? DATA.matImg(it.kind, it.g) : it.t === "pill" ? DATA.pillIcon(it.type) : it.t === "hx" ? DATA.iconImg("hx") : it.t === "rbp" || it.t === "bp" ? DATA.iconImg("bp") : ""; },
     setBagFilter(k) { this.bagFilter = k; this.bagSell = false; this.render(); },
     openSellPage() { this.bagSell = true; this.render(); },
     closeSellPage() { this.bagSell = false; this.render(); },
@@ -158,7 +160,7 @@ G.module({
       const s = this.s, flt = this.bagFilter || "all";
       const rows = s.bag.map((it, i) => [it, i]).filter(([it]) => match(it)).map(([it, i]) => {
         const p = this.sellPrice(it), n = it.n || 1, q = it.t === "eq" ? it.e.q : it.t === "cu" ? ((this.cuDef(it.name) || {}).q || 0) : 0;
-        const img = it.t === "mat" ? `<img src="${DATA.matImg(it.kind, it.g)}" alt="" style="width:28px;height:28px;vertical-align:middle;margin-right:4px">` : "";
+        const src = this.itemIcon(it), img = src ? `<img src="${src}" alt="" style="width:28px;height:28px;vertical-align:middle;margin-right:4px">` : "";
         return `<div class="line"><div>${img}<span class="q${q}">${it.t === "eq" ? this.eqQual(it.e) : ""}${this.itemName(it)}</span>${n > 1 ? ` ×${U.fmt(n)}` : ""}<small>单价 ${U.fmt(p)} 灵石</small></div>
           <div><button class="sm" onclick="G.sellItem(${i},1)" ${p > 0 ? "" : "disabled"}>卖1个</button>${n > 1 ? ` <button class="sm" onclick="G.sellItem(${i},${n})" ${p > 0 ? "" : "disabled"}>全部</button>` : ""}</div></div>`;
       }).join("");
@@ -174,7 +176,8 @@ G.module({
         ? `<button onclick="G.sellItem(${i},1)">出售1个（${U.fmt(this.sellPrice(it))}）</button><button onclick="G.sellItem(${i},${it.n})">全部出售</button>`
         : `<button onclick="G.sellItem(${i},1)">出售（${U.fmt(this.sellPrice(it))}）</button>`;
       const cq = it.t === "cu" ? ((this.cuDef(it.name) || {}).q || 0) : 0;
-      let h = `<h2 class="q${it.t === "eq" ? it.e.q : cq}">${it.t === "eq" ? this.eqQual(it.e) : ""}${this.itemName(it)}${it.n ? " ×" + it.n : ""}</h2>`;
+      const big = it.t === "mat" ? "" : this.itemIcon(it);
+      let h = (big ? `<img class="item-img" src="${big}" alt="">` : "") + `<h2 class="q${it.t === "eq" ? it.e.q : cq}">${it.t === "eq" ? this.eqQual(it.e) : ""}${this.itemName(it)}${it.n ? " ×" + it.n : ""}</h2>`;
       if (it.t === "pill") {
         const ok = this.canUsePill(it.g);
         h += `<p>修炼速度 +${Math.round(DATA.pillPct(it.type, it.g))}%，持续 ${DATA.pills[it.type].dur} 次修炼。<br>只有${DATA.realmLabel(it.g)}可服用。
@@ -311,8 +314,8 @@ G.module({
     const s = this.s, tab = this.bagTab || "eq", n = this.slotCount();
     const tabs = `<div class="sub-tabs">${[["eq", "装备"], ["fb", "法宝"], ["sp", "法术"]].map(([k, t]) =>
       `<button class="${tab === k ? "active" : ""}" onclick="G.setBagTab('${k}')">${t}</button>`).join("")}</div>`;
-    const cell = (key, label, e) => `<div class="slot-eq ${e ? "q" + e.q : ""}" onclick="G.openEquip('${key}')"><b>${label}</b>
-        ${e ? e.name : "空"}</div>`; // 只显示名字，点击看详细
+    const cell = (key, label, e) => { const src = DATA.eqIcon(e); return `<div class="slot-eq ${e ? "q" + e.q : ""}" onclick="G.openEquip('${key}')"><b>${label}</b>
+        ${src ? `<img class="si" src="${src}" alt="">` : ""}${e ? e.name : "空"}</div>`; }; // 只显示名字，点击看详细
 
     let top;
     if (tab === "eq") {
@@ -326,7 +329,7 @@ G.module({
       for (let i = 0; i < DATA.SLOT_MAX; i++) {
         const id = s.spellSlots[i];
         if (i >= n) h += `<div class="slot-eq lock"><b>法术</b>${DATA.realmLabel(i)}开启</div>`;
-        else if (id) { const g = DATA.spellInfo(id, s.gongfa[id]); h += `<div class="slot-eq q${g.tier.idx + 1}" onclick="G.openSpellSlot(${i})"><b>法术</b>${g.name}</div>`; }
+        else if (id) { const g = DATA.spellInfo(id, s.gongfa[id]); h += `<div class="slot-eq q${g.tier.idx + 1}" onclick="G.openSpellSlot(${i})"><b>法术</b><img class="si" src="${DATA.skillIcon(g)}" alt="">${g.name}</div>`; }
         else h += `<div class="slot-eq" onclick="G.openSpellPick()"><b>法术</b>空</div>`;
       }
       top = `<div class="card"><h3>法术<small>已开启 ${n} / ${DATA.SLOT_MAX} 格 · 点法术看详细</small></h3><div class="equip four">${h}</div>
@@ -347,16 +350,16 @@ G.module({
       shown++;
       if (!it) { if (flt !== "all") continue; cells += `<div class="cell"></div>`; }
       // 格子里只显示名字和类型，点击才看品质、境界、效果
-      else if (it.t === "pill") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 3))}" onclick="G.openItem(${i})">${DATA.pills[it.type].name}<span class="g">修炼丹</span><span class="n">${it.n}</span></div>`;
+      else if (it.t === "pill") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 3))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.pillIcon(it.type)}" alt="">${DATA.pills[it.type].name}<span class="n">${it.n}</span></div>`;
       else if (it.t === "dan") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${DATA.dans[it.type].name}<span class="g">属性丹</span><span class="n">${it.n}</span></div>`;
       else if (it.t === "mat") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.matImg(it.kind, it.g)}" alt="">${it.name}<span class="n">${U.fmt(it.n)}</span></div>`;
       else if (it.t === "fu") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${DATA.furnaceName(it.kind, it.g)}<span class="g">炉子</span>${it.n > 1 ? `<span class="n">${it.n}</span>` : ""}</div>`;
-      else if (it.t === "bp") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${DATA.furnaceName(it.kind, it.g)}<span class="g">图纸</span></div>`;
- else if (it.t === "hx") cells += `<div class="cell q4" onclick="G.openItem(${i})">火髓<span class="g">材料</span><span class="n">${U.fmt(it.n)}</span></div>`;
-      else if (it.t === "rbp") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${DATA.ringNames[it.r] || "戒指"}图纸<span class="g">${DATA.JIE[it.g]}</span>${it.n > 1 ? `<span class="n">${it.n}</span>` : ""}</div>`;
+      else if (it.t === "bp") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("bp")}" alt="">${DATA.furnaceName(it.kind, it.g)}</div>`;
+ else if (it.t === "hx") cells += `<div class="cell q4" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("hx")}" alt="">火髓<span class="n">${U.fmt(it.n)}</span></div>`;
+      else if (it.t === "rbp") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("bp")}" alt="">${DATA.ringNames[it.r] || "戒指"}图纸${it.n > 1 ? `<span class="n">${it.n}</span>` : ""}</div>`;
  else if (it.t === "ss") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">空间石<span class="g">${DATA.JIE[it.g]}</span><span class="n">${it.n}</span></div>`;
       else if (it.t === "cu") { const d = this.cuDef(it.name); cells += `<div class="cell q${d ? d.q || 0 : 0}" onclick="G.openItem(${i})">${it.name}<span class="g">${d ? DATA.cuTypes[d.type] || "物品" : "失传"}</span><span class="n">${U.fmt(it.n)}</span></div>`; }
-      else cells += `<div class="cell q${it.e.q}" onclick="G.openItem(${i})">${it.e.name}<span class="g">${DATA.slots[it.e.slot]}</span></div>`;
+      else { const src = DATA.eqIcon(it.e); cells += `<div class="cell q${it.e.q}" onclick="G.openItem(${i})">${src ? `<img class="mi" src="${src}" alt="">` : ""}${it.e.name}${src ? "" : `<span class="g">${DATA.slots[it.e.slot]}</span>`}</div>`; }
     }
     return tabs + top + `<div class="card"><h3>储物格<small>${s.bag.length} / ${s.bagCap}</small></h3>${ftabs}<div class="grid">${cells || `<p class="desc">没有这类物品。</p>`}</div></div>`;
   },
