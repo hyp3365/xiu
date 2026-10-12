@@ -220,7 +220,7 @@ G.module({
           <div class="btns"><button class="primary" onclick="G.useStone(${i},1)" ${left > 0 ? "" : "disabled"}>使用</button>
           <button onclick="G.useStone(${i},${it.n})" ${left > 0 && it.n > 1 ? "" : "disabled"}>全部使用</button></div>`;
       } else if (it.t === "hx") {
-        h += `<p>用来重置装备、戒指的属性（装备详情里的「火髓重置」），洗练法宝（法宝详情里的「洗练」，紫色、金色属性只能这样得到），也是法宝强化的材料。可以锁定属性，每锁定一条消耗翻一倍。</p><div class="btns">${sell}</div>`;
+        h += `<p>用来洗练装备、戒指、法宝的属性（详情里的「洗练」，法宝的紫色、金色属性只能这样得到），也是强化的材料。可以锁定属性，每锁定一条消耗翻一倍。</p><div class="btns">${sell}</div>`;
       } else if (it.t === "sm") {
         h += `<p>${(CFG.mijing.items[it.k] || {}).desc || ""}</p><div class="btns">${sell}</div>`;
       } else if (it.t === "rbp") {
@@ -233,7 +233,7 @@ G.module({
         h += `<img class="item-img" src="${DATA.matImg(it.kind, it.g)}" alt=""><p>${{ herb: "药材，可用于炼丹。", ore: "矿石，可用于炼制炉子、日后炼器。" }[it.kind] || ""}</p><div class="btns">${sell}</div>`;
       } else {
         h += `<p>${DATA.slots[it.e.slot]} · ${this.equipDesc(it.e)}</p>
-          <div class="btns"><button class="primary" onclick="G.equipItem(${i})">${it.e.slot === "fabao" ? "放入法宝栏" : "装备"}</button>${it.e.attrs ? `<button onclick="G.openReset('b${i}')">${it.e.slot === "fabao" ? "洗练" : "火髓重置"}</button>` : ""}${this.canEnhance(it.e) ? `<button onclick="G.openEnhance('b${i}')">强化</button>` : ""}${sell}</div>`;
+          <div class="btns"><button class="primary" onclick="G.equipItem(${i})">${it.e.slot === "fabao" ? "放入法宝栏" : "装备"}</button>${it.e.attrs ? `<button onclick="G.openReset('b${i}')">洗练</button>` : ""}${this.canEnhance(it.e) ? `<button onclick="G.openEnhance('b${i}')">强化</button>` : ""}${sell}</div>`;
       }
       this.modal(h + `<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
@@ -242,39 +242,43 @@ G.module({
       const e = key.startsWith("fb") ? this.s.fabao[+key.slice(2)] : this.s.equip[key]; if (!e) return;
       const src = DATA.eqIcon(e);
       this.modal(`${src ? `<img class="item-img${DATA.eqCls(e)}" src="${src}" alt="">` : ""}<h2 class="q${e.q}">${this.eqQual(e)}${this.itemName({ t: "eq", e })}</h2><p>${DATA.slots[e.slot]} · ${this.equipDesc(e)}</p>
-        <div class="btns"><button onclick="G.unequip('${key}')">卸下</button>${e.attrs ? `<button onclick="G.openReset('${key}')">${e.slot === "fabao" ? "洗练" : "火髓重置"}</button>` : ""}${this.canEnhance(e) ? `<button onclick="G.openEnhance('${key}')">强化</button>` : ""}<button onclick="G.closeModal()">关闭</button></div>`);
+        <div class="btns"><button onclick="G.unequip('${key}')">卸下</button>${e.attrs ? `<button onclick="G.openReset('${key}')">洗练</button>` : ""}${this.canEnhance(e) ? `<button onclick="G.openEnhance('${key}')">强化</button>` : ""}<button onclick="G.closeModal()">关闭</button></div>`);
     },
 
-    /* ---------- 法宝强化（config/forge.js 的 forge.enhance） ---------- */
-    canEnhance(e) { return !!(e && e.attrs && e.slot === "fabao"); },
-    // 第 n+1 次强化的消耗 { fire 火髓, jj 炼宝玄晶, mats 三种矿石 }
-    enhCost(e) {
-      const E = CFG.forge.enhance, k = 1 + (e.enh || 0) * (E.COST_STEP || 0);
+    /* ---------- 强化（config/forge.js 的 forge.enhance）：每条属性分别强化 ---------- */
+    canEnhance(e) { return !!(e && e.attrs && e.attrs.some(a => DATA.attrEnhOK(a, e))); },
+    // 第 i 条属性下一次强化的消耗 { fire 火髓, jj 炼宝玄晶, mats 三种矿石 }
+    enhCost(e, i) {
+      const E = DATA.enhCfg(e), a = e.attrs[i], k = 1 + ((a && a.enh) || 0) * (E.COST_STEP || 0);
       return { fire: Math.ceil((E.FIRE[e.g] || 1) * k), jj: Math.ceil(((E.SPECIAL || [])[e.g] || 0) * k),
         mats: DATA.parseMats(E.ORES[e.g] || E.ORES[0]).map(m => Object.assign(m, { n: Math.ceil(m.n * k) })) };
     },
     enhHave(c) { return this.fireCount() >= c.fire && this.smCount("jj") >= c.jj && this.hasMats(c.mats); },
-    // 成功率 0~1 = 炼器成功率 − 已强化次数 × RATE_DROP
-    enhRate(e) { return Math.max(0, this.craftRate("qi", e.g) - (e.enh || 0) * (CFG.forge.enhance.RATE_DROP || 0) / 100); },
-    openEnhance(src) { const e = this.resetTarget(src); if (!this.canEnhance(e)) return; this._enhObj = e; this.drawEnhance(); },
+    // 成功率 0~1 = 炼器成功率 − 这一条已强化次数 × RATE_DROP
+    enhRate(e, i) { return Math.max(0, this.craftRate("qi", e.g) - ((e.attrs[i] && e.attrs[i].enh) || 0) * (DATA.enhCfg(e).RATE_DROP || 0) / 100); },
+    openEnhance(src) { const e = this.resetTarget(src); if (!this.canEnhance(e)) return; DATA.fixEnh(e); this._enhObj = e; this.drawEnhance(); },
     drawEnhance() {
       const e = this._enhObj; if (!e) return;
-      const E = CFG.forge.enhance, n = e.enh || 0, max = n >= E.MAX, c = this.enhCost(e), flat = e.attrs.find(a => a.m && a.k === "flat");
-      const now = flat ? DATA.attrVal(flat, e.g, e) : 0, nxt = now / DATA.fabaoEnhMult(e) * (1 + (n + 1) * (E.FLAT_ADD || 0) / 100);
-      const ok = !max && this.enhHave(c);
+      const E = DATA.enhCfg(e);
       this.modal(`<img class="item-img${DATA.eqCls(e)}" src="${DATA.eqIcon(e)}" alt=""><h2 class="q${e.q}">强化 · ${this.itemName({ t: "eq", e })}</h2>
-        <p>强化 ${n} / ${E.MAX} 次 · ${DATA.elById[e.el].name}属性伤害 ${U.num(now)}${max ? "" : ` → <b class="q4">${U.num(nxt)}</b>`}<br>
-        <span class="desc">只增加属性伤害（每次 +${E.FLAT_ADD}%），不增加伤害%。失败只扣材料，法宝不受损失、不掉强化等级。</span></p>
-        ${max ? `<p class="q4">已强化到上限。</p>` : `<p>消耗：<span class="${this.fireCount() >= c.fire ? "" : "q5"}">火髓 ${this.fireCount()}/${c.fire}</span>、${c.jj ? `<span class="${this.smCount("jj") >= c.jj ? "" : "q5"}">${DATA.smName("jj")} ${this.smCount("jj")}/${c.jj}</span>、` : ""}${this.matsText(c.mats)}<br>成功率 <b>${this.ratePct(this.enhRate(e))}</b></p>`}
-        <div class="btns"><button class="primary" onclick="G.doEnhance()" ${ok ? "" : "disabled"}>强化</button><button onclick="G.closeModal()">关闭</button></div>`);
+        <p class="desc">火髓 ${U.fmt(this.fireCount())}${e.slot === "fabao" ? ` · ${DATA.smName("jj")} ${U.fmt(this.smCount("jj"))}` : ""} · 失败只扣材料，不掉强化等级。</p>` +
+        e.attrs.map((a, i) => {
+          if (!DATA.attrEnhOK(a, e)) return `<div class="line"><div><span class="ac${a.c}">${DATA.attrText(a, e)}</span><small>不能强化</small></div></div>`;
+          const n = a.enh || 0, max = n >= E.MAX, c = this.enhCost(e, i), base = DATA.attrBase(a, e.g, e);
+          return `<div class="line"><div><span class="ac${a.c}">${DATA.attrText(a, e)}</span>
+            <small>强化 ${n}/${E.MAX}${max ? " · 已满" : ` → ${U.num(base * DATA.enhMult(a, e, n + 1))} · <span class="${this.fireCount() >= c.fire ? "" : "q5"}">火髓 ${c.fire}</span>${c.jj ? `、<span class="${this.smCount("jj") >= c.jj ? "" : "q5"}">${DATA.smName("jj")} ${c.jj}</span>` : ""}、${this.matsText(c.mats)} · 成功率 ${this.ratePct(this.enhRate(e, i))}`}</small></div>
+            <button class="sm" onclick="G.doEnhance(${i})" ${!max && this.enhHave(c) ? "" : "disabled"}>强化</button></div>`;
+        }).join("") +
+        `<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
-    doEnhance() {
+    doEnhance(i) {
       const e = this._enhObj; if (!this.canEnhance(e)) return;
-      const E = CFG.forge.enhance, c = this.enhCost(e);
-      if ((e.enh || 0) >= E.MAX) return;
+      const a = e.attrs[i]; if (!a || !DATA.attrEnhOK(a, e)) return;
+      const E = DATA.enhCfg(e), c = this.enhCost(e, i);
+      if ((a.enh || 0) >= E.MAX) return;
       if (!this.enhHave(c)) return this.log("材料不足。", "sys");
       this.takeFire(c.fire); if (c.jj) this.takeSm("jj", c.jj); c.mats.forEach(m => this.takeMat(m.kind, m.g, m.n));
-      if (Math.random() < this.enhRate(e)) { e.enh = (e.enh || 0) + 1; this.log(`强化成功！${this.itemName({ t: "eq", e })}`, "gold"); }
+      if (Math.random() < this.enhRate(e, i)) { a.enh = (a.enh || 0) + 1; this.log(`强化成功！${this.itemName({ t: "eq", e })}：${DATA.attrText(a, e)}`, "gold"); }
       else this.log(`强化失败，材料已耗尽，${e.name}完好无损。`, "bad");
       this.after(); this.drawEnhance();
     },
@@ -299,13 +303,13 @@ G.module({
       this.s.bag.push(it); return true;
     },
     takeSm(k, n, ft) { const i = this.smFind(k, ft); if (i < 0 || this.s.bag[i].n < n) return false; this.removeAt(i, n); return true; },
-    // 找到要重置的那件：b序号 = 背包，fb序号 = 法宝栏，其它 = 装备栏
+    // 找到要洗练 / 强化的那件：b序号 = 背包，fb序号 = 法宝栏，其它 = 装备栏
     resetTarget(src) {
       if (src[0] === "b" && src[1] !== undefined && !isNaN(+src.slice(1))) { const it = this.s.bag[+src.slice(1)]; return it && it.t === "eq" ? it.e : null; }
       if (src.startsWith("fb")) return this.s.fabao[+src.slice(2)] || null;
       return this.s.equip[src] || null;
     },
-    // 重置弹窗：点属性切换锁定（记住装备对象本身，背包重新排序也不会找错）
+    // 洗练弹窗：点属性切换锁定（记住装备对象本身，背包重新排序也不会找错）
     openReset(src) {
       const e = this.resetTarget(src); if (!e || !e.attrs) return;
       if (this._resetObj !== e) this._locks = [];
@@ -314,7 +318,7 @@ G.module({
     drawReset() {
       const e = this._resetObj; if (!e) return;
       const L = this._locks || (this._locks = []), cost = DATA.resetCost(e, L.length);
-      const wash = e.slot === "fabao", nm = wash ? "洗练" : "重置";
+      const wash = e.slot === "fabao", nm = "洗练";
       this.modal(`<h2 class="q${e.q}">火髓${nm} · ${this.itemName({ t: "eq", e })}</h2>
         <p class="desc">点属性锁定 / 解锁，锁定的属性不变。每锁定一条，火髓消耗翻一倍。</p>` +
         e.attrs.map((a, i) => `<div class="line"><div><span class="ac${a.c}">${DATA.attrText(a, e)}</span></div>
@@ -330,7 +334,7 @@ G.module({
       if (L.length >= e.attrs.length) return;
       if (!this.takeFire(cost)) return this.log("火髓不足。", "sys");
       DATA.rerollForged(e, L);
-      this.log(`消耗火髓 ${cost}，${e.slot === "fabao" ? "洗练" : "重置"}了${this.itemName({ t: "eq", e })}的属性。`, "good");
+      this.log(`消耗火髓 ${cost}，洗练了${this.itemName({ t: "eq", e })}的属性。`, "good");
       this.after(); this.drawReset();
     },
     equipItem(i) {
