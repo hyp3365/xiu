@@ -23,6 +23,7 @@ G.module({
   // 每 10 秒结算修炼：按 5 秒一步扣修为、累计进度
   tick() {
     const s = this.s, STEP = DATA.STUDY_STEP * 1000;
+    this.cqTick();   // 元婴出窍秘法修炼（sect.js）
     if (!s.gfStudy) this.nextStudy();
     while (s.gfStudy) {
       const st = s.gfStudy;
@@ -166,7 +167,7 @@ G.module({
 
   view() {
     const s = this.s, ids = Object.keys(s.gongfa), filter = this.gfFilter || "all";
-    if (!ids.length) return `<div class="card"><h3>功法</h3><p class="desc">你尚未习得任何功法。拜入门派后在功法殿用贡献学习，或在世界 · 坊市用灵石购买。<br>注意：至少学会一部秘诀才能修炼。</p></div>`;
+    if (!ids.length && !s.cqLv) return `<div class="card"><h3>功法</h3><p class="desc">你尚未习得任何功法。拜入门派后在功法殿用贡献学习，或在世界 · 坊市用灵石购买。<br>注意：至少学会一部秘诀才能修炼。</p></div>`;
 
     // 分类按钮 + 「修炼队列」按钮（修炼中的功法、排队情况都在这里看）
     const qn = (s.gfStudy ? 1 : 0) + s.gfQueue.length;
@@ -189,6 +190,7 @@ G.module({
     const byStar = (a, b) => b.star - a.star || b.tier.idx - a.tier.idx || b.lv - a.lv;   // 星级高 → 低，天 → 黄
     const byLv = (a, b) => b.lv - a.lv || byStar(a, b);                                    // 等级高 → 低
     const body = groups.filter(gr => filter === "all" || gr.key === filter).map(gr => {
+      if (gr.key === "mifa" && s.cqLv) { gr.items.sort(sort === "lv" ? byLv : byStar); return `<div class="card"><h3>${gr.title}<small>${gr.sub}</small></h3>${this.cqLine()}${gr.items.map(g => this.skillLine(g)).join("")}</div>`; }   // 元婴出窍秘法
       if (!gr.items.length) return filter === "all" ? "" : `<div class="card"><p class="desc">${hide ? "没有未满级的" : "尚未学会任何"}${gr.title}。</p></div>`;
       gr.items.sort(sort === "lv" ? byLv : byStar);
       return `<div class="card"><h3>${gr.title}<small>${gr.sub}</small></h3>${gr.items.map(g => this.skillLine(g)).join("")}</div>`;
