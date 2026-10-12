@@ -58,6 +58,7 @@ CFG.sect = {
     { kind: "furnace", fk: "dan", g: 0, cost: 100 },
     { kind: "furnace", fk: "qi",  g: 0, cost: 100 },
     { kind: "stone", n: 2000, cost: 100, name: "一袋灵石" },
+    { kind: "chuqiao" },   // 元婴出窍秘法（消耗、效果、境界见下面 CFG.chuqiao）
   ],
 };
 
@@ -126,4 +127,41 @@ CFG.sect.shopRooms = {
     { name: "良品练功房", pct: 30, cost: 3 },
     { name: "上品练功房", pct: 50, cost: 6 },
   ],
+};
+
+/* ---------- 宗门大殿 · 晋升考验 ----------
+ * 晋升前必须先打赢考官；每次参加考验消耗贡献 cost[职务序号] × 星级倍率（第 1 个 = 外门弟子，不用考验）
+ * 考官属性 = 人物基础属性（config/player.js 的 base）× 成长倍率^(该职务需要境界的一层) × STAT × DIFF[职务序号]
+ *   改难度：调 DIFF（每个职务一个倍率）或 STAT（每项属性倍率）
+ * 打赢后才能点「晋升」；晋升后下一个职务要重新考验 */
+CFG.sect.rankTrial = {
+  cost: [0, 50, 100, 150, 200, 300, 500],
+  DIFF: [1, 1, 1, 1, 1, 1, 1],
+  STAT: { hp: 3, atk: 1, def: 1, speed: 1, hit: 1, dodge: 1 },
+  crit: 5,            // 考官暴击 %（不成长）
+};
+
+/* ---------- 免费修炼室 / 免费练功房 ----------
+ * 免费修炼室：每天 daily 次，每次可修炼 times 次（每次 10 秒），不消耗贡献
+ * 免费练功房：每天 daily 次，每次 minutes 分钟，不消耗贡献
+ * pct 加成 %（× 星级倍率）；写 0 = 跟第一个（最低的）修炼室 / 练功房一样
+ * 使用中优先用免费的，用完后如果还进了付费的就接着用付费的 */
+CFG.sect.freeRoom   = { name: "免费修炼室", pct: 0, times: 500, daily: 1 };
+CFG.sect.freeGfRoom = { name: "免费练功房", pct: 0, minutes: 60, daily: 1 };
+
+/* ---------- 元婴出窍秘法（宗门宝库 · 杂物兑换） ----------
+ * 学会后在世界地图「探索」旁边点「出窍」，输入次数后自动探索，期间可以继续修炼
+ *   每步时间、宗门秘法「神行」减少的时间都和历练 / 探索一样
+ * 第 1 层可出窍探索 PER_LV 次，每升一层多 PER_LV 次（一次出窍最多 层数 × PER_LV 次），最高 MAX_LV 层
+ * 兑换（学会 / 升一层）消耗贡献 = COST_BASE + COST_ADD × 当前层数（不乘星级）
+ * REALM：需要的境界序号（0 练气 1 筑基 2 金丹 3 元婴 ……），兑换和使用都要
+ * STAR：需要的门派星级 */
+CFG.chuqiao = {
+  NAME: "元婴出窍秘法",
+  MAX_LV: 3000,
+  PER_LV: 1,
+  COST_BASE: 500,
+  COST_ADD: 50,
+  REALM: 3,
+  STAR: 1,
 };
