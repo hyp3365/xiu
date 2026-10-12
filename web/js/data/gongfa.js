@@ -114,6 +114,9 @@ DATA.gfCalc = (o, typeId, tier, key, eff) => {
 
 // 修炼升层（当前层 → 下一层）消耗的修为（分摊到每 STUDY_STEP 秒扣）
 DATA.studyExp = info => {
+  const SC = _GF.STUDY_COST;   // v27：星级 × 消耗倍率
+  if (SC) { const a = (SC.STAR || [])[info.star - 1], b = (SC.LV || [])[info.lv - 1];
+    return Math.max(1, Math.floor((a === undefined ? 100 : a) * (b === undefined ? 1 : b))); }
   const C = DATA.srcCfg(info.sect), lvm = (C.STUDY_LV || [])[info.lv - 1];
   return Math.max(1, Math.floor(DATA.gfCalc(info.sect, info.kind === "sp" ? "spell" : info.type.id, info.tier, "study", "EFFECT_STUDY") * (lvm === undefined ? 1 : lvm)));
 };
