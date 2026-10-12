@@ -42,6 +42,7 @@ DATA.gongfaTypes = [
 DATA.gfSources = {
   sect: { name: "宗门", cfg: () => _GF.sect },
   shop: { name: "坊市", cfg: () => _GF.shop },
+  tower: { name: "试炼塔", cfg: () => _GF.tower || _GF.sect },   // v25：试炼塔秘诀
 };
 
 /* 六种属性。words：起名用的词（门派前缀 + 随机词 + 后缀，如 青阳 + 赤炎 + 心法）
@@ -85,15 +86,21 @@ DATA.STUDY_STEP = _GF.STUDY_STEP;
 DATA.studyMin = _GF.STUDY_MIN;
 
 /* ---------- 凡界坊市功法的「来源」（相当于一个门派，每星 2 个，id f星级_序号） ---------- */
-DATA.SHOP_GF_PREFIX = [["凡尘", "游侠"], ["市井", "散修"], ["江湖", "野狐"], ["云游", "隐士"], ["山野", "苦行"], ["红尘", "天涯"]];
+// v25：改成更有修仙味道的名字（id 不变，旧存档已学的功法跟着改名）
+DATA.SHOP_GF_PREFIX = [["青冥", "云笈"], ["琼华", "栖霞"], ["抱朴", "听松"], ["凌虚", "洞玄"], ["玄真", "星槎"], ["丹霞", "太微"]];
 DATA.shopSources = [];
 DATA.SHOP_GF_PREFIX.forEach((pair, i) => pair.forEach((prefix, n) => {
   const star = i + 1;
   DATA.shopSources.push({ id: `f${star}_${n}`, src: "shop", star, prefix, name: prefix + "传承", el: DATA.elements[(star * 2 + n) % 6].id,
     reqRealm: DATA.sectReq(star) });   // 境界要求 = 同星级门派
 }));
-// 所有来源：门派（src = "sect"）+ 坊市
-DATA.gfSrcById = Object.assign({}, ...DATA.sects.map(x => ({ [x.id]: x })), ...DATA.shopSources.map(x => ({ [x.id]: x })));
+/* ---------- v25：试炼塔秘诀的「来源」（每星一个，id t星级，只有秘诀） ---------- */
+DATA.TOWER_GF_PREFIX = ["问心", "登仙", "通玄", "摘星", "揽月", "踏虚", "擎天", "证道", "归真", "登极"];
+DATA.towerSources = DATA.TOWER_GF_PREFIX.map((prefix, i) => ({ id: `t${i + 1}`, src: "tower", star: i + 1, prefix, name: prefix + "塔", el: DATA.elements[i % 6].id, reqRealm: -1 }));
+// 第 star 星试炼塔秘诀某一阶的功法 id
+DATA.towerMijueId = (star, tierId) => `t${star}:mijue:${tierId}`;
+// 所有来源：门派（src = "sect"）+ 坊市 + 试炼塔
+DATA.gfSrcById = Object.assign({}, ...DATA.sects.map(x => ({ [x.id]: x })), ...DATA.shopSources.map(x => ({ [x.id]: x })), ...DATA.towerSources.map(x => ({ [x.id]: x })));
 DATA.srcType = o => o.src || "sect";
 DATA.srcCfg = o => DATA.gfSources[DATA.srcType(o)].cfg();
 
