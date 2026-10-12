@@ -698,7 +698,7 @@ G.module({
           // v47：殿堂按钮（config/worldmaps.js 的 halls），四域历练放最下面
           const halls = ((CFG.worldMaps || {})[wid] || {}).halls || [], hs = halls.includes(this.hallSel) ? this.hallSel : null;
           const hallHtml = halls.length ? `<div class="room-grid">${halls.map(h => `<button class="${hs === h ? "active" : ""}" onclick="G.setHall('${h}')">${h}</button>`).join("")}</div>`
-            + (hs ? `<div class="card"><h3>${map.name} · ${hs}</h3></div>` : "") : "";
+            + (hs === "星君殿" && this.xjView ? this.xjView(sel) : hs ? `<div class="card"><h3>${map.name} · ${hs}</h3></div>` : "") : "";
           return grid + hallHtml + `<div class="card"><h3>${map.name}</h3>` +
           DATA.regionDirs.map((d, r) => {
             const R = DATA.region(sel, r), ok = this.isTrained(sel, r), x = s.explore && s.explore.map === sel && (s.explore.reg || 0) === r ? s.explore : null;
