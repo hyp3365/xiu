@@ -146,4 +146,6 @@ DATA.fabaoInfo = e => {
 };
 
 // v26：药材、矿石图片（img/mats/herb0.png …… 按 config/items.js 里的顺序）
-DATA.matImg = (kind, g) => `img/mats/${kind}${g}.png`;
+// v27：图片让浏览器缓存 30 天（nginx 设置）；换了图片把 IMG_V 加 1，玩家就会重新下载
+DATA.IMG_V = 1;
+DATA.matImg = (kind, g) => `img/mats/${kind}${g}.png?v=${DATA.IMG_V}`;
