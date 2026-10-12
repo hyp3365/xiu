@@ -121,7 +121,7 @@ G.module({
       if (!this.canCultivate()) return this.log(this.cultivateBlock() + "。", "bad");
       this.s.manual = true; this._lastTick = Date.now(); this.render();
     },
-    // 修炼肉身界面（效果以后做）
+    // 修炼肉身界面（modules/body.js）
     openBody(on) { this.cultView = on ? "body" : ""; this.render(); },
     // 修炼加成（弹窗）：修炼速度构成 + 丹药
     openBoost() {
@@ -281,10 +281,7 @@ G.module({
 
   view() {
     const s = this.s, st = this.stats(), sp = this.speed(), cap = this.lingCap();
-    if (this.cultView === "body") return `<div class="card"><h3>修炼肉身<small>练体</small></h3>
-      <p class="desc">肉身修炼即将开放：以后在这里用气血修炼速度淬炼肉身。</p>
-      <div class="line"><div>气血修炼速度<small>宗门秘法「炼体」</small></div><b>+${U.num(this.mifaBonus().bodySpeed)} / 10秒</b></div>
-      <div class="btns"><button onclick="G.openBody(false)">返回修炼</button></div></div>`;
+    if (this.cultView === "body") return this.bodyView();   // 修炼肉身（modules/body.js）
     const can = this.canBreak(), major = this.isMajor();
     const next = s.mortal ? "引气入体（突破至练气期）" : major ? `突破至${DATA.realmLabel(this.r() + 1)}` : "突破";
     const block = this.isCultivating() ? this.cultivateBlock() : "";
