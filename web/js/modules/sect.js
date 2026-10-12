@@ -188,15 +188,14 @@ G.module({
     towerBonus(star, f) {
       const T = CFG.sect.trial, E = T.EVERY || 10;
       if (f % E) return null;
-      const k = f / E;
-      if ((T.RING_STARS || []).includes(star)) {
-        if (k <= DATA.ringNames.length) return { kind: "ring", r: k - 1 };
-        const g = k - DATA.ringNames.length;          // 1 = 二阶图纸 …… 9 = 十阶图纸
-        if (g <= 9) return { kind: "rbp", g };
+      const k = f / E, r = (T.RING || [])[star - 1];
+      if (r !== undefined && r >= 0 && DATA.ringNames[r]) {
+        if (k === 1) return { kind: "ring", r };       // 第 10 层：一阶戒指
+        if (k <= 10) return { kind: "rbp", r, g: k - 1 }; // 第 20~100 层：二阶 ~ 十阶图纸
       }
       return { kind: "mijue" };
     },
-    towerBonusText(b) { return !b ? "" : b.kind === "ring" ? DATA.ringName(b.r, 0) : b.kind === "rbp" ? DATA.ringBpName(b.g) : "试炼塔秘诀 +1 层"; },
+    towerBonusText(b) { return !b ? "" : b.kind === "ring" ? DATA.ringName(b.r, 0) : b.kind === "rbp" ? DATA.ringBpName(b.g, b.r) : "试炼塔秘诀 +1 层"; },
     // 试炼塔秘诀 +1 层：黄 → 玄 → 地 → 天，天阶满层后给灵石
     giveTowerMijue(star) {
       const s = this.s, MAX = DATA.GONGFA_MAX;
@@ -213,7 +212,7 @@ G.module({
     // 首通第 f 层的奖励，返回文字
     towerReward(f) {
       const s = this.s, star = this.sectInfo().star, T = CFG.sect.trial, F = T.floor, i = star - 1, out = [];
-      const c = DATA.towerReward(f); s.contrib += c; out.push(`贡献 +${U.fmt(c)}`);
+      const c = DATA.towerReward(f, star); s.contrib += c; out.push(`贡献 +${U.fmt(c)}`);
       const fire = F.fire[i] || 0; if (fire && this.addFire(fire)) out.push(`火髓 ×${fire}`);
       const st = Math.floor((F.stone || 0) * this.starMul() * f); if (st) { s.stone += st; out.push(`灵石 +${U.fmt(st)}`); }
       const mx = Math.min(5, F.MAT_MAX[i] === undefined ? 5 : F.MAT_MAX[i]);
@@ -225,9 +224,9 @@ G.module({
       const b = this.towerBonus(star, f);
       if (b && b.kind === "ring") { const e = DATA.rollForged("ring", 0, b.r); if (this.addEquip(e)) out.push(`<span class="q${e.q}">${DATA.ringName(b.r, 0)}</span>`); }
       else if (b && b.kind === "rbp") {
-        if (s.forgeKnown.includes(this.forgeKey("ring", b.g)) || s.bag.some(x => x.t === "rbp" && x.g === b.g)) out.push(this.giveTowerMijue(star));   // 已有这张图纸 → 改给秘诀
+        if (this.ringKnown(b.r, b.g) || s.bag.some(x => x.t === "rbp" && x.g === b.g && x.r === b.r)) out.push(this.giveTowerMijue(star));   // 已有这张图纸 → 改给秘诀
         else if (this.bagFull()) out.push(this.giveTowerMijue(star));
-        else { s.bag.push({ t: "rbp", g: b.g }); out.push(DATA.ringBpName(b.g)); }
+        else { s.bag.push({ t: "rbp", r: b.r, g: b.g }); out.push(DATA.ringBpName(b.g, b.r)); }
       }
       else if (b) out.push(this.giveTowerMijue(star));
       return out.join("，");
@@ -376,10 +375,10 @@ G.module({
       // 下一个每 10 层的奖励
       const E = T.EVERY || 10, nb = Math.ceil(f / E) * E, bonus = nb <= max ? this.towerBonus(star, nb) : null;
       h += `<div class="card"><h3>${star}星试炼塔<small>已通关 ${cur} / ${max} 层</small></h3>
-        ${done ? `<p class="desc">你已登顶试炼塔！</p>` : `<div class="line"><div>第 ${f} 层守关者<small>首通：贡献 +${U.fmt(DATA.towerReward(f))}、火髓 ×${F.fire[star - 1] || 0}、灵石 +${U.fmt(Math.floor((F.stone || 0) * this.starMul() * f))}、药材 ×${F.herb[star - 1] || 0}、矿石 ×${F.ore[star - 1] || 0}</small></div>
+        ${done ? `<p class="desc">你已登顶试炼塔！</p>` : `<div class="line"><div>第 ${f} 层守关者<small>首通：贡献 +${U.fmt(DATA.towerReward(f, star))}、火髓 ×${F.fire[star - 1] || 0}、灵石 +${U.fmt(Math.floor((F.stone || 0) * this.starMul() * f))}、药材 ×${F.herb[star - 1] || 0}、矿石 ×${F.ore[star - 1] || 0}</small></div>
         <button class="sm" onclick="G.challengeTower()">挑战</button></div>`}
         ${bonus ? `<p class="desc">第 ${nb} 层额外奖励：${this.towerBonusText(bonus)}</p>` : ""}
-        <p class="desc">进度按门派星级记录，换门派不会重置。${(T.RING_STARS || []).includes(star) ? "本塔每 10 层依次奖励 9 种一阶戒指，之后是二阶~十阶戒指图纸，再之后是试炼塔秘诀。" : "本塔每 10 层奖励试炼塔秘诀（每次 +1 层）。"}</p></div>`;
+        <p class="desc">进度按门派星级记录，换门派不会重置。${(T.RING || [])[star - 1] >= 0 && DATA.ringNames[T.RING[star - 1]] ? `本塔第 10 层奖励${DATA.ringName(T.RING[star - 1], 0)}，第 20~100 层依次奖励它的二阶~十阶升级图纸，之后每 10 层奖励试炼塔秘诀。` : "本塔每 10 层奖励试炼塔秘诀（每次 +1 层）。"}</p></div>`;
     } else if (tab === "secret") {
       const c = DATA.secretCost(x.star);
       h += `<div class="card"><h3>宗门秘境<small>每次消耗 ${U.fmt(c)} 贡献</small></h3>
