@@ -198,7 +198,9 @@ const G = {
     $("#top").style.display = main ? "" : "none";
     $("#log-wrap").style.display = main ? "" : "none";
     const v = $("#view"), top = v.scrollTop;
-    v.innerHTML = this.views[this.tab] ? this.views[this.tab].call(this) : "";
+    // 某个页面出错时不再整页空白：显示错误信息，其它页面照常可用
+    try { v.innerHTML = this.views[this.tab] ? this.views[this.tab].call(this) : ""; }
+    catch (err) { console.error(err); v.innerHTML = `<div class="card"><h3>页面出错</h3><p class="desc">${String(err && err.message || err)}<br>如果刚改过 js/config/ 里的数值，请检查有没有写错（例如少了小数点、多了问号）。</p></div>`; }
     v.scrollTop = top;
   },
   renderLog() { $("#log").innerHTML = this.s.log.map(l => `<p class="${l.c}">${l.m}</p>`).join(""); },
