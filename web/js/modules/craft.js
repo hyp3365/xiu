@@ -164,31 +164,36 @@ G.module({
     /* ---------- 炼器室：炉子 / 装备 / 空间石 ---------- */
     // 炼制时间（炼器炉缩短）
     forgePer(kind, g) {
-      const base = kind === "eq" ? DATA.forgeEqTime(g) : kind === "ss" ? DATA.stoneTime(g) : DATA.furnaceTime(kind, g);
+      const base = kind === "eq" ? DATA.forgeEqTime(g) : kind === "ss" ? DATA.stoneTime(g) : kind === "ring" ? DATA.ringTime(g) : DATA.furnaceTime(kind, g);
       return Math.ceil(base * (1 - DATA.furnaceBonus("qi", this.s.furnaceUse.qi) / 100));
     },
-    jobMats(q) { return q.kind === "eq" ? DATA.forgeEqMats(q.g) : q.kind === "ss" ? DATA.stoneMats(q.g) : DATA.furnaceMats(q.kind, q.g); },
-    jobName(q) { return q.kind === "eq" ? DATA.forgeEqName(q.slot, q.g) : q.kind === "ss" ? DATA.stoneName(q.g) : DATA.furnaceName(q.kind, q.g); },
+    jobMats(q) { return q.kind === "eq" ? DATA.forgeEqMats(q.g) : q.kind === "ss" ? DATA.stoneMats(q.g) : q.kind === "ring" ? DATA.ringMats(q.g) : DATA.furnaceMats(q.kind, q.g); },
+    jobName(q) { return q.kind === "eq" ? DATA.forgeEqName(q.slot, q.g) : q.kind === "ss" ? DATA.stoneName(q.g) : q.kind === "ring" ? DATA.ringName(q.r, q.g) : DATA.furnaceName(q.kind, q.g); },
     // 炼好：放进背包，背包满返回 false（等有空位再出炉）
     finishForge(j) {
-      if (j.kind === "eq") {
+      if (j.kind === "eq" || j.kind === "ring") {
         if (this.bagFull()) { if (!this.silent) this.log("背包已满，装备暂停出炉。", "bad"); return false; }
-        const e = DATA.rollForged(j.slot, j.g); this.addEquip(e);
-        this.log(`炼成 <span class="q${e.q}">${DATA.forgeEqName(j.slot, j.g)}</span>，已放进背包。`, "gold"); return true;
+        // v25：升阶（有上一阶装备）→ 属性颜色不变，只是数值按新阶变大；一阶 → 随机生成
+        const e = j.prev && j.prev.attrs ? DATA.upgradeForged(j.prev, j.g) : DATA.rollForged(j.kind === "ring" ? "ring" : j.slot, j.g, j.r);
+        this.addEquip(e);
+        this.log(`炼成 <span class="q${e.q}">${this.itemName({ t: "eq", e })}</span>，已放进背包。`, "gold"); return true;
       }
       if (j.kind === "ss") { if (!this.addStone(j.g)) return false; this.log(`${DATA.stoneName(j.g)}炼制成功，已放进背包。`, "gold"); return true; }
       if (!this.addFurnaceItem(j.kind, j.g)) return false;
       this.log(`${DATA.furnaceName(j.kind, j.g)}炼制成功，已放进背包（点击「使用」装进洞府）。`, "gold"); return true;
     },
     // 背包里上一阶同部位的炼器装备（优先颜色最差的）
-    prevEquipIndex(slot, g) {
+    //   v25：戒指要同种（r）；优先颜色最好的（升阶颜色不变）
+    prevEquipIndex(slot, g, r) {
       let best = -1;
-      this.s.bag.forEach((it, i) => { if (it.t === "eq" && it.e.attrs && it.e.slot === slot && it.e.g === g - 1 && (best < 0 || it.e.q < this.s.bag[best].e.q)) best = i; });
+      this.s.bag.forEach((it, i) => { if (it.t === "eq" && it.e.attrs && it.e.slot === slot && it.e.g === g - 1 && (r === undefined || it.e.r === r) && (best < 0 || it.e.q > this.s.bag[best].e.q)) best = i; });
       return best;
     },
-    // 炼制：空闲就开始，否则加入队列（都会先扣材料）。kind = dan/qi 炉子、eq 装备（slot）、ss 空间石
+    // 炼制：空闲就开始，否则加入队列（都会先扣材料）。kind = dan/qi 炉子、eq 装备/法宝（slot）、ss 空间石、ring 戒指（slot 传戒指种类序号）
     craftFurnace(kind, g, slot) {
-      const s = this.s, q = s.forgeQueue, job = { kind, g }, mats = this.jobMats(Object.assign(job, slot ? { slot } : {}));
+      const s = this.s, q = s.forgeQueue, job = { kind, g };
+      if (kind === "ring") job.r = +slot; else if (slot) job.slot = slot;
+      const mats = this.jobMats(job);
       if (s.furnaceUse.qi < 0) return this.log("炼器必须装有炼器炉（宗门宝库 · 杂物可兑换一阶炼器炉）。", "sys");
       if (kind === "dan" || kind === "qi") { if (!s.blueprints[kind].includes(g)) return this.log("尚未学会该图纸。", "sys"); }
       else {
@@ -198,7 +203,9 @@ G.module({
       if (s.forgeJob && q.length >= CFG.furnace.QUEUE) return this.log(`队列已满（最多 ${CFG.furnace.QUEUE} 个）。`, "sys");
       if (!this.hasMats(mats)) return this.log("材料不足。", "sys");
       let pi = -1;
+      if (kind === "ring" && g < 1) return;
       if (kind === "eq" && g > 0) { pi = this.prevEquipIndex(slot, g); if (pi < 0) return this.log(`需要一件${DATA.forgeEqName(slot, g - 1)}。`, "sys"); }
+      if (kind === "ring") { pi = this.prevEquipIndex("ring", g, job.r); if (pi < 0) return this.log(`需要一枚${DATA.ringName(job.r, g - 1)}。`, "sys"); }
       if (pi >= 0) { job.prev = s.bag[pi].e; s.bag.splice(pi, 1); }
       mats.forEach(m => this.takeMat(m.kind, m.g, m.n));
       if (s.forgeJob) { q.push(job); this.log(`${this.jobName(job)}加入队列。`, "sys"); }
@@ -223,8 +230,16 @@ G.module({
     setForgeTier(g) { this.forgeTier = g; this.render(); },
 
     /* ---------- 门派炼器室：学习装备图谱 / 空间石 ---------- */
-    forgeKey(kind, g, slot) { return kind === "eq" ? `eq:${slot}:${g}` : `ss:${g}`; },
-    forgeKeyName(key) { const [k, a, b] = key.split(":"); return k === "eq" ? DATA.forgeEqName(a, +b) + "图谱" : DATA.stoneName(+a) + "炼法"; },
+    forgeKey(kind, g, slot) { return kind === "eq" ? `eq:${slot}:${g}` : kind === "ring" ? `ring:${g}` : `ss:${g}`; },
+    forgeKeyName(key) { const [k, a, b] = key.split(":"); return k === "eq" ? DATA.forgeEqName(a, +b) + "图谱" : k === "ring" ? DATA.ringBpName(+a) : DATA.stoneName(+a) + "炼法"; },
+    // v25：使用戒指图纸（试炼塔奖励）→ 学会该阶 9 种戒指的炼法
+    learnRingBp(i) {
+      const s = this.s, it = s.bag[i]; if (!it || it.t !== "rbp") return;
+      const key = this.forgeKey("ring", it.g);
+      if (s.forgeKnown.includes(key)) return this.log("已学会这张图纸。", "sys");
+      s.forgeKnown.push(key); this.removeAt(i, 1);
+      this.log(`学会${DATA.ringBpName(it.g)}，可在洞府炼器室把${DATA.JIE[it.g - 1]}戒指升为${DATA.JIE[it.g]}。`, "gold"); this.closeModal(); this.after();
+    },
     setForgeLibTier(g) { this.forgeLibTier = g; this.render(); },
     learnForge(kind, g, slot) {
       const s = this.s, key = this.forgeKey(kind, g, slot), C = kind === "eq" ? CFG.forge.equip : CFG.forge.stone, c = C.learnCost[g];
@@ -391,6 +406,16 @@ G.caveViews.forge = function () {
       <small>${g ? `<span class="${prevOK ? "" : "q5"}">${DATA.forgeEqName(sl, g - 1)} ×1</span>、` : ""}${this.matsText(mats)} · ${U.dur(this.forgePer("eq", g) / 1000)}</small></div>
       ${btn(tierOK && prevOK && this.hasMats(mats), `G.craftFurnace('eq',${g},'${sl}')`)}</div>`;
   }
+  // 戒指（试炼塔图纸学会，二阶起）
+  if (g > 0 && s.forgeKnown.includes(this.forgeKey("ring", g))) {
+    const mats = DATA.ringMats(g);
+    DATA.ringNames.forEach((n, r) => {
+      const prevOK = this.prevEquipIndex("ring", g, r) >= 0;
+      rows += `<div class="line"><div>${DATA.ringName(r, g)}<span class="tag">戒指</span>
+        <small><span class="${prevOK ? "" : "q5"}">${DATA.ringName(r, g - 1)} ×1</span>、${this.matsText(mats)} · ${U.dur(this.forgePer("ring", g) / 1000)}</small></div>
+        ${btn(tierOK && prevOK && this.hasMats(mats), `G.craftFurnace('ring',${g},${r})`)}</div>`;
+    });
+  }
   // 空间石
   if (s.forgeKnown.includes(this.forgeKey("ss", g))) {
     const mats = DATA.stoneMats(g);
@@ -401,7 +426,7 @@ G.caveViews.forge = function () {
   h += `<div class="card"><h3>炼器<small>${has ? `炼器炉 ${DATA.JIE[qi]} · 装备、空间石可炼一阶~${DATA.JIE[qi]}` : "需要炼器炉"}</small></h3>
     <div class="room-grid five">${DATA.JIE.map((n, i) => `<button class="${g === i ? "active" : ""}" onclick="G.setForgeTier(${i})">${n}</button>`).join("")}</div>` +
     (rows || `<p class="desc">${DATA.JIE[g]}还没有可炼制的东西：炉子图纸在门派宝库兑换，装备图谱、空间石在门派炼器室学习。</p>`) +
-    `<p class="desc">二阶起的装备要用一件上一阶同部位装备 + 三种矿石；装备、空间石的阶不能高于使用中的炼器炉。</p></div>`;
+    `<p class="desc">二阶起的装备、法宝、戒指要用一件上一阶同部位（同种）的 + 三种矿石，升阶后属性颜色不变、数值变大；阶不能高于使用中的炼器炉。</p></div>`;
   return h;
 };
 
@@ -418,7 +443,7 @@ G.sectForgeView = function () {
   h += `<div class="room-grid five">${DATA.JIE.map((n, i) => `<button class="${g === i ? "active" : ""}" onclick="G.setForgeLibTier(${i})">${n}</button>`).join("")}</div>
     <div class="card"><h3>炼器室 · 图谱<small>${star}星门派可学 一阶~${DATA.JIE[star - 1]} · 一次学一个</small></h3>` +
     DATA.forgeSlots.map(sl => line("eq", sl, DATA.forgeEqName(sl, g), DATA.slots[sl],
-      `主属性 ${CFG.forge.attr.main[sl].map(k => DATA.attrNames[k]).join("、")} + 1~5 条附加属性${g ? ` · 需上一阶${DATA.slots[sl]}` : ""}`)).join("") +
+      (sl === "fabao" ? "随机属性（金木水火土雷），主属性 伤害% + 属性伤害，1~5 条附加属性" : `主属性 ${CFG.forge.attr.main[sl].map(k => DATA.attrNames[k]).join("、")} + 1~5 条附加属性`) + (g ? ` · 需上一阶${DATA.slots[sl]}` : ""))).join("") +
     line("ss", null, DATA.stoneName(g), "空间石", `使用一个储物格 +1，每阶最多 ${CFG.forge.stone.MAX_USE} 个`) + `</div>`;
   return h;
 };
