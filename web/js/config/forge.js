@@ -139,7 +139,7 @@ CFG.forge.ring = {
  *   manaCut 法力消耗减少（点） manaCutPct 法力消耗减少（%）
  * 每次祭出消耗法力 = base.mana × GROW[阶]，再减去 manaCut / manaCutPct */
 CFG.forge.fabao = {
-  base: { pct: 100, flat: 30, mana: 20, ignRes: 10, ignResPct: 5, elDmg: 15, elDmgPct: 10, manaCut: 3, manaCutPct: 5 },
+  base: { pct: 100, flat: 8, mana: 0.5, ignRes: 10, ignResPct: 5, elDmg: 4, elDmgPct: 10, manaCut: 0.1, manaCutPct: 5 },
   // 点数类（flat、mana、ignRes、elDmg、manaCut）的阶成长
   GROW: [1.61, 4.18, 28.1, 490.37, 8560, 57600, 387000, 2610000, 17500000, 45500000],
   // 百分比类（pct、ignResPct、elDmgPct、manaCutPct）的阶成长
