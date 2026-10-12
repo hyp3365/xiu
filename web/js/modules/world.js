@@ -126,12 +126,10 @@ G.module({
       const log = [], R = Math.round;
       const rec = (w, d) => log.push([rounds, w, act.k, act.sp === undefined ? -1 : act.sp, act.f, R(d), R(Math.max(0, php)), R(s.mana), R(Math.max(0, mhp)), R(m.mana || 0)]);
       const me = () => { const d = myHit(); mhp -= d; dealt += d; rec(0, d); }, him = () => { const d = mobHit(); php -= d; taken += d; rec(1, d); };
-      const rg = this.regen(true);   // 战斗中每回合恢复（只有宗门秘法「斗灵 / 斗血」）
       while (php > 0 && mhp > 0 && rounds < BT.MAX_ROUNDS) {
         rounds++;
         if (meFirst) { me(); if (mhp > 0) him(); }
         else { him(); if (php > 0) me(); }
-        if (php > 0 && mhp > 0) { php = Math.min(st.hp, php + st.hp * rg.hp / 100); s.mana = Math.min(st.mana, s.mana + st.mana * rg.mana / 100); }
       }
       s.hp = Math.max(1, php);
       // 战斗说明（显示在探索信息里）
@@ -309,9 +307,9 @@ G.module({
       if (!x.plan) x.plan = this.makePlan(this.exCfg(x));
       const type = { n: "nothing", m: "monster", e: "elite", b: "boss", h: "herb", o: "ore" }[x.plan[x.step]] || "nothing";
       x.step++;
-      // 每走一步恢复少量气血、法力
-      const st = this.stats(), H = CFG.explore.HEAL_STEP;
-      this.s.hp = Math.min(st.hp, this.s.hp + st.hp * H); this.s.mana = Math.min(st.mana, this.s.mana + st.mana * H);
+      // 每走一步恢复气血、法力（HEAL_STEP + 宗门秘法「斗血 / 斗灵」）；战斗回合中不恢复
+      const st = this.stats(), H = this.regenStep();
+      this.s.hp = Math.min(st.hp, this.s.hp + st.hp * H.hp / 100); this.s.mana = Math.min(st.mana, this.s.mana + st.mana * H.mana / 100);
       let t = "", c = "", bd = null;
       const roll = ev => mj !== undefined ? this.rollMj(x.loot, ev, mj) : this.rollEvent(x.loot, ev, a);
       if (type === "herb") { t = `发现灵药，采得 ${roll("herbEvent") || "无"}`; c = "good"; }
