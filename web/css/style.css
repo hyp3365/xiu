@@ -9,7 +9,6 @@ body{color:#e8dcc4;font-family:"Songti SC","Noto Serif SC","Source Han Serif SC"
 .res3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:2px}
 .res3>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .res3>span:nth-child(2){text-align:center}.res3>span:nth-child(3){text-align:right}
-#sync{margin-left:4px}
 .row{display:flex;justify-content:space-between;gap:8px}
 .small{font-size:12px;color:#b9a98a}
 .small b{color:#e8dcc4;font-weight:normal}
