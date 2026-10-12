@@ -35,6 +35,9 @@ const API = {
   async login(u, p) { const j = await this.req("login", { username: u, password: p }); this.setLogin(u, j.token); },
   async loadSave() { return (await this.req("save")).data; },
   async upload(data) { return this.req("save", { data }); },
+  // 管理员：查看版本 / 从 GitHub 更新游戏
+  async adminInfo() { return this.req("admin"); },
+  async adminUpdate() { return this.req("admin/update", {}); },
 
   // 关闭页面时用 sendBeacon 尽量把最后的进度发出去
   beacon(data) {
