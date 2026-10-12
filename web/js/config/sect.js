@@ -48,7 +48,7 @@ CFG.sect = {
   ],
   // 试炼塔：第 n 层守关者属性 = base × 星级倍率 × GROW^(n-1)（暴击不成长）；首通贡献 = REWARD × n
   tower: { MAX: 100, REWARD: 20, GROW: 1.1,
-    base: { hp: 1, atk: 1, def: 1, speed: 10, hit: 10, dodge: 10, crit: 5 } },
+    base: { hp: 873, atk: 257, def: 183, speed: 85, hit: 89, dodge: 96, crit: 102 } },
   SECRET_COST: 200,  // 宗门秘境每次消耗贡献（× 星级倍率）
   // 宝库「杂物」页：cost 贡献（不乘星级）
   //   kind: "furnace" 炉子（fk: dan 炼丹炉 / qi 炼器炉，g: 阶序号 0 = 一阶），兑换后放进背包，点「使用」装到洞府
@@ -117,13 +117,13 @@ CFG.sect.gfRooms = [
  *   和宗门的同时只能用一个（进坊市的会自动离开宗门的，反过来也一样） */
 CFG.sect.shopRooms = {
   cult: [
-    { name: "凡品修炼室", pct: 10, cost: 2 },
-    { name: "良品修炼室", pct: 20, cost: 4 },
-    { name: "上品修炼室", pct: 30, cost: 8 },
+    { name: "凡品修炼室", pct: 20, cost: 2 },
+    { name: "良品修炼室", pct: 30, cost: 4 },
+    { name: "上品修炼室", pct: 50, cost: 8 },
   ],
   gf: [
-    { name: "凡品练功房", pct: 10, cost: 1 },
-    { name: "良品练功房", pct: 20, cost: 3 },
-    { name: "上品练功房", pct: 30, cost: 6 },
+    { name: "凡品练功房", pct: 20, cost: 1 },
+    { name: "良品练功房", pct: 30, cost: 3 },
+    { name: "上品练功房", pct: 50, cost: 6 },
   ],
 };
