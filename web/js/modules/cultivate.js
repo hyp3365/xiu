@@ -131,10 +131,11 @@ G.module({
         <div class="line"><div>聚灵阵<small>${s.array.lv} 级</small></div><b>+${U.num(arrPct)}%</b></div>
         <div class="line"><div>丹药</div><b>+${Math.round(sp.pill)}%</b></div>
         <div class="line"><div>修炼室<small>${this.freeCultOn() ? `${CFG.sect.freeRoom.name}（剩余 ${s.freeCult.left} 次）` : s.room >= 0 && s.sect ? DATA.rooms[s.room].name : s.shopRoom >= 0 && DATA.shopRooms.cult[s.shopRoom] ? "坊市 · " + DATA.shopRooms.cult[s.shopRoom].name : "未使用"}</small></div><b>+${Math.round(sp.room)}%</b></div>
-        <h3 style="margin-top:10px">丹药<small>只增加修炼速度</small></h3>
+        <h3 style="margin-top:10px">丹药</h3>
         ${Object.keys(DATA.pills).map(t => {
           const b = s.buffs[t], on = b && b.left > 0, i = this.bestPillIndex(t);
           const cnt = s.bag.filter(x => x.t === "pill" && x.type === t && this.canUsePill(x.g)).reduce((a, x) => a + x.n, 0);
+          if (!on && !cnt) return "";   // v42：没生效、也没有能吃的就不显示
           return `<div class="line"><div><img src="${DATA.pillIcon(t)}" alt="" style="width:30px;height:30px;float:left;margin-right:6px">${DATA.pills[t].name}<small>${on ? `+${Math.round(b.pct)}%，剩余 ${b.left} 次修炼` : "未生效"} · 可用 ${cnt} 枚</small></div>
           <div><button class="sm" onclick="G.manualPill('${t}');G.openBoost()" ${i < 0 ? "disabled" : ""}>服用</button>
           <button class="sm ${s.autoPill[t] ? "on" : ""}" onclick="G.toggleAutoPill('${t}');G.openBoost()">自动${s.autoPill[t] ? "开" : "关"}</button></div></div>`;
