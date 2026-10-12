@@ -99,8 +99,7 @@ G.module({
         const id = s.gfQueue.shift(), lv = s.gongfa[id];
         if (!lv || lv >= DATA.GONGFA_MAX) continue;
         const info = DATA.skillInfo(id, lv), total = DATA.studyMin[lv - 1] * 60000;
-        const steps = total / (DATA.STUDY_STEP * 1000);
-        s.gfStudy = { id, total, done: 0, at: at || this.now(), per: Math.max(1, Math.ceil(DATA.studyExp(info) / steps)), spent: 0 };
+        s.gfStudy = { id, total, done: 0, at: at || this.now(), per: DATA.studyPer(info), spent: 0 };   // per：每 5 秒消耗修为
       }
     },
     removeQueue(i) { this.s.gfQueue.splice(i, 1); this.after(); },
@@ -131,7 +130,7 @@ G.module({
         html += `<div class="card"><h3>修炼中 ·《${info ? info.name : st.id}》<small>${info ? `第 ${info.lv} → ${info.lv + 1} 层` : ""}</small></h3>
         <div class="bar tick"><div style="width:${done / st.total * 100}%"></div></div>
         <div class="row small"><span>${st.stalled ? "<b class='q5'>修为不足，暂停中</b>" : `倒计时 <b>${this.countdown(left)}</b>`}</span><button class="sm" onclick="G.stopStudy()">中断</button></div>
-        <div class="row small"><span>已消耗修为 <b>${U.fmt(st.spent)}</b> / ${U.fmt(st.per * st.total / (DATA.STUDY_STEP * 1000))}</span><span>${R ? `${R.name} +${U.num(R.pct)}%` : "未进练功房"}</span></div></div>`;
+        <div class="row small"><span>每 5 秒 <b>${U.fmt(st.per)}</b> · 已消耗 <b>${U.fmt(st.spent)}</b> / ${U.fmt(st.per * st.total / (DATA.STUDY_STEP * 1000))}</span><span>${R ? `${R.name} +${U.num(R.pct)}%` : "未进练功房"}</span></div></div>`;
       } else html += `<div class="card"><p class="desc">当前没有在修炼的功法。在各分类里点「修炼」加入队列。</p></div>`;
       html += `<div class="card"><h3>排队中<small>${s.gfQueue.length} / ${DATA.GF_QUEUE}</small></h3>` +
         (s.gfQueue.length ? s.gfQueue.map((id, i) => {
@@ -145,11 +144,11 @@ G.module({
       const s = this.s, max = g.lv >= DATA.GONGFA_MAX, plan = this.plannedLv(g.id), full = plan >= DATA.GONGFA_MAX;
       const lg = this.s.lingen[g.el.id] || 0, lgTxt = lg ? `（${g.el.name}灵根 +${lg * (g.kind === "sp" ? CFG.lingen.SPELL_PCT : CFG.lingen.GONGFA_PCT)}%）` : "";
       const desc = g.kind === "sp"
-        ? `伤害 攻击×${g.pct}% + ${U.fmt(g.flat)}${lgTxt}，耗法力 ${U.fmt(g.mana)}${max ? "" : `，下一层 +${U.fmt(g.perLv * (g.lv + 1))}`}`
-        : `${g.label} +${this.gfValue(g, g.value * this.lingenGongfa(g.el.id))}${lgTxt}${max ? "" : `，下一层 +${this.gfValue(g, g.perLv * (g.lv + 1) * this.lingenGongfa(g.el.id))}`}`;
-      const cost = max ? 0 : DATA.studyExp(g), SC = CFG.gongfa.STUDY_COST;
+        ? `伤害 攻击×${g.pct}% + ${U.fmt(g.flat)}${lgTxt}，耗法力 ${U.fmt(g.mana)}${max ? "" : `，下一层 +${U.fmt(g.next)}`}`
+        : `${g.label} +${this.gfValue(g, g.value * this.lingenGongfa(g.el.id))}${lgTxt}${max ? "" : `，下一层 +${this.gfValue(g, g.next * this.lingenGongfa(g.el.id))}`}`;
+      const cost = max ? 0 : DATA.studyExp(g), per = max ? 0 : DATA.studyPer(g);
       return `<div class="line"><div>《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.el.name}</span><span class="tag">${g.tier.name}</span><span class="tag">${g.lv}/${DATA.GONGFA_MAX}层</span>
-        <small>${desc}${max ? "" : `<br>下一层：${U.dur(DATA.studyMin[g.lv - 1] * 60)} · 消耗修为 ${U.fmt(cost)}${SC ? `（星级 ${U.fmt(SC.STAR[g.star - 1] || 100)} × 倍率 ${SC.LV[g.lv - 1] || 1}）` : ""}`}${plan > g.lv ? `<br>已排至第 ${plan} 层` : ""}</small></div>
+        <small>${desc}${max ? "" : `<br>下一层：${U.dur(DATA.studyMin[g.lv - 1] * 60)} · 每5秒 ${U.fmt(per)} 修为（共 ${U.fmt(cost)}）`}${plan > g.lv ? `<br>已排至第 ${plan} 层` : ""}</small></div>
         ${max ? `<button class="sm" disabled>圆满</button>` :
           `<button class="sm" onclick="G.studyGongfa('${g.id}')" ${full || s.gfQueue.length >= DATA.GF_QUEUE ? "disabled" : ""}>${full ? "已排满" : "修炼"}</button>`}</div>`;
     },
