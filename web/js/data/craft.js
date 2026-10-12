@@ -31,11 +31,15 @@ for (const t in _AL.recipes) if (!_AL.recipes[t].speed) DATA.dans[t] = _AL.recip
 DATA.danCat = type => (_AL.recipes[type] && _AL.recipes[type].cat) || 0;
 DATA.danStar = (type, g) => ((_AL.CAT_STAR || [])[DATA.danCat(type)] || 1) + Math.floor(g / (_AL.STAR_TIERS || 1));
 DATA.danStat = type => (_AL.recipes[type] && _AL.recipes[type].stat) || type;
+// v42：仙冥魔神丹（cat ≥ 1）用炼丹仙炉、炼丹仙师；修炼丹的品质 = 阶 + REALM0
+DATA.danFu = type => DATA.danCat(type) ? "xdan" : "dan";
+DATA.danCraft = type => DATA.danCat(type) ? "xdan" : "dan";
+DATA.pillGrade = (type, g) => g + ((_AL.recipes[type] && _AL.recipes[type].REALM0) || 0);
 DATA.isSpeedRecipe = type => !!(_AL.recipes[type] && _AL.recipes[type].speed);
 // 一阶破军丹；修炼速度丹显示为 一阶聚气丹（练气期）
-DATA.danName = (type, g) => DATA.JIE[g] + _AL.recipes[type].name + (DATA.isSpeedRecipe(type) ? `（${DATA.realmLabel(g)}）` : "");
+DATA.danName = (type, g) => DATA.JIE[g] + _AL.recipes[type].name + (DATA.isSpeedRecipe(type) ? `（${DATA.realmLabel(DATA.pillGrade(type, g))}）` : "");
 // 丹方效果说明
-DATA.recipeEffect = (type, g) => DATA.isSpeedRecipe(type) ? `修炼速度+${Math.round(DATA.pillPct(type, g))}%` : `${_AL.recipes[type].label}+${U.num(_AL.recipes[type].val[g])}`;
+DATA.recipeEffect = (type, g) => DATA.isSpeedRecipe(type) ? `修炼速度+${Math.round(DATA.pillPct(type, DATA.pillGrade(type, g)))}%` : `${_AL.recipes[type].label}+${U.num(_AL.recipes[type].val[g])}`;
 DATA.danVal = (type, g) => _AL.recipes[type].val[g];
 DATA.danLimit = (type, g) => _AL.recipes[type].limit[g];
 DATA.danRecipe = (type, g) => DATA.parseMats(_AL.recipes[type].herbs[g]);
@@ -50,7 +54,11 @@ DATA.furnaceName = (kind, g) => DATA.JIE[g] + _FU[kind].name;
 DATA.furnaceMats = (kind, g) => DATA.parseMats(_FU[kind].mats[g]);
 DATA.furnaceTime = (kind, g) => _FU[kind].time[g] * 60000;
 DATA.furnaceBonus = (kind, g) => g >= 0 ? _FU[kind].bonus[g] : 0;  // 缩短时间 %
-DATA.furnaceKinds = { dan: "炼丹炉", qi: "炼器炉" };
+DATA.furnaceKinds = { dan: "炼丹炉", qi: "炼器炉", xdan: "炼丹仙炉", xqi: "炼器仙炉" };
+DATA.FURNACE_KINDS = Object.keys(DATA.furnaceKinds).filter(k => _FU[k]);
+DATA.isDanFu = k => k === "dan" || k === "xdan";                                // 炼丹用的炉子
+// v42：宗门宝库兑换第 g 阶图纸需要的门派星级
+DATA.blueprintStar = (kind, g) => (_FU[kind].STAR || 1) + Math.floor(g / (_FU.STAR_TIERS || 1));
 DATA.blueprintCost = (kind, g) => _FU[kind].blueprint[g];
 
 /* ---------- 灵田 ---------- */
