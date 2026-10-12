@@ -155,3 +155,14 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24
 @keyframes eqShine{from{background-position:150% 0}to{background-position:-100% 0}}
 .slot-eq.eqt{overflow:hidden}
 @media (prefers-reduced-motion:reduce){.eqt img,img.eqt,.eqt::after{animation:none!important}}
+
+/* v49 仙界地图 7 处地点 */
+.xscene{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 6px;margin:8px 0;padding:12px 8px 10px;border-radius:14px;border:1px solid rgba(232,200,120,.25);
+  background:radial-gradient(ellipse at 50% 0%,rgba(255,224,150,.22),transparent 55%),radial-gradient(ellipse at 50% 100%,rgba(120,200,170,.14),transparent 60%),linear-gradient(180deg,#1e2744,#151b2e)}
+.xscene button{background:none;border:0;padding:2px;display:flex;flex-direction:column;align-items:center;gap:2px;color:#f1e3c2;font-size:13px;cursor:pointer;min-width:0}
+.xscene button img{width:100%;max-width:92px;aspect-ratio:1;object-fit:contain;filter:drop-shadow(0 6px 8px rgba(0,0,0,.55));transition:transform .15s}
+.xscene button:active img{transform:scale(.94)}
+.xscene button span{padding:1px 8px;border-radius:9px;background:rgba(0,0,0,.35);border:1px solid rgba(232,200,120,.3);white-space:nowrap}
+.xscene .tg{grid-column:1/4;margin-bottom:2px}
+.xscene .tg img{max-width:150px}
+.xscene .tg span{font-size:14px;color:#ffe7a6;border-color:rgba(255,215,120,.6)}
