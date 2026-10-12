@@ -166,3 +166,6 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24
 .xscene .tg{grid-column:1/4;margin-bottom:2px}
 .xscene .tg img{max-width:150px}
 .xscene .tg span{font-size:14px;color:#ffe7a6;border-color:rgba(255,215,120,.6)}
+.xs-ming button img{filter:drop-shadow(0 6px 8px rgba(0,0,0,.55)) hue-rotate(150deg) saturate(.6) brightness(.85)}
+.xs-mo button img{filter:drop-shadow(0 6px 8px rgba(0,0,0,.55)) hue-rotate(-40deg) saturate(1.3) brightness(.8)}
+.xs-shen button img{filter:drop-shadow(0 6px 8px rgba(0,0,0,.55)) saturate(1.2) brightness(1.08)}
