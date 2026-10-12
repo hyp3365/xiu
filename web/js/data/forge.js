@@ -209,4 +209,6 @@ DATA.li = src => src ? `<img class="li" src="${src}" alt="" loading="lazy">` : "
 DATA.skillIcon = g => g.kind === "mf" ? DATA.iconImg("mifa") : DATA.iconImg((g.kind === "sp" ? "sp_" : "gf_") + g.el.id);
 DATA.skillIco = g => `<span class="ico t-${g.tier.id}"><img src="${DATA.skillIcon(g)}" alt="" loading="lazy"><b>${g.tier.name[0]}</b></span>`;
 // 炼制物品（装备 / 戒指 / 法宝）的小图标：按阶换边框
-DATA.eqIco = e => { const src = DATA.eqIcon(e); return src ? `<span class="ico ${e.attrs ? "j" + e.g : "q" + e.q}"><img src="${src}" alt="" loading="lazy">${e.attrs ? `<b>${e.g + 1}</b>` : ""}</span>` : ""; };
+// 炼制装备 / 法宝按阶（一阶~十阶）加外观：越高阶越亮、光晕越强，高阶有流光（css/style.css 的 .eqt0 ~ .eqt9）
+DATA.eqCls = e => e && e.attrs ? ` eqt eqt${Math.max(0, Math.min(9, e.g || 0))}` : "";
+DATA.eqIco = e => { const src = DATA.eqIcon(e); return src ? `<span class="ico ${e.attrs ? "j" + e.g : "q" + e.q}${DATA.eqCls(e)}"><img src="${src}" alt="" loading="lazy">${e.attrs ? `<b>${e.g + 1}</b>` : ""}</span>` : ""; };
