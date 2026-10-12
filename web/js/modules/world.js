@@ -4,13 +4,13 @@
  * ---------------------------------------------------------------------
  * 每个区域的 普通怪 / 精英怪 / 首领 属性在 js/config/ 数值文件 的 monster.regions 单独设置。
  * 历练：和自动探索一样走 100 步，但只走一次；走完且没战败 = 通过，解锁该区域的自动探索。
- * 自动探索：每次 100 秒，每秒走一步；固定遇到 10 个普通怪、3 个精英怪、灵药 5~10 次、矿石 5~10 次，
+ * 自动探索：每次 TIME 步，每步 STEP_SEC 秒（config/explore.js）；固定遇到 10 个普通怪、3 个精英怪、灵药 5~10 次、矿石 5~10 次，
  *   最后一步遇到首领，其余无事发生（顺序随机）。怪物掉 灵石、药材、矿石（不掉丹药、装备）。
  *   历练、自动探索期间都不能修炼。
  * 战斗：速度高者先手，判闪避、暴击；法术栏法术轮流施放（耗法力），不足时普通攻击；战败遗失部分灵石。
  *   法术伤害 = 威力 - (对方防御 + 对方该属性抗性) × DEF_RATE；普通攻击、法宝只算防御。
  *   怪物也有法力、六系抗性、法术和法宝（见 config/monster.js 的 monster.magic）。
- *   一次探索中获得的东西先记下，100 秒结束后一起放进背包；
+ *   一次探索中获得的东西先记下，走完后一起放进背包；
  *   气血够（≥ 三成）就继续下一次，不够就停止；探索时不能修炼；离线也继续。
  *   探索信息栏显示每一步发生的事，每秒刷新。
  * 数值全部在 js/config/ 下的数值文件 的 monster / explore 部分。
@@ -124,10 +124,12 @@ G.module({
       const log = [], R = Math.round;
       const rec = (w, d) => log.push([rounds, w, act.k, act.sp === undefined ? -1 : act.sp, act.f, R(d), R(Math.max(0, php)), R(s.mana), R(Math.max(0, mhp)), R(m.mana || 0)]);
       const me = () => { const d = myHit(); mhp -= d; dealt += d; rec(0, d); }, him = () => { const d = mobHit(); php -= d; taken += d; rec(1, d); };
+      const rg = this.regen(true);   // 战斗中每回合恢复（config/player.js REGEN_BATTLE + 宗门秘法）
       while (php > 0 && mhp > 0 && rounds < BT.MAX_ROUNDS) {
         rounds++;
         if (meFirst) { me(); if (mhp > 0) him(); }
         else { him(); if (php > 0) me(); }
+        if (php > 0 && mhp > 0) { php = Math.min(st.hp, php + st.hp * rg.hp / 100); s.mana = Math.min(st.mana, s.mana + st.mana * rg.mana / 100); }
       }
       s.hp = Math.max(1, php);
       // 战斗说明（显示在探索信息里）
@@ -163,7 +165,7 @@ G.module({
         <div class="explore-log">${b.log.map(x => this.battleRow(b, x)).join("") || "<p>无</p>"}</div>
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
-    // 战斗画面（试炼塔）：每秒播放一回合，3 秒后可跳过；结果已经结算好，这里只是播放
+    // 战斗画面（试炼塔）：每 ROUND_SEC 秒播放一回合，3 秒后可跳过；结果已经结算好，这里只是播放
     playBattle(b, title, txt, win) {
       if (this._bp && this._bp.timer) clearInterval(this._bp.timer);
       const rounds = [];
@@ -178,7 +180,7 @@ G.module({
       };
       bp.shown = Math.min(1, bp.rounds.length); if (bp.shown >= bp.rounds.length) bp.done = true;
       this.drawBattle();
-      if (!bp.done || Date.now() - bp.t0 < 3000) bp.timer = setInterval(step, 1000);
+      if (!bp.done || Date.now() - bp.t0 < 3000) bp.timer = setInterval(step, (CFG.battle.ROUND_SEC || 1) * 1000);
     },
     drawBattle() {
       const bp = this._bp; if (!bp) return;
@@ -279,7 +281,7 @@ G.module({
       if (!once && !this.isTrained(a, r)) return this.log("需先在此区域历练通过，才能自动探索。", "sys");
       if (s.explore) this.stopExplore("更换");
       if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("气血不足三成，先休养片刻（每 10 秒恢复 1%）。", "sys");
-      s.explore = { map: a, reg: r, once: !!once, start: this.now(), step: 0, count: 0, loot: this.newLoot(), ev: [], last: "", plan: this.makePlan() };
+      s.explore = { map: a, reg: r, once: !!once, start: this.now(), step: 0, count: 0, loot: this.newLoot(), ev: [], last: "", plan: this.makePlan(), ms: this.exploreMs() };
       s.lastRun = null;
       this.exploreOpen = true;
       this.log(`开始在${DATA.regionName(a, r)}${once ? "历练" : "自动探索"}（期间无法修炼）。`, "sys");
@@ -325,14 +327,17 @@ G.module({
       for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
       return list.join("") + "b".repeat(E.BOSS);
     },
-    // 推进到当前时间（每秒走一步；满 100 步结算一次）
+    // 每走一步的毫秒数 = STEP_SEC − 宗门秘法「神行」（只影响历练 / 探索走路，最少 STEP_MIN 秒）
+    exploreMs() { const E = CFG.explore; return Math.round(Math.max(E.STEP_MIN || 0.5, (E.STEP_SEC || 1) - this.mifaBonus().explore) * 1000); },
+    // 推进到当前时间（每 exploreMs 走一步；满 TIME 步结算一次）
     advanceExplore() {
       const s = this.s, T = CFG.explore.TIME;
       if (!s.explore) return;
       const x = s.explore;
       if (x.step === undefined) Object.assign(x, { start: this.now(), step: 0, count: x.count || 0, loot: this.newLoot(), ev: [], last: "" }); // 旧存档
       let changed = false;
-      while (s.explore && this.now() >= x.start + (x.step + 1) * 1000) {
+      if (!x.ms) x.ms = this.exploreMs();
+      while (s.explore && this.now() >= x.start + (x.step + 1) * x.ms) {
         changed = true;
         const lost = this.exploreStep();
         if (x.step >= T || lost) {
@@ -354,7 +359,7 @@ G.module({
             s.lastRun.title += "；气血不足三成，自动探索停止";
             s.explore = null; break;
           }
-          x.start = x.start + x.step * 1000; x.step = 0; x.loot = this.newLoot(); x.ev = []; x.plan = this.makePlan();
+          x.start = x.start + x.step * x.ms; x.ms = this.exploreMs(); x.step = 0; x.loot = this.newLoot(); x.ev = []; x.plan = this.makePlan();
           s.lastRun = null; // 开始新一次：不保留上一次的记录
         }
       }
@@ -511,7 +516,7 @@ G.module({
           const sel = this.mapSel !== undefined ? this.mapSel : s.explore ? s.explore.map : Math.min(this.r(), DATA.maps.length - 1);
           const map = DATA.maps[sel], lock = !this.realmOK(DATA.mapReq(sel));
           return `<div class="room-grid five">${DATA.maps.map((m, a) => `<button class="${sel === a ? "active" : ""}" onclick="G.setMapSel(${a})">${m.name}${!this.realmOK(DATA.mapReq(a)) ? `<small>需${DATA.realmLabel(DATA.mapReq(a))}</small>` : ""}</button>`).join("")}</div>
-          <div class="card"><h3>${map.name}<small>需${DATA.realmLabel(DATA.mapReq(sel))} · 历练一次 100 秒，通过后才能自动探索</small></h3>` +
+          <div class="card"><h3>${map.name}<small>需${DATA.realmLabel(DATA.mapReq(sel))} · 历练一次 ${CFG.explore.TIME} 步，每步 ${U.num(this.exploreMs() / 1000)} 秒，通过后才能自动探索</small></h3>` +
           DATA.regionDirs.map((d, r) => {
             const R = DATA.region(sel, r), ok = this.isTrained(sel, r), x = s.explore && s.explore.map === sel && (s.explore.reg || 0) === r ? s.explore : null;
             return `<div class="line"><div>${d}域<small>首领 ${DATA.regionBoss(sel, r)} · ${ok ? "已通过历练" : "未历练"}</small></div>
