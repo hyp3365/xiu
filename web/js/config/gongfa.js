@@ -47,6 +47,7 @@ CFG.gongfa = {
     dodge: 5,        // 遁术 → 每层闪避
     mana: 5,         // 法诀 → 每层法力
     res: 5,          // 真诀 → 每层本门属性抗性
+    body: 5,         // 肉身秘诀 → 每层肉身修炼速度
     spell: 6,       // 法术 → 每层固定伤害
   },
   // 层数倍率：第 n 层效果 = 每层效果 × LV_MULT[n-1]（第 1 个 = 第 1 层 …… 第 12 个 = 第 12 层）
@@ -74,7 +75,7 @@ CFG.gongfa = {
 CFG.gongfa.sect = {
   // ---- 效果（只影响功法效果、法术伤害和法力，不影响学习消耗）----
   // 类型倍率：每类功法 / 法术单独一个
-  TYPE_MULT: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1 },
+  TYPE_MULT: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1, tijue: 1 },
   // 星级倍率：第 1 个是 1 星门派 …… 第 10 个是 10 星
   STAR_MULT: [1, 1.3, 1.6, 1.9, 2.2, 2.5, 2.7, 3, 3.3, 3.6],
   // 天地玄黄四阶倍率
@@ -87,7 +88,7 @@ CFG.gongfa.sect = {
   // ---- 学习消耗（不受上面的倍率影响）----
   // 首次学习消耗贡献 = learn × LEARN_TYPE × LEARN_STAR × LEARN_TIER × EFFECT_LEARN
   learn: 100,
-  LEARN_TYPE: { xinfa: 1.3, gongjue: 1.2, zhenjing: 1, mijue: 1.1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1.2 },
+  LEARN_TYPE: { xinfa: 1.3, gongjue: 1.2, zhenjing: 1, mijue: 1.1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1.2, tijue: 1.1 },
   LEARN_STAR: [1, 5, 10, 20, 40, 60, 80, 110, 150, 200],   // 1 ~ 10 星门派
   LEARN_TIER: { huang: 1, xuan: 1.5, di: 2, tian: 3 },
   EFFECT_LEARN: 1,
