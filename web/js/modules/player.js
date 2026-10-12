@@ -70,7 +70,12 @@ G.module({
       return add;
     },
 
-    // 恢复百分比：battle = true 战斗中每回合，false 平时每 10 秒（config/player.js + 宗门秘法）
+    // 历练/探索每走一步恢复的百分比 = config/explore.js HEAL_STEP + 宗门秘法「斗血 / 斗灵」（战斗中途不再恢复）
+    regenStep() {
+      const m = this.mifaBonus(), H = (CFG.explore.HEAL_STEP || 0) * 100;
+      return { hp: H + (m.hpBattle || 0), mana: H + (m.mpBattle || 0) };
+    },
+    // 恢复百分比：battle = true 雷劫中每回合（秘法），false 平时每 10 秒（config/player.js + 宗门秘法）
     regen(battle) {
       const m = this.mifaBonus();
       if (battle) return { hp: m.hpBattle, mana: m.mpBattle };   // 战斗中只有秘法恢复
