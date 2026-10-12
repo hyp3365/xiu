@@ -153,7 +153,8 @@ CFG.sect.freeGfRoom = { name: "免费练功房", pct: 0, minutes: 60, daily: 1 }
 /* ---------- 元婴出窍秘法 ----------
  * 宗门宝库「杂物」用贡献换取（LEARN_CONTRIB，不乘星级），学会即第 1 层，出现在「功法 → 秘法」，之后在那里修炼升层
  * 修炼升一层（第 n 层 → n+1 层）：
- *   时间（秒）= TIME（固定，每层一样）；修炼期间每 EXP_SEC 秒消耗一次修为，每次 EXP_PER（固定）
+ *   时间（秒）= TIME + TIME_ADD × floor(n / TIME_EVERY)（默认每 100 层多 TIME_ADD 秒）
+ *   修炼期间每 EXP_SEC 秒消耗一次修为，每次 EXP_PER（固定）
  *   修为不够时暂停，够了自动接着修炼；养神灵露开始修炼时扣
  *   养神灵露 = LU_BASE + LU_ADD × floor(n / LU_EVERY)（默认每 100 层多 1 个）
  * 养神灵露：需要境界为 LU_MJ_REALM 的秘境（3 = 元婴期秘境）每次历练 / 探索必定掉落 LU_DROP 个
@@ -169,6 +170,7 @@ CFG.chuqiao = {
   PER_LV: 1,
   LEARN_CONTRIB: 3000,
   TIME: 600,        // 修炼一层要的时间（秒）
+  TIME_ADD: 60, TIME_EVERY: 100,   // 每 TIME_EVERY 层，修炼时间多 TIME_ADD 秒
   EXP_SEC: 1,      // 每多少秒消耗一次修为
   EXP_PER: 10000,  // 每次消耗多少修为
   LU_BASE: 1, LU_ADD: 1, LU_EVERY: 100,
