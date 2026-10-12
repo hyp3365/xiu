@@ -401,7 +401,8 @@ G.module({
             s.explore = null; break;
           }
           if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) {
-            this.log(`气血不足三成，自动探索停止（共探索 ${x.count} 次）。`, "bad");
+            const back = x.cq ? Math.max(0, x.cq - x.count) : 0; this.cqRefund(back);   // 出窍：已完成的扣掉，剩下的返还
+            this.log(`气血不足三成，自动探索停止（共探索 ${x.count} 次${back ? `，返还 ${back} 次出窍` : ""}）。`, "bad");
             s.lastRun.title += "；气血不足三成，自动探索停止";
             s.explore = null; break;
           }
