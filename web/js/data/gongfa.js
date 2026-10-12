@@ -38,6 +38,7 @@ DATA.gongfaTypes = [
   { id: "dunshu",   name: "遁术", suffix: "遁术", stat: "dodge",     label: "闪避" },
   { id: "fajue",    name: "法诀", suffix: "法诀", stat: "mana",      label: "法力上限" },
   { id: "zhenjue",  name: "真诀", suffix: "真诀", stat: "res",       label: "抗性" }, // 抗性属性 = 来源属性
+  { id: "tijue",    name: "肉身秘诀", suffix: "炼体诀", stat: "body", label: "肉身修炼速度", sectOnly: true }, // 修炼肉身的前提；只在宗门功法殿学习
 ];
 
 /* 功法来源类型（内部标记）：sect 宗门功法、shop 凡界坊市功法；以后加新类型在这里加一行 + config 加一组 */
