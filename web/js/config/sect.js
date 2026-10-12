@@ -168,8 +168,8 @@ CFG.chuqiao = {
   MAX_LV: 3000,
   PER_LV: 1,
   LEARN_CONTRIB: 500,
-  TIME: 60,        // 修炼一层要的时间（秒）
-  EXP_SEC: 5,      // 每多少秒消耗一次修为
+  TIME: 600,        // 修炼一层要的时间（秒）
+  EXP_SEC: 1,      // 每多少秒消耗一次修为
   EXP_PER: 10000,  // 每次消耗多少修为
   LU_BASE: 1, LU_ADD: 1, LU_EVERY: 100,
   LU_MJ_REALM: 3, LU_DROP: 10,
