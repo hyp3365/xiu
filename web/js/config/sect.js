@@ -167,7 +167,7 @@ CFG.chuqiao = {
   NAME: "元婴出窍秘法",
   MAX_LV: 3000,
   PER_LV: 1,
-  LEARN_CONTRIB: 500,
+  LEARN_CONTRIB: 3000,
   TIME: 600,        // 修炼一层要的时间（秒）
   EXP_SEC: 1,      // 每多少秒消耗一次修为
   EXP_PER: 10000,  // 每次消耗多少修为
