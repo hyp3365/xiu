@@ -283,7 +283,7 @@ G.module({
     // once = true：历练（只走一次）；否则自动探索（需先历练通过该区域）
     toggleExplore(a, r, once) {
       const s = this.s;
-      if (s.explore && s.explore.map === a && s.explore.reg === r && !!s.explore.once === !!once) { this.stopExplore(once ? "放弃历练" : "停止自动探索"); return this.after(); }
+      if (s.explore && !s.explore.cq && s.explore.map === a && s.explore.reg === r && !!s.explore.once === !!once) { this.stopExplore(once ? "放弃历练" : "停止自动探索"); return this.after(); }
       if (!this.realmOK(DATA.mapReq(a))) return;
       if (!once && !this.isTrained(a, r)) return this.log("需先在此区域历练通过，才能自动探索。", "sys");
       if (s.explore) this.stopExplore("更换");
@@ -292,6 +292,31 @@ G.module({
       s.lastRun = null;
       this.exploreOpen = true;
       this.log(`开始在${DATA.regionName(a, r)}${once ? "历练" : "自动探索"}（期间无法修炼）。`, "sys");
+      this.after();
+    },
+    /* ---------- 元婴出窍（config/sect.js 的 CFG.chuqiao）：自动探索指定次数，期间可以继续修炼 ---------- */
+    openChuqiao(a, r) {
+      const s = this.s, C = CFG.chuqiao, x = s.explore;
+      if (x && x.cq && x.map === a && (x.reg || 0) === r) { this.stopExplore("结束出窍"); return this.after(); }
+      if (!s.cqLv) return this.log(`需先在宗门宝库兑换${C.NAME}。`, "sys");
+      if (!this.realmOK(C.REALM)) return this.log(`出窍需要${DATA.realmLabel(C.REALM)}。`, "sys");
+      if (!this.isTrained(a, r)) return this.log("需先在此区域历练通过，才能出窍探索。", "sys");
+      const max = this.cqMaxRuns();
+      this.modal(`<h2>元婴出窍 · ${DATA.regionName(a, r)}</h2>
+        <p>${C.NAME}第 ${s.cqLv} 层，一次最多出窍探索 ${max} 次；出窍期间可以继续修炼。</p>
+        <div class="line"><div>出窍次数<small>1 ~ ${max}</small></div><input id="cq-n" type="number" min="1" max="${max}" value="${max}" style="width:110px"></div>
+        <div class="btns"><button class="primary" onclick="G.startChuqiao(${a},${r})">出窍</button><button onclick="G.closeModal()">取消</button></div>`);
+    },
+    startChuqiao(a, r) {
+      const s = this.s, max = this.cqMaxRuns(), n = Math.min(max, Math.floor(+($("#cq-n") && $("#cq-n").value) || 0));
+      if (n < 1) return;
+      this.closeModal();
+      if (s.explore) this.stopExplore("更换");
+      if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("气血不足三成，先休养片刻（每 10 秒恢复 1%）。", "sys");
+      s.explore = { map: a, reg: r, once: false, cq: n, start: this.now(), step: 0, count: 0, loot: this.newLoot(), ev: [], last: "", plan: this.makePlan(), ms: this.exploreMs() };
+      s.lastRun = null;
+      this.exploreOpen = true;
+      this.log(`元婴出窍，前往${DATA.regionName(a, r)}探索 ${n} 次（期间可以继续修炼）。`, "sys");
       this.after();
     },
     // 停止：本次已获得的东西也结算
@@ -362,6 +387,10 @@ G.module({
             const key = this.regionKey(x.map, x.reg || 0);
             if (!lost && !s.trainedR.includes(key)) { s.trainedR.push(key); this.log(`${DATA.regionName(x.map, x.reg || 0)}历练通过！已可自动探索。`, "gold"); }
             else if (lost) this.log("历练失败，提升实力后再来。", "bad");
+            s.explore = null; break;
+          }
+          if (x.cq && x.count >= x.cq) {   // 元婴出窍：探索够次数就回来
+            this.log(`出窍探索 ${x.count} 次已完成，元婴归窍。`, "gold");
             s.explore = null; break;
           }
           if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) {
@@ -622,8 +651,8 @@ G.module({
           if (L.hx) mats.push(`火髓×${U.fmt(L.hx)}`);
           for (const k in L.sm || {}) { const [kk, f] = k.split(":"); mats.push(`${DATA.smName(kk, f === undefined ? undefined : +f)}×${U.fmt(L.sm[k])}`); }
           for (const n in L.cu || {}) mats.push(`${n}×${U.fmt(L.cu[n])}`);
-          const sub = x.mj !== undefined ? (x.once ? "走完且不战败即通过" : x.queue && x.queue.length ? `一键探索 · 后面还有 ${x.queue.length} 处` : "秘境探索") : x.once ? "走完且不战败即通过" : `已完成 ${x.count} 次`;
-          return `<div class="card"><h3>${x.once ? "历练中" : "自动探索中"} · ${this.exName(x)}<small>${sub}</small></h3>
+          const sub = x.mj !== undefined ? (x.once ? "走完且不战败即通过" : x.queue && x.queue.length ? `一键探索 · 后面还有 ${x.queue.length} 处` : "秘境探索") : x.once ? "走完且不战败即通过" : x.cq ? `已完成 ${x.count} / ${x.cq} 次 · 可继续修炼` : `已完成 ${x.count} 次`;
+          return `<div class="card"><h3>${x.once ? "历练中" : x.cq ? "出窍探索中" : "自动探索中"} · ${this.exName(x)}<small>${sub}</small></h3>
           <div class="bar tick"><div style="width:${x.step / T * 100}%"></div></div>
           <div class="row small"><span>第 ${x.step} / ${T} 步 · 剩余 ${U.dur(Math.ceil((T - x.step) * (x.ms || 1000) / 1000))}</span><span>
             <button class="sm" onclick="G.setExploreOpen(${!this.exploreOpen})">${this.exploreOpen ? "收起信息" : "探索信息"}</button>
@@ -645,7 +674,8 @@ G.module({
             const R = DATA.region(sel, r), ok = this.isTrained(sel, r), x = s.explore && s.explore.map === sel && (s.explore.reg || 0) === r ? s.explore : null;
             return `<div class="line"><div>${d}域<small>首领 ${DATA.regionBoss(sel, r)} · ${ok ? "已通过历练" : "未历练"}</small></div>
               ${lock ? `<button class="sm" disabled>需${DATA.realmLabel(DATA.mapReq(sel))}</button>` : `<div><button class="sm ${x && x.once ? "on" : ""}" onclick="G.toggleExplore(${sel},${r},true)">${x && x.once ? "停止" : "历练"}</button>
-              <button class="sm ${x && !x.once ? "on" : ""}" onclick="G.toggleExplore(${sel},${r})" ${ok ? "" : "disabled"}>${x && !x.once ? "停止" : "探索"}</button></div>`}</div>`;
+              <button class="sm ${x && !x.once && !x.cq ? "on" : ""}" onclick="G.toggleExplore(${sel},${r})" ${ok ? "" : "disabled"}>${x && !x.once && !x.cq ? "停止" : "探索"}</button>
+              <button class="sm ${x && x.cq ? "on" : ""}" onclick="G.openChuqiao(${sel},${r})" ${ok && s.cqLv ? "" : "disabled"}>${x && x.cq ? "停止" : "出窍"}</button></div>`}</div>`;
           }).join("") + `<p class="desc">期间无法修炼；气血低于三成停止。</p></div>`;
         })()}`;
     }
