@@ -87,9 +87,9 @@ CFG.gongfa.sect = {
   // ---- 学习消耗（不受上面的倍率影响）----
   // 首次学习消耗贡献 = learn × LEARN_TYPE × LEARN_STAR × LEARN_TIER × EFFECT_LEARN
   learn: 100,
-  LEARN_TYPE: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1 },
-  LEARN_STAR: [1, 1.3, 1.6, 1.9, 2.2, 2.5, 2.7, 3, 3.3, 3.6],   // 1 ~ 10 星门派
-  LEARN_TIER: { huang: 1, xuan: 1.3, di: 1.6, tian: 1.9 },
+  LEARN_TYPE: { xinfa: 1.3, gongjue: 1.2, zhenjing: 1, mijue: 1.1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1.2 },
+  LEARN_STAR: [1, 5, 10, 20, 40, 60, 80, 110, 150, 200],   // 1 ~ 10 星门派
+  LEARN_TIER: { huang: 1, xuan: 1.5, di: 2, tian: 3 },
   EFFECT_LEARN: 1,
   // 学习需要的门派职务（0 外门 1 内门 2 真传 3 核心 4 长老 5 供奉 6 宗主）
   TIER_RANK: { huang: 0, xuan: 2, di: 4, tian: 6 },
@@ -109,7 +109,7 @@ CFG.gongfa.shop = {
   // 售价 = price × PRICE_TYPE × PRICE_STAR × PRICE_TIER × EFFECT_PRICE
   price: 500,
   PRICE_TYPE: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1 },
-  PRICE_STAR: [1, 10, 30, 50, 100, 200],     // 1~6 星
+  PRICE_STAR: [1, 30, 60, 100, 180, 300],     // 1~6 星
   PRICE_TIER: { huang: 1, xuan: 3, di: 6, tian: 10 },
   EFFECT_PRICE: 1,
   // 需要的境界：和同星级门派一样（config/sect.js 的 REQ_REALM）
