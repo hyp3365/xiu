@@ -74,7 +74,7 @@ G.module({
 
     // 聚灵阵
     const cap = this.lingCap(), max = a.lv >= DATA.array.MAX, f = this.arrayFactor();
-    return rooms + `<div class="card"><h3>聚灵阵 · ${a.lv} / ${DATA.array.MAX} 级<small>修炼加成${a.on ? "开启" : "关闭"}（修炼页切换）</small></h3>
+    return rooms + `<div class="card"><h3>聚灵阵 · ${a.lv} / ${DATA.array.MAX} 级</h3>
       <div class="row small"><span>聚灵中（每 10 秒 +${U.num(this.gatherAmount())} 灵气）</span></div>
       <div class="bar tick"><div id="gather-bar" style="width:${this.tickPct()}%"></div></div>
       <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>
