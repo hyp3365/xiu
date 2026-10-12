@@ -40,15 +40,18 @@ DATA.maps = [
     monsters: ["雷灵", "劫雷兽", "心魔", "雷鹏", "紫电蛟", "天罚使者", "劫火灵", "雷霆巨人"] },
 ];
 
-// v45：仙界 / 冥界 / 魔界 / 神界各 9 张地图（config/worldmaps.js）接在凡界后面，序号 9 起
+// v45：仙界 / 冥界 / 魔界 / 神界各 10 张地图（config/worldmaps.js）接在凡界后面，序号 9 起
 //   DATA.maps[a].w = 所在界；DATA.worldMapIdx[界] = 这一界的地图序号列表
 DATA.FAN_MAP_N = DATA.maps.length;
 DATA.maps.forEach(m => { m.w = "fan"; });
 DATA.worldMapIdx = { fan: DATA.maps.map((m, a) => a) };
-for (const w of ["xian", "ming", "mo", "shen"]) {
-  const W = (CFG.worldMaps || {})[w]; DATA.worldMapIdx[w] = [];
+// v50：每界第 10 张起的地图排在所有界前 9 张之后（老存档的地图序号不变）
+DATA.WORLD_MAP_OLD = 9;
+for (const pass of [0, 1]) for (const w of ["xian", "ming", "mo", "shen"]) {
+  const W = (CFG.worldMaps || {})[w]; if (!pass) DATA.worldMapIdx[w] = [];
   if (!W) continue;
   W.maps.forEach((m, i) => {
+    if ((i < DATA.WORLD_MAP_OLD) === !!pass) return;
     const a = DATA.maps.length, D = CFG.worldDrops[w] || {}, K = CFG.worldDrop || {};
     DATA.maps.push({ name: m.name, boss: m.boss, monsters: m.monsters, w, wi: i });
     DATA.worldMapIdx[w].push(a);
