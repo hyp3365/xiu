@@ -344,10 +344,10 @@ G.module({
         sects.map(o => `<div class="card"><h3>${o.name}<span class="tag">${DATA.elById[o.el].name}</span><small>${DATA.tierById[tier].name}</small></h3>` +
           DATA.gongfaTypes.map(t => {
             const g = DATA.gongfaInfo(DATA.gongfaId(o.id, t.id, tier));
-            return `<div class="line"><div>《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${t.name}</span><small>每层${g.label} +${this.gfValue(g, g.perLv)} · ${U.fmt(g.cost)} 贡献</small></div>${btn(g)}</div>`;
+            return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${t.name}</span><small>每层${g.label} +${this.gfValue(g, g.perLv)} · ${U.fmt(g.cost)} 贡献</small></div>${btn(g)}</div>`;
           }).join("") + (() => {
             const g = DATA.spellInfo(DATA.spellId(o.id, o.el, tier));
-            return `<div class="line"><div>《${g.name}》<span class="tag">${g.star}星</span><span class="tag">法术</span><small>攻击×${g.pct}% + ${U.fmt(g.perLv)}/层 · 耗法力 ${U.fmt(g.mana)} · ${U.fmt(g.cost)} 贡献</small></div>${btn(g)}</div>`;
+            return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">法术</span><small>攻击×${g.pct}% + ${U.fmt(g.perLv)}/层 · 耗法力 ${U.fmt(g.mana)} · ${U.fmt(g.cost)} 贡献</small></div>${btn(g)}</div>`;
           })() + `</div>`).join("");
     } else if (tab === "affair") {
       const a = s.affair, cur = a.task >= 0 ? DATA.affairs[a.task] : null;
