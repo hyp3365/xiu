@@ -654,9 +654,9 @@ G.module({
     const s = this.s, wt = this.worldTab || "explore", wid = this.worldId || "fan";
     // 六界选择
     const worlds = `<div class="room-grid">${DATA.worlds.map(w =>
-      `<button class="${wid === w.id ? "active" : ""}" onclick="G.setWorld('${w.id}')">${w.name}${this.worldOpen(w.id) ? "" : "<small>未开放</small>"}</button>`).join("")}</div>`;
+      `<button class="${wid === w.id ? "active" : ""}" onclick="G.setWorld('${w.id}')">${w.name}${this.worldOpen(w.id) || (CFG.worldMaps || {})[w.id] ? "" : "<small>未开放</small>"}</button>`).join("")}</div>`;
     const W = DATA.worlds.find(w => w.id === wid);
-    if (!this.worldOpen(wid)) return worlds + `<div class="card"><h3>${W.name}</h3><p class="desc">${W.desc}</p><p class="desc">界壁未开，以你如今的修为尚无法踏足。</p></div>`;
+    if (!this.worldOpen(wid)) return worlds + `<div class="card"><h3>${W.name}</h3><p class="desc">${W.desc}</p>${(CFG.worldMaps || {})[wid] ? "" : `<p class="desc">界壁未开，以你如今的修为尚无法踏足。</p>`}</div>`;
     const tabs = worlds + `<div class="sub-tabs">
       <button class="${wt === "explore" ? "active" : ""}" onclick="G.setWorldTab('explore')">历练</button>
       <button class="${wt === "shop" ? "active" : ""}" onclick="G.setWorldTab('shop')">坊市</button>
