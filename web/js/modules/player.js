@@ -29,8 +29,9 @@ G.module({
   // 每 10 秒：气血、法力各恢复上限的 1%
   tick() {
     const st = this.stats(), s = this.s;
-    if (s.hp < st.hp) s.hp = Math.min(st.hp, s.hp + st.hp * DATA.REGEN);
-    if (s.mana < st.mana) s.mana = Math.min(st.mana, s.mana + st.mana * DATA.REGEN);
+    const R = this.regen(false);   // 平时恢复：每 10 秒 % 上限
+    if (s.hp < st.hp) s.hp = Math.min(st.hp, s.hp + st.hp * R.hp / 100);
+    if (s.mana < st.mana) s.mana = Math.min(st.mana, s.mana + st.mana * R.mana / 100);
   },
 
   api: {
@@ -69,22 +70,26 @@ G.module({
       return add;
     },
 
+    // 恢复百分比：battle = true 战斗中每回合，false 平时每 10 秒（config/player.js + 宗门秘法）
+    regen(battle) {
+      const P = CFG.player, b = (battle ? P.REGEN_BATTLE : P.REGEN_IDLE) || {}, m = this.mifaBonus();
+      const d = battle ? 0 : (P.REGEN !== undefined ? P.REGEN * 100 : 0);
+      return { hp: (b.hp !== undefined ? b.hp : d) + (battle ? m.hpBattle : m.hpIdle), mana: (b.mana !== undefined ? b.mana : d) + (battle ? m.mpBattle : m.mpIdle) };
+    },
     computeStats() {
       const L = this.s.L, f = Math.pow(DATA.GROW, L), B = DATA.playerBase, F = DATA.playerFixed;
       const eq = this.equipTotal(), gf = this.gongfaBonus(), dn0 = this.danBonus(), cu = this.customBonus();
       // 属性丹 + 自定义物品永久属性（content/items.js 里 type: "perm"）合在一起
       const dn = {}; for (const k of ["hp", "atk", "def", "mana", "hit", "dodge", "crit"]) dn[k] = (dn0[k] || 0) + (cu[k] || 0); // gongfaBonus 见 gongfa.js，danBonus（属性丹）见 craft.js
-      // 宗门秘法（悟道室）：只按百分比加「境界基础属性」，不加装备、功法、丹药部分（见 wudao.js）
-      const mf = this.wudaoPct(), p = k => 1 + (mf[k] || 0) / 100;
       return {
-        hp:      (B.hp * f * p("hp") + eq.hp + gf.hp + dn.hp) * (1 + eq.hpPct / 100),
-        atk:     B.atk * f * p("atk") + eq.atk + gf.atk + dn.atk,
-        def:     B.def * f * p("def") + eq.def + gf.def + dn.def,
-        mana:    B.mana * f * p("mana") + eq.mana + gf.mana + dn.mana,
-        cultivate: B.cultivate * f * p("cultivate"),
+        hp:      (B.hp * f + eq.hp + gf.hp + dn.hp) * (1 + eq.hpPct / 100),
+        atk:     B.atk * f + eq.atk + gf.atk + dn.atk,
+        def:     B.def * f + eq.def + gf.def + dn.def,
+        mana:    B.mana * f + eq.mana + gf.mana + dn.mana,
+        cultivate: B.cultivate * f,
         speed:   B.speed * f + eq.speed + cu.speed,
-        hit:     B.hit * f * p("hit") + eq.hit + gf.hit + dn.hit,
-        dodge:   B.dodge * f * p("dodge") + eq.dodge + gf.dodge + dn.dodge,
+        hit:     B.hit * f + eq.hit + gf.hit + dn.hit,
+        dodge:   B.dodge * f + eq.dodge + gf.dodge + dn.dodge,
         crit:    Math.min(DATA.CRIT_CAP, F.crit + eq.crit + dn.crit),
         res:     Object.fromEntries(DATA.elements.map(e => [e.id, (CFG.player.RES_BASE || 0) * f + (gf.res[e.id] || 0) + (eq.res[e.id] || 0) + (cu.res[e.id] || 0)])),
       };
