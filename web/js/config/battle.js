@@ -21,3 +21,5 @@ CFG.battle = {
 // 战斗中某系抗性 = 防御 × RES_RATE + 该系抗性；被该系法术打中：伤害 = 法术威力 - 抗性 × DEF_RATE
 //   普通攻击、法宝只算防御
 CFG.battle.RES_RATE = 1;
+// 雷劫、试炼塔等战斗画面：每几秒打一回合 / 显示一条战斗信息
+CFG.battle.ROUND_SEC = 2;
