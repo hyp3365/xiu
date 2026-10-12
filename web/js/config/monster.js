@@ -210,15 +210,15 @@ CFG.monster.magic = {
 // ---------- v20 新增：每张地图单独的怪物倍率 ----------
 // 第 1 个 = 第 1 张地图（青云山林）…… 第 9 个 = 雷劫之地。该地图东西南北四域所有怪物的属性再乘这里的倍率
 CFG.monster.mapMult = [
-  { hp: 3, atk: 10, def: 6, speed: 5, hit: 5, dodge: 5 },   // 1 青云山林
-  { hp: 6, atk: 15, def: 9, speed: 8, hit: 8, dodge: 8 },   // 2 黑风谷
-  { hp: 9, atk: 20, def: 12, speed: 11, hit: 11, dodge: 11 },   // 3 万妖岭
-  { hp: 12, atk: 25, def: 15, speed: 14, hit: 14, dodge: 14 },   // 4 幽冥沼泽
-  { hp: 15, atk: 30, def: 18, speed: 17, hit: 17, dodge: 17 },   // 5 落星海
-  { hp: 18, atk: 35, def: 21, speed: 20, hit: 20, dodge: 20 },   // 6 虚空裂隙
-  { hp: 21, atk: 40, def: 24, speed: 23, hit: 23, dodge: 23 },   // 7 天魔战场
-  { hp: 24, atk: 45, def: 27, speed: 24, hit: 24, dodge: 24 },   // 8 九幽深渊
-  { hp: 27, atk: 50, def: 30, speed: 27, hit: 27, dodge: 27 },   // 9 雷劫之地
+  { hp: 6, atk: 10, def: 13, speed: 5, hit: 5, dodge: 5 },   // 1 青云山林
+  { hp: 9, atk: 15, def: 16, speed: 8, hit: 8, dodge: 8 },   // 2 黑风谷
+  { hp: 12, atk: 20, def: 19, speed: 11, hit: 11, dodge: 11 },   // 3 万妖岭
+  { hp: 15, atk: 25, def: 22, speed: 14, hit: 14, dodge: 14 },   // 4 幽冥沼泽
+  { hp: 18, atk: 30, def: 25, speed: 17, hit: 17, dodge: 17 },   // 5 落星海
+  { hp: 21, atk: 35, def: 28, speed: 20, hit: 20, dodge: 20 },   // 6 虚空裂隙
+  { hp: 24, atk: 40, def: 31, speed: 23, hit: 23, dodge: 23 },   // 7 天魔战场
+  { hp: 27, atk: 45, def: 34, speed: 24, hit: 24, dodge: 24 },   // 8 九幽深渊
+  { hp: 30, atk: 50, def: 37, speed: 27, hit: 27, dodge: 27 },   // 9 雷劫之地
 ];
 
 // ---------- v21 新增：每张地图需要的境界（序号见 config/sect.js 里的说明） ----------
