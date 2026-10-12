@@ -123,6 +123,7 @@ G.module({
     },
     salary() { return Math.floor(DATA.ranks[this.s.rank].daily * this.starMul() * this.rankMul()); },
     today() { return new Date(this.now()).toDateString(); },
+    bjDay() { return new Date(this.now() + 8 * 3600000).toISOString().slice(0, 10); },   // 北京时间日期：免费修炼室、免费练功房、出窍次数每天北京时间 0 点重置
     claimSalary() {
       if (this.s.salaryDay === this.today()) return;
       const n = this.salary();
@@ -166,14 +167,14 @@ G.module({
     freeGfPct() { const p = CFG.sect.freeGfRoom.pct; return p ? p * this.starMul() : this.gfRoomPct(0); },
     freeCultOn() { const f = this.s.freeCult; return !!(this.s.sect && f && f.on && f.left > 0); },
     freeGfOn() { const f = this.s.freeGf; return !!(this.s.sect && f && this.now() < f.end); },
-    freeUsed(f) { return f && f.day === this.today() ? f.used || 0 : 0; },
+    freeUsed(f) { return f && f.day === this.bjDay() ? f.used || 0 : 0; },
     enterFreeRoom() {
       const s = this.s, C = CFG.sect.freeRoom;
       if (!s.freeCult) s.freeCult = { day: "", used: 0, left: 0, on: false };
       const f = s.freeCult;
       if (f.left > 0) { f.on = !f.on; return this.after(); }              // 本次还没用完：进入 / 离开
       if (this.freeUsed(f) >= C.daily) return this.log(`${C.name}今天已用过。`, "sys");
-      Object.assign(f, { day: this.today(), used: this.freeUsed(f) + 1, left: C.times, on: true });
+      Object.assign(f, { day: this.bjDay(), used: this.freeUsed(f) + 1, left: C.times, on: true });
       this.log(`进入${C.name}，可修炼 ${C.times} 次。`, "good"); this.after();
     },
     enterFreeGfRoom() {
@@ -182,7 +183,7 @@ G.module({
       const f = s.freeGf;
       if (this.freeGfOn()) return;
       if (this.freeUsed(f) >= C.daily) return this.log(`${C.name}今天已用过。`, "sys");
-      Object.assign(f, { day: this.today(), used: this.freeUsed(f) + 1, end: this.now() + C.minutes * 60000 });
+      Object.assign(f, { day: this.bjDay(), used: this.freeUsed(f) + 1, end: this.now() + C.minutes * 60000 });
       this.log(`进入${C.name}，持续 ${C.minutes} 分钟。`, "good"); this.after();
     },
 
@@ -213,12 +214,13 @@ G.module({
     cqCost() { return CFG.chuqiao.LEARN_CONTRIB; },
     cqMaxRuns() { return (this.s.cqLv || 0) * CFG.chuqiao.PER_LV; },
     // 今天还能出窍几次（开始出窍时就扣，停止不退）
-    cqLeftToday() { const s = this.s; return Math.max(0, this.cqMaxRuns() - (s.cqDay === this.today() ? s.cqUsed || 0 : 0)); },
-    cqUse(n) { const s = this.s; if (s.cqDay !== this.today()) { s.cqDay = this.today(); s.cqUsed = 0; } s.cqUsed += n; },
+    cqLeftToday() { const s = this.s; return Math.max(0, this.cqMaxRuns() - (s.cqDay === this.bjDay() ? s.cqUsed || 0 : 0)); },
+    cqUse(n) { const s = this.s; if (s.cqDay !== this.bjDay()) { s.cqDay = this.bjDay(); s.cqUsed = 0; } s.cqUsed += n; },
+    cqRefund(n) { const s = this.s; if (n > 0 && s.cqDay === this.bjDay()) s.cqUsed = Math.max(0, (s.cqUsed || 0) - n); },   // 跨天了就不用退（已经重置）
     // 第 lv 层 → lv+1 层的修炼消耗
     cqStudyCost(lv) {
       const C = CFG.chuqiao;
-      return { exp: Math.floor(C.EXP_BASE + C.EXP_ADD * lv), sec: Math.max(1, C.TIME_BASE + C.TIME_ADD * lv), lu: Math.floor(C.LU_BASE + C.LU_ADD * Math.floor(lv / C.LU_EVERY)) };
+      return { exp: Math.floor(C.EXP), sec: Math.max(1, C.TIME), lu: Math.floor(C.LU_BASE + C.LU_ADD * Math.floor(lv / C.LU_EVERY)) };
     },
     studyCq() {
       const s = this.s, C = CFG.chuqiao, lv = s.cqLv || 0;
