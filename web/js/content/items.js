@@ -72,12 +72,14 @@ ITEMS.shop = [
  *   { kind: "stone", n: 2000, cost: 100, name: "一袋灵石" }  灵石 n × 灵石成长^层序
  *   { kind: "pill", type: "juqi", cost: 50 }          修炼丹（当前境界品质）
  *   { item: "淬体灵液", cost: 300 }                   上面 list 里的物品
+ *   { kind: "chuqiao" }                               元婴出窍秘法（数值在 config/sect.js 的 CFG.chuqiao）
  * 这里写了就以这里为准；把整个 ITEMS.treasury 删掉，则用 config/sect.js 里的 treasury。
  */
 ITEMS.treasury = [
   { kind: "furnace", fk: "dan", g: 0, cost: 100 },
   { kind: "furnace", fk: "qi",  g: 0, cost: 100 },
   { kind: "stone", n: 50, cost: 100, name: "一袋灵石" },
+  { kind: "chuqiao" },   // 元婴出窍秘法：消耗、效果、境界限制在 config/sect.js 的 CFG.chuqiao
   // 示例：去掉行首的 // 就能兑换
   // { item: "淬体灵液", cost: 300 },
   // { item: "避火珠", cost: 1000, star: 2 },
