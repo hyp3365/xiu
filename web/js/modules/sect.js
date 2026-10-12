@@ -26,7 +26,8 @@ G.module({
     room: -1,         // 正在使用的练功房，-1 为未使用
     salaryDay: "",    // 上次领取俸禄的日期
     affair: { task: -1, start: 0, count: 0 },     // 事务堂：正在循环执行的任务（-1 = 无）
-    tower: 0,         // 试炼塔已通关层数
+    tower: 0,         // 试炼塔已通关层数（当前门派星级，和 towers 同步，旧字段）
+    towers: {},       // v25：各星级试炼塔已通关层数 { 星级: 层数 }
   }),
 
   // 每 10 秒：事务堂任务到时间就结算一次，并自动开始下一次（离线也会补算）
@@ -54,7 +55,8 @@ G.module({
     joinSect(id) {
       const x = DATA.sectById[id];
       if (!this.realmOK(x.reqRealm)) return;
-      Object.assign(this.s, { sect: id, contrib: 0, rank: 0, room: -1, tower: 0, affair: { task: -1, start: 0, count: 0 } });
+      this.fixTower();
+      Object.assign(this.s, { sect: id, contrib: 0, rank: 0, room: -1, tower: this.s.towers[x.star] || 0, affair: { task: -1, start: 0, count: 0 } });
       this.sectTab = "hall";
       this.log(`你拜入${x.name}（${x.star}星），成为外门弟子。`, "gold"); this.after();
     },
@@ -168,24 +170,79 @@ G.module({
       this.log(`获得${DATA.furnaceName(kind, g)}图纸，已放进背包（点击「学习」）。`, "gold"); this.after();
     },
 
-    /* ---------- 试炼塔 ---------- */
+    /* ---------- 试炼塔（v25：1~10 星，层数见 config/sect.js 的 sect.trial） ---------- */
+    // 旧存档：s.tower → s.towers[当前门派星级]
+    fixTower() {
+      const s = this.s; if (!s.towers) s.towers = {};
+      if (s.sect && s.tower > 0) { const st = this.sectInfo().star; s.towers[st] = Math.max(s.towers[st] || 0, s.tower); }
+    },
+    towerFloor() { this.fixTower(); return this.s.towers[this.sectInfo().star] || 0; },
+    towerMax() { return DATA.towerMax(this.sectInfo().star); },
     // 守关者属性 = base × 星级倍率 × GROW^(层数-1)（config/sect.js 的 sect.tower）
     makeTowerGuard(floor) {
       const T = CFG.sect.tower, f = this.starMul() * Math.pow(T.GROW, floor - 1), b = T.base;
       return this.addMagic({ name: `第${floor}层守关者`, boss: false, crit: b.crit,
         hp: b.hp * f, atk: b.atk * f, def: b.def * f, speed: b.speed * f, hit: b.hit * f, dodge: b.dodge * f }, "tower");
     },
+    // 第 f 层每 10 层的额外奖励是什么：{ kind: "ring", r } / { kind: "rbp", g } / { kind: "mijue" }
+    towerBonus(star, f) {
+      const T = CFG.sect.trial, E = T.EVERY || 10;
+      if (f % E) return null;
+      const k = f / E;
+      if ((T.RING_STARS || []).includes(star)) {
+        if (k <= DATA.ringNames.length) return { kind: "ring", r: k - 1 };
+        const g = k - DATA.ringNames.length;          // 1 = 二阶图纸 …… 9 = 十阶图纸
+        if (g <= 9) return { kind: "rbp", g };
+      }
+      return { kind: "mijue" };
+    },
+    towerBonusText(b) { return !b ? "" : b.kind === "ring" ? DATA.ringName(b.r, 0) : b.kind === "rbp" ? DATA.ringBpName(b.g) : "试炼塔秘诀 +1 层"; },
+    // 试炼塔秘诀 +1 层：黄 → 玄 → 地 → 天，天阶满层后给灵石
+    giveTowerMijue(star) {
+      const s = this.s, MAX = DATA.GONGFA_MAX;
+      for (const t of DATA.tiers) {
+        const id = DATA.towerMijueId(star, t.id), lv = s.gongfa[id] || 0;
+        if (lv >= MAX) continue;
+        s.gongfa[id] = lv + 1; this.dirty();
+        const info = DATA.gongfaInfo(id, lv + 1);
+        return `《${info.name}》（${t.name}）${lv ? `提升至第 ${lv + 1} 层` : "习得第 1 层"}`;
+      }
+      const n = Math.floor((CFG.sect.trial.MIJUE_DONE_STONE || 0) * this.starMul()); s.stone += n;
+      return `灵石 ${U.fmt(n)}（试炼塔秘诀已圆满）`;
+    },
+    // 首通第 f 层的奖励，返回文字
+    towerReward(f) {
+      const s = this.s, star = this.sectInfo().star, T = CFG.sect.trial, F = T.floor, i = star - 1, out = [];
+      const c = DATA.towerReward(f); s.contrib += c; out.push(`贡献 +${U.fmt(c)}`);
+      const fire = F.fire[i] || 0; if (fire && this.addFire(fire)) out.push(`火髓 ×${fire}`);
+      const st = Math.floor((F.stone || 0) * this.starMul() * f); if (st) { s.stone += st; out.push(`灵石 +${U.fmt(st)}`); }
+      const mx = Math.min(5, F.MAT_MAX[i] === undefined ? 5 : F.MAT_MAX[i]);
+      for (const kind of ["herb", "ore"]) {
+        const n = F[kind][i] || 0; if (!n) continue;
+        const g = U.rand(0, mx), name = DATA.matName(kind, g);
+        if (this.addMat(kind, name, g, n)) out.push(`${name} ×${n}`);
+      }
+      const b = this.towerBonus(star, f);
+      if (b && b.kind === "ring") { const e = DATA.rollForged("ring", 0, b.r); if (this.addEquip(e)) out.push(`<span class="q${e.q}">${DATA.ringName(b.r, 0)}</span>`); }
+      else if (b && b.kind === "rbp") {
+        if (s.forgeKnown.includes(this.forgeKey("ring", b.g)) || s.bag.some(x => x.t === "rbp" && x.g === b.g)) out.push(this.giveTowerMijue(star));   // 已有这张图纸 → 改给秘诀
+        else if (this.bagFull()) out.push(this.giveTowerMijue(star));
+        else { s.bag.push({ t: "rbp", g: b.g }); out.push(DATA.ringBpName(b.g)); }
+      }
+      else if (b) out.push(this.giveTowerMijue(star));
+      return out.join("，");
+    },
     // 点「挑战」：立即算出结果，打开战斗画面逐回合播放（3 秒后可跳过）
     challengeTower() {
-      const f = this.s.tower + 1; if (f > DATA.TOWER_MAX) return;
+      const star = this.sectInfo().star, f = this.towerFloor() + 1; if (f > this.towerMax()) return;
       const st = this.stats();
       if (this.s.hp < st.hp * CFG.battle.TOWER_HP_MIN) return this.log("气血不足三成，先休养片刻。", "sys");
       const m = this.makeTowerGuard(f);
       const res = this.battle(m);
       let txt;
       if (res.win) {
-        this.s.tower = f; const c = DATA.towerReward(f); this.s.contrib += c;
-        txt = `${res.rounds}回合击败试炼塔第 ${f} 层守关者，贡献 +${c}。`;
+        this.s.towers[star] = f; this.s.tower = f;
+        txt = `${res.rounds}回合击败${star}星试炼塔第 ${f} 层守关者，获得 ${this.towerReward(f)}。`;
         this.log(txt, "gold");
       } else { txt = `挑战试炼塔第 ${f} 层失败${res.lose ? "" : "（回合耗尽，各自退去）"}。`; this.log(txt, "bad"); }
       this.after();
@@ -315,10 +372,14 @@ G.module({
     } else if (tab === "forge") {
       h += this.sectForgeView();   // 见 craft.js
     } else if (tab === "tower") {
-      const f = s.tower + 1, done = s.tower >= DATA.TOWER_MAX;
-      h += `<div class="card"><h3>试炼塔<small>已通关 ${s.tower} / ${DATA.TOWER_MAX} 层</small></h3>
-        ${done ? `<p class="desc">你已登顶试炼塔！</p>` : `<div class="line"><div>第 ${f} 层守关者<small>首通贡献 +${DATA.towerReward(f)}</small></div>
-        <button class="sm" onclick="G.challengeTower()">挑战</button></div>`}</div>`;
+      const star = x.star, cur = this.towerFloor(), max = this.towerMax(), f = cur + 1, done = cur >= max, T = CFG.sect.trial, F = T.floor;
+      // 下一个每 10 层的奖励
+      const E = T.EVERY || 10, nb = Math.ceil(f / E) * E, bonus = nb <= max ? this.towerBonus(star, nb) : null;
+      h += `<div class="card"><h3>${star}星试炼塔<small>已通关 ${cur} / ${max} 层</small></h3>
+        ${done ? `<p class="desc">你已登顶试炼塔！</p>` : `<div class="line"><div>第 ${f} 层守关者<small>首通：贡献 +${U.fmt(DATA.towerReward(f))}、火髓 ×${F.fire[star - 1] || 0}、灵石 +${U.fmt(Math.floor((F.stone || 0) * this.starMul() * f))}、药材 ×${F.herb[star - 1] || 0}、矿石 ×${F.ore[star - 1] || 0}</small></div>
+        <button class="sm" onclick="G.challengeTower()">挑战</button></div>`}
+        ${bonus ? `<p class="desc">第 ${nb} 层额外奖励：${this.towerBonusText(bonus)}</p>` : ""}
+        <p class="desc">进度按门派星级记录，换门派不会重置。${(T.RING_STARS || []).includes(star) ? "本塔每 10 层依次奖励 9 种一阶戒指，之后是二阶~十阶戒指图纸，再之后是试炼塔秘诀。" : "本塔每 10 层奖励试炼塔秘诀（每次 +1 层）。"}</p></div>`;
     } else if (tab === "secret") {
       const c = DATA.secretCost(x.star);
       h += `<div class="card"><h3>宗门秘境<small>每次消耗 ${U.fmt(c)} 贡献</small></h3>
