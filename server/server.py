@@ -11,6 +11,9 @@
   GET  /api/save      Header X-Token             读取存档，返回 {"data", "updated"}
   POST /api/save      Header X-Token {"data"}    保存存档（data 为 null 表示删档）
                       也支持 body 里带 "token"（网页关闭时 sendBeacon 用）
+  GET  /api/admin         管理员信息：{admin, version, log}（log = 上次网页更新的输出）
+  POST /api/admin/update  管理员：从 GitHub 更新游戏（等于在服务器上运行 sudo xiu-update）
+                          管理员账号：环境变量 XIU_ADMIN（多个用逗号隔开），没设置就是第 1 个注册的账号
 
 数据存在 SQLite：默认 /var/lib/xiu/xiu.db（环境变量 XIU_DB 可改）
 监听地址：默认 127.0.0.1:18300（环境变量 XIU_HOST / XIU_PORT 可改），由 nginx 反向代理。
@@ -23,6 +26,7 @@ import os
 import re
 import secrets
 import sqlite3
+import subprocess
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -35,6 +39,9 @@ TOKEN_DAYS = 90                      # 登录令牌有效期（天）
 USERNAME_RE = re.compile(r"^[\w\u4e00-\u9fff]{2,20}$")  # 2~20 位字母/数字/下划线/中文
 
 _lock = threading.Lock()
+ADMINS = [x.strip() for x in os.environ.get("XIU_ADMIN", "").split(",") if x.strip()]
+REPO_DIR = os.environ.get("XIU_DIR", "/opt/xiu")
+UPDATE_LOG = os.path.join(os.path.dirname(DB_PATH), "update.log")
 
 
 def db():
@@ -88,6 +95,28 @@ def user_by_token(conn, token):
     return row["user_id"] if row else None
 
 
+def is_admin(conn, uid):
+    if not uid:
+        return False
+    row = conn.execute("SELECT id, username FROM users WHERE id=?", (uid,)).fetchone()
+    if not row:
+        return False
+    if ADMINS:
+        return row["username"] in ADMINS
+    first = conn.execute("SELECT MIN(id) AS m FROM users").fetchone()
+    return row["id"] == first["m"]
+
+
+def repo_version():
+    try:
+        out = subprocess.run(["git", "-c", "safe.directory=*", "-C", REPO_DIR, "log", "-1",
+                              "--format=%h  %s  (%cd)", "--date=format:%Y-%m-%d %H:%M"],
+                             capture_output=True, text=True, timeout=10)
+        return out.stdout.strip() or out.stderr.strip()
+    except Exception as e:
+        return str(e)
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "XiuServer/1.0"
 
@@ -118,6 +147,18 @@ class Handler(BaseHTTPRequestHandler):
 
     # ---------- GET ----------
     def do_GET(self):
+        if self.route() == "admin":
+            with db() as c:
+                uid = user_by_token(c, self.headers.get("X-Token"))
+                if not is_admin(c, uid):
+                    return self.send(200, {"admin": False})
+            log = ""
+            try:
+                with open(UPDATE_LOG, encoding="utf-8", errors="replace") as f:
+                    log = f.read()[-4000:]
+            except OSError:
+                pass
+            return self.send(200, {"admin": True, "version": repo_version(), "log": log})
         if self.route() != "save":
             return self.send(404, {"error": "not found"})
         with db() as c:
@@ -169,6 +210,20 @@ class Handler(BaseHTTPRequestHandler):
                 c.execute("INSERT INTO saves(user_id,data,updated) VALUES(?,?,?) "
                           "ON CONFLICT(user_id) DO UPDATE SET data=excluded.data, updated=excluded.updated",
                           (uid, None if save is None else json.dumps(save, ensure_ascii=False), int(time.time())))
+            return self.send(200, {"ok": True})
+
+        if r == "admin/update":
+            with db() as c:
+                if not is_admin(c, user_by_token(c, self.headers.get("X-Token"))):
+                    return self.send(403, {"error": "只有管理员可以更新"})
+            try:   # 交给 root 运行的 xiu-web-update 服务（sudoers 只允许这一条命令）
+                out = subprocess.run(["sudo", "-n", "systemctl", "start", "--no-block", "xiu-web-update.service"],
+                                     capture_output=True, text=True, timeout=15)
+            except Exception as e:
+                return self.send(500, {"error": str(e)})
+            if out.returncode != 0:
+                return self.send(500, {"error": "启动更新失败：" + (out.stderr.strip() or "未知错误") +
+                                       "。请先在服务器上运行一次 sudo xiu-update"})
             return self.send(200, {"ok": True})
 
         return self.send(404, {"error": "not found"})
