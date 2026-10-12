@@ -39,6 +39,16 @@ DATA.fixFabao = e => {
   let ft = DATA.fabaoTypes.findIndex(t => t.el === e.el); if (ft < 0) ft = 0;
   e.ft = ft; e.el = DATA.fabaoTypes[ft].el; e.name = DATA.fabaoTypes[ft].name;
 };
+// 秘境专用材料（config/mijing.js 的 items）：背包里 { t: "sm", k, ft, n }，k = kj 空间晶核 / jj 炼宝玄晶 / mold 模具（ft = 法宝种类）
+DATA.smName = (k, ft) => k === "mold" ? (ft !== undefined && DATA.fabaoTypes[ft] ? DATA.fabaoTypes[ft].name : "法宝") + CFG.mijing.items.mold.name : (CFG.mijing.items[k] || {}).name || k;
+DATA.smByName = name => {
+  const I = CFG.mijing.items;
+  for (const k in I) if (k !== "mold" && I[k].name === name) return { k };
+  if (name === "法宝" + I.mold.name) return { k: "mold" };          // 随机一种模具
+  const ft = DATA.fabaoTypes.findIndex(t => t.name + I.mold.name === name);
+  return ft >= 0 ? { k: "mold", ft } : null;
+};
+DATA.smIcon = (k, ft) => k === "mold" ? DATA.iconImg("fbt" + (ft || 0)) : DATA.iconImg("sm_" + k);
 DATA.fabaoEnhMult = e => 1 + (e.enh || 0) * (CFG.forge.enhance.FLAT_ADD || 0) / 100;
 DATA.forgeSlots = Object.keys(DATA.forgeNames);            // 能炼的部位（含法宝）
 DATA.eqSlots6 = DATA.forgeSlots.filter(x => x !== "fabao"); // 头盔 ~ 吊坠
@@ -83,16 +93,19 @@ DATA.attrVal = (a, g, e) => {
   return (A.base[a.k] || 0) * grow * DATA.rangeMult(a, g) * (a.m ? 1 : A.AFFIX_MULT) * (e && e.slot === "ring" ? (_FG.ring.MULT || 1) : 1);
 };
 DATA.bestQ = attrs => DATA.COLOR_Q[Math.max(...attrs.map(a => a.c))];
-// 随机一条属性（颜色 + 位置）
-DATA.rollAttr = (k, m, el) => { const a = { k, c: U.weighted(_FG.attr.colors.map(c => c.weight)), p: Math.random(), m }; if (el) a.el = el; return a; };
+// 随机一条属性（颜色 + 位置）；w = 颜色权重（不填 = attr.colors 的 weight）
+DATA.rollAttr = (k, m, el, w) => { const a = { k, c: U.weighted(w || _FG.attr.colors.map(c => c.weight)), p: Math.random(), m }; if (el) a.el = el; return a; };
+// 法宝颜色权重：新得到的最高 NEW_COLOR_MAX（默认绿），洗练用 reset.WASH_WEIGHT
+DATA.fabaoNewW = () => { const mx = _FG.fabao.NEW_COLOR_MAX === undefined ? 1 : _FG.fabao.NEW_COLOR_MAX; return _FG.attr.colors.map((c, i) => i <= mx ? c.weight : 0); };
+DATA.fabaoWashW = () => _FG.reset.WASH_WEIGHT || _FG.attr.colors.map(c => c.weight);
 // 随机生成一件装备 / 戒指（r = 戒指种类）/ 法宝
 DATA.rollForged = (slot, g, r) => {
   const A = _FG.attr;
   if (slot === "fabao") {   // r = 法宝种类序号（不填就随机）
     const F = _FG.fabao, ft = r === undefined ? Math.floor(Math.random() * DATA.fabaoTypes.length) : r, T = DATA.fabaoTypes[ft];
-    const attrs = [DATA.rollAttr("pct", 1), DATA.rollAttr("flat", 1)];
+    const W = DATA.fabaoNewW(), attrs = [DATA.rollAttr("pct", 1, undefined, W), DATA.rollAttr("flat", 1, undefined, W)];
     const n = U.weighted(F.AFFIX_COUNT) + 1;
-    for (let i = 0; i < n; i++) attrs.push(DATA.rollAttr(U.pick(F.pool), 0, U.pick(DATA.elements).id));
+    for (let i = 0; i < n; i++) attrs.push(DATA.rollAttr(U.pick(F.pool), 0, U.pick(DATA.elements).id, W));
     return { slot, g, ft, el: T.el, name: T.name, enh: 0, q: DATA.bestQ(attrs), attrs };
   }
   if (slot === "ring" && r === undefined) r = Math.floor(Math.random() * DATA.ringNames.length);
@@ -111,18 +124,18 @@ DATA.upgradeForged = (prev, g) => {
   e.name = e.slot === "ring" ? DATA.ringNames[e.r] : e.slot === "fabao" ? DATA.fabaoTypes[e.ft].name : DATA.forgeNames[e.slot][g];
   return e;
 };
-// 火髓重置：locks = 锁定的属性序号；没锁的重新随机
+// 火髓重置（法宝叫洗练）：locks = 锁定的属性序号；没锁的重新随机
 DATA.resetCost = (e, nLock) => Math.ceil((_FG.reset.FIRE[e.g] || 1) * Math.pow(_FG.reset.LOCK_MULT || 2, nLock));
 DATA.rerollForged = (e, locks) => {
-  const A = _FG.attr, fb = e.slot === "fabao";
+  const A = _FG.attr, fb = e.slot === "fabao", W = fb ? DATA.fabaoWashW() : A.colors.map(c => c.weight);   // 法宝洗练颜色权重单独设置
   const used = e.attrs.filter((a, i) => locks.includes(i) || a.m).map(a => a.k);
   e.attrs.forEach((a, i) => {
     if (locks.includes(i)) return;
-    if (a.m) { a.c = U.weighted(A.colors.map(c => c.weight)); a.p = Math.random(); delete a.r; return; }
+    if (a.m) { a.c = U.weighted(W); a.p = Math.random(); delete a.r; return; }
     let k;
     if (fb) k = U.pick(_FG.fabao.pool);
     else { const pool = A.pool.filter(x => !used.includes(x)); k = pool.length ? U.pick(pool) : a.k; used.push(k); }
-    Object.assign(a, DATA.rollAttr(k, 0, fb ? U.pick(DATA.elements).id : undefined)); delete a.r;
+    Object.assign(a, DATA.rollAttr(k, 0, fb ? U.pick(DATA.elements).id : undefined, W)); delete a.r;
   });
   e.q = DATA.bestQ(e.attrs);
 };

@@ -3,6 +3,10 @@
  * ---------------------------------------------------------------------
  * 改完把 index.html 里的 ?v=数字 加 1。
  *
+ * 效果和获得消耗是两套公式，互不影响：
+ *   效果用 base、TYPE_MULT、STAR_MULT、TIER_MULT、EFFECT_*；
+ *   宗门学习贡献用 learn、LEARN_*；坊市售价用 price、PRICE_*；修炼消耗用 STUDY_*
+ *
  * 一、所有功法、法术共用一套基础数值（base）
  *   每层效果 = 基础数值 × 来源的类型倍率 × 星级倍率 × 阶倍率 × EFFECT
  *   第 n 层效果 = 每层效果 × 层数倍率 LV_MULT[n-1]
@@ -68,7 +72,7 @@ CFG.gongfa = {
 
 /* ================= 宗门功法 & 法术 ================= */
 CFG.gongfa.sect = {
-  learn: 100,        // 功法殿首次学习消耗的贡献（基础，再 × 下面的倍率 × EFFECT_LEARN）
+  // ---- 效果（只影响功法效果、法术伤害和法力，不影响学习消耗）----
   // 类型倍率：每类功法 / 法术单独一个
   TYPE_MULT: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1 },
   // 星级倍率：第 1 个是 1 星门派 …… 第 10 个是 10 星
@@ -80,7 +84,13 @@ CFG.gongfa.sect = {
   EFFECT_SPELL: 1,   // 法术固定伤害
   EFFECT_PCT: 1,  // 法术攻击百分比
   EFFECT_MANA: 1,    // 法术耗法力
-  EFFECT_LEARN: 1,   // 学习消耗贡献
+  // ---- 学习消耗（不受上面的倍率影响）----
+  // 首次学习消耗贡献 = learn × LEARN_TYPE × LEARN_STAR × LEARN_TIER × EFFECT_LEARN
+  learn: 100,
+  LEARN_TYPE: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1 },
+  LEARN_STAR: [1, 1.3, 1.6, 1.9, 2.2, 2.5, 2.7, 3, 3.3, 3.6],   // 1 ~ 10 星门派
+  LEARN_TIER: { huang: 1, xuan: 1.3, di: 1.6, tian: 1.9 },
+  EFFECT_LEARN: 1,
   // 学习需要的门派职务（0 外门 1 内门 2 真传 3 核心 4 长老 5 供奉 6 宗主）
   TIER_RANK: { huang: 0, xuan: 2, di: 4, tian: 6 },
 };

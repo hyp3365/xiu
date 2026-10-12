@@ -107,7 +107,7 @@ DATA.srcType = o => o.src || "sect";
 DATA.srcCfg = o => DATA.gfSources[DATA.srcType(o)].cfg();
 
 /* 通用算法：基础数值 × 类型倍率 × 星级倍率 × 阶倍率 × EFFECT
- *   基础数值：所有来源共用 CFG.gongfa.base；学习价格 learn 在各来源里
+ *   基础数值：所有来源共用 CFG.gongfa.base；学习价格另算（gfLearnCost）
  *   o 来源、typeId 类别 id（法术 = "spell"）、key = base 里的项、eff = EFFECT 名 */
 DATA.gfBase = (C, key) => { const B = _GF.base || {}; return B[key] !== undefined ? B[key] : C[key] !== undefined ? C[key] : (C.base || {})[key] || 0; };
 DATA.gfCalc = (o, typeId, tier, key, eff) => {
@@ -126,7 +126,10 @@ DATA.studySteps = lv => Math.ceil(DATA.studyMin[lv - 1] * 60 / DATA.STUDY_STEP);
 DATA.studyExp = info => DATA.studyPer(info) * DATA.studySteps(info.lv);
 // 学习所需：宗门 = 贡献，坊市 = 灵石
 DATA.gfLearnCost = (o, typeId, tier) => {
-  if (DATA.srcType(o) !== "shop") return Math.floor(DATA.gfCalc(o, typeId, tier, "learn", "EFFECT_LEARN"));
+  if (DATA.srcType(o) !== "shop") {   // 宗门学习贡献单独设置：learn × LEARN_TYPE × LEARN_STAR × LEARN_TIER × EFFECT_LEARN（不用效果倍率）
+    const C = DATA.srcCfg(o), v = (x, d = 1) => x === undefined ? d : x;
+    return Math.floor(v(C.learn, 0) * v((C.LEARN_TYPE || {})[typeId]) * v((C.LEARN_STAR || [])[o.star - 1]) * v((C.LEARN_TIER || {})[tier.id]) * v(C.EFFECT_LEARN));
+  }
   // 坊市售价单独设置：base.price × PRICE_TYPE × PRICE_STAR × PRICE_TIER × EFFECT_PRICE
   const C = _GF.shop, v = (x, d = 1) => x === undefined ? d : x;
   return Math.floor(v(C.price !== undefined ? C.price : (C.base || {}).price, 0) * v((C.PRICE_TYPE || {})[typeId]) * v((C.PRICE_STAR || [])[o.star - 1]) * v((C.PRICE_TIER || {})[tier.id]) * v(C.EFFECT_PRICE));

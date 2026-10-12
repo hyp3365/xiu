@@ -13,7 +13,8 @@
  *   一次探索中获得的东西先记下，走完后一起放进背包；
  *   气血够（≥ 三成）就继续下一次，不够就停止；探索时不能修炼；离线也继续。
  *   探索信息栏显示每一步发生的事，每秒刷新。
- * 数值全部在 js/config/ 下的数值文件 的 monster / explore 部分。
+ * 秘境（config/mijing.js）：历练探索时有几率发现；每处每天进一次，先历练通过才能自动探索；探索中 x.mj = 秘境序号、x.queue = 一键探索还没走的秘境。
+ * 数值全部在 js/config/ 下的数值文件 的 monster / explore / mijing 部分。
  * ===================================================================== */
 G.module({
   id: "world",
@@ -24,7 +25,8 @@ G.module({
    *     loot 本次收获 { stone, mats: { "herb|名字": {kind,name,g,n} }, pills: [], equips: [] },
    *     ev 本次事件列表（最新在前）, last 上一次结算文字 } */
   // trainedR：已历练通过的区域（地图序号 × 4 + 区域序号）；trained 为旧版（按地图）
-  defaults: () => ({ explore: null, trained: [], trainedR: [], lastRun: null }),
+  // mj：秘境 { found 已发现, trained 已历练通过, day 日期, used { 秘境序号: 今天已进次数 } }
+  defaults: () => ({ explore: null, trained: [], trainedR: [], lastRun: null, mj: { found: [], trained: [], day: "", used: {} } }),
 
   // 每 10 秒（以及在线时每秒）推进探索
   tick() { this.fixRegions(); this.advanceExplore(); },
@@ -223,8 +225,8 @@ G.module({
       }
       return got.join("、");
     },
-    rollEventMats(loot, ev, a) {
-      const groups = DATA.mapDrop(a, ev), mul = DATA.mapMat(a);
+    rollEventMats(loot, ev, a, mulSet) {
+      const groups = DATA.mapDrop(a, ev), mul = mulSet !== undefined ? mulSet : DATA.mapMat(a);
       if (!groups) return "";
       const got = [];
       for (const gr of groups) {
@@ -242,11 +244,13 @@ G.module({
       return got.join("、");
     },
     // 击败怪物的掉落，写进 loot，返回描述文字
-    rollMonsterLoot(loot, m, a) {
-      const E = CFG.drop, mult = m.boss ? E.BOSS_STONE : m.elite ? E.ELITE_STONE : 1;
-      const stone = Math.floor(E.STONE_BASE * Math.pow(E.STONE_GROW, m.Lm) * (1 + Math.random() * 1.5) * E.STONE_RATE * mult * DATA.mapStone(a));
+    //   mj = 秘境序号（秘境：灵石倍率、掉落按 config/mijing.js）
+    rollMonsterLoot(loot, m, a, mj) {
+      const E = CFG.drop, mult = m.boss ? E.BOSS_STONE : m.elite ? E.ELITE_STONE : 1, ev = m.boss ? "boss" : m.elite ? "elite" : "monster";
+      const sm = mj !== undefined ? (this.mjDef(mj).stone || 1) : DATA.mapStone(a);
+      const stone = Math.floor(E.STONE_BASE * Math.pow(E.STONE_GROW, m.Lm) * (1 + Math.random() * 1.5) * E.STONE_RATE * mult * sm);
       loot.stone += stone;
-      const mats = this.rollEvent(loot, m.boss ? "boss" : m.elite ? "elite" : "monster", a);
+      const mats = mj !== undefined ? this.rollMj(loot, ev, mj) : this.rollEvent(loot, ev, a);
       return `灵石${U.fmt(stone)}${mats ? "、" + mats : ""}`; // 怪物不掉丹药、装备
     },
     // 把收获放进背包，返回简短描述
@@ -259,6 +263,8 @@ G.module({
         loot.pills.forEach(p => add(`${DATA.realms[p.g]}·${DATA.pills[p.t].name}`, 1));
         loot.equips.forEach(e => add(this.itemName({ t: "eq", e }), 1));
         for (const name in loot.cu || {}) add(name, loot.cu[name]);
+        if (loot.hx) add("火髓", loot.hx);
+        for (const k in loot.sm || {}) { const [kk, ft] = k.split(":"); add(DATA.smName(kk, ft === undefined ? undefined : +ft), loot.sm[k]); }
       }
       s.stone += loot.stone; if (loot.stone) parts.push(`灵石${U.fmt(loot.stone)}`);
       let lost = 0;
@@ -266,6 +272,9 @@ G.module({
       loot.pills.forEach(p => { if (this.addPill(p.t, p.g)) parts.push(`${DATA.realms[p.g]}·${DATA.pills[p.t].name}`); else lost++; });
       loot.equips.forEach(e => { if (this.addEquip(e)) parts.push(`<span class="q${e.q}">${DATA.quals[e.q]}${e.name}</span>`); else lost++; });
       for (const name in loot.cu || {}) { if (this.addCustom(name, loot.cu[name])) parts.push(`${name}×${U.fmt(loot.cu[name])}`); else lost++; } // 自定义物品
+      if (loot.hx) { if (this.addFire(loot.hx)) parts.push(`火髓×${U.fmt(loot.hx)}`); else lost++; }   // 秘境：火髓、专用材料、模具
+      for (const k in loot.sm || {}) { const [kk, f] = k.split(":"), ft = f === undefined ? undefined : +f;
+        if (this.addSm(kk, loot.sm[k], ft)) parts.push(`${DATA.smName(kk, ft)}×${U.fmt(loot.sm[k])}`); else lost++; }
       if (o) o.exLost += lost;
       return parts.join("、") + (lost ? `（背包已满，遗失 ${lost} 件）` : "");
     },
@@ -291,36 +300,37 @@ G.module({
     stopExplore(why) {
       const x = this.s.explore; if (!x) return;
       const got = this.giveLoot(x.loot);
-      this.log(`${why}，共完成 ${x.count} 次探索${got ? "，本次收获 " + got : ""}。`, "sys");
+      this.log(`${why}，${x.mj !== undefined ? `离开${this.exName(x)}` : `共完成 ${x.count} 次探索`}${got ? "，本次收获 " + got : ""}。`, "sys");
       this.s.explore = null;
     },
     // 走一步：随机事件
     exploreStep() {
-      const x = this.s.explore, a = x.map, r = x.reg || 0;
-      if (!x.plan) x.plan = this.makePlan();
+      const x = this.s.explore, a = x.map, r = x.reg || 0, mj = x.mj;
+      if (!x.plan) x.plan = this.makePlan(this.exCfg(x));
       const type = { n: "nothing", m: "monster", e: "elite", b: "boss", h: "herb", o: "ore" }[x.plan[x.step]] || "nothing";
       x.step++;
       // 每走一步恢复少量气血、法力
       const st = this.stats(), H = CFG.explore.HEAL_STEP;
       this.s.hp = Math.min(st.hp, this.s.hp + st.hp * H); this.s.mana = Math.min(st.mana, this.s.mana + st.mana * H);
       let t = "", c = "", bd = null;
-      if (type === "herb") { t = `发现灵药，采得 ${this.rollEvent(x.loot, "herbEvent", a) || "无"}`; c = "good"; }
-      else if (type === "ore") { t = `发现矿脉，挖得 ${this.rollEvent(x.loot, "oreEvent", a) || "无"}`; c = "good"; }
+      const roll = ev => mj !== undefined ? this.rollMj(x.loot, ev, mj) : this.rollEvent(x.loot, ev, a);
+      if (type === "herb") { t = `发现灵药，采得 ${roll("herbEvent") || "无"}`; c = "good"; }
+      else if (type === "ore") { t = `发现矿脉，挖得 ${roll("oreEvent") || "无"}`; c = "good"; }
       else if (type === "monster" || type === "elite" || type === "boss") {
-        const kind = type === "monster" ? "normal" : type, m = this.makeMob(a, r, kind);
+        const kind = type === "monster" ? "normal" : type, m = mj !== undefined ? this.makeMjMob(mj, kind) : this.makeMob(a, r, kind);
         const res = this.battle(m), tag = `${m.boss ? "【首领】" : m.elite ? "【精英】" : ""}${m.name}`;
-        if (res.win) { this.s.kills++; t = `遭遇${tag}，${res.rounds}回合击败，获得 ${this.rollMonsterLoot(x.loot, m, a)}`; c = m.boss ? "gold" : ""; }
+        if (res.win) { this.s.kills++; t = `遭遇${tag}，${res.rounds}回合击败，获得 ${this.rollMonsterLoot(x.loot, m, a, mj)}`; c = m.boss ? "gold" : ""; }
         else if (res.lose) { t = `遭遇${tag}，第 ${res.rounds} 回合不敌重伤，遗失灵石 ${U.fmt(this.loseStone())}。${res.why}`; c = "bad"; }
         else { t = `遭遇${tag}，缠斗 ${res.rounds} 回合，各自退去`; }
         bd = res.detail;
       } else t = U.pick(DATA.exploreIdle);
       x.ev.unshift(bd ? { n: x.step, t, c, b: bd } : { n: x.step, t, c });   // b：完整战斗过程（点「详情」看）
-      if (x.ev.length > CFG.explore.TIME) x.ev.length = CFG.explore.TIME;
+      if (x.ev.length > this.exCfg(x).TIME) x.ev.length = this.exCfg(x).TIME;
       return c === "bad"; // 战败：本次提前结束
     },
     // 生成一次探索的事件顺序（字符串，每个字符一步）：首领固定在最后一步
-    makePlan() {
-      const E = CFG.explore, T = E.TIME;
+    makePlan(E = CFG.explore) {
+      const T = E.TIME;
       const list = [...Array(E.MONSTERS).fill("m"), ...Array(E.ELITES || 0).fill("e"), ...Array(U.rand(E.HERB_MIN, E.HERB_MAX)).fill("h"), ...Array(U.rand(E.ORE_MIN, E.ORE_MAX)).fill("o")];
       while (list.length < T - E.BOSS) list.push("n");
       list.length = T - E.BOSS;
@@ -331,9 +341,9 @@ G.module({
     exploreMs() { const E = CFG.explore; return Math.round(Math.max(E.STEP_MIN || 0.5, (E.STEP_SEC || 1) - this.mifaBonus().explore) * 1000); },
     // 推进到当前时间（每 exploreMs 走一步；满 TIME 步结算一次）
     advanceExplore() {
-      const s = this.s, T = CFG.explore.TIME;
+      const s = this.s;
       if (!s.explore) return;
-      const x = s.explore;
+      let x = s.explore; const T = this.exCfg(x).TIME;
       if (x.step === undefined) Object.assign(x, { start: this.now(), step: 0, count: x.count || 0, loot: this.newLoot(), ev: [], last: "" }); // 旧存档
       let changed = false;
       if (!x.ms) x.ms = this.exploreMs();
@@ -344,10 +354,12 @@ G.module({
           // 结算本次
           x.count++;
           const got = this.giveLoot(x.loot);
-          x.last = `${x.once ? "历练" : `第 ${x.count} 次探索`}${lost ? `（第 ${x.step} 步战败，提前结束）` : ""}：${got || "一无所获"}`;
-          this.log(x.last, lost ? "bad" : "gold");
+          x.last = `${x.once ? "历练" : x.mj !== undefined ? "探索" : `第 ${x.count} 次探索`}${lost ? `（第 ${x.step} 步战败，提前结束）` : ""}：${got || "一无所获"}`;
+          this.log(x.mj !== undefined ? this.exName(x) + x.last : x.last, lost ? "bad" : "gold");
           // 保存这一次的全部事件，结束后也能查看（含失败那一步）
-          s.lastRun = { title: `${DATA.regionName(x.map, x.reg || 0)} · ${x.last}`, ev: x.ev.slice(), bad: lost };
+          s.lastRun = { title: `${this.exName(x)} · ${x.last}`, ev: x.ev.slice(), bad: lost };
+          if (x.mj !== undefined) { if (!this.mjFinish(x, lost)) break; x = s.explore; continue; }   // 秘境：每处只走一次，一键探索接着走下一处
+          if (!lost) this.mjDiscover(x.map);   // 凡界地图走完一次：有几率发现秘境
           if (x.once) { // 历练只走一次；走完且未战败 = 通过，解锁该区域自动探索
             const key = this.regionKey(x.map, x.reg || 0);
             if (!lost && !s.trainedR.includes(key)) { s.trainedR.push(key); this.log(`${DATA.regionName(x.map, x.reg || 0)}历练通过！已可自动探索。`, "gold"); }
@@ -359,17 +371,124 @@ G.module({
             s.lastRun.title += "；气血不足三成，自动探索停止";
             s.explore = null; break;
           }
-          x.start = x.start + x.step * x.ms; x.ms = this.exploreMs(); x.step = 0; x.loot = this.newLoot(); x.ev = []; x.plan = this.makePlan();
+          x.start = x.start + x.step * x.ms; x.ms = this.exploreMs(); x.step = 0; x.loot = this.newLoot(); x.ev = []; x.plan = this.makePlan(this.exCfg(x));
           s.lastRun = null; // 开始新一次：不保留上一次的记录
         }
       }
       if (changed) this.dirty();
     },
+    /* ---------- 秘境（config/mijing.js） ---------- */
+    exCfg(x) { return x && x.mj !== undefined ? CFG.mijing : CFG.explore; },
+    exName(x) { return x.mj !== undefined ? "秘境·" + this.mjDef(x.mj).name : DATA.regionName(x.map, x.reg || 0); },
+    mjDef(i) { return CFG.mijing.list[i]; },
+    mjToday() { const d = new Date(this.now()); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; },
+    // 秘境存档（换日自动清空今天的次数）
+    mjState() {
+      const s = this.s, m = s.mj || (s.mj = { found: [], trained: [], day: "", used: {} }), t = this.mjToday();
+      if (m.day !== t) { m.day = t; m.used = {}; }
+      return m;
+    },
+    mjLeft(i) { return Math.max(0, (CFG.mijing.DAILY || 1) - (this.mjState().used[i] || 0)); },
+    // 凡界地图走完一次：每处在这张地图能发现、还没发现的秘境按 find.chance% 判定，一次最多发现一处
+    mjDiscover(a) {
+      const m = this.mjState();
+      for (let i = 0; i < CFG.mijing.list.length; i++) {
+        const d = this.mjDef(i);
+        if (m.found.includes(i) || !d.find || d.find.map !== a || Math.random() * 100 >= (d.find.chance || 0)) continue;
+        m.found.push(i);
+        this.log(`探得秘境消息：发现「${d.name}」（需${DATA.realmLabel(d.realm)}）！可在 历练 → 秘境 进入。`, "gold");
+        return;
+      }
+    },
+    makeMjMob(i, kind) {
+      const d = this.mjDef(i), b = d[kind], k = CFG.monster.RAND, v = x => x * (1 - k + Math.random() * 2 * k);
+      const name = kind === "boss" ? d.bossName : (kind === "elite" ? "精英·" : "") + U.pick(d.monsters);
+      return this.addMagic({ name, Lm: d.L, kind, boss: kind === "boss", elite: kind === "elite",
+        hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), crit: b.crit }, kind, b);
+    },
+    // 秘境掉落 = 指定地图的普通掉落（× mat）+ extra 额外掉落
+    rollMj(loot, ev, i) {
+      const d = this.mjDef(i), got = [this.rollEventMats(loot, ev, d.drops, d.mat === undefined ? 1 : d.mat)];
+      for (const x of (d.extra || {})[ev] || []) {
+        if (Math.random() * 100 >= (x.chance || 0)) continue;
+        const nn = x.n || [1, 1], n = U.rand(nn[0], nn[1]); if (n <= 0) continue;
+        const t = this.lootAdd(loot, x.item, n); if (t) got.push(t);
+      }
+      return got.filter(Boolean).join("、");
+    },
+    // 按名字把东西记进 loot：火髓 / 专用材料 / 模具 / 药材矿石 / 自定义物品
+    lootAdd(loot, name, n) {
+      if (name === "火髓") { loot.hx = (loot.hx || 0) + n; return `火髓×${n}`; }
+      const sm = DATA.smByName(name);
+      if (sm) { const ft = sm.k === "mold" && sm.ft === undefined ? Math.floor(Math.random() * DATA.fabaoTypes.length) : sm.ft;
+        const key = sm.k + (ft === undefined ? "" : ":" + ft); loot.sm = loot.sm || {}; loot.sm[key] = (loot.sm[key] || 0) + n; return `${DATA.smName(sm.k, ft)}×${n}`; }
+      const m = DATA.matByName[name];
+      if (m) { const key = m.kind + "|" + name; (loot.mats[key] = loot.mats[key] || { kind: m.kind, name, g: m.g, n: 0 }).n += n; return `${name}×${n}`; }
+      if (this.cuDef(name)) { loot.cu = loot.cu || {}; loot.cu[name] = (loot.cu[name] || 0) + n; return `${name}×${n}`; }
+      return "";
+    },
+    mjCanEnter(i) { const d = this.mjDef(i); return d && this.mjState().found.includes(i) && this.r() >= d.realm && this.mjLeft(i) > 0; },
+    // 开始走一处秘境（扣今天的次数）；x = 正在走的探索（一键探索接着走）
+    mjStart(i, once, queue, x) {
+      const s = this.s; this.mjState().used[i] = (this.mjState().used[i] || 0) + 1;
+      const n = { map: -1, reg: 0, mj: i, once: !!once, queue: queue || [], start: x ? x.start + x.step * x.ms : this.now(), step: 0, count: 0, loot: this.newLoot(), ev: [], last: "", plan: this.makePlan(CFG.mijing), ms: this.exploreMs() };
+      s.explore = n; s.lastRun = x ? s.lastRun : null;
+      this.log(`进入秘境「${this.mjDef(i).name}」${once ? "历练" : "探索"}（期间无法修炼）。`, "sys");
+    },
+    // 历练 / 探索一处秘境
+    toggleMj(i, once) {
+      const s = this.s, x = s.explore;
+      if (x && x.mj === i) { this.stopExplore(once ? "放弃历练" : "停止探索"); return this.after(); }
+      const d = this.mjDef(i), m = this.mjState();
+      if (!m.found.includes(i)) return;
+      if (!this.realmOK(d.realm)) return;
+      if (!once && !m.trained.includes(i)) return this.log("需先历练通过这处秘境，才能自动探索。", "sys");
+      if (this.mjLeft(i) <= 0) return this.log("这处秘境今天已经进过了，明天再来。", "sys");
+      if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("气血不足三成，先休养片刻。", "sys");
+      if (x) this.stopExplore("更换");
+      this.mjStart(i, once); this.exploreOpen = true; this.after();
+    },
+    // 一键探索：今天还没进过、已历练通过的秘境依次自动探索
+    mjAll() {
+      const s = this.s, m = this.mjState(), list = m.found.filter(i => m.trained.includes(i) && this.mjCanEnter(i)).sort((a, b) => a - b);
+      if (!list.length) return this.log("没有可以探索的秘境（要已发现、已历练通过、今天还没进过）。", "sys");
+      if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("气血不足三成，先休养片刻。", "sys");
+      if (s.explore) this.stopExplore("更换");
+      this.mjStart(list[0], false, list.slice(1)); this.exploreOpen = true; this.after();
+    },
+    // 秘境走完一处：历练通过记下；一键探索接着下一处。返回 true = 还在继续
+    mjFinish(x, lost) {
+      const s = this.s, m = this.mjState(), name = this.mjDef(x.mj).name;
+      if (x.once) {
+        if (!lost && !m.trained.includes(x.mj)) { m.trained.push(x.mj); this.log(`秘境「${name}」历练通过！以后可以自动探索。`, "gold"); }
+        else if (lost) this.log("秘境历练失败，明天提升实力再来。", "bad");
+      }
+      const q = (x.queue || []).filter(i => this.mjCanEnter(i));
+      if (lost || !q.length) { s.explore = null; if (x.queue && x.queue.length && lost) s.lastRun.title += "；战败，一键探索停止"; return false; }
+      if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) { this.log("气血不足三成，一键探索停止。", "bad"); s.lastRun.title += "；气血不足三成，一键探索停止"; s.explore = null; return false; }
+      this.mjStart(q[0], false, q.slice(1), x);
+      return true;
+    },
+    stopNow() { const x = this.s.explore; if (x) this.stopExplore(x.once ? "放弃历练" : "停止探索"); this.after(); },
+    mijingView() {
+      const s = this.s, m = this.mjState(), L = CFG.mijing.list, x = s.explore;
+      const ready = m.found.filter(i => m.trained.includes(i) && this.mjCanEnter(i)).length;
+      const rows = m.found.slice().sort((a, b) => a - b).map(i => {
+        const d = L[i], lock = !this.realmOK(d.realm), ok = m.trained.includes(i), left = this.mjLeft(i), on = x && x.mj === i;
+        return `<div class="line"><div>${d.name}<span class="tag">需${DATA.realmLabel(d.realm)}</span><small>首领 ${d.bossName} · ${ok ? "已通过历练" : "未历练"} · 今天${left > 0 ? `还能进 ${left} 次` : "已进过"}</small></div>
+          ${lock ? `<button class="sm" disabled>境界不足</button>` : `<div><button class="sm ${on && x.once ? "on" : ""}" onclick="G.toggleMj(${i},true)" ${on ? "" : left > 0 ? "" : "disabled"}>${on && x.once ? "停止" : "历练"}</button>
+          <button class="sm ${on && !x.once ? "on" : ""}" onclick="G.toggleMj(${i})" ${on ? "" : ok && left > 0 ? "" : "disabled"}>${on && !x.once ? "停止" : "探索"}</button></div>`}</div>`;
+      }).join("");
+      return `<div class="card"><h3>秘境<small>已发现 ${m.found.length} / ${L.length} · 每处每天 ${CFG.mijing.DAILY} 次 · 一次 ${CFG.mijing.TIME} 步，每步 ${U.num(this.exploreMs() / 1000)} 秒</small></h3>
+        ${rows || `<p class="desc">还没有发现秘境。在凡界地图历练、自动探索时，有几率探得秘境消息。</p>`}
+        ${m.found.length ? `<div class="btns"><button class="primary" onclick="G.mjAll()" ${ready ? "" : "disabled"}>一键探索（${ready} 处）</button></div>` : ""}
+        <p class="desc">先历练通过（走完不战败）才能自动探索；历练、探索都算今天的次数。秘境额外掉落火髓、空间晶核、炼宝玄晶、法宝模具。</p></div>`;
+    },
     setExploreOpen(v) { this.exploreOpen = v; this.render(); },
     // 探索信息一行：战斗事件后面带「详情」按钮
     evLine(e, src, i) { return `<p class="${e.c}"><b>第${e.n}步</b> ${e.t}${e.b ? ` <button class="sm" onclick="G.showBattle('${src}',${i})">详情</button>` : ""}</p>`; },
     setLastOpen(v) { this.lastOpen = v; this.render(); },
-    setMapSel(a) { this.mapSel = a; this.render(); },
+    setMapSel(a) { this.mapSel = a; this.render(); },   // a = 地图序号，"mj" = 秘境
 
     /* ---------- 坊市：丹药 装备 功法 药材 矿石 ----------
      * 丹药、装备：content/items.js 的 ITEMS.shop，只卖练气品质（自定义物品按 item 名）
@@ -500,13 +619,17 @@ G.module({
       return tabs + `<div class="row small"><span>气血 ${U.fmt(s.hp)} / ${U.fmt(st.hp)}</span><span>斩妖 ${s.kills}</span></div>
         <div class="bar hp"><div style="width:${s.hp / st.hp * 100}%"></div></div>
         <div class="row small"><span>法力 ${U.fmt(s.mana)} / ${U.fmt(st.mana)}</span><span>灵石 ${U.fmt(s.stone)}</span></div>
-        ${s.explore ? (() => { const x = s.explore, T = CFG.explore.TIME, L = x.loot;
+        ${s.explore ? (() => { const x = s.explore, T = this.exCfg(x).TIME, L = x.loot;
           const mats = Object.values(L.mats).map(m => `${m.name}×${U.fmt(m.n)}`);
-          return `<div class="card"><h3>${x.once ? "历练中" : "自动探索中"} · ${DATA.regionName(x.map, x.reg || 0)}<small>${x.once ? "走完且不战败即通过" : `已完成 ${x.count} 次`}</small></h3>
+          if (L.hx) mats.push(`火髓×${U.fmt(L.hx)}`);
+          for (const k in L.sm || {}) { const [kk, f] = k.split(":"); mats.push(`${DATA.smName(kk, f === undefined ? undefined : +f)}×${U.fmt(L.sm[k])}`); }
+          for (const n in L.cu || {}) mats.push(`${n}×${U.fmt(L.cu[n])}`);
+          const sub = x.mj !== undefined ? (x.once ? "走完且不战败即通过" : x.queue && x.queue.length ? `一键探索 · 后面还有 ${x.queue.length} 处` : "秘境探索") : x.once ? "走完且不战败即通过" : `已完成 ${x.count} 次`;
+          return `<div class="card"><h3>${x.once ? "历练中" : "自动探索中"} · ${this.exName(x)}<small>${sub}</small></h3>
           <div class="bar tick"><div style="width:${x.step / T * 100}%"></div></div>
-          <div class="row small"><span>第 ${x.step} / ${T} 步 · 剩余 ${T - x.step} 秒</span><span>
+          <div class="row small"><span>第 ${x.step} / ${T} 步 · 剩余 ${U.dur(Math.ceil((T - x.step) * (x.ms || 1000) / 1000))}</span><span>
             <button class="sm" onclick="G.setExploreOpen(${!this.exploreOpen})">${this.exploreOpen ? "收起信息" : "探索信息"}</button>
-            <button class="sm" onclick="G.toggleExplore(${x.map},${x.reg || 0},${!!x.once})">停止</button></span></div>
+            <button class="sm" onclick="G.stopNow()">停止</button></span></div>
           <p class="desc">本次收获（结束后放入背包）：灵石 ${U.fmt(L.stone)}${mats.length ? "、" + mats.join("、") : ""}</p>
           ${this.exploreOpen ? `<div class="explore-log">${x.ev.map((e, i) => this.evLine(e, "cur", i)).join("") || "<p>出发……</p>"}</div>` : ""}</div>`; })()
         : s.lastRun ? `<div class="card"><h3>本次结果<small><button class="sm" onclick="G.setLastOpen(${!this.lastOpen})">${this.lastOpen ? "收起" : "详细"}</button></small></h3>
@@ -514,10 +637,12 @@ G.module({
           ${this.lastOpen ? `<div class="explore-log">${s.lastRun.ev.map((e, i) => this.evLine(e, "last", i)).join("")}</div>` : ""}</div>` : ""}
         ${(() => {
           // 地图选择（9 张）+ 选中地图的 东西南北 四个区域
-          const sel = this.mapSel !== undefined ? this.mapSel : s.explore ? s.explore.map : Math.min(this.r(), DATA.maps.length - 1);
+          const sel = this.mapSel !== undefined ? this.mapSel : s.explore ? (s.explore.mj !== undefined ? "mj" : s.explore.map) : Math.min(this.r(), DATA.maps.length - 1);
+          const grid = `<div class="room-grid five">${DATA.maps.map((m, a) => `<button class="${sel === a ? "active" : ""}" onclick="G.setMapSel(${a})">${m.name}${!this.realmOK(DATA.mapReq(a)) ? `<small>需${DATA.realmLabel(DATA.mapReq(a))}</small>` : ""}</button>`).join("")}
+            <button class="${sel === "mj" ? "active" : ""}" onclick="G.setMapSel('mj')">秘境<small>${this.mjState().found.length ? `已发现 ${this.mjState().found.length} 处` : "未发现"}</small></button></div>`;
+          if (sel === "mj") return grid + this.mijingView();
           const map = DATA.maps[sel], lock = !this.realmOK(DATA.mapReq(sel));
-          return `<div class="room-grid five">${DATA.maps.map((m, a) => `<button class="${sel === a ? "active" : ""}" onclick="G.setMapSel(${a})">${m.name}${!this.realmOK(DATA.mapReq(a)) ? `<small>需${DATA.realmLabel(DATA.mapReq(a))}</small>` : ""}</button>`).join("")}</div>
-          <div class="card"><h3>${map.name}<small>需${DATA.realmLabel(DATA.mapReq(sel))} · 历练一次 ${CFG.explore.TIME} 步，每步 ${U.num(this.exploreMs() / 1000)} 秒，通过后才能自动探索</small></h3>` +
+          return grid + `<div class="card"><h3>${map.name}<small>需${DATA.realmLabel(DATA.mapReq(sel))} · 历练一次 ${CFG.explore.TIME} 步，每步 ${U.num(this.exploreMs() / 1000)} 秒，通过后才能自动探索</small></h3>` +
           DATA.regionDirs.map((d, r) => {
             const R = DATA.region(sel, r), ok = this.isTrained(sel, r), x = s.explore && s.explore.map === sel && (s.explore.reg || 0) === r ? s.explore : null;
             return `<div class="line"><div>${d}域<small>首领 ${DATA.regionBoss(sel, r)} · ${ok ? "已通过历练" : "未历练"}</small></div>
