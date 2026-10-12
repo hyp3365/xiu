@@ -1,0 +1,110 @@
+/* =====================================================================
+ * 模块：修炼肉身（数值在 config/body.js）
+ * ---------------------------------------------------------------------
+ * 需要学会肉身秘诀（宗门功法殿，gongfa 类型 tijue）。每 10 秒消耗灵气转化肉身修为，可开关自动修炼。
+ * 肉身境界 bodyL：-1 = 凡体，0 = 第一境界一层 …… 24 境界 × 10 层。每层手动突破，不需要雷劫。
+ * 突破消耗气血、灵石、6 种药材；每突破一层增加属性（bodyBonus，加进 player.js computeStats）。
+ * ===================================================================== */
+G.module({
+  id: "body",
+
+  defaults: () => ({
+    bodyL: -1,        // 肉身境界层序（-1 凡体）
+    bodyExp: 0,       // 肉身修为
+    bodyAuto: false,  // 自动修炼肉身
+  }),
+
+  tick() {
+    const s = this.s, B = CFG.body;
+    if (!s.bodyAuto || !this.hasTijue() || this.exBlocksCult() || this.bodyMax()) return;
+    const sp = this.bodySpeed().total, rate = Math.max(0.0001, B.LING_RATE || 1);
+    // 灵气不够且开了聚灵阵自动补充：用灵石补（和修为修炼一样）
+    if (s.ling < sp * rate && s.array && s.array.autoRefill && s.stone >= 1) {
+      const per = this.lingPerStone(), pay = Math.min(Math.ceil((sp * rate - s.ling) / per), Math.floor(s.stone));
+      s.stone -= pay; s.ling += pay * per;
+    }
+    const gain = Math.min(sp, Math.floor(s.ling / rate));
+    if (gain <= 0) return;
+    s.ling -= gain * rate; s.bodyExp += gain;
+  },
+
+  api: {
+    hasTijue() { return Object.keys(this.s.gongfa || {}).some(id => id.split(":")[1] === "tijue"); },
+    bodyMaxL() { return CFG.body.names.length * DATA.LAYERS - 1; },
+    bodyMax() { return this.s.bodyL >= this.bodyMaxL(); },
+    // 肉身境界名：凡体 / 淬皮一层
+    bodyName(L) { if (L === undefined) L = this.s.bodyL; return L < 0 ? "凡体" : CFG.body.names[Math.floor(L / DATA.LAYERS)] + DATA.layerNames[L % DATA.LAYERS]; },
+    // 升到第 T 层（= bodyL + 1）需要的肉身修为
+    bodyNeed(T) { const B = CFG.body; if (T === undefined) T = this.s.bodyL + 1; return T <= 0 ? B.FIRST_EXP : B.NEED_BASE * Math.pow(B.NEED_RATE, T - 1); },
+    // 肉身修炼速度（每 10 秒）
+    bodySpeed() {
+      const s = this.s, base = (CFG.body.BASE_SPEED || 0) * Math.pow(DATA.GROW, s.mortal ? 0 : s.L);
+      const gf = this.gongfaBonus().body || 0, mf = this.mifaBonus().bodySpeed || 0;
+      return { base, gf, mf, total: Math.floor(base + gf + mf) };
+    },
+    // 突破到第 T 层的消耗
+    bodyCost(T) {
+      const B = CFG.body, s = this.s; if (T === undefined) T = s.bodyL + 1;
+      const ri = Math.floor(T / DATA.LAYERS), xian = ri >= B.HERB_FROM;
+      const k = xian ? T - B.HERB_FROM * DATA.LAYERS : T, base = xian ? B.HERB_XIAN_BASE : B.HERB_BASE;
+      const n = Math.max(1, Math.round(base * Math.pow(B.HERB_RATE, k)));
+      return { hp: this.stats().hp * B.HP_PCT / 100, stone: Math.floor(B.STONE_BASE * Math.pow(B.STONE_RATE, T)),
+        herbs: (xian ? B.HERBS_XIAN : B.HERBS_FAN).map(name => ({ name, n })) };
+    },
+    // 按名字数 / 扣药材（凡界药材或 content/items.js 的自定义物品）
+    herbCount(name) { const m = DATA.matByName[name]; if (m) return this.countMat(m.kind, m.g); return this.s.bag.reduce((a, it) => a + (it.t === "cu" && it.name === name ? it.n : 0), 0); },
+    herbTake(name, n) {
+      const m = DATA.matByName[name]; if (m) return this.takeMat(m.kind, m.g, n);
+      for (let i = this.s.bag.length - 1; i >= 0 && n > 0; i--) { const it = this.s.bag[i]; if (it.t !== "cu" || it.name !== name) continue; const k = Math.min(n, it.n); this.removeAt(i, k); n -= k; }
+    },
+    bodyBlock() {
+      const s = this.s; if (this.bodyMax()) return "已达肉身极境";
+      const c = this.bodyCost();
+      if (s.bodyExp < this.bodyNeed()) return `肉身修为未满，还差 ${U.fmt(this.bodyNeed() - s.bodyExp)}`;
+      if (s.hp <= c.hp) return "气血不足";
+      if (s.stone < c.stone) return "灵石不足";
+      if (c.herbs.some(h => this.herbCount(h.name) < h.n)) return "药材不足";
+      return "";
+    },
+    bodyBreak() {
+      const s = this.s, why = this.bodyBlock(); if (why) return this.log(why + "。", "sys");
+      const c = this.bodyCost();
+      s.bodyExp -= this.bodyNeed(); s.hp = Math.max(1, s.hp - c.hp); s.stone -= c.stone;
+      c.herbs.forEach(h => this.herbTake(h.name, h.n));
+      s.bodyL++; this.dirty();
+      this.log(`肉身突破至【${this.bodyName()}】！`, s.bodyL % DATA.LAYERS === 0 ? "gold" : "good");
+      this.after();
+    },
+    toggleBodyAuto() { this.s.bodyAuto = !this.s.bodyAuto; this.log(this.s.bodyAuto ? "开启自动修炼肉身。" : "停止自动修炼肉身。", "sys"); this.after(); },
+    // 肉身突破加的属性合计：第 k 次加 数值 × 成长^(k-1)
+    bodyBonus() {
+      const n = (this.s.bodyL === undefined ? -1 : this.s.bodyL) + 1, G0 = CFG.body.GAIN || {}, out = { hp: 0, atk: 0, def: 0, mana: 0, speed: 0, hit: 0, dodge: 0, crit: 0, res: 0 };
+      if (n <= 0) return out;
+      for (const k in out) { const g = G0[k]; if (!g) continue; const [v, r] = g; out[k] = r === 1 ? v * n : v * (Math.pow(r, n) - 1) / (r - 1); }
+      return out;
+    },
+    bodyView() {
+      const s = this.s, B = CFG.body, sp = this.bodySpeed(), has = this.hasTijue(), max = this.bodyMax(), cap = this.lingCap();
+      const need = this.bodyNeed(), c = max ? null : this.bodyCost(), why = this.bodyBlock(), bb = this.bodyBonus();
+      const status = !s.bodyAuto ? "未修炼" : !has ? "<b class='q5'>未学肉身秘诀</b>" : this.exBlocksCult() ? "<b class='q5'>历练 / 探索中，无法修炼</b>" : max ? "已达极境" : s.ling < 1 ? "<b class='q5'>灵气耗尽</b>" : "自动修炼中";
+      const names = { hp: "气血", atk: "攻击", def: "防御", mana: "法力", speed: "速度", hit: "命中", dodge: "闪避", crit: "暴击%", res: "各系抗性" };
+      const bonus = Object.keys(names).filter(k => bb[k]).map(k => `<div><span>${names[k]}</span>+${k === "crit" ? U.num(bb[k]) : U.fmt(bb[k])}</div>`).join("");
+      return `<div class="card"><h3>修炼肉身 · ${this.bodyName()}<small>${s.bodyL < 0 ? "" : `第 ${Math.floor(s.bodyL / DATA.LAYERS) + 1} / ${B.names.length} 境`}</small></h3>
+        ${has ? "" : `<p class="desc q5">需要先学会一本肉身秘诀（宗门 → 功法殿）。</p>`}
+        <div class="row small"><span>肉身修炼速度 <b class="q4">${U.num(sp.total)}</b> / 10秒</span><span>${status}</span></div>
+        <p class="desc">基础 ${U.num(sp.base)} + 肉身秘诀 ${U.num(sp.gf)} + 炼体秘法 ${U.num(sp.mf)} · 每点消耗灵气 ${U.num(B.LING_RATE)}</p>
+        <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>
+        <div class="bar ling"><div style="width:${Math.min(100, s.ling / cap * 100)}%"></div></div>
+        <div class="btns">
+          <button class="${s.bodyAuto ? "on" : "primary"}" onclick="G.toggleBodyAuto()">自动修炼肉身：${s.bodyAuto ? "开" : "关"}</button>
+          <button onclick="G.openBody(false)">返回修炼</button>
+          <button class="primary" style="flex-basis:100%" onclick="G.bodyBreak()" ${why ? "disabled" : ""}>${max ? "已达肉身极境" : why || `突破至${this.bodyName(s.bodyL + 1)}`}</button>
+        </div>
+        ${max ? "" : `<div class="row small" style="margin-top:8px"><span>肉身修为</span><span>${U.fmt(s.bodyExp)} / ${U.fmt(need)}</span></div>
+        <div class="bar"><div style="width:${Math.min(100, s.bodyExp / need * 100)}%"></div></div>
+        <p class="desc">突破消耗：<span class="${s.hp > c.hp ? "" : "q5"}">气血 ${U.fmt(c.hp)}</span>、<span class="${s.stone >= c.stone ? "" : "q5"}">灵石 ${U.fmt(c.stone)}</span>、${c.herbs.map(h => { const hv = this.herbCount(h.name); return `<span class="${hv >= h.n ? "" : "q5"}">${h.name} ${U.fmt(hv)}/${U.fmt(h.n)}</span>`; }).join("、")}</p>`}
+        </div>
+        <div class="card"><h3>肉身加成<small>已突破 ${s.bodyL + 1} 层</small></h3>${bonus ? `<div class="stats">${bonus}</div>` : `<p class="desc">尚未突破，突破后每层增加属性。</p>`}</div>`;
+    },
+  },
+});
