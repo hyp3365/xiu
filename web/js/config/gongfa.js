@@ -88,3 +88,14 @@ CFG.gongfa.shop = {
   EFFECT_PRICE: 1,
   // 需要的境界：和同星级门派一样（config/sect.js 的 REQ_REALM）
 };
+
+/* ================= v25 新增：试炼塔秘诀（每星一部，试炼塔每 10 层奖励升层，也可以在功法页用修为修炼） ================= */
+CFG.gongfa.tower = {
+  base: { cultivate: 8, study: 100 },
+  TYPE_MULT: { mijue: 1 },
+  STAR_MULT: [1, 1.3, 1.6, 1.9, 2.2, 2.5, 2.7, 3, 3.3, 3.6],
+  TIER_MULT: { huang: 1, xuan: 1.3, di: 1.6, tian: 1.9 },
+  EFFECT_GONGFA: 1,
+  EFFECT_STUDY: 1,
+  STUDY_LV: [1, 2, 3, 5, 8, 12, 18, 27, 40, 60, 90],
+};
