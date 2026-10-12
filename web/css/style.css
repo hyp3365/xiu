@@ -124,3 +124,34 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24
 
 /* 列表里的物品小图 */
 .li{width:34px;height:34px;float:left;margin:0 6px 0 0;object-fit:contain}
+
+/* ---------- 炼制装备 / 法宝按阶的外观（DATA.eqCls）：一阶灰暗粗糙 → 十阶金红流光 ---------- */
+.eqt{position:relative}
+.eqt img,img.eqt{transition:none}
+.eqt0 img,img.eqt0{filter:grayscale(.7) brightness(.8) contrast(.9)}
+.eqt1 img,img.eqt1{filter:grayscale(.4) brightness(.9)}
+.eqt2 img,img.eqt2{filter:saturate(1.05)}
+.eqt3 img,img.eqt3{filter:saturate(1.2) drop-shadow(0 0 2px #7fc0a8)}
+.eqt4 img,img.eqt4{filter:saturate(1.3) brightness(1.05) drop-shadow(0 0 3px #6f9cff)}
+.eqt5 img,img.eqt5{filter:saturate(1.4) brightness(1.08) drop-shadow(0 0 4px #6f9cff) drop-shadow(0 0 1px #fff)}
+.eqt6 img,img.eqt6{filter:saturate(1.5) brightness(1.1) drop-shadow(0 0 4px #b07cf0) drop-shadow(0 0 1px #fff)}
+.eqt7 img,img.eqt7{filter:saturate(1.6) brightness(1.12) drop-shadow(0 0 5px #c08cff) drop-shadow(0 0 1px #fff);animation:eqPulseP 2.4s ease-in-out infinite}
+.eqt8 img,img.eqt8{filter:saturate(1.7) brightness(1.15) drop-shadow(0 0 6px #ffd36a) drop-shadow(0 0 1px #fff);animation:eqPulseG 2s ease-in-out infinite}
+.eqt9 img,img.eqt9{filter:saturate(1.8) brightness(1.2) drop-shadow(0 0 7px #ff8a4a) drop-shadow(0 0 2px #ffe9a0);animation:eqPulseR 1.6s ease-in-out infinite}
+@keyframes eqPulseP{50%{filter:saturate(1.6) brightness(1.25) drop-shadow(0 0 8px #d8a8ff) drop-shadow(0 0 1px #fff)}}
+@keyframes eqPulseG{50%{filter:saturate(1.7) brightness(1.3) drop-shadow(0 0 10px #ffe08a) drop-shadow(0 0 2px #fff)}}
+@keyframes eqPulseR{50%{filter:saturate(1.9) brightness(1.35) drop-shadow(0 0 12px #ffb36a) drop-shadow(0 0 3px #fff6c0) hue-rotate(-12deg)}}
+/* 格子边框和底色：四阶起有内光，六阶起有流光扫过 */
+.cell.eqt4,.slot-eq.eqt4,.cell.eqt5,.slot-eq.eqt5{border-color:#5b7ed0;box-shadow:inset 0 0 6px #4b659680}
+.cell.eqt6,.slot-eq.eqt6,.cell.eqt7,.slot-eq.eqt7{border-color:#9a6ad0;box-shadow:inset 0 0 8px #7a5596a0,0 0 4px #7a559680;background:radial-gradient(circle at 50% 40%,#2a2036,#191511 70%)}
+.cell.eqt8,.slot-eq.eqt8{border-color:#e9c46a;box-shadow:inset 0 0 10px #e9c46a80,0 0 6px #e9c46a99;background:radial-gradient(circle at 50% 40%,#3a3018,#191511 70%)}
+.cell.eqt9,.slot-eq.eqt9{border:1px solid #ff9a5a;box-shadow:inset 0 0 12px #ff7a3a90,0 0 8px #ffb36acc;background:radial-gradient(circle at 50% 40%,#45251a,#191511 70%)}
+.ico.eqt6,.ico.eqt7{box-shadow:0 0 6px #9a6ad0}.ico.eqt8{box-shadow:0 0 8px #e9c46a}.ico.eqt9{border-color:#ff9a5a;color:#ffb36a;box-shadow:0 0 10px #ff8a4a}
+.cell.eqt6::after,.cell.eqt7::after,.cell.eqt8::after,.cell.eqt9::after,.slot-eq.eqt6::after,.slot-eq.eqt7::after,.slot-eq.eqt8::after,.slot-eq.eqt9::after,
+.ico.eqt8::after,.ico.eqt9::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.28) 48%,transparent 62%);background-size:250% 100%;animation:eqShine 3.2s linear infinite}
+.cell.eqt8::after,.slot-eq.eqt8::after,.ico.eqt8::after{animation-duration:2.6s}
+.cell.eqt9::after,.slot-eq.eqt9::after,.ico.eqt9::after{background-image:linear-gradient(115deg,transparent 28%,rgba(255,230,160,.4) 46%,rgba(255,140,90,.25) 54%,transparent 64%);animation-duration:2s}
+@keyframes eqShine{from{background-position:150% 0}to{background-position:-100% 0}}
+.slot-eq.eqt{overflow:hidden}
+@media (prefers-reduced-motion:reduce){.eqt img,img.eqt,.eqt::after{animation:none!important}}
