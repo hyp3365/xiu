@@ -137,17 +137,35 @@ DATA.upgradeForged = (prev, g) => {
 };
 // 火髓洗练：locks = 锁定的属性序号；没锁的重新随机
 DATA.resetCost = (e, nLock) => Math.ceil((_FG.reset.FIRE[e.g] || 1) * Math.pow(_FG.reset.LOCK_MULT || 2, nLock));
+// v44：没锁的附加属性重新随机条数 —— 锁定的附加属性 + 新随机的 ≤ reset.AFFIX_MAX（5），新随机的至少 1 条（锁满了就 0 条）
+//   新条数在 [1, AFFIX_MAX − 锁定的附加属性] 里按 reset.COUNT_WEIGHT 随机；去掉的那几格强化次数按从高到低转给新属性
+DATA.washRange = (e, locks) => {
+  const R = _FG.reset, MX = R.AFFIX_MAX || 5, lockedAff = e.attrs.filter((a, i) => !a.m && locks.includes(i)).length;
+  const hi = Math.max(0, MX - lockedAff); return [Math.min(1, hi), hi];
+};
 DATA.rerollForged = (e, locks) => {
   const A = _FG.attr, fb = e.slot === "fabao", W = fb ? DATA.fabaoWashW() : A.colors.map(c => c.weight);   // 法宝洗练颜色权重单独设置
   const used = e.attrs.filter((a, i) => locks.includes(i) || a.m).map(a => a.k);
-  e.attrs.forEach((a, i) => {
-    if (locks.includes(i)) return;
-    if (a.m) { a.c = U.weighted(W); a.p = Math.random(); delete a.r; return; }
+  const [lo, hi] = DATA.washRange(e, locks), CW = _FG.reset.COUNT_WEIGHT || [1, 1, 1, 1, 1];
+  let w = []; for (let c = lo; c <= hi; c++) w.push(CW[c - 1] || 0);
+  if (!w.some(x => x > 0)) w = w.map(() => 1);
+  const n = hi <= 0 ? 0 : lo + U.weighted(w);
+  const enh = e.attrs.filter((a, i) => !a.m && !locks.includes(i)).map(a => a.enh || 0).sort((x, y) => y - x);
+  const roll = () => {
     let k;
     if (fb) k = U.pick(_FG.fabao.pool);
-    else { const pool = A.pool.filter(x => !used.includes(x)); k = pool.length ? U.pick(pool) : a.k; used.push(k); }
-    Object.assign(a, DATA.rollAttr(k, 0, fb ? U.pick(DATA.elements).id : undefined, W)); delete a.r;
+    else { const pool = A.pool.filter(x => !used.includes(x)); if (!pool.length) return null; k = U.pick(pool); used.push(k); }
+    const a = DATA.rollAttr(k, 0, fb ? U.pick(DATA.elements).id : undefined, W); if (enh.length && enh[0]) a.enh = enh.shift(); else enh.shift(); return a;
+  };
+  let made = 0;
+  const out = [];
+  e.attrs.forEach((a, i) => {
+    if (locks.includes(i)) return out.push(a);
+    if (a.m) { a.c = U.weighted(W); a.p = Math.random(); delete a.r; return out.push(a); }
+    if (made < n) { const x = roll(); if (x) { out.push(x); made++; } }   // 原来的位置换成新属性，多出来的格子去掉
   });
+  while (made < n) { const x = roll(); if (!x) break; out.push(x); made++; }
+  e.attrs = out;
   e.q = DATA.bestQ(e.attrs);
 };
 // 一条属性的文字
