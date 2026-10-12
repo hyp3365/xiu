@@ -191,6 +191,8 @@ const G = {
     $("#p-realm").textContent = this.realmName();
     $("#p-exp").textContent = `${U.fmt(s.exp)} / ${U.fmt(this.needExp())}`;
     $("#p-stone").textContent = U.fmt(s.stone);
+    $("#p-contrib").textContent = U.fmt(s.contrib || 0);   // v27：贡献、功德
+    $("#p-merit").textContent = U.fmt(s.merit || 0);
     $("#exp-bar").style.width = Math.min(100, s.exp / this.needExp() * 100) + "%";
     document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === this.tab));
     // 顶部（道号、修为、灵石）和信息栏只在修炼页显示
