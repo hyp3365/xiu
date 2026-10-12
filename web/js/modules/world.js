@@ -706,7 +706,7 @@ G.module({
             ${fan ? `<button class="${sel === "mj" ? "active" : ""}" onclick="G.setMapSel('mj')">秘境<small>${this.mjState().found.length ? `已发现 ${this.mjState().found.length} 处` : "未发现"}</small></button>` : ""}</div>`;
       const halls = ((CFG.worldMaps || {})[wid] || {}).halls;
       if (halls && sel !== "mj") {
-        // v49：仙界每张地图 7 处地点（config/worldmaps.js 的 halls，图片 img/hall_<id>.png），点进去是各自的页面
+        // v49：仙冥魔神每张地图 7 处地点（config/worldmaps.js 的 halls，图片 img/hall_<id>.png），点进去是各自的页面
         const hn = id => (halls[id] || "").replace("{map}", DATA.maps[sel].name), hs = halls[this.hallSel] ? this.hallSel : null;
         if (hs) {
           const back = `<div class="row" style="margin:6px 0"><b>${DATA.maps[sel].name} · ${hn(hs)}</b><button class="sm" onclick="G.setHall(null)">返回</button></div>`;
@@ -715,7 +715,7 @@ G.module({
           return tabs + back + page;
         }
         const ico = (id, cls) => halls[id] === undefined ? "" : `<button class="${cls || ""}" onclick="G.setHall('${id}')"><img src="img/hall_${id}.png" alt=""><span>${hn(id)}</span></button>`;
-        return tabs + grid + `<div class="xscene">${ico("tg", "tg")}${["xj", "gd", "shop", "lilian", "wudao", "lingdi"].map(id => ico(id)).join("")}</div>`;
+        return tabs + grid + `<div class="xscene xs-${wid}">${ico("tg", "tg")}${["xj", "gd", "shop", "lilian", "wudao", "lingdi"].map(id => ico(id)).join("")}</div>`;
       }
       return tabs + bars + status + grid + (sel === "mj" ? this.mijingView() : this.regionsCard(sel));
     }
