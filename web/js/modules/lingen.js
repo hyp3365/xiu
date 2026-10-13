@@ -2,7 +2,7 @@
  * 模块：灵根（金 木 水 火 土 雷 六种）
  * ---------------------------------------------------------------------
  * 每种灵根可单独升级（消耗灵石），最高 CFG.lingen.MAX 级：
- *   - 每 STEP 级一段，每段的每级效果、消耗单独设置（config/lingen.js：第 n 级 = INIT × RATE^(n−1) × 所在段 SEG）
+ *   - 每 STEP 级一段，每段的每级效果、消耗单独设置（config/lingen.js：每段每级加成 SPELL / GONGFA，灵石 COST_BASE × 每段 COST_RATE）
  *   - 对应属性的法术伤害 +% = 已升各级的 SPELL 相加
  *   - 对应属性的功法效果 +% = 已升各级的 GONGFA 相加
  * 门派功法、法术的属性 = 门派属性（见 data/sects.js）。
@@ -16,7 +16,7 @@ G.module({
   defaults: () => ({ lingen: { jin: 0, mu: 0, shui: 0, huo: 0, tu: 0, lei: 0 } }),
 
   api: {
-    lingenCost(lv) { return Math.floor(DATA.segVal(CFG.lingen, "COST", lv + 1)); },
+    lingenCost(lv) { return DATA.segCost(CFG.lingen, lv + 1); },
     // lv 级的总加成 %
     lingenPct(lv, kind) { return DATA.segSum(CFG.lingen, kind === "sp" ? "SPELL" : "GONGFA", lv); },
     // 加成倍率（1 = 无加成）
