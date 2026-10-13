@@ -47,16 +47,15 @@ G.module({
       const m = DATA.maps[o.map].name;
       return o.t === "jz" ? m + "界主" : o.t === "xj" ? m + this.xjSeatName(o.map, o.seat) : m + this.xjTjName(o.map);
     },
-    // 每次结算的俸禄 { merit, stone, hx }
     // 每次结算的俸禄范围 { merit, stone: [少, 多], hx: [少, 多] }（已乘本界 PAY_MULT）
     xjRate(o) {
       const X = CFG.xingjun, a = o.map, wi = DATA.maps[a].wi || 0, k = this.xjC(this.xjW(a)).PAY_MULT || 1;
       const pick = (arr, i) => arr[Math.min(i, arr.length - 1)] || 0, r = v => Math.round(v * k);
-      if (o.t === "jz") return { merit: r(pick(X.JZ_MERIT, wi)), stone: X.JZ_STONE.map(r), hx: X.JZ_HX.map(r) };
+      if (o.t === "jz") { const st = r(pick(X.JZ_STONE, wi)), hx = r(pick(X.JZ_HX, wi)); return { merit: r(pick(X.JZ_MERIT, wi)), stone: [st, st], hx: [hx, hx] }; }
       const row = pick(X.MERIT, wi) || [];
       return { merit: r(pick(row, this.xjPos(a, o.t, o.seat) - 1)), stone: [0, 0], hx: [0, 0] };
     },
-    // n 次结算的实际俸禄（灵石、火髓每次在范围内随机）
+    // n 次结算的实际俸禄
     xjRoll(o, n) {
       const R = this.xjRate(o), sum = ([lo, hi]) => { if (hi <= 0) return 0; if (n > 1000) return Math.round(n * (lo + hi) / 2); let t = 0; for (let i = 0; i < n; i++) t += U.rand(lo, hi); return t; };
       return { merit: R.merit * n, stone: sum(R.stone), hx: sum(R.hx) };
