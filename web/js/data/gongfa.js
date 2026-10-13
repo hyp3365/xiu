@@ -119,9 +119,9 @@ DATA.gfCalc = (o, typeId, tier, key, eff) => {
 
 // 层数倍率：第 lv 层效果 = 每层效果 × LV_MULT[lv-1]（没写就是 lv）
 DATA.lvMul = lv => { const m = (_GF.LV_MULT || [])[lv - 1]; return m === undefined ? lv : m; };
-// 修炼：每 5 秒消耗修为 = STUDY_RATE × STUDY_STAR[星级-1] × STUDY_TIER[阶] × 当前层数
+// 修炼：每 5 秒消耗修为 = STUDY_RATE × STUDY_STAR[星级-1] × STUDY_TIER[阶]（不乘层数）
 DATA.studyPer = info => { const v = (x, d) => x === undefined ? d : x;
-  return Math.max(1, Math.floor(v(_GF.STUDY_RATE, 5) * v((_GF.STUDY_STAR || [])[info.star - 1], info.star) * v((_GF.STUDY_TIER || {})[info.tier.id], 1) * info.lv)); };
+  return Math.max(1, Math.floor(v(_GF.STUDY_RATE, 5) * v((_GF.STUDY_STAR || [])[info.star - 1], info.star) * v((_GF.STUDY_TIER || {})[info.tier.id], 1))); };
 // 当前层 → 下一层一共消耗的修为 = 每 5 秒消耗 × 次数（由这一层的修炼时间决定）
 DATA.studySteps = lv => Math.ceil(DATA.studyMin[lv - 1] * 60 / DATA.STUDY_STEP);
 DATA.studyExp = info => DATA.studyPer(info) * DATA.studySteps(info.lv);
