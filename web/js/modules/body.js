@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------
  * 需要学会肉身秘诀（宗门功法殿，gongfa 类型 tijue）。每 10 秒消耗灵气转化肉身修为，可开关自动修炼。
  * 肉身境界 bodyL：-1 = 凡体，0 = 第一境界一层 …… 24 境界 × 10 层。每层手动突破，不需要雷劫。
- * 突破消耗气血、灵石、6 种药材；每突破一层增加属性（bodyBonus，加进 player.js computeStats）。
+ * 突破扣除攒够的气血（肉身修为），另消耗灵石、药材；每突破一层增加属性（bodyBonus，加进 player.js computeStats）。
  * ===================================================================== */
 G.module({
   id: "body",
@@ -55,7 +55,7 @@ G.module({
       } else {     // 旧规则（神体及以上）
         n = Math.max(1, Math.round(B.HERB_XIAN_BASE * Math.pow(B.HERB_RATE, T - B.HERB_FROM * DATA.LAYERS))); herbs = B.HERBS_XIAN;
       }
-      return { hp: this.stats().hp * B.HP_PCT / 100, stone: Math.floor(B.STONE_BASE * Math.pow(B.STONE_RATE, T)),
+      return { stone: Math.floor(B.STONE_BASE * Math.pow(B.STONE_RATE, T)),
         herbs: herbs.map(name => ({ name, n })) };
     },
     // 按名字数 / 扣药材（凡界药材或 content/items.js 的自定义物品）
@@ -68,7 +68,6 @@ G.module({
       const s = this.s; if (this.bodyMax()) return "已达肉身极境";
       const c = this.bodyCost();
       if (s.bodyExp < this.bodyNeed()) return `气血未满，还差 ${U.fmt(this.bodyNeed() - s.bodyExp)}`;
-      if (s.hp <= c.hp) return "气血不足";
       if (s.stone < c.stone) return "灵石不足";
       if (c.herbs.some(h => this.herbCount(h.name) < h.n)) return "药材不足";
       return "";
@@ -76,7 +75,7 @@ G.module({
     bodyBreak() {
       const s = this.s, why = this.bodyBlock(); if (why) return this.log(why + "。", "sys");
       const c = this.bodyCost();
-      s.bodyExp -= this.bodyNeed(); s.hp = Math.max(1, s.hp - c.hp); s.stone -= c.stone;
+      s.bodyExp -= this.bodyNeed(); s.stone -= c.stone;
       c.herbs.forEach(h => this.herbTake(h.name, h.n));
       s.bodyL++; this.dirty();
       this.log(`肉身突破至【${this.bodyName()}】！`, s.bodyL % DATA.LAYERS === 0 ? "gold" : "good");
@@ -110,7 +109,7 @@ G.module({
         </div>
         ${max ? "" : `<div class="row small" style="margin-top:8px"><span>气血</span><span>${U.fmt(s.bodyExp)} / ${U.fmt(need)}</span></div>
         <div class="bar"><div style="width:${Math.min(100, s.bodyExp / need * 100)}%"></div></div>
-        <p class="desc">突破消耗：<span class="${s.hp > c.hp ? "" : "q5"}">气血 ${U.fmt(c.hp)}</span>、<span class="${s.stone >= c.stone ? "" : "q5"}">灵石 ${U.fmt(c.stone)}</span>、${c.herbs.map(h => { const hv = this.herbCount(h.name); return `<span class="${hv >= h.n ? "" : "q5"}">${h.name} ${U.fmt(hv)}/${U.fmt(h.n)}</span>`; }).join("、")}</p>`}
+        <p class="desc">突破消耗：<span class="${s.stone >= c.stone ? "" : "q5"}">灵石 ${U.fmt(c.stone)}</span>、${c.herbs.map(h => { const hv = this.herbCount(h.name); return `<span class="${hv >= h.n ? "" : "q5"}">${h.name} ${U.fmt(hv)}/${U.fmt(h.n)}</span>`; }).join("、")}</p>`}
         </div>
         <div class="card"><h3>肉身加成<small>已突破 ${s.bodyL + 1} 层</small></h3>${bonus ? `<div class="stats">${bonus}</div>` : `<p class="desc">尚未突破，突破后每层增加属性。</p>`}</div>`;
     },
