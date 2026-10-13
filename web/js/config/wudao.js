@@ -48,6 +48,6 @@ CFG.wudao = {
   LEARN_STONE: 1000,
   LEARN_CONTRIB: 3000,
   STAR_COST: [1, 3, 8, 20, 50, 120, 300, 700, 1500, 3000],      // 1 ~ 10 星学习价格倍率
-  // 功法页修炼：每 5 秒消耗灵石 = STUDY_STONE × STAR_COST[星级-1] × 当前层数（修为另按功法的公式扣）
+  // 功法页修炼：每 5 秒消耗灵石 = STUDY_STONE × STAR_COST[星级-1]（不乘层数）（修为另按功法的公式扣）
   STUDY_STONE: 10,
 };
