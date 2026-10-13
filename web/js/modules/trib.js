@@ -162,7 +162,7 @@ G.module({
         for (let i = 1; i < n; i++) { const k = i / n; p.push([x0 + (x1 - x0) * k + (Math.random() - 0.5) * amp, y0 + (y1 - y0) * k]); }
         p.push([x1, y1]); return p;
       };
-      const main = zig(50 + (Math.random() - 0.5) * 10, 16, 50, 60, 9, 9);
+      const main = zig(50 + (Math.random() - 0.5) * 10, 16, 50, 62, 9, 9);
       const lines = [main];
       for (let i = 0; i < 3; i++) {   // 分叉
         const s = main[1 + Math.floor(Math.random() * 5)], dir = Math.random() < 0.5 ? -1 : 1;
