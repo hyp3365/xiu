@@ -27,8 +27,8 @@ G.module({
     xjTjName(a) { return this.xjC(this.xjW(a)).TJ || "天将"; },
     xjHallName(a, id) { const H = ((CFG.worldMaps || {})[this.xjW(a)] || {}).halls || {}; return this.xjTpl(H[id] || "", a); },
     xjSeatMult(a, i) { const M = this.xjC(this.xjW(a)).NPC_MULT; return M[i] !== undefined ? M[i] : M[M.length - 1]; },
-    // 职位：1 天将；星君名单第 i 位（0 起）= 职位 名单人数 + 1 − i（最后一位 = 职位 2）
-    xjPos(a, t, seat) { return t === "tj" ? 1 : t === "jz" ? CFG.xingjun.JZ_POS : this.xjSeats(a).length + 1 - seat; },
+    // 职位：1 天将；星君名单第 i 位（0 起）= 职位 i + 2（名单从低到高）
+    xjPos(a, t, seat) { return t === "tj" ? 1 : t === "jz" ? CFG.xingjun.JZ_POS : seat + 2; },
     // 每张地图的贡献
     xjGxOf(a) { return (this.s.xjGx || {})[a] || 0; },
     xjGxAdd(a, n) { const g = this.s.xjGx || (this.s.xjGx = {}); g[a] = (g[a] || 0) + n; },
@@ -68,6 +68,8 @@ G.module({
       const s = this.s, H = (CFG.xingjun.HOUR || 3600) * 1000;
       if (!s.offices) s.offices = {};
       if (s.gongde) { s.merit = (s.merit || 0) + s.gongde; s.gongde = 0; }
+      // 旧存档的星君名单是从高到低排的：在任星君位翻过来
+      if (!s.xjSeatV) { for (const w in s.offices) { const o = s.offices[w]; if (o && o.t === "xj" && DATA.maps[o.map]) o.seat = this.xjSeats(o.map).length - 1 - o.seat; } s.xjSeatV = 2; }
       if (s.office) { const o = s.office; if (this.xjValid(o)) s.offices[this.xjW(o.map)] = { t: o.t, map: o.map, seat: o.seat, T: s.officeT || this.now() }; s.office = null; }
       for (const w in s.offices) {
         const o = s.offices[w]; if (!o) continue;
@@ -161,7 +163,8 @@ G.module({
     // 星君殿（星君 + 天将）
     xjView(a) {
       const w = this.xjW(a), C = this.xjC(w), o = this.xjOfficeOf(w), lockMap = !this.mapOpen(a), gx = this.xjGxOf(a), held = this.xjHeldOf(a);
-      const seats = this.xjSeats(a).map((n, i) => {
+      const seats = this.xjSeats(a).map((n, i) => i).reverse().map(i => {   // 从高到低显示
+
         const mine = o && o.t === "xj" && o.map === a && o.seat === i, c = this.xjCost(a, "xj", i), p = this.xjPos(a, "xj", i);
         return `<div class="line"><div>${this.xjSeatName(a, i)}<small>${mine ? "在任" : `需 ${U.fmt(c)} 贡献${held.includes(p) ? " · 担任过" : ""}`}</small></div>
           ${mine ? `<button class="sm on" disabled>在任</button>` : `<button class="sm" onclick="G.xjChallenge(${a},${i})" ${lockMap || gx < c ? "disabled" : ""}>挑战</button>`}</div>`;
