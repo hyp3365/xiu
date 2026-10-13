@@ -4,8 +4,8 @@
 DATA.worlds = [
   { id: "fan",   name: "凡界",   open: true,  desc: "凡人与修士杂居之地。" },
   { id: "xian",  name: "仙界",   open: true , desc: "飞升之后的仙人居所。" },
-  { id: "mo",    name: "魔界",   open: true , desc: "魔气滔天，弱肉强食。" },
   { id: "ming",  name: "冥界",   open: true , desc: "亡魂归处，轮回之所。" },
+  { id: "mo",    name: "魔界",   open: true , desc: "魔气滔天，弱肉强食。" },
   { id: "shen",  name: "神界",   open: true , desc: "诸神所居，至高天域。" },
   { id: "tianwai",name:"天外天", open: false, desc: "三界之外，混沌无垠。" },
 ];
