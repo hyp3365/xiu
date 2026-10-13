@@ -1801,7 +1801,7 @@ CFG.mobs = {
  *     人物该系抗性 = 人物防御 × 战斗.RES_RATE + 人物该系抗性（都是怪物本属性 el 那一系）
  *   之后同样判闪避、× 随机(RAND_MIN~RAND_MAX)、判暴击（见 config/battle.js） */
 CFG.mobs.magic = {
-  OWN_RES: 2,   // 怪物本属性那一系抗性再 × 2
+  OWN_RES: 1.2,   // 怪物本属性那一系抗性再 × 1.2
   // MANA 法力倍率  RES 抗性倍率
   // spell / fabao：chance 每回合施放几率%   pct 伤害 = 攻击 × pct%   cost 每次耗法力 = 法力上限 × cost
   normal: { MANA: 3, RES: 0.3, spell: { chance: 25, pct: 120, cost: 0.25 }, fabao: { chance: 10, pct: 150, cost: 0.4 } },   // 普通怪

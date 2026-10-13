@@ -156,6 +156,12 @@ G.module({
           : `<p class="desc">队列为空。</p>`) + `</div>`;
       return html;
     },
+    // 法术伤害文字（背包法术栏等处用）：没有灵根加成 = 白色；有加成 = 绿色（数值已含加成）并注明灵根加成
+    spellDmgTxt(g) {
+      const lg = this.s.lingen[g.el.id] || 0, m = this.lingenSpell(g.el.id);
+      const cv = v => `<b class="${lg ? "gf-up" : "gf-base"}">${v}</b>`;
+      return `攻击 × ${cv(U.dec(g.pct * m) + "%")} + ${cv(U.fmt(g.flat * m))}${lg ? `（${g.el.name}灵根 +${U.dec(this.lingenPct(lg, "sp"))}%）` : ""}`;
+    },
     // 一行：功法或法术，带修炼按钮
     skillLine(g) {
       const s = this.s, max = g.lv >= DATA.GONGFA_MAX, plan = this.plannedLv(g.id), full = plan >= DATA.GONGFA_MAX;
