@@ -56,7 +56,7 @@ CFG.gongfa = {
   // ---------- 法术：伤害倍率、法力消耗 ----------
   // 法术伤害 = 攻击 × 伤害倍率% + 固定伤害
   // 伤害倍率% = SPELL_PCT × SPELL_STAR[星级-1] × SPELL_TIER[阶] × 法术层数 × SPELL_REALM[人物大境界]
-  // 法力消耗 = SPELL_MANA × MANA_STAR[星级-1] × MANA_TIER[阶] × MANA_REALM[人物大境界]
+  // 法力消耗 = SPELL_MANA × MANA_STAR[星级-1] × MANA_TIER[阶] × 法术层数 × MANA_REALM[人物大境界]
   //   （再 × 来源的 TYPE_MULT.spell 和 EFFECT_PCT / EFFECT_MANA，坊市法术就是 0.8）
   //   人物大境界：第 1 个 = 练气（凡人也按练气）…… 第 24 个 = 大道圣人
   SPELL_PCT: 100,

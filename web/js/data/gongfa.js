@@ -9,7 +9,7 @@
  * 必须学会至少一部秘诀才能修炼。
  *
  * 【法术】每个门派有 金木水火土雷 六系法术，同样分 天地玄黄 四阶。
- *   伤害 = 攻击 × 伤害倍率% + 固定伤害；伤害倍率随 星级 × 阶 × 层数 × 人物境界 增长，法力消耗随 星级 × 阶 × 人物境界（不乘层数）（config/gongfa.js）
+ *   伤害 = 攻击 × 伤害倍率% + 固定伤害；伤害倍率、法力消耗随 星级 × 阶 × 层数 × 人物境界 增长（config/gongfa.js）
  *
  * 【宗门秘法】悟道室学习，同星级门派共用，1~10 星每星 9 部（config/wudao.js），id "w星级:mf:种类"
  *
@@ -175,8 +175,8 @@ DATA.spellInfo = (id, lv = 1, realm) => {
     // 伤害倍率% = SPELL_PCT × 星级 × 阶 × 层数 × 境界（× 来源倍率）
     pct: Math.round(v(_GF.SPELL_PCT, 100) * v((_GF.SPELL_STAR || [])[sect.star - 1]) * v((_GF.SPELL_TIER || {})[tier.id]) * lv * last(_GF.SPELL_REALM) * tm * v(C.EFFECT_PCT)),
     flat: per * DATA.lvMul(lv), next: per * DATA.lvMul(lv + 1), perLv: per,         // 固定伤害
-    // 法力消耗 = SPELL_MANA × 星级 × 阶 × 境界（× 来源倍率）
-    mana: Math.max(1, Math.round(v(_GF.SPELL_MANA, 1) * v((_GF.MANA_STAR || [])[sect.star - 1]) * v((_GF.MANA_TIER || {})[tier.id]) * last(_GF.MANA_REALM) * tm * v(C.EFFECT_MANA))),
+    // 法力消耗 = SPELL_MANA × 星级 × 阶 × 层数 × 境界（× 来源倍率）
+    mana: Math.max(1, Math.round(v(_GF.SPELL_MANA, 1) * v((_GF.MANA_STAR || [])[sect.star - 1]) * v((_GF.MANA_TIER || {})[tier.id]) * lv * last(_GF.MANA_REALM) * tm * v(C.EFFECT_MANA))),
     cost: DATA.gfLearnCost(sect, "spell", tier),
   };
 };
