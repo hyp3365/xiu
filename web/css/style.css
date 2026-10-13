@@ -47,7 +47,7 @@ button.sm{padding:4px 10px;font-size:13px}
 .equip{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .slot-eq{border:1px solid #4a3d31;border-radius:6px;padding:8px 4px;text-align:center;min-height:62px;font-size:12px}
 .slot-eq b{display:block;color:#9c8d72;font-weight:normal;margin-bottom:2px}
-.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
 .cell{aspect-ratio:1;border:1px solid #3a3027;border-radius:6px;background:#191511;font-size:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2px;line-height:1.2;position:relative;overflow:hidden}
 .cell .n{position:absolute;right:3px;bottom:1px;color:#e8dcc4;font-size:11px}
 .cell .g{color:#8c7e66;font-size:10px}
@@ -242,9 +242,12 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24
 .tj-prep-title{text-align:center;color:#e9c46a;font-size:20px;letter-spacing:4px;margin-bottom:10px}
 .bar.mp>div{background:linear-gradient(90deg,#3d5a99,#6c8fd8)}
 
-/* 背包装备 / 法宝 / 法术栏：格子固定大小，有没有装备都一样；名字最多两行 */
-.equip.four .slot-eq{height:96px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
-.equip.four .slot-eq .nm{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.25;word-break:break-all}
+/* 背包装备 / 法宝 / 法术栏：一排 6 格，和储物格一样大小（正方形）；名字最多两行 */
+.equip.bagslots{grid-template-columns:repeat(6,1fr);gap:6px}
+.equip.bagslots .slot-eq{aspect-ratio:1;min-height:0;padding:2px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;font-size:11px;line-height:1.2;background:#191511}
+.equip.bagslots .slot-eq b{margin:0;font-size:11px}
+.equip.bagslots .slot-eq img.si{width:58%;height:auto;margin:0 auto 1px}
+.equip.bagslots .slot-eq .nm{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-all}
 /* 小按钮文字不换行；列表行左边文字可收缩，按钮不被挤压 */
 button.sm{white-space:nowrap;flex-shrink:0}
 .line>div:first-child{min-width:0;flex:1 1 auto}
