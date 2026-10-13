@@ -124,12 +124,12 @@ G.module({
       if (win) {
         s.exp -= this.needExp(); s.L = x.L; this.dirty();
         const st = this.stats(); s.hp = st.hp; s.mana = st.mana;
-        x.result = `渡劫成功！你扛过 ${x.time} 秒劫雷，踏入【${this.realmName()}】。`;
+        x.result = `渡劫成功！踏入【${this.realmName()}】。`;
         this.log(x.result, "gold");
       } else {
         s.hp = 1;
         const loss = Math.floor(s.exp * CFG.trib.FAIL_LOSS); s.exp -= loss;
-        x.result = `渡劫失败：第 ${x.sec} 秒被劫雷劈倒，修为 -${U.fmt(loss)}。`;
+        x.result = `渡劫失败：被劫雷劈倒，修为 -${U.fmt(loss)}。`;
         this.log(x.result, "bad");
       }
       this.dirty(); if (!this.silent) { this.save(); this.render(); }
@@ -150,32 +150,54 @@ G.module({
       const set = (id, v) => { const n = document.getElementById(id); if (n) n.textContent = v; };
       set("tj-left", x.time - x.sec); set("tj-hp", `${U.fmt(Math.max(0, s.hp))} / ${U.fmt(st.hp)}`); set("tj-taken", U.fmt(x.taken));
       const bar = document.getElementById("tj-hpbar"); if (bar) bar.style.width = hpPct + "%";
+      set("tj-mp", `${U.fmt(Math.max(0, s.mana || 0))} / ${U.fmt(st.mana || 0)}`);
+      const mb = document.getElementById("tj-mpbar"); if (mb) mb.style.width = (st.mana ? Math.max(0, s.mana || 0) / st.mana * 100 : 0) + "%";
       const tb = document.getElementById("tj-timebar"); if (tb) tb.style.width = x.sec / x.time * 100 + "%";
       const lg = document.getElementById("tj-log"); if (lg) lg.innerHTML = x.log.slice(0, 8).map(l => `<p>${l}</p>`).join("");
       if (this._tribHit) { this.tribBolt(this._tribHit); this._tribHit = null; }
     },
-    // 一道劫雷：从劫云中心劈到人物头顶（带分叉），全屏一闪，人物一震，飘伤害数字
+    // 一道劫雷：分形折线（中点位移）从云眼劈到人物头顶，带多级分叉；外层紫色辉光 + 中层淡紫 + 白色雷芯，劈下后再闪一次
     tribBolt(h) {
       const st = document.getElementById("tj-stage"), hero = document.getElementById("tj-hero"); if (!st || !hero) return;
-      const zig = (x0, y0, x1, y1, n, amp) => {
-        const p = [[x0, y0]];
-        for (let i = 1; i < n; i++) { const k = i / n; p.push([x0 + (x1 - x0) * k + (Math.random() - 0.5) * amp, y0 + (y1 - y0) * k]); }
-        p.push([x1, y1]); return p;
+      const W = st.clientWidth || 360, H = st.clientHeight || 380, R = Math.random;
+      // 中点位移：两点之间反复取中点并横向偏移，偏移量逐级减半，得到自然的锯齿雷线
+      const frac = (a, b, dis, depth) => {
+        if (depth <= 0) return [a, b];
+        const mx = (a[0] + b[0]) / 2 + (R() - 0.5) * dis, my = (a[1] + b[1]) / 2 + (R() - 0.5) * dis * 0.3;
+        const l = frac(a, [mx, my], dis / 2, depth - 1), r = frac([mx, my], b, dis / 2, depth - 1);
+        return l.concat(r.slice(1));
       };
-      const main = zig(50 + (Math.random() - 0.5) * 10, 18, 50, 70, 9, 9);
-      const lines = [main];
-      for (let i = 0; i < 3; i++) {   // 分叉
-        const s = main[1 + Math.floor(Math.random() * 5)], dir = Math.random() < 0.5 ? -1 : 1;
-        lines.push(zig(s[0], s[1], s[0] + dir * (8 + Math.random() * 14), s[1] + 8 + Math.random() * 12, 4, 5));
-      }
-      const pl = (p, w, i) => `<polyline pathLength="1" points="${p.map(q => q.map(v => v.toFixed(1)).join(",")).join(" ")}" style="stroke-width:${w};animation-delay:${i ? 0.05 + i * 0.02 : 0}s"/>`;
+      const make = () => {
+        const top = [W * (0.5 + (R() - 0.5) * 0.12), H * 0.16], end = [W * 0.5 + (R() - 0.5) * 8, H * 0.7];
+        const main = frac(top, end, W * 0.22, 6), out = [{ p: main, lv: 0 }];
+        const branch = (src, lv) => {
+          const n = lv ? 1 : 2 + Math.floor(R() * 3);
+          for (let i = 0; i < n; i++) {
+            const s = src[Math.floor(src.length * (0.1 + R() * 0.6))], dir = R() < 0.5 ? -1 : 1, len = H * (lv ? 0.07 : 0.12 + R() * 0.12);
+            const e = [s[0] + dir * len * (0.5 + R() * 0.7), s[1] + len * (0.6 + R() * 0.5)];
+            const p = frac(s, e, len * 0.5, 4); out.push({ p, lv: lv + 1 });
+            if (lv < 1 && R() < 0.6) branch(p, lv + 1);
+          }
+        };
+        branch(main, 0); return out;
+      };
+      const pts = p => p.map(q => q[0].toFixed(1) + "," + q[1].toFixed(1)).join(" ");
+      const draw = ls => ls.map(({ p, lv }) => {
+        const k = lv === 0 ? (h.c ? 1.4 : 1) : lv === 1 ? 0.45 : 0.25, P = pts(p);
+        return `<polyline class="g" points="${P}" style="stroke-width:${14 * k}"/><polyline class="m" points="${P}" style="stroke-width:${5 * k}"/><polyline class="c" pathLength="1" points="${P}" style="stroke-width:${Math.max(0.8, 2.2 * k)}"/>`;
+      }).join("");
+      const id = "tjb" + Date.now() % 100000;
+      const svg = ls => `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><defs><filter id="${id}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5"/></filter></defs><g filter="url(#${id})">${ls.map(({ p, lv }) => `<polyline class="g" points="${pts(p)}" style="stroke-width:${lv ? 6 : 18}"/>`).join("")}</g>${draw(ls)}</svg>`;
       const b = document.createElement("div"); b.className = "tj-bolt" + (h.c ? " crit" : "");
-      b.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none">${lines.map((p, i) => pl(p, i ? 1.5 : h.c ? 4.5 : 3, i)).join("")}</svg><div class="tj-hitglow"></div>`;
-      st.appendChild(b); setTimeout(() => b.remove(), 600);
+      const ls = make(); b.innerHTML = svg(ls) + `<div class="tj-hitglow"></div>`;
+      st.appendChild(b);
+      // 回闪：同一主干稍微抖动后再亮一次
+      setTimeout(() => { if (b.isConnected) { const s2 = b.querySelector("svg"); if (s2) s2.outerHTML = svg(ls.map(o => ({ lv: o.lv, p: o.p.map(q => [q[0] + (R() - 0.5) * 3, q[1]]) }))); } }, 140);
+      setTimeout(() => b.remove(), 650);
       st.classList.remove("tj-flash"); void st.offsetWidth; st.classList.add("tj-flash");
       hero.classList.remove("tj-shake"); void hero.offsetWidth; hero.classList.add("tj-shake");
       const n = document.createElement("div"); n.className = "tj-dmg" + (h.c ? " crit" : ""); n.textContent = "-" + U.fmt(h.d) + (h.c ? " 暴击" : "");
-      n.style.left = 30 + Math.random() * 40 + "%"; st.appendChild(n); setTimeout(() => n.remove(), 1200);
+      n.style.left = 52 + Math.random() * 20 + "%"; st.appendChild(n); setTimeout(() => n.remove(), 1200);
     },
     // 舞台：上方劫云（img/trib_cloud.webp），下方打坐人物（img/trib_hero.webp），中间放倒计时
     tribStageHtml(mid, cls) {
@@ -196,8 +218,8 @@ G.module({
         const c = s.tribSlots[i], f = this.tribFind(c);
         return `<div class="tj-slot${f ? " on" : c ? " lost" : ""}" onclick="G.tribPick(${i})">${f ? `${f.img ? `<img src="${f.img}" alt="">` : `<span class="tj-ic">${f.tag.slice(0, 1)}</span>`}<small>${f.name}</small>` : c ? "<small>已失效</small>" : "<span class='tj-plus'>＋</span>"}</div>`;
       }).join("");
-      return `<div class="tj-wrap">
-        <div class="tj-head"><span></span><b>突破准备</b><span></span></div>
+      return `<div class="tj-wrap tj-prep">
+        <div class="tj-prep-title">突破准备</div>
         <div class="tj-slots">${cells}</div>
         <div class="btns"><button onclick="G.closeTrib()">放弃突破</button><button class="primary" onclick="G.startTrib()" ${ok ? "" : "disabled"}>开始突破</button></div>
       </div>`;
@@ -212,6 +234,8 @@ G.module({
         <div class="bar tick"><div id="tj-timebar" style="width:${x.sec / x.time * 100}%"></div></div>
         <div class="row small"><span>气血 <b id="tj-hp">${U.fmt(Math.max(0, s.hp))} / ${U.fmt(st.hp)}</b></span><span>共承受 <b id="tj-taken">${U.fmt(x.taken)}</b></span></div>
         <div class="bar hp"><div id="tj-hpbar" style="width:${Math.max(0, s.hp) / st.hp * 100}%"></div></div>
+        <div class="row small"><span>法力 <b id="tj-mp">${U.fmt(Math.max(0, s.mana || 0))} / ${U.fmt(st.mana || 0)}</b></span></div>
+        <div class="bar mp"><div id="tj-mpbar" style="width:${st.mana ? Math.max(0, s.mana || 0) / st.mana * 100 : 0}%"></div></div>
         ${end ? `<p class="${win ? "q4" : "q5"}" style="text-align:center"><b>${x.result}</b></p>` : ""}
         ${cells && !end ? `<div class="tj-slots run">${cells}</div>` : ""}
         <div class="trib-log" id="tj-log">${x.log.slice(0, 8).map(l => `<p>${l}</p>`).join("") || "<p>乌云压顶，雷光翻涌……</p>"}</div>
