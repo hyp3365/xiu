@@ -101,11 +101,9 @@ G.module({
     /* ---------- 晋升考验（config/sect.js 的 sect.rankTrial） ---------- */
     rankTrialCost(i) { return Math.floor(((CFG.sect.rankTrial.cost || [])[i] || 0) * this.starMul()); },
     makeRankGuard(i) {
-      const T = CFG.sect.rankTrial, S = T.STAT || {}, B = DATA.playerBase;
-      const L = Math.max(0, this.rankReqRealm(i)) * DATA.LAYERS, d = (T.DIFF || [])[i] === undefined ? 1 : T.DIFF[i], f = Math.pow(DATA.GROW, L) * d;
-      const v = k => B[k] * f * (S[k] === undefined ? 1 : S[k]);
-      return this.addMagic({ name: `${DATA.ranks[i].name}考官`, boss: false, crit: T.crit || 0,
-        hp: v("hp"), atk: v("atk"), def: v("def"), speed: v("speed"), hit: v("hit"), dodge: v("dodge") }, "tower");
+      const T = CFG.sect.rankTrial, gf = (T.GF || [])[i] === undefined ? i : T.GF[i];
+      const m = DATA.refMob(DATA.refStats(this.rankReqRealm(i), T.LAYER || 3, gf), T.MULT);
+      return this.addMagic(Object.assign(m, { name: `${DATA.ranks[i].name}考官`, boss: false, crit: T.crit || 0 }), "tower");
     },
     challengeRank() {
       const s = this.s, i = s.rank + 1; if (i >= DATA.ranks.length || s.rankPass === i) return;
@@ -326,11 +324,11 @@ G.module({
     },
     towerFloor() { this.fixTower(); return this.s.towers[this.sectInfo().star] || 0; },
     towerMax() { return DATA.towerMax(this.sectInfo().star); },
-    // 守关者属性 = base × 星级倍率 × GROW^(层数-1)（config/sect.js 的 sect.tower）
+    // 守关者属性 = 人物属性 × MULT × GROW^(层数-1)（config/sect.js 的 sect.tower）
     makeTowerGuard(floor) {
-      const T = CFG.sect.tower, f = this.starMul() * Math.pow(T.GROW, floor - 1), b = T.base;
-      return this.addMagic({ name: `第${floor}层守关者`, boss: false, crit: b.crit,
-        hp: b.hp * f, atk: b.atk * f, def: b.def * f, speed: b.speed * f, hit: b.hit * f, dodge: b.dodge * f }, "tower");
+      const T = CFG.sect.tower, star = this.sectInfo().star, R = (CFG.sect.REQ_REALM || [])[star - 1] || 0;
+      const m = DATA.refMob(DATA.refStats(R, T.LAYER || 5, T.GF === undefined ? 5 : T.GF), T.MULT, Math.pow(T.GROW, floor - 1));
+      return this.addMagic(Object.assign(m, { name: `第${floor}层守关者`, boss: false }), "tower");
     },
     // 第 f 层每 10 层的额外奖励是什么：{ kind: "ring", r } / { kind: "rbp", g } / { kind: "mijue" }
     towerBonus(star, f) {
