@@ -46,9 +46,6 @@ DATA.dodgeChance = (hit, dodge) => Math.min(_P.DODGE_CAP, Math.max(0, (dodge - h
 DATA.CRIT_CAP = _P.CRIT_CAP;
 
 
-/* 突破：小境界 100%；大境界成功率随境界降低，失败损失部分修为 */
-DATA.majorBreakChance = realmIndex => Math.max(_R.MAJOR_MIN, _R.MAJOR_BASE - realmIndex * _R.MAJOR_DROP);
-DATA.MAJOR_FAIL_LOSS = _R.MAJOR_FAIL_LOSS;
 
 // 修炼节奏：每 10 秒结算一次
 DATA.TICK = 10;

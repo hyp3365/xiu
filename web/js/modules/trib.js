@@ -28,10 +28,13 @@ G.module({
       const v = o[DATA.realms[ri]] !== undefined ? o[DATA.realms[ri]] : o[DATA.NM_DEF.realm[ri]];
       return Math.max(1, v !== undefined ? v : T.TIME_DEFAULT || 60);
     },
-    // 劫云：攻击 = 突破后那一层的参考攻击 × ATK_MULT
+    // 劫云：属性 = 怪物算法（MOB[突破后大境界] = [境界, 层, 功法层, 倍率]）× 随机 CFG.trib.RAND；攻击再 × ATK_MULT
     makeTrib(L) {
-      const T = CFG.trib, st = DATA.refStats(Math.floor(L / DATA.LAYERS), L % DATA.LAYERS + 1, T.GF === undefined ? 4 : T.GF);
-      return { atk: st.atk * (T.ATK_MULT === undefined ? 1 : T.ATK_MULT), crit: T.crit === undefined ? 5 : T.crit };
+      const T = CFG.trib, ri = Math.floor(L / DATA.LAYERS), M = T.MOB || {};
+      const tp = M[DATA.realms[ri]] || M[DATA.NM_DEF.realm[ri]] || [ri, L % DATA.LAYERS + 1, 4, 1];
+      const st = DATA.mobStats([0, ...tp]);
+      const R = T.RAND || [1, 1], rnd = R[0] + Math.random() * (R[1] - R[0]);
+      return { atk: st.atk * rnd * (T.ATK_MULT === undefined ? 1 : T.ATK_MULT), crit: T.crit === undefined ? 5 : T.crit };
     },
     // 劫云劈一次的伤害 [伤害, 是否暴击]
     tribHit(x) {

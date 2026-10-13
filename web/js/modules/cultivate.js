@@ -144,7 +144,6 @@ G.module({
 
     canBreak() { return this.s.exp >= this.needExp() && (this.s.mortal || this.s.L < DATA.realms.length * DATA.LAYERS - 1); },
     isMajor() { return !this.s.mortal && this.layer() === DATA.LAYERS - 1; },
-    breakChance() { return this.s.mortal || this.needTrib() ? 1 : this.isMajor() ? Math.min(0.99, DATA.majorBreakChance(this.r())) : 1; },
     // 这次突破是否要渡雷劫（突破后的层序 ≥ trib.START）
     needTrib() { return !this.s.mortal && this.s.L + 1 >= CFG.trib.START; },
 
@@ -162,16 +161,11 @@ G.module({
         this.log("引气入体，你正式踏入仙途——【练气期一层】！", "gold");
         return this.after();
       }
-      if (Math.random() < this.breakChance()) {
-        s.exp -= this.needExp(); s.L++;
-        this.dirty();
-        const st = this.stats(); s.hp = st.hp; s.mana = st.mana;
-        this.log(major ? `天地异象！你成功踏入【${this.realmName()}】！` : `突破至【${this.realmName()}】。`, major ? "gold" : "good");
-      } else {
-        const loss = Math.floor(s.exp * DATA.MAJOR_FAIL_LOSS);
-        s.exp -= loss;
-        this.log(`冲击大境界失败，修为 -${U.fmt(loss)}。`, "bad");
-      }
+      // 不需要渡劫的突破：修为够了直接成功
+      s.exp -= this.needExp(); s.L++;
+      this.dirty();
+      const st = this.stats(); s.hp = st.hp; s.mana = st.mana;
+      this.log(major ? `天地异象！你成功踏入【${this.realmName()}】！` : `突破至【${this.realmName()}】。`, major ? "gold" : "good");
       this.after();
     },
 
@@ -227,7 +221,7 @@ G.module({
         <button class="${s.auto ? "on" : "primary"}" onclick="G.toggleAuto()">自动修炼：${s.auto ? "开" : "关"}</button>
         <button onclick="G.openBody(true)">修炼肉身</button>
         <button class="primary" style="flex-basis:100%" onclick="G.breakthrough()" ${can || s.trib ? "" : "disabled"}>
-          ${s.trib ? (s.trib.result ? "查看渡劫结果" : "渡劫中…查看劫云") : can ? (this.needTrib() ? `${next}（渡劫 ${this.tribTime(s.L + 1)} 秒）` : `${next}（成功率 ${Math.round(this.breakChance() * 100)}%）`) : `修为未满，还差 ${U.fmt(this.needExp() - s.exp)}`}</button>
+          ${s.trib ? (s.trib.result ? "查看渡劫结果" : "渡劫中…查看劫云") : can ? (this.needTrib() ? `${next}（渡劫 ${this.tribTime(s.L + 1)} 秒）` : next) : `修为未满，还差 ${U.fmt(this.needExp() - s.exp)}`}</button>
       </div>
       <div class="row small" style="margin-top:8px"><span>修为</span><span>${U.fmt(s.exp)} / ${U.fmt(this.needExp())}</span></div>
       <div class="bar"><div style="width:${Math.min(100, s.exp / this.needExp() * 100)}%"></div></div>
