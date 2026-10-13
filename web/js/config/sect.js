@@ -46,9 +46,10 @@ CFG.sect = {
     { name: "天字修炼室", pct: 80, cost: 6 },
     { name: "宗主修炼室", pct: 120, cost: 1, rank: 6 },   // 宗主专用
   ],
-  // 试炼塔：第 n 层守关者属性 = base × 星级倍率 × GROW^(n-1)（暴击不成长）；首通贡献 = REWARD × n
-  tower: { MAX: 100, REWARD: 20, GROW: 1.1,
-    base: { hp: 873, atk: 257, def: 183, speed: 85, hit: 89, dodge: 96, crit: 102 } },
+  // 试炼塔（v51）：第 n 层守关者属性 = 人物属性 × MULT × GROW^(n-1)（暴击不成长）；首通贡献 = REWARD × n
+  //   人物属性 = N 星门派入门境界（REQ_REALM，凡人按练气）第 LAYER 层 + 全部宗门功法练到 GF 层
+  tower: { MAX: 100, REWARD: 20, GROW: 1.1, LAYER: 5, GF: 5,
+    MULT: { hp: 1.1, atk: 1.1, def: 1.1, speed: 1.1, hit: 1.1, dodge: 1.1, crit: 102 } },
   SECRET_COST: 200,  // 宗门秘境每次消耗贡献（× 星级倍率）
   // 宝库「杂物」页：cost 贡献（不乘星级）
   //   kind: "furnace" 炉子（fk: dan 炼丹炉 / qi 炼器炉，g: 阶序号 0 = 一阶），兑换后放进背包，点「使用」装到洞府
@@ -134,10 +135,12 @@ CFG.sect.shopRooms = {
  * 考官属性 = 人物基础属性（config/player.js 的 base）× 成长倍率^(该职务需要境界的一层) × STAT × DIFF[职务序号]
  *   改难度：调 DIFF（每个职务一个倍率）或 STAT（每项属性倍率）
  * 打赢后才能点「晋升」；晋升后下一个职务要重新考验 */
+// v51：考官属性 = 人物属性（该职务要求境界第 LAYER 层 + 全部宗门功法练到 GF[职务] 层）× MULT
 CFG.sect.rankTrial = {
   cost: [0, 50, 100, 150, 200, 300, 500],
-  DIFF: [1, 1, 1, 1, 1, 1, 1],
-  STAT: { hp: 3, atk: 1, def: 1, speed: 1, hit: 1, dodge: 1 },
+  LAYER: 3,
+  GF: [0, 1, 2, 3, 4, 5, 6],     // 外门 内门 真传 核心 长老 供奉 宗主（外门不用考）
+  MULT: { hp: 1.01, atk: 1.01, def: 1.01, speed: 1.01, hit: 1.01, dodge: 1.01 },
   crit: 5,            // 考官暴击 %（不成长）
 };
 
