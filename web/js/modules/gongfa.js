@@ -159,7 +159,7 @@ G.module({
     // 一行：功法或法术，带修炼按钮
     skillLine(g) {
       const s = this.s, max = g.lv >= DATA.GONGFA_MAX, plan = this.plannedLv(g.id), full = plan >= DATA.GONGFA_MAX;
-      const lg = g.kind === "mf" ? 0 : this.s.lingen[g.el.id] || 0, lgTxt = lg ? `（${g.el.name}灵根 +${U.dec(lg * (g.kind === "sp" ? CFG.lingen.SPELL_PCT : CFG.lingen.GONGFA_PCT))}%）` : "";
+      const lg = g.kind === "mf" ? 0 : this.s.lingen[g.el.id] || 0, lgTxt = lg ? `（${g.el.name}灵根 +${U.dec(this.lingenPct(lg, g.kind))}%）` : "";
       const mfv = v => `${g.mk.sign}${U.num(v)}${g.mk.unit}`;
       const desc = g.kind === "mf"
         ? (g.mk.id === "explore" ? `${g.label} ${max ? mfv(g.value) : `圆满后 ${mfv(g.perLv)}`}` : `${g.label} ${mfv(g.value)}${max ? "" : `，下一层 ${mfv(g.next)}`}`)
