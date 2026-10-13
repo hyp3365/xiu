@@ -44,6 +44,8 @@ G.module({
     xjRate(o) {
       const a = o.map, C = this.xjC(this.xjW(a)), P = (C.PAY || {})[o.t] || {}, G = C.GROW || {}, wi = DATA.maps[a].wi || 0, SP = C.SEAT_PAY || [];
       const k = o.t === "xj" ? (SP[o.seat] !== undefined ? SP[o.seat] : SP[SP.length - 1] || 1) : 1;
+      const MP = ((C.MAP_PAY || [])[wi] || {})[o.t];   // v52：每张地图单独设置的俸禄
+      if (MP) return { merit: Math.floor((MP.merit || 0) * k), stone: Math.floor((MP.stone || 0) * k), hx: Math.floor((MP.hx || 0) * k) };
       const gr = key => Math.pow(G[key] || 1, wi);
       const stoneBase = DATA.STONE_BASE * Math.pow(DATA.STONE_GROW, DATA.region(a, 3).L) * ((CFG.mapDrops[a] || {}).stone || 1);
       return { merit: Math.floor((P.merit || 0) * gr("merit") * k), stone: Math.floor((P.stone || 0) * stoneBase * k), hx: Math.floor((P.hx || 0) * gr("hx") * k) };
