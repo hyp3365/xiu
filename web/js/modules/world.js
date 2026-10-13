@@ -140,7 +140,7 @@ G.module({
           const j = (si + k) % acts.length, a = acts[j], cost = a.k === 1 ? a.sp.mana : a.fb.mana;
           if (s.mana >= cost) {
             si = (j + 1) % acts.length; s.mana -= cost;
-            if (a.k === 1) { const sp = a.sp; return roll(st, m, Math.max(st.atk * BT.MIN_DMG, (st.atk * sp.pct / 100 + sp.flat) * this.lingenSpell(sp.el.id) - resOf(m, sp.el.id) * BT.DEF_RATE), 1, j); }
+            if (a.k === 1) { const sp = a.sp; return roll(st, m, Math.max(st.atk * BT.MIN_DMG, st.atk * sp.pct / 100 + sp.flat * this.lingenSpell(sp.el.id) - resOf(m, sp.el.id) * BT.DEF_RATE), 1, j); }
             return roll(st, m, fabaoDmg(a.fb), 2, j);
           }
         }
@@ -705,7 +705,7 @@ G.module({
         const star = this.shopStar || 1, tier = this.shopTier || "huang", T = DATA.tierById[tier], N = DATA.SHOP_GF_PREFIX.length;
         const srcs = DATA.shopSources.filter(o => o.star === star), lock = !this.realmOK(srcs[0] ? srcs[0].reqRealm : 0);
         const line = g => { const has = this.hasGongfa(g.id);
-          const desc = g.kind === "sp" ? `${g.el.name}系 · 攻击×${g.pct}% + ${U.fmt(g.perLv)}/层 · 耗法力 ${U.fmt(g.mana)}` : `每层${g.label} +${U.num(g.perLv)}`;
+          const desc = g.kind === "sp" ? `${g.el.name}系 · 攻击×${g.pct}% + ${this.spellPerTxt(g)}/层 · 耗法力 ${U.fmt(g.mana)}` : `每层${g.label} +${U.num(g.perLv)}`;
           return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.kind === "sp" ? "法术" : g.type.name}</span><small>${desc} · ${U.fmt(g.cost)} 灵石</small></div>
             <button class="sm" onclick="G.buyGongfa('${g.id}')" ${has || lock || s.stone < g.cost ? "disabled" : ""}>${has ? "已学会" : lock ? "境界不足" : "购买"}</button></div>`; };
         return tabs + `<div class="room-grid">${Array.from({ length: N }, (_, i) => `<button class="${star === i + 1 ? "active" : ""}" onclick="G.setShopStar(${i + 1})">${i + 1}星</button>`).join("")}</div>

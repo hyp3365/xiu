@@ -157,23 +157,29 @@ G.module({
       return html;
     },
     // 法术伤害文字（背包法术栏等处用）：没有灵根加成 = 白色；有加成 = 绿色（数值已含加成）并注明灵根加成
+    // 灵根只加在固定伤害（每层那部分）上，攻击×% 不受灵根影响
     spellDmgTxt(g) {
       const lg = this.s.lingen[g.el.id] || 0, m = this.lingenSpell(g.el.id);
       const cv = v => `<b class="${lg ? "gf-up" : "gf-base"}">${v}</b>`;
-      return `攻击 × ${cv(U.dec(g.pct * m) + "%")} + ${cv(U.fmt(g.flat * m))}${lg ? `（${g.el.name}灵根 +${U.dec(this.lingenPct(lg, "sp"))}%）` : ""}`;
+      return `攻击 × <b class="gf-base">${U.dec(g.pct) + "%"}</b> + ${cv(U.fmt(g.flat * m))}${lg ? `（${g.el.name}灵根 +${U.dec(this.lingenPct(lg, "sp"))}%）` : ""}`;
+    },
+    // 宗门 / 坊市列表里「x/层」：有灵根时显示含加成的绿色数值
+    spellPerTxt(g) {
+      const lg = ((this.s.lingen || {})[g.el.id]) || 0;
+      return lg ? `<b class="gf-up">${U.fmt(g.perLv * this.lingenSpell(g.el.id))}</b>` : U.fmt(g.perLv);
     },
     // 一行：功法或法术，带修炼按钮
     skillLine(g) {
       const s = this.s, max = g.lv >= DATA.GONGFA_MAX, plan = this.plannedLv(g.id), full = plan >= DATA.GONGFA_MAX;
       const lg = g.kind === "mf" ? 0 : this.s.lingen[g.el.id] || 0, lgTxt = lg ? `（${g.el.name}灵根 +${U.dec(this.lingenPct(lg, g.kind))}%）` : "";
       // 属性数值颜色：没有灵根加成 = 白色，有加成 = 绿色（数值已含加成）
-      const spm = g.kind === "sp" ? this.lingenSpell(g.el.id) : 1;   // 法术伤害的灵根倍率（显示含加成后的数值）
+      const spm = g.kind === "sp" ? this.lingenSpell(g.el.id) : 1;   // 法术固定伤害的灵根倍率（只乘每层那部分，显示含加成后的数值）
       const cv = v => `<b class="${lg ? "gf-up" : "gf-base"}">${v}</b>`;
       const mfv = v => `${g.mk.sign}${U.num(v)}${g.mk.unit}`;
       const desc = g.kind === "mf"
         ? (g.mk.id === "explore" ? `${g.label} ${max ? mfv(g.value) : `圆满后 ${mfv(g.perLv)}`}` : `${g.label} ${mfv(g.value)}${max ? "" : `，下一层 ${mfv(g.next)}`}`)
         : g.kind === "sp"
-        ? `伤害 攻击×${cv(U.dec(g.pct * spm) + "%")} + ${cv(U.fmt(g.flat * spm))}${lgTxt}，耗法力 ${U.fmt(g.mana)}${max ? "" : `，下一层 +${cv(U.fmt(g.next * spm))}`}`
+        ? `伤害 攻击×<b class="gf-base">${U.dec(g.pct) + "%"}</b> + ${cv(U.fmt(g.flat * spm))}${lgTxt}，耗法力 ${U.fmt(g.mana)}${max ? "" : `，下一层 +${cv(U.fmt(g.next * spm))}`}`
         : `${g.label} ${cv("+" + this.gfValue(g, g.value * this.lingenGongfa(g.el.id)))}${lgTxt}${max ? "" : `，下一层 ${cv("+" + this.gfValue(g, g.next * this.lingenGongfa(g.el.id)))}`}`;
       const sec = max ? 0 : this.studySec(g), n = Math.ceil(sec / DATA.STUDY_STEP), per = max ? 0 : DATA.studyPer(g), sp = max ? 0 : g.stonePer || 0;
       return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span>${g.kind === "mf" ? "" : `<span class="tag">${g.el.name}</span>`}<span class="tag">${g.tier.name}</span><span class="tag">${g.lv}/${DATA.GONGFA_MAX}层</span>

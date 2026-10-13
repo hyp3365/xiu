@@ -16,7 +16,7 @@
  *   游戏里实际加成再 × 对应属性的灵根加成（config/lingen.js）
  *
  * 二、法术
- *   法术伤害 = (攻击 × 伤害倍率% ÷ 100 + 固定伤害) × 灵根加成 − (敌人防御 × RES_RATE + 敌人该系抗性) × DEF_RATE
+ *   法术伤害 = 攻击 × 伤害倍率% ÷ 100 + 固定伤害 × 灵根加成 − (敌人防御 × RES_RATE + 敌人该系抗性) × DEF_RATE
  *             （RES_RATE、DEF_RATE 见 config/battle.js；最低 攻击 × MIN_DMG）
  *   伤害倍率% = SPELL_PCT × SPELL_STAR[星级-1] × SPELL_TIER[阶] × 法术层数 × SPELL_REALM[人物大境界]
  *               × 来源.TYPE_MULT.spell × 来源.EFFECT_PCT（四舍五入取整）
