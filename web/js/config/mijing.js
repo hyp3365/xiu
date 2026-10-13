@@ -44,6 +44,7 @@ CFG.mijing = {
   items: {
     kj:   { name: "空间晶核", sell: 20, desc: "炼制空间石的专用材料。" },
     jj:   { name: "炼宝玄晶", sell: 20, desc: "法宝强化的专用材料。" },
+    qj:   { name: "淬器玄晶", sell: 20, desc: "装备、戒指强化的专用材料。" },
     lu:   { name: "养神灵露", sell: 20, desc: "修炼元婴出窍秘法的材料，元婴期秘境掉落。" },
     mold: { name: "模具",     sell: 50, desc: "炼制一阶法宝的模具，没有属性、不能装备。学会宗门一阶法宝图谱后，在洞府炼器室用它炼成同种法宝。" },
   },
@@ -54,80 +55,80 @@ CFG.mijing = {
       bossName: "灵泉守护·碧水灵蛟", monsters: ["灵泉水妖", "碧鳞鱼精", "水灵", "青藤妖"],
       extra: {
         monster: [{ item: "火髓", chance: 2, n: [1, 1] }],
-        elite:   [{ item: "火髓", chance: 10, n: [1, 1] }, { item: "空间晶核", chance: 10, n: [1, 1] }, { item: "炼宝玄晶", chance: 10, n: [1, 1] }],
-        boss:    [{ item: "火髓", chance: 100, n: [1, 3] }, { item: "空间晶核", chance: 50, n: [1, 1] }, { item: "炼宝玄晶", chance: 50, n: [1, 1] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
+        elite:   [{ item: "火髓", chance: 10, n: [1, 1] }, { item: "空间晶核", chance: 10, n: [1, 1] }, { item: "炼宝玄晶", chance: 10, n: [1, 1] }, { item: "淬器玄晶", chance: 10, n: [1, 1] }],
+        boss:    [{ item: "火髓", chance: 100, n: [1, 3] }, { item: "空间晶核", chance: 50, n: [1, 1] }, { item: "炼宝玄晶", chance: 50, n: [1, 1] }, { item: "淬器玄晶", chance: 50, n: [1, 1] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
       } },
     // ---------- 2. 古修洞府（需筑基） ----------
     { name: "古修洞府", realm: 1, find: { map: 1, chance: 5 }, drops: 1, mat: 2, stone: 2, L: 19,
       bossName: "古修残魂", monsters: ["守府傀儡", "古修残影", "石甲卫", "噬灵鼠"],
       extra: {
         monster: [{ item: "火髓", chance: 2, n: [1, 1] }],
-        elite:   [{ item: "火髓", chance: 10, n: [1, 1] }, { item: "空间晶核", chance: 10, n: [1, 1] }, { item: "炼宝玄晶", chance: 10, n: [1, 1] }],
-        boss:    [{ item: "火髓", chance: 100, n: [1, 3] }, { item: "空间晶核", chance: 50, n: [1, 1] }, { item: "炼宝玄晶", chance: 50, n: [1, 1] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
+        elite:   [{ item: "火髓", chance: 10, n: [1, 1] }, { item: "空间晶核", chance: 10, n: [1, 1] }, { item: "炼宝玄晶", chance: 10, n: [1, 1] }, { item: "淬器玄晶", chance: 10, n: [1, 1] }],
+        boss:    [{ item: "火髓", chance: 100, n: [1, 3] }, { item: "空间晶核", chance: 50, n: [1, 1] }, { item: "炼宝玄晶", chance: 50, n: [1, 1] }, { item: "淬器玄晶", chance: 50, n: [1, 1] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
       } },
     // ---------- 3. 赤炎火窟（需金丹） ----------
     { name: "赤炎火窟", realm: 2, find: { map: 2, chance: 5 }, drops: 2, mat: 2, stone: 2, L: 29,
       bossName: "火窟之主·赤炎魔君", monsters: ["火灵", "炎魔", "赤炎蜥", "熔岩巨人"],
       extra: {
         monster: [{ item: "火髓", chance: 2, n: [1, 1] }],
-        elite:   [{ item: "火髓", chance: 10, n: [1, 2] }, { item: "空间晶核", chance: 10, n: [1, 1] }, { item: "炼宝玄晶", chance: 10, n: [1, 1] }],
-        boss:    [{ item: "火髓", chance: 100, n: [2, 6] }, { item: "空间晶核", chance: 50, n: [1, 2] }, { item: "炼宝玄晶", chance: 50, n: [1, 2] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
+        elite:   [{ item: "火髓", chance: 10, n: [1, 2] }, { item: "空间晶核", chance: 10, n: [1, 1] }, { item: "炼宝玄晶", chance: 10, n: [1, 1] }, { item: "淬器玄晶", chance: 10, n: [1, 1] }],
+        boss:    [{ item: "火髓", chance: 100, n: [2, 6] }, { item: "空间晶核", chance: 50, n: [1, 2] }, { item: "炼宝玄晶", chance: 50, n: [1, 2] }, { item: "淬器玄晶", chance: 50, n: [1, 2] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
       } },
     // ---------- 4. 寒渊冰宫（需元婴） ----------
     { name: "寒渊冰宫", realm: 3, find: { map: 3, chance: 5 }, drops: 3, mat: 2, stone: 2, L: 39,
       bossName: "冰宫女帝·玄冰凤", monsters: ["冰魄妖", "寒霜狼", "冰傀儡", "雪妖"],
       extra: {
         monster: [{ item: "火髓", chance: 2, n: [1, 1] }],
-        elite:   [{ item: "火髓", chance: 10, n: [1, 2] }, { item: "空间晶核", chance: 10, n: [1, 1] }, { item: "炼宝玄晶", chance: 10, n: [1, 1] }],
-        boss:    [{ item: "火髓", chance: 100, n: [2, 6] }, { item: "空间晶核", chance: 50, n: [1, 2] }, { item: "炼宝玄晶", chance: 50, n: [1, 2] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
+        elite:   [{ item: "火髓", chance: 10, n: [1, 2] }, { item: "空间晶核", chance: 10, n: [1, 1] }, { item: "炼宝玄晶", chance: 10, n: [1, 1] }, { item: "淬器玄晶", chance: 10, n: [1, 1] }],
+        boss:    [{ item: "火髓", chance: 100, n: [2, 6] }, { item: "空间晶核", chance: 50, n: [1, 2] }, { item: "炼宝玄晶", chance: 50, n: [1, 2] }, { item: "淬器玄晶", chance: 50, n: [1, 2] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
       } },
     // ---------- 5. 万剑冢（需出窍） ----------
     { name: "万剑冢", realm: 4, find: { map: 3, chance: 5 }, drops: 3, mat: 2, stone: 2, L: 44,
       bossName: "剑冢剑灵", monsters: ["剑灵", "剑魂", "残剑傀儡", "剑奴"],
       extra: {
         monster: [{ item: "火髓", chance: 2, n: [1, 1] }],
-        elite:   [{ item: "火髓", chance: 10, n: [1, 3] }, { item: "空间晶核", chance: 10, n: [1, 1] }, { item: "炼宝玄晶", chance: 10, n: [1, 1] }],
-        boss:    [{ item: "火髓", chance: 100, n: [3, 9] }, { item: "空间晶核", chance: 50, n: [1, 3] }, { item: "炼宝玄晶", chance: 50, n: [1, 3] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
+        elite:   [{ item: "火髓", chance: 10, n: [1, 3] }, { item: "空间晶核", chance: 10, n: [1, 1] }, { item: "炼宝玄晶", chance: 10, n: [1, 1] }, { item: "淬器玄晶", chance: 10, n: [1, 1] }],
+        boss:    [{ item: "火髓", chance: 100, n: [3, 9] }, { item: "空间晶核", chance: 50, n: [1, 3] }, { item: "炼宝玄晶", chance: 50, n: [1, 3] }, { item: "淬器玄晶", chance: 50, n: [1, 3] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
       } },
     // ---------- 6. 上古战场（需化神） ----------
     { name: "上古战场", realm: 5, find: { map: 4, chance: 5 }, drops: 4, mat: 2, stone: 2, L: 49,
       bossName: "上古战魂·不灭战神", monsters: ["上古战魂", "骷髅战将", "战场怨灵", "血煞魔兵"],
       extra: {
         monster: [{ item: "火髓", chance: 2, n: [1, 1] }],
-        elite:   [{ item: "火髓", chance: 10, n: [1, 3] }, { item: "空间晶核", chance: 10, n: [1, 1] }, { item: "炼宝玄晶", chance: 10, n: [1, 1] }],
-        boss:    [{ item: "火髓", chance: 100, n: [3, 9] }, { item: "空间晶核", chance: 50, n: [1, 3] }, { item: "炼宝玄晶", chance: 50, n: [1, 3] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
+        elite:   [{ item: "火髓", chance: 10, n: [1, 3] }, { item: "空间晶核", chance: 10, n: [1, 1] }, { item: "炼宝玄晶", chance: 10, n: [1, 1] }, { item: "淬器玄晶", chance: 10, n: [1, 1] }],
+        boss:    [{ item: "火髓", chance: 100, n: [3, 9] }, { item: "空间晶核", chance: 50, n: [1, 3] }, { item: "炼宝玄晶", chance: 50, n: [1, 3] }, { item: "淬器玄晶", chance: 50, n: [1, 3] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
       } },
     // ---------- 7. 星陨秘境（需练虚） ----------
     { name: "星陨秘境", realm: 6, find: { map: 5, chance: 5 }, drops: 5, mat: 2, stone: 2, L: 59,
       bossName: "星陨之主·噬星兽", monsters: ["星兽", "陨星傀儡", "星芒灵", "噬星虫"],
       extra: {
         monster: [{ item: "火髓", chance: 2, n: [1, 1] }],
-        elite:   [{ item: "火髓", chance: 10, n: [1, 4] }, { item: "空间晶核", chance: 10, n: [1, 1] }, { item: "炼宝玄晶", chance: 10, n: [1, 1] }],
-        boss:    [{ item: "火髓", chance: 100, n: [4, 12] }, { item: "空间晶核", chance: 50, n: [1, 4] }, { item: "炼宝玄晶", chance: 50, n: [1, 4] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
+        elite:   [{ item: "火髓", chance: 10, n: [1, 4] }, { item: "空间晶核", chance: 10, n: [1, 1] }, { item: "炼宝玄晶", chance: 10, n: [1, 1] }, { item: "淬器玄晶", chance: 10, n: [1, 1] }],
+        boss:    [{ item: "火髓", chance: 100, n: [4, 12] }, { item: "空间晶核", chance: 50, n: [1, 4] }, { item: "炼宝玄晶", chance: 50, n: [1, 4] }, { item: "淬器玄晶", chance: 50, n: [1, 4] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
       } },
     // ---------- 8. 幽冥鬼域（需合体） ----------
     { name: "幽冥鬼域", realm: 7, find: { map: 6, chance: 5 }, drops: 6, mat: 2, stone: 2, L: 69,
       bossName: "鬼域之王·幽冥鬼帝", monsters: ["鬼将", "幽魂", "冥鬼", "骨魔"],
       extra: {
         monster: [{ item: "火髓", chance: 2, n: [1, 1] }],
-        elite:   [{ item: "火髓", chance: 10, n: [1, 4] }, { item: "空间晶核", chance: 10, n: [1, 1] }, { item: "炼宝玄晶", chance: 10, n: [1, 1] }],
-        boss:    [{ item: "火髓", chance: 100, n: [4, 12] }, { item: "空间晶核", chance: 50, n: [1, 4] }, { item: "炼宝玄晶", chance: 50, n: [1, 4] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
+        elite:   [{ item: "火髓", chance: 10, n: [1, 4] }, { item: "空间晶核", chance: 10, n: [1, 1] }, { item: "炼宝玄晶", chance: 10, n: [1, 1] }, { item: "淬器玄晶", chance: 10, n: [1, 1] }],
+        boss:    [{ item: "火髓", chance: 100, n: [4, 12] }, { item: "空间晶核", chance: 50, n: [1, 4] }, { item: "炼宝玄晶", chance: 50, n: [1, 4] }, { item: "淬器玄晶", chance: 50, n: [1, 4] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
       } },
     // ---------- 9. 太虚幻境（需洞真） ----------
     { name: "太虚幻境", realm: 8, find: { map: 6, chance: 5 }, drops: 6, mat: 2, stone: 2, L: 74,
       bossName: "太虚幻主", monsters: ["幻影修士", "心魔幻象", "虚空灵", "幻兽"],
       extra: {
         monster: [{ item: "火髓", chance: 2, n: [1, 1] }],
-        elite:   [{ item: "火髓", chance: 10, n: [1, 5] }, { item: "空间晶核", chance: 10, n: [1, 1] }, { item: "炼宝玄晶", chance: 10, n: [1, 1] }],
-        boss:    [{ item: "火髓", chance: 100, n: [5, 15] }, { item: "空间晶核", chance: 50, n: [1, 5] }, { item: "炼宝玄晶", chance: 50, n: [1, 5] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
+        elite:   [{ item: "火髓", chance: 10, n: [1, 5] }, { item: "空间晶核", chance: 10, n: [1, 1] }, { item: "炼宝玄晶", chance: 10, n: [1, 1] }, { item: "淬器玄晶", chance: 10, n: [1, 1] }],
+        boss:    [{ item: "火髓", chance: 100, n: [5, 15] }, { item: "空间晶核", chance: 50, n: [1, 5] }, { item: "炼宝玄晶", chance: 50, n: [1, 5] }, { item: "淬器玄晶", chance: 50, n: [1, 5] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
       } },
     // ---------- 10. 混沌古界（需大乘） ----------
     { name: "混沌古界", realm: 9, find: { map: 7, chance: 5 }, drops: 7, mat: 2, stone: 2, L: 79,
       bossName: "混沌古兽", monsters: ["混沌兽", "太古魔灵", "混沌之灵", "古界巨人"],
       extra: {
         monster: [{ item: "火髓", chance: 2, n: [1, 1] }],
-        elite:   [{ item: "火髓", chance: 10, n: [1, 5] }, { item: "空间晶核", chance: 10, n: [1, 1] }, { item: "炼宝玄晶", chance: 10, n: [1, 1] }],
-        boss:    [{ item: "火髓", chance: 100, n: [5, 15] }, { item: "空间晶核", chance: 50, n: [1, 5] }, { item: "炼宝玄晶", chance: 50, n: [1, 5] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
+        elite:   [{ item: "火髓", chance: 10, n: [1, 5] }, { item: "空间晶核", chance: 10, n: [1, 1] }, { item: "炼宝玄晶", chance: 10, n: [1, 1] }, { item: "淬器玄晶", chance: 10, n: [1, 1] }],
+        boss:    [{ item: "火髓", chance: 100, n: [5, 15] }, { item: "空间晶核", chance: 50, n: [1, 5] }, { item: "炼宝玄晶", chance: 50, n: [1, 5] }, { item: "淬器玄晶", chance: 50, n: [1, 5] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
       } },
   ],
 };
