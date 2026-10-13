@@ -40,15 +40,19 @@ DATA.fixFabao = e => {
   e.ft = ft; e.el = DATA.fabaoTypes[ft].el; e.name = DATA.fabaoTypes[ft].name;
 };
 // 秘境专用材料（config/mijing.js 的 items）：背包里 { t: "sm", k, ft, n }，k = kj 空间晶核 / jj 炼宝玄晶 / mold 模具（ft = 法宝种类）
-DATA.smName = (k, ft) => k === "mold" ? (ft !== undefined && DATA.fabaoTypes[ft] ? DATA.fabaoTypes[ft].name : "法宝") + CFG.mijing.items.mold.name : (CFG.mijing.items[k] || {}).name || k;
+// v54：分品阶的专用材料（ft = 品阶序号）：九曜石 jy
+DATA.SM_GRADED = ["mold", "jy"];
+DATA.jyGrade = g => { const T = (CFG.mijing.items.jy || {}).TIER || []; return T[Math.min(g, T.length - 1)] || 0; };
+DATA.smName = (k, ft) => k === "jy" ? (((CFG.mijing.items.jy || {}).grades || [])[ft || 0] || "") + CFG.mijing.items.jy.name : k === "mold" ? (ft !== undefined && DATA.fabaoTypes[ft] ? DATA.fabaoTypes[ft].name : "法宝") + CFG.mijing.items.mold.name : (CFG.mijing.items[k] || {}).name || k;
 DATA.smByName = name => {
   const I = CFG.mijing.items;
-  for (const k in I) if (k !== "mold" && I[k].name === name) return { k };
+  if (I.jy) { const f = (I.jy.grades || []).findIndex(x => x + I.jy.name === name); if (f >= 0) return { k: "jy", ft: f }; }
+  for (const k in I) if (k !== "mold" && k !== "jy" && I[k].name === name) return { k };
   if (name === "法宝" + I.mold.name) return { k: "mold" };          // 随机一种模具
   const ft = DATA.fabaoTypes.findIndex(t => t.name + I.mold.name === name);
   return ft >= 0 ? { k: "mold", ft } : null;
 };
-DATA.smIcon = (k, ft) => k === "mold" ? DATA.iconImg("fbt" + (ft || 0)) : DATA.iconImg("sm_" + k);
+DATA.smIcon = (k, ft) => k === "jy" ? DATA.iconImg("sm_jy" + (ft || 0)) : k === "mold" ? DATA.iconImg("fbt" + (ft || 0)) : DATA.iconImg("sm_" + k);
 DATA.forgeSlots = Object.keys(DATA.forgeNames);            // 能炼的部位（含法宝）
 DATA.eqSlots6 = DATA.forgeSlots.filter(x => x !== "fabao"); // 头盔 ~ 吊坠
 // v25：戒指 9 种（主属性见 config/forge.js 的 forge.ring.main）
