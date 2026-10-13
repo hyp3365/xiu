@@ -48,6 +48,8 @@ DATA.maps.forEach((m, i) => { const n = ((CFG.names.map || {}).fan || [])[i]; if
 // v45：仙界 / 冥界 / 魔界 / 神界各 10 张地图（config/worldmaps.js）接在凡界后面，序号 9 起
 //   DATA.maps[a].w = 所在界；DATA.worldMapIdx[界] = 这一界的地图序号列表
 DATA.FAN_MAP_N = DATA.maps.length;
+// 怪物数据容器（js/data/mobs.js 填）：regions[地图][区域] = { name, L, normal, elite, boss }，MAP_REALM[地图] = 进入境界
+CFG.monster = { regions: [], MAP_REALM: [] };
 DATA.maps.forEach(m => { m.w = "fan"; });
 DATA.worldMapIdx = { fan: DATA.maps.map((m, a) => a) };
 // v50：每界第 10 张起的地图排在所有界前 9 张之后（老存档的地图序号不变）
@@ -60,9 +62,7 @@ for (const pass of [0, 1]) for (const w of ["xian", "ming", "mo", "shen"]) {
     const a = DATA.maps.length, D = CFG.worldDrops[w] || {};
     DATA.maps.push({ name: m.name, boss: m.boss, monsters: m.monsters, w, wi: i });
     DATA.worldMapIdx[w].push(a);
-    CFG.monster.regions[a] = W.regions[i];
-    CFG.monster.mapMult[a] = m.mult || {};
-    CFG.monster.MAP_REALM[a] = m.realm;
+    CFG.monster.regions[a] = W.regions[i];   // 只有区域名和 L；怪物属性、进入境界在 js/data/mobs.js 按 config/mobs.js 生成
     // 四界地图的掉落：药材表 / 矿石表 / 特产，掉几种几个按 CFG.dropRule.world
     CFG.mapDrops[a] = { stone: m.stone === undefined ? 1 : m.stone, mat: m.mat === undefined ? 1 : m.mat,
       herb: D.herb || {}, ore: D.ore || {}, special: D.special || {}, rule: "world" };
@@ -118,7 +118,6 @@ DATA.mapDrop = (a, ev, rule) => {
 DATA.mapStone = a => { const m = (CFG.mapDrops || [])[a]; return m && m.stone !== undefined ? m.stone : 1; };
 DATA.mapMat = a => { const m = (CFG.mapDrops || [])[a]; return m && m.mat !== undefined ? m.mat : 1; };
 DATA.mapReq = a => { const v = (CFG.monster.MAP_REALM || [])[a]; return v === undefined ? a : v; }; // 该地图需要的境界
-DATA.mapMob = a => (CFG.monster.mapMult || [])[a] || {};   // 该地图怪物属性倍率
 // 凡界地图会掉的全部药材、矿石名字（坊市只卖这些）
 DATA.fanMats = () => {
   const set = new Set();
@@ -129,8 +128,7 @@ DATA.fanMats = () => {
 DATA.matPrice = (kind, g) => DATA.matCfg(kind, DATA[kind === "herb" ? "herbs" : "ores"][g])[0];
 DATA.matContrib = (kind, g) => DATA.matCfg(kind, DATA[kind === "herb" ? "herbs" : "ores"][g])[1];
 
-// 灵地（config/lingdi.js）：_map = 发现地图的地图序号（这一界第 find.map 张，0 起）；境界要求不写 = 那张地图的境界要求
+// 灵地（config/lingdi.js）：_map = 发现地图的地图序号（这一界第 find.map 张，0 起）；境界要求、怪物属性在 js/data/mobs.js 生成
 (((CFG.lingdi || {}).list) || []).forEach(d => {
   d._map = DATA.maps.findIndex(m => m.w === d.w && m.wi === (d.find || {}).map);
-  if (d.realm === undefined) d.realm = d._map >= 0 ? DATA.mapReq(d._map) : 0;
 });

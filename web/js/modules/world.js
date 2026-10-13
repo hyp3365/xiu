@@ -2,14 +2,14 @@
  * 模块：世界（六界：凡界 仙界 魔界 冥界 神界 天外天，目前只开放凡界）
  * 凡界内：9 张地图（练气 → 渡劫），每张分 东 西 南 北 四个区域；坊市、设置
  * ---------------------------------------------------------------------
- * 每个区域的 普通怪 / 精英怪 / 首领 属性在 js/config/ 数值文件 的 monster.regions 单独设置。
+ * 每个区域的 普通怪 / 精英怪 / 首领 属性在 js/config/ 数值文件 的 config/mobs.js 单独设置。
  * 历练：和自动探索一样走 100 步，但只走一次；走完且没战败 = 通过，解锁该区域的自动探索。
  * 自动探索：每次 TIME 步，每步 STEP_SEC 秒（config/explore.js）；固定遇到 10 个普通怪、3 个精英怪、灵药 5~10 次、矿石 5~10 次，
  *   最后一步遇到首领，其余无事发生（顺序随机）。怪物掉 灵石、药材、矿石（不掉丹药、装备）。
  *   历练、自动探索期间都不能修炼。
  * 战斗：速度高者先手，判闪避、暴击；法术栏法术轮流施放（耗法力），不足时普通攻击；战败遗失部分灵石。
  *   法术伤害 = 威力 - (对方防御 + 对方该属性抗性) × DEF_RATE；普通攻击、法宝只算防御。
- *   怪物也有法力、六系抗性、法术和法宝（见 config/monster.js 的 monster.magic）。
+ *   怪物也有法力、六系抗性、法术和法宝（见 config/mobs.js 的 mobs.magic）。
  *   一次探索中获得的东西先记下，走完后一起放进背包；
  *   气血够（≥ 三成）就继续下一次，不够就停止；探索时不能修炼；离线也继续。
  *   探索信息栏显示每一步发生的事，每秒刷新。
@@ -84,16 +84,16 @@ G.module({
 
     // 生成怪物：a 地图、r 区域、kind = normal 普通 / elite 精英 / boss 首领（属性见 js/config/ 数值文件 monster.regions）
     makeMob(a, r, kind) {
-      const R = DATA.region(a, r), b = R[kind], map = DATA.maps[a], k = CFG.monster.RAND, M = DATA.mapMob(a);
-      const v = (x, key) => x * (M[key] === undefined ? 1 : M[key]) * (1 - k + Math.random() * 2 * k);   // × 地图倍率 × 随机浮动
+      const R = DATA.region(a, r), b = R[kind], map = DATA.maps[a];
+      const v = x => x * DATA.mobRnd();   // × 随机浮动
       const name = kind === "boss" ? DATA.regionBoss(a, r) : (kind === "elite" ? "精英·" : "") + U.pick(map.monsters);
       return this.addMagic({ name, Lm: R.L, kind, boss: kind === "boss", elite: kind === "elite",
-        hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), crit: b.crit }, kind, b);
+        hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), crit: b.crit }, kind);
     },
 
-    // 给怪物加 法力 / 属性 / 六系抗性 / 法术 / 法宝（js/config/monster.js 的 monster.magic；b = regions 里单独写的数值）
+    // 给怪物加 法力 / 属性 / 六系抗性 / 法术 / 法宝（config/mobs.js 的 mobs.magic）
     addMagic(m, kind, b = {}) {
-      const M = (CFG.monster.magic || {})[kind] || {}, O = (CFG.monster.magic || {}).OWN_RES || 1;
+      const M = (CFG.mobs.magic || {})[kind] || {}, O = (CFG.mobs.magic || {}).OWN_RES || 1;
       m.el = b.el || U.pick(DATA.elements).id;
       m.mana = m.maxMana = b.mana !== undefined ? b.mana : m.atk * (M.MANA || 0);
       m.res = {};
@@ -483,18 +483,12 @@ G.module({
         }
       }
     },
-    // 秘境怪物：属性在 js/data/refstats.js 生成；灵地怪物：发现地图北域同种怪 × 地图 mult × MOB_MULT[种类] × 灵地 mult
+    // 秘境 / 灵地怪物：属性在 js/data/mobs.js 按 config/mobs.js 生成
     makeMjMob(i, kind, k) {
-      const d = this.mjDef(i, k), K = CFG.monster.RAND, rnd = () => 1 - K + Math.random() * 2 * K;
-      let b = d[kind], v = x => x * rnd();
-      if (k === "ld") {
-        b = DATA.region(d._map, DATA.regionCount - 1)[kind];
-        const M = DATA.mapMob(d._map), mm = ((CFG.lingdi.MOB_MULT || {})[kind] || 1) * (d.mult === undefined ? 1 : d.mult);
-        v = (x, key) => x * (M[key] === undefined ? 1 : M[key]) * mm * rnd();
-      }
+      const d = this.mjDef(i, k), b = d[kind], v = x => x * DATA.mobRnd();
       const name = kind === "boss" ? d.bossName : (kind === "elite" ? "精英·" : "") + U.pick(d.monsters);
       return this.addMagic({ name, Lm: d.L, kind, boss: kind === "boss", elite: kind === "elite",
-        hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), crit: b.crit }, kind, b);
+        hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), crit: b.crit }, kind);
     },
     // 秘境 / 灵地掉落 = 借用地图的药材矿石表（种数个数按 CFG.dropRule.mijing / lingdi，× 自己的 mat）+ extra 额外掉落
     //   秘境借用 drops 那张凡界地图；灵地借用发现地图（这一界的药材矿石表）

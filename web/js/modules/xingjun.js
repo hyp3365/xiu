@@ -26,7 +26,8 @@ G.module({
     xjDadi(a) { return this.xjTpl(this.xjC(this.xjW(a)).JZ, a); },
     xjTjName(a) { return this.xjC(this.xjW(a)).TJ || "天将"; },
     xjHallName(a, id) { const H = ((CFG.worldMaps || {})[this.xjW(a)] || {}).halls || {}; return this.xjTpl(H[id] || "", a); },
-    xjSeatMult(a, i) { const M = this.xjC(this.xjW(a)).NPC_MULT; return M[i] !== undefined ? M[i] : M[M.length - 1]; },
+    // 挑战需要的境界（config/mobs.js 天将 / 星君 第 1 个数）
+    xjReq(a, t, seat) { return (t === "tj" ? DATA.mobTj(a) : DATA.mobXj(a, seat))[0] || 0; },
     // 职位：1 天将；星君名单第 i 位（0 起）= 职位 i + 2（名单从低到高）
     xjPos(a, t, seat) { return t === "tj" ? 1 : t === "jz" ? CFG.xingjun.JZ_POS : seat + 2; },
     // 每张地图的贡献
@@ -89,12 +90,11 @@ G.module({
       if (o) { o.T = this.now(); this.s.offices[w] = o; if (o.t !== "jz") this.xjMarkHeld(o.map, this.xjPos(o.map, o.t, o.seat)); }
       else delete this.s.offices[w];
     },
-    // NPC：该地图北域首领 × 倍率
-    xjNpc(a, name, k) {
-      const R = DATA.region(a, 3).boss, M = DATA.mapMob(a);
-      const v = key => R[key] * (M[key] === undefined ? 1 : M[key]) * k;
+    // NPC：属性按 config/mobs.js 的 [进入境界, 境界, 层, 功法层, 倍率]（tu）生成；ck = 暴击分类（天将 / 星君 / 界主）
+    xjNpc(a, name, tu, ck) {
+      const b = DATA.mobStats(tu, DATA.mobCrit(ck)), v = x => x * DATA.mobRnd();
       return this.addMagic({ name, Lm: DATA.region(a, 3).L, kind: "boss", boss: true,
-        hp: v("hp"), atk: v("atk"), def: v("def"), speed: v("speed"), hit: v("hit"), dodge: v("dodge"), crit: R.crit }, "boss", R);
+        hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), crit: b.crit }, "boss");
     },
     // 依次挑战 list（[{name, k}]），满血满法力开打，中间不回复；结束恢复原来的气血法力
     xjFight(a, list, title, onWin) {
@@ -104,7 +104,7 @@ G.module({
       s.hp = st.hp; s.mana = st.mana;
       const ev = []; let win = true;
       for (const x of list) {
-        const res = this.battle(this.xjNpc(a, x.name, x.k));
+        const res = this.battle(this.xjNpc(a, x.name, x.tu, x.ck));
         const t = res.win ? `${res.rounds}回合获胜` : res.lose ? `第 ${res.rounds} 回合落败` : `缠斗 ${res.rounds} 回合，未分胜负`;
         ev.push({ n: ev.length + 1, t: `${x.name}：${t}`, c: res.win ? "gold" : "bad", b: res.detail });
         if (!res.win) { win = false; break; }
@@ -117,26 +117,27 @@ G.module({
     xjChallenge(a, i) {
       const w = this.xjW(a), o = this.xjOfficeOf(w); if (o && o.t === "xj" && o.map === a && o.seat === i) return;
       const name = this.xjSeatName(a, i), title = `挑战${DATA.maps[a].name}${name}`;
-      if (!this.mapOpen(a) || !this.xjPay(a, "xj", i)) return this.after();   // 先扣贡献，失败不退
-      this.xjFight(a, [{ name, k: this.xjSeatMult(a, i) }], title, () => { this.xjSetOffice(w, { t: "xj", map: a, seat: i }); this.log(`${title}获胜，就任${this.xjOffice(this.xjOfficeOf(w))}！`, "gold"); });
+      if (!this.mapOpen(a) || !this.realmOK(this.xjReq(a, "xj", i))) return;
+      if (!this.xjPay(a, "xj", i)) return this.after();   // 先扣贡献，失败不退
+      this.xjFight(a, [{ name, tu: DATA.mobXj(a, i), ck: "星君" }], title, () => { this.xjSetOffice(w, { t: "xj", map: a, seat: i }); this.log(`${title}获胜，就任${this.xjOffice(this.xjOfficeOf(w))}！`, "gold"); });
     },
-    // 界主：连战全部星君（倍率从小到大），最后打界主
+    // 界主：连战全部星君（从低到高），最后打界主
     xjChallengeJz(a) {
       const w = this.xjW(a), o = this.xjOfficeOf(w); if (o && o.t === "jz" && o.map === a) return;
       if (!this.xjJzReady(a)) return this.log(`需要先在${DATA.maps[a].name}担任过${this.xjTjName(a)}和全部星君，才能挑战界主。`, "sys");
       if (!this.mapOpen(a) || !this.xjPay(a, "jz")) return this.after();   // 先扣贡献，失败不退
-      const list = this.xjSeats(a).map((n, i) => ({ name: this.xjSeatName(a, i), k: this.xjSeatMult(a, i) })).sort((x, y) => x.k - y.k);
-      list.push({ name: this.xjDadi(a), k: this.xjC(w).JZ_MULT });
+      const list = this.xjSeats(a).map((n, i) => ({ name: this.xjSeatName(a, i), tu: DATA.mobXj(a, i), ck: "星君" }));
+      list.push({ name: this.xjDadi(a), tu: DATA.mobJz(a), ck: "界主" });
       const title = `挑战${this.xjHallName(a, "tg")}`;
       this.xjFight(a, list, title, () => { this.xjSetOffice(w, { t: "jz", map: a }); this.log(`${title}全胜，就任${this.xjOffice(this.xjOfficeOf(w))}！`, "gold"); });
     },
+    // 天将：挑战天将，胜即就任
     xjTianjiang(a) {
-      const w = this.xjW(a), T = this.xjC(w).TJ_REALM, o = this.xjOfficeOf(w);
-      if (!this.mapOpen(a) || (T >= 0 && !this.realmOK(T)) || (o && o.t === "tj" && o.map === a)) return;
-      if (!this.xjPay(a, "tj")) return this.after();
-      this.xjSetOffice(w, { t: "tj", map: a });
-      this.log(`就任${this.xjOffice(this.xjOfficeOf(w))}。`, "gold");
-      this.after();
+      const w = this.xjW(a), o = this.xjOfficeOf(w);
+      if (!this.mapOpen(a) || !this.realmOK(this.xjReq(a, "tj")) || (o && o.t === "tj" && o.map === a)) return;
+      if (!this.xjPay(a, "tj")) return this.after();   // 先扣贡献，失败不退
+      const name = this.xjTjName(a), title = `挑战${DATA.maps[a].name}${name}`;
+      this.xjFight(a, [{ name, tu: DATA.mobTj(a), ck: "天将" }], title, () => { this.xjSetOffice(w, { t: "tj", map: a }); this.log(`${title}获胜，就任${this.xjOffice(this.xjOfficeOf(w))}！`, "gold"); });
     },
     xjResign(w) { if (!this.xjOfficeOf(w)) return; const n = this.xjOffice(this.xjOfficeOf(w)); this.xjSetOffice(w, null); this.log(`已辞去${n}。`, "sys"); this.after(); },
     xjShowLast(i) {
@@ -166,14 +167,15 @@ G.module({
       const seats = this.xjSeats(a).map((n, i) => i).reverse().map(i => {   // 从高到低显示
 
         const mine = o && o.t === "xj" && o.map === a && o.seat === i, c = this.xjCost(a, "xj", i), p = this.xjPos(a, "xj", i);
-        return `<div class="line"><div>${this.xjSeatName(a, i)}<small>${mine ? "在任" : `需 ${U.fmt(c)} 贡献${held.includes(p) ? " · 担任过" : ""}`}</small></div>
-          ${mine ? `<button class="sm on" disabled>在任</button>` : `<button class="sm" onclick="G.xjChallenge(${a},${i})" ${lockMap || gx < c ? "disabled" : ""}>挑战</button>`}</div>`;
+        const rq = this.xjReq(a, "xj", i), rok = this.realmOK(rq);
+        return `<div class="line"><div>${this.xjSeatName(a, i)}<small>${mine ? "在任" : `${rok ? "" : `需${DATA.realmLabel(rq)} · `}需 ${U.fmt(c)} 贡献${held.includes(p) ? " · 担任过" : ""}`}</small></div>
+          ${mine ? `<button class="sm on" disabled>在任</button>` : `<button class="sm" onclick="G.xjChallenge(${a},${i})" ${lockMap || !rok || gx < c ? "disabled" : ""}>挑战</button>`}</div>`;
       }).join("");
-      const tjOn = o && o.t === "tj" && o.map === a, T = C.TJ_REALM, tc = this.xjCost(a, "tj");
+      const tjOn = o && o.t === "tj" && o.map === a, T = this.xjReq(a, "tj"), tc = this.xjCost(a, "tj");
       return `<div class="card"><h3>${this.xjHallName(a, "xj")}</h3>${this.xjHead(a)}
         ${seats}
-        <div class="line"><div>${this.xjTjName(a)}<small>${tjOn ? "在任" : `需 ${U.fmt(tc)} 贡献${held.includes(1) ? " · 担任过" : ""}`}</small></div>
-          ${tjOn ? `<button class="sm on" disabled>在任</button>` : `<button class="sm" onclick="G.xjTianjiang(${a})" ${lockMap || (T >= 0 && !this.realmOK(T)) || gx < tc ? "disabled" : ""}>就任</button>`}</div></div>`;
+        <div class="line"><div>${this.xjTjName(a)}<small>${tjOn ? "在任" : `${this.realmOK(T) ? "" : `需${DATA.realmLabel(T)} · `}需 ${U.fmt(tc)} 贡献${held.includes(1) ? " · 担任过" : ""}`}</small></div>
+          ${tjOn ? `<button class="sm on" disabled>在任</button>` : `<button class="sm" onclick="G.xjTianjiang(${a})" ${lockMap || !this.realmOK(T) || gx < tc ? "disabled" : ""}>挑战</button>`}</div></div>`;
     },
   },
 });

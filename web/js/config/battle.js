@@ -10,7 +10,7 @@
  *   普通攻击：原始伤害 = max(攻击 × MIN_DMG, 攻击 − 对方防御 × DEF_RATE)
  *   法术    ：原始伤害 = max(攻击 × MIN_DMG, (攻击 × 法术% + 法术固定伤害) × 灵根加成 − 对方该系抗性 × DEF_RATE)
  *   法宝    ：原始伤害 = max(攻击 × MIN_DMG, 攻击 × 法宝% + 属性伤害 − 减免后该系抗性 × DEF_RATE) + 追加伤害
- *   怪物法术 / 法宝：原始伤害 = max(攻击 × MIN_DMG, 攻击 × pct% − 对方该系抗性 × DEF_RATE)（见 config/monster.js 的 magic）
+ *   怪物法术 / 法宝：原始伤害 = max(攻击 × MIN_DMG, 攻击 × pct% − 对方该系抗性 × DEF_RATE)（见 config/mobs.js 的 magic）
  *   其中 某系抗性 = 防御 × RES_RATE + 该系抗性
  *
  *   然后：先判闪避（闪避几率 % = (防守方闪避 − 进攻方命中) ÷ 进攻方命中 × 100 ÷ DODGE_DIV，上限 DODGE_CAP，见 config/player.js）

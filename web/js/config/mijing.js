@@ -13,11 +13,7 @@
  *   宗门秘法「神行」可减少）。事件排法同凡界：普通怪 MONSTERS + 精英 ELITES + 灵药 HERB_MIN~HERB_MAX
  *   + 矿脉 ORE_MIN~ORE_MAX，其余无事发生，打乱后最后 BOSS 步是首领。
  *
- * 【怪物属性】（js/data/refstats.js）
- *   人物属性 = 该秘境 realm 境界第 REF.LAYER 层的人物属性 + 全部可学宗门功法练到 REF.GF 层的加成
- *   怪物基础属性 = 人物属性 × REF.KIND[种类][属性] × REF.MULT；暴击% = REF.KIND[种类].crit
- *   遇到时：属性 × 随机(1 − RAND ~ 1 + RAND)（RAND 用 config/monster.js 的 monster.RAND；秘境不乘 mapMult）
- *   法力、抗性、法术、法宝同凡界怪物（config/monster.js 的 monster.magic）
+ * 【怪物属性、进入境界】在 config/mobs.js 的 mijing（每处秘境 普通 / 精英 / 首领 单独设置）
  *
  * 【掉落】（击败怪物 / 发现灵药 / 发现矿脉 时）
  *   灵石 = STONE_BASE × STONE_GROW^L × 随机(1~2.5) × STONE_RATE × 种类倍率 × 该秘境 stone（config/drops.js）
@@ -31,7 +27,7 @@
  *   元婴期秘境每次进入另外必定掉落养神灵露（数量见 config/sect.js 的 chuqiao.LU_DROP）
  *
  * 【每处秘境的字段】
- *   name 名字   realm 需要的境界（0 练气 1 筑基 2 金丹 3 元婴 4 出窍 5 化神 6 练虚 7 合体 8 洞真 9 大乘）
+ *   name 名字（和 config/mobs.js 的 mijing 对应）
  *   find  { map 在哪张凡界地图能发现（0 青云山林 1 黑风谷 2 万妖岭 3 幽冥沼泽 4 落星海 5 虚空裂隙 6 天魔战场 7 九幽深渊 8 雷劫之地），
  *           chance 每走完一次发现的几率% }
  *   drops 药材矿石表用哪张地图的（种数、个数按 dropRule.mijing）（序号同 find.map）   mat 药材矿石数量倍率   stone 灵石倍率
@@ -47,18 +43,6 @@
 window.CFG = window.CFG || {};
 
 CFG.mijing = {
-  // ---------- 秘境怪物参考属性（公式见文件开头） ----------
-  REF: {
-    LAYER: 10,          // 参考人物在该秘境境界的第几层（1~10）
-    GF: 5,              // 参考人物的宗门功法都练到第几层（0 = 不算功法）
-    MULT: 1.05,         // 统一倍率：比参考人物属性高 5%
-    // 怪物种类倍率：× 人物属性；crit 是暴击%，直接写数值
-    KIND: {
-      normal: { hp: 1,   atk: 1,   def: 1,   speed: 1,   hit: 1,   dodge: 1,   crit: 5 },    // 普通怪：×1，暴击 5%
-      elite:  { hp: 1.2, atk: 1.2, def: 1.2, speed: 1.2, hit: 1.2, dodge: 1.2, crit: 10 },   // 精英怪：×1.2，暴击 10%
-      boss:   { hp: 1.5, atk: 1.5, def: 1.5, speed: 1.5, hit: 1.5, dodge: 1.5, crit: 15 },   // 首领：×1.5，暴击 15%
-    },
-  },
   DAILY: 1,          // 每处秘境每天能进几次（历练、探索合计）
   TIME: 100,         // 一次走多少步
   // 一次固定遇到的事件数量（其余步数无事发生）：
@@ -124,61 +108,61 @@ CFG.mijing = {
   // ---------- 秘境列表（顺序 = 秘境序号，不要调换，存档按序号记录） ----------
   list: [
     // ---------- 1. 灵泉洞天（需练气） ----------
-    { name: "灵泉洞天", realm: 0, find: { map: 0, chance: 5 }, drops: 0, mat: 2, stone: 2, L: 9,   // 需练气；在青云山林探索时发现；普通掉落用青云山林的掉落组
+    { name: "灵泉洞天", find: { map: 0, chance: 5 }, drops: 0, mat: 2, stone: 2, L: 9,   // 在青云山林探索时发现；普通掉落用青云山林的掉落组
       bossName: "灵泉守护·碧水灵蛟", monsters: ["灵泉水妖", "碧鳞鱼精", "水灵", "青藤妖"],
       extra: {   // 额外掉落：只有首领有（普通怪、精英怪没有）
         boss: [{ item: "火髓", chance: 100, n: [1, 3] }, { item: "空间晶核", chance: 50, n: [1, 1] }, { item: "黄品九曜石", chance: 50, n: [1, 1] }, { item: "法宝模具", tier: [1, 3], chance: 30, n: [1, 1] }],   // 首领：火髓、空间晶核、黄品九曜石、一~三阶随机法宝模具
       } },
     // ---------- 2. 古修洞府（需筑基） ----------
-    { name: "古修洞府", realm: 1, find: { map: 1, chance: 5 }, drops: 1, mat: 2, stone: 2, L: 19,   // 需筑基；在黑风谷探索时发现；普通掉落用黑风谷的掉落组
+    { name: "古修洞府", find: { map: 1, chance: 5 }, drops: 1, mat: 2, stone: 2, L: 19,   // 在黑风谷探索时发现；普通掉落用黑风谷的掉落组
       bossName: "古修残魂", monsters: ["守府傀儡", "古修残影", "石甲卫", "噬灵鼠"],
       extra: {   // 额外掉落：只有首领有（普通怪、精英怪没有）
         boss: [{ item: "火髓", chance: 100, n: [1, 3] }, { item: "空间晶核", chance: 50, n: [1, 1] }, { item: "黄品九曜石", chance: 50, n: [1, 1] }, { item: "法宝模具", tier: [1, 3], chance: 30, n: [1, 1] }],   // 首领：火髓、空间晶核、黄品九曜石、一~三阶随机法宝模具
       } },
     // ---------- 3. 赤炎火窟（需金丹） ----------
-    { name: "赤炎火窟", realm: 2, find: { map: 2, chance: 5 }, drops: 2, mat: 2, stone: 2, L: 29,   // 需金丹；在万妖岭探索时发现；普通掉落用万妖岭的掉落组
+    { name: "赤炎火窟", find: { map: 2, chance: 5 }, drops: 2, mat: 2, stone: 2, L: 29,   // 在万妖岭探索时发现；普通掉落用万妖岭的掉落组
       bossName: "火窟之主·赤炎魔君", monsters: ["火灵", "炎魔", "赤炎蜥", "熔岩巨人"],
       extra: {   // 额外掉落：只有首领有（普通怪、精英怪没有）
         boss: [{ item: "火髓", chance: 100, n: [2, 6] }, { item: "空间晶核", chance: 50, n: [1, 2] }, { item: "黄品九曜石", chance: 50, n: [1, 2] }, { item: "法宝模具", tier: [1, 3], chance: 30, n: [1, 1] }],   // 首领：火髓、空间晶核、黄品九曜石、一~三阶随机法宝模具
       } },
     // ---------- 4. 寒渊冰宫（需元婴） ----------
-    { name: "寒渊冰宫", realm: 3, find: { map: 3, chance: 5 }, drops: 3, mat: 2, stone: 2, L: 39,   // 需元婴；在幽冥沼泽探索时发现；普通掉落用幽冥沼泽的掉落组
+    { name: "寒渊冰宫", find: { map: 3, chance: 5 }, drops: 3, mat: 2, stone: 2, L: 39,   // 在幽冥沼泽探索时发现；普通掉落用幽冥沼泽的掉落组
       bossName: "冰宫女帝·玄冰凤", monsters: ["冰魄妖", "寒霜狼", "冰傀儡", "雪妖"],
       extra: {   // 额外掉落：只有首领有（普通怪、精英怪没有）
         boss: [{ item: "火髓", chance: 100, n: [2, 6] }, { item: "空间晶核", chance: 50, n: [1, 2] }, { item: "黄品九曜石", chance: 50, n: [1, 2] }, { item: "法宝模具", tier: [1, 3], chance: 30, n: [1, 1] }],   // 首领：火髓、空间晶核、黄品九曜石、一~三阶随机法宝模具
       } },
     // ---------- 5. 万剑冢（需出窍） ----------
-    { name: "万剑冢", realm: 4, find: { map: 3, chance: 5 }, drops: 3, mat: 2, stone: 2, L: 44,   // 需出窍；在幽冥沼泽探索时发现；普通掉落用幽冥沼泽的掉落组
+    { name: "万剑冢", find: { map: 3, chance: 5 }, drops: 3, mat: 2, stone: 2, L: 44,   // 在幽冥沼泽探索时发现；普通掉落用幽冥沼泽的掉落组
       bossName: "剑冢剑灵", monsters: ["剑灵", "剑魂", "残剑傀儡", "剑奴"],
       extra: {   // 额外掉落：只有首领有（普通怪、精英怪没有）
         boss: [{ item: "火髓", chance: 100, n: [3, 9] }, { item: "空间晶核", chance: 50, n: [1, 3] }, { item: "黄品九曜石", chance: 50, n: [1, 3] }, { item: "法宝模具", tier: [1, 3], chance: 30, n: [1, 1] }],   // 首领：火髓、空间晶核、黄品九曜石、一~三阶随机法宝模具
       } },
     // ---------- 6. 上古战场（需化神） ----------
-    { name: "上古战场", realm: 5, find: { map: 4, chance: 5 }, drops: 4, mat: 2, stone: 2, L: 49,   // 需化神；在落星海探索时发现；普通掉落用落星海的掉落组
+    { name: "上古战场", find: { map: 4, chance: 5 }, drops: 4, mat: 2, stone: 2, L: 49,   // 在落星海探索时发现；普通掉落用落星海的掉落组
       bossName: "上古战魂·不灭战神", monsters: ["上古战魂", "骷髅战将", "战场怨灵", "血煞魔兵"],
       extra: {   // 额外掉落：只有首领有（普通怪、精英怪没有）
         boss: [{ item: "火髓", chance: 100, n: [3, 9] }, { item: "空间晶核", chance: 50, n: [1, 3] }, { item: "黄品九曜石", chance: 50, n: [1, 3] }, { item: "法宝模具", tier: [1, 3], chance: 30, n: [1, 1] }],   // 首领：火髓、空间晶核、黄品九曜石、一~三阶随机法宝模具
       } },
     // ---------- 7. 星陨秘境（需练虚） ----------
-    { name: "星陨秘境", realm: 6, find: { map: 5, chance: 5 }, drops: 5, mat: 2, stone: 2, L: 59,   // 需练虚；在虚空裂隙探索时发现；普通掉落用虚空裂隙的掉落组
+    { name: "星陨秘境", find: { map: 5, chance: 5 }, drops: 5, mat: 2, stone: 2, L: 59,   // 在虚空裂隙探索时发现；普通掉落用虚空裂隙的掉落组
       bossName: "星陨之主·噬星兽", monsters: ["星兽", "陨星傀儡", "星芒灵", "噬星虫"],
       extra: {   // 额外掉落：只有首领有（普通怪、精英怪没有）
         boss: [{ item: "火髓", chance: 100, n: [4, 12] }, { item: "空间晶核", chance: 50, n: [1, 4] }, { item: "黄品九曜石", chance: 50, n: [1, 4] }, { item: "法宝模具", tier: [1, 3], chance: 30, n: [1, 1] }],   // 首领：火髓、空间晶核、黄品九曜石、一~三阶随机法宝模具
       } },
     // ---------- 8. 幽冥鬼域（需合体） ----------
-    { name: "幽冥鬼域", realm: 7, find: { map: 6, chance: 5 }, drops: 6, mat: 2, stone: 2, L: 69,   // 需合体；在天魔战场探索时发现；普通掉落用天魔战场的掉落组
+    { name: "幽冥鬼域", find: { map: 6, chance: 5 }, drops: 6, mat: 2, stone: 2, L: 69,   // 在天魔战场探索时发现；普通掉落用天魔战场的掉落组
       bossName: "鬼域之王·幽冥鬼帝", monsters: ["鬼将", "幽魂", "冥鬼", "骨魔"],
       extra: {   // 额外掉落：只有首领有（普通怪、精英怪没有）
         boss: [{ item: "火髓", chance: 100, n: [4, 12] }, { item: "空间晶核", chance: 50, n: [1, 4] }, { item: "黄品九曜石", chance: 50, n: [1, 4] }, { item: "法宝模具", tier: [1, 3], chance: 30, n: [1, 1] }],   // 首领：火髓、空间晶核、黄品九曜石、一~三阶随机法宝模具
       } },
     // ---------- 9. 太虚幻境（需洞真） ----------
-    { name: "太虚幻境", realm: 8, find: { map: 6, chance: 5 }, drops: 6, mat: 2, stone: 2, L: 74,   // 需洞真；在天魔战场探索时发现；普通掉落用天魔战场的掉落组
+    { name: "太虚幻境", find: { map: 6, chance: 5 }, drops: 6, mat: 2, stone: 2, L: 74,   // 在天魔战场探索时发现；普通掉落用天魔战场的掉落组
       bossName: "太虚幻主", monsters: ["幻影修士", "心魔幻象", "虚空灵", "幻兽"],
       extra: {   // 额外掉落：只有首领有（普通怪、精英怪没有）
         boss: [{ item: "火髓", chance: 100, n: [5, 15] }, { item: "空间晶核", chance: 50, n: [1, 5] }, { item: "黄品九曜石", chance: 50, n: [1, 5] }, { item: "法宝模具", tier: [1, 3], chance: 30, n: [1, 1] }],   // 首领：火髓、空间晶核、黄品九曜石、一~三阶随机法宝模具
       } },
     // ---------- 10. 混沌古界（需大乘） ----------
-    { name: "混沌古界", realm: 9, find: { map: 7, chance: 5 }, drops: 7, mat: 2, stone: 2, L: 79,   // 需大乘；在九幽深渊探索时发现；普通掉落用九幽深渊的掉落组
+    { name: "混沌古界", find: { map: 7, chance: 5 }, drops: 7, mat: 2, stone: 2, L: 79,   // 在九幽深渊探索时发现；普通掉落用九幽深渊的掉落组
       bossName: "混沌古兽", monsters: ["混沌兽", "太古魔灵", "混沌之灵", "古界巨人"],
       extra: {   // 额外掉落：只有首领有（普通怪、精英怪没有）
         boss: [{ item: "火髓", chance: 100, n: [5, 15] }, { item: "空间晶核", chance: 50, n: [1, 5] }, { item: "黄品九曜石", chance: 50, n: [1, 5] }, { item: "法宝模具", tier: [1, 3], chance: 30, n: [1, 1] }],   // 首领：火髓、空间晶核、黄品九曜石、一~三阶随机法宝模具

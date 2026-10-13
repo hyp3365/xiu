@@ -89,7 +89,8 @@ G.module({
     },
 
     /* ---------- 宗门大殿 ---------- */
-    rankReqRealm(i) { return Math.min(DATA.realms.length - 1, this.sectInfo().reqRealm + DATA.ranks[i].realm); }, // -1 = 凡人
+    // 职务需要的境界：外门弟子 = 门派入门境界；其余 = config/mobs.js 该星宗门考官的第 1 个数
+    rankReqRealm(i) { if (i <= 0) return this.sectInfo().reqRealm; const t = DATA.mobExam(this.sectInfo().star, i); return t ? t[0] : this.sectInfo().reqRealm; },
     rankCost(i) { return Math.floor(DATA.ranks[i].cost * this.starMul()); },
     promote() {
       const i = this.s.rank + 1; if (i >= DATA.ranks.length) return;
@@ -101,9 +102,8 @@ G.module({
     /* ---------- 晋升考验（config/sect.js 的 sect.rankTrial） ---------- */
     rankTrialCost(i) { return Math.floor(((CFG.sect.rankTrial.cost || [])[i] || 0) * this.starMul()); },
     makeRankGuard(i) {
-      const T = CFG.sect.rankTrial, gf = (T.GF || [])[i] === undefined ? i : T.GF[i];
-      const m = DATA.refMob(DATA.refStats(this.rankReqRealm(i), T.LAYER || 3, gf), T.MULT);
-      return this.addMagic(Object.assign(m, { name: `${DATA.ranks[i].name}考官`, boss: false, crit: T.crit || 0 }), "tower");
+      const b = DATA.mobStats(DATA.mobExam(this.sectInfo().star, i), DATA.mobCrit("考官")), v = x => x * DATA.mobRnd();   // config/mobs.js 的 sect
+      return this.addMagic({ name: `${DATA.ranks[i].name}考官`, boss: false, hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), crit: b.crit }, "tower");
     },
     challengeRank() {
       const s = this.s, i = s.rank + 1; if (i >= DATA.ranks.length || s.rankPass === i) return;

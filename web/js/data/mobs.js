@@ -1,0 +1,68 @@
+/* =====================================================================
+ * 怪物属性生成（数值在 config/mobs.js）
+ * 每个怪物 5 个数 [进入境界, 境界, 层, 功法层, 倍率]：
+ *   怪物基础属性 = (修为突破属性 + 肉身突破属性 + 宗门功法属性) × 倍率
+ *   遇到时 × 随机(RAND[0] ~ RAND[1])；暴击 = CRIT
+ * 生成后写进：
+ *   CFG.monster.regions[地图][区域][normal/elite/boss]、CFG.monster.MAP_REALM（凡界 + 仙魔冥神）
+ *   CFG.mijing.list[i] / CFG.lingdi.list[i] 的 realm 和 normal/elite/boss
+ *   天将 / 星君 / 界主、宗门考官用 DATA.mobTj / mobXj / mobJz / mobExam 现取
+ * ===================================================================== */
+DATA.MOB_KIND = { normal: "普通", elite: "精英", boss: "首领" };
+DATA.MOB_KEYS = ["hp", "atk", "def", "speed", "hit", "dodge"];
+// 遇到时的随机倍率
+DATA.mobRnd = () => { const R = CFG.mobs.RAND || [1, 1]; return R[0] + Math.random() * (R[1] - R[0]); };
+// 肉身突破 n 次的合计加成（同 modules/body.js bodyBonus）
+DATA.mobBody = n => {
+  const G = CFG.body.GAIN || {}, o = {};
+  for (const k of DATA.MOB_KEYS) { const g = G[k]; o[k] = !g || n <= 0 ? 0 : g[1] === 1 ? g[0] * n : g[0] * (Math.pow(g[1], n) - 1) / (g[1] - 1); }
+  return o;
+};
+// [进入境界, 境界, 层, 功法层, 倍率] → 怪物基础属性；crit = 暴击%
+DATA.mobStats = (t, crit) => {
+  t = t || [0, 0, 1, 0, 1];
+  const realm = Math.max(0, Math.min(DATA.realms.length - 1, t[1])), layer = Math.max(1, Math.min(DATA.LAYERS, t[2]));
+  const st = DATA.refStats(realm, layer, t[3] || 0), bd = DATA.mobBody(realm * DATA.LAYERS + layer), k = t[4] === undefined ? 1 : t[4], o = {};
+  for (const x of DATA.MOB_KEYS) o[x] = (st[x] + bd[x]) * k;
+  o.crit = crit || 0;
+  return o;
+};
+// 按名字取，名字对不上时按顺序取（地图改了名也不会丢）
+DATA.mobPick = (obj, name, i) => { if (!obj) return null; if (obj[name]) return obj[name]; const v = Object.values(obj); return v[i] || null; };
+DATA.mobCrit = k => (CFG.mobs.CRIT || {})[k] || 0;
+// 一组 {普通, 精英, 首领} → {normal, elite, boss}
+DATA.mobGroup = g => { const o = {}; for (const k in DATA.MOB_KIND) o[k] = DATA.mobStats((g || {})[DATA.MOB_KIND[k]], DATA.mobCrit(DATA.MOB_KIND[k])); return o; };
+
+// ---------- 凡界 + 仙魔冥神地图 ----------
+(() => {
+  const M = CFG.mobs;
+  for (let a = 0; a < DATA.FAN_MAP_N; a++) {
+    const c = DATA.mobPick(M.fan, DATA.maps[a].name, a) || {};
+    CFG.monster.regions[a] = DATA.regionDirs.map((n, r) => Object.assign({ name: n, L: a * 10 + (M.FAN_L || [0, 3, 6, 9])[r] }, DATA.mobGroup(c[n])));
+    CFG.monster.MAP_REALM[a] = ((c["东"] || {})["普通"] || [0])[0];
+  }
+  for (const w of ["xian", "ming", "mo", "shen"]) for (const a of DATA.worldMapIdx[w] || []) {
+    const m = DATA.maps[a], c = DATA.mobPick(M[w], m.name, m.wi) || {}, R = CFG.monster.regions[a] || [];
+    CFG.monster.regions[a] = DATA.regionDirs.map((n, r) => Object.assign({ name: n, L: (R[r] || {}).L || 0 }, DATA.mobGroup(c[n])));
+    CFG.monster.MAP_REALM[a] = (c["界主"] || [0])[0];
+    m.mob = c;   // 天将 / 星君 / 界主
+  }
+})();
+DATA.mobTj = a => (DATA.maps[a].mob || {})["天将"] || [0, 0, 1, 0, 1];
+DATA.mobXj = (a, i) => { const l = (DATA.maps[a].mob || {})["星君"] || []; return l[i] || l[l.length - 1] || [0, 0, 1, 0, 1]; };
+DATA.mobJz = a => (DATA.maps[a].mob || {})["界主"] || [0, 0, 1, 0, 1];
+
+// ---------- 秘境 / 灵地 ----------
+(() => {
+  for (const [C, key] of [[CFG.mijing, "mijing"], [CFG.lingdi, "lingdi"]]) {
+    if (!C || !C.list) continue;
+    C.list.forEach((d, i) => {
+      const g = DATA.mobPick(CFG.mobs[key], d.name, i) || {};
+      Object.assign(d, DATA.mobGroup(g));
+      d.realm = (g["普通"] || [0])[0];
+    });
+  }
+})();
+
+// ---------- 宗门考官：star 星级（1~10），i 职务序号（1 = 内门弟子 …… 6 = 宗主） ----------
+DATA.mobExam = (star, i) => { const g = DATA.mobPick(CFG.mobs.sect, star + "星", star - 1) || {}; return DATA.mobPick(g, DATA.ranks[i] && DATA.ranks[i].name, i - 1); };

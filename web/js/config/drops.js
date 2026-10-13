@@ -8,7 +8,7 @@ window.CFG = window.CFG || {};
 
 // ---------- 灵石掉落 ----------
 // 击败怪物得灵石 = 向下取整( STONE_BASE × STONE_GROW^区域层序 × 随机(1 ~ 2.5) × STONE_RATE × 种类倍率 × 地图 stone )
-//   区域层序：凡界 = 地图序号(0起) × 10 + config/monster.js 的 L_STEP[区域]（东 0 西 3 南 6 北 9）；
+//   区域层序：凡界 = 地图序号(0起) × 10 + config/mobs.js 的 FAN_L[区域]（东 0 西 3 南 6 北 9）；
 //             秘境 = config/mijing.js 里该秘境的 L；仙冥魔神见 config/worldmaps.js
 //   种类倍率：普通怪 1、精英怪 ELITE_STONE、首领 BOSS_STONE
 //   地图 stone：下面 mapDrops 里该地图的 stone（秘境用秘境自己的 stone）
