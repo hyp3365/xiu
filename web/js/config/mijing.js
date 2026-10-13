@@ -22,8 +22,10 @@
  * 【掉落】（击败怪物 / 发现灵药 / 发现矿脉 时）
  *   灵石 = STONE_BASE × STONE_GROW^L × 随机(1~2.5) × STONE_RATE × 种类倍率 × 该秘境 stone（config/drops.js）
  *          （用秘境自己的 stone，不再乘地图的 stone）
- *   药材矿石 = config/drops.js 里 mapDrops[drops] 那张地图同一事件的掉落组，每种数量 = 四舍五入(n × 该秘境 mat)，至少 1
- *          （用秘境自己的 mat，不再乘地图的 mat）
+ *   药材矿石 = 从 config/drops.js 里 mapDrops[drops] 那张地图的药材 + 矿石表合起来抽，
+ *            掉几种、每种几个按 config/drops.js 的 CFG.dropRule.mijing（kinds / n），
+ *            每种个数 = max(1, 四舍五入(随机(n) × 该秘境 mat))（用秘境自己的 mat，不再乘地图的 mat）
+ *   必定掉落 / 额外掉落（extra）照旧单独判定，不占上面的种数
  *   再加 extra 额外掉落：每条单独掷 chance%，掷中掉 随机(n[0]~n[1]) 个
  *   元婴期秘境每次进入另外必定掉落养神灵露（数量见 config/sect.js 的 chuqiao.LU_DROP）
  *
@@ -31,7 +33,7 @@
  *   name 名字   realm 需要的境界（0 练气 1 筑基 2 金丹 3 元婴 4 出窍 5 化神 6 练虚 7 合体 8 洞真 9 大乘）
  *   find  { map 在哪张凡界地图能发现（0 青云山林 1 黑风谷 2 万妖岭 3 幽冥沼泽 4 落星海 5 虚空裂隙 6 天魔战场 7 九幽深渊 8 雷劫之地），
  *           chance 每走完一次发现的几率% }
- *   drops 普通药材矿石掉落用哪张地图的掉落组（序号同 find.map）   mat 药材矿石数量倍率   stone 灵石倍率
+ *   drops 药材矿石表用哪张地图的（种数、个数按 dropRule.mijing）（序号同 find.map）   mat 药材矿石数量倍率   stone 灵石倍率
  *   L     层序（只用来算灵石掉落：STONE_GROW^L）
  *   bossName 首领名字   monsters 普通怪名字（随机取一个；精英怪 = "精英·" + 名字）
  *   extra 额外掉落：按事件分列表（monster 普通怪 / elite 精英 / boss 首领 / herbEvent 灵药 / oreEvent 矿脉），

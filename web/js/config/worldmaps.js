@@ -45,25 +45,12 @@
  *   怪物种类倍率：普通 1，精英 = ELITE_STONE，首领 = BOSS_STONE；L = 该区域的 L
  *
  * ★ 材料公式（药材、矿石，modules/world.js rollEventMats）：
- *   种类和权重：config/drops.js 的 CFG.worldDrops[界id]（herb 药材表 / ore 矿石表）
- *   每次事件：先随机掉几种 = 随机整数(kinds[0] ~ kinds[1])（同一组按权重抽，不重复）
- *             每种个数 = max(1, 四舍五入( 随机整数(n[0] ~ n[1]) × 该地图 mat ))
- *   kinds 和 n 用下面的 CFG.worldDrop
+ *   种类和权重：config/drops.js 的 CFG.worldDrops[界id]（herb 药材表 / ore 矿石表 / special 特产）
+ *   每次事件：掉几种 = 随机整数(kinds)，从药材 + 矿石合起来的表按权重抽，不重复
+ *             每种个数 = max(1, 四舍五入( 随机整数(n) × 该地图 mat ))
+ *   kinds 和 n 在 config/drops.js 的 CFG.dropRule.world；特产另外必定掉落（见 worldDrops 的 special）
  * ===================================================================== */
 window.CFG = window.CFG || {};
-
-// ---------- 四界通用：每个事件掉几种、每种几个 ----------
-// 每项 { kinds: [最少种数, 最多种数], n: [每种最少个数, 每种最多个数] }，都是闭区间随机整数
-//   herbEvent / oreEvent（发现灵药 / 矿脉）：只从药材表 / 矿石表抽一组
-//   monster / elite / boss（击败怪物）：药材表、矿石表各抽一组，即药材和矿石各掉 kinds 种
-//   每种实际个数 = max(1, 四舍五入(n 随机 × 该地图 mat))；不写某项时默认 kinds [1, 2]、n [1, 2]
-CFG.worldDrop = {
-  herbEvent: { kinds: [1, 2], n: [1, 2] },   // 发现灵药：掉 1~2 种药材，每种 1~2 个
-  oreEvent:  { kinds: [1, 2], n: [1, 2] },   // 发现矿脉：掉 1~2 种矿石，每种 1~2 个
-  monster:   { kinds: [1, 2], n: [1, 2] },   // 普通怪：药材、矿石各 1~2 种，每种 1~2 个
-  elite:     { kinds: [1, 3], n: [1, 3] },   // 精英怪：药材、矿石各 1~3 种，每种 1~3 个
-  boss:      { kinds: [1, 3], n: [1, 4] },   // 首领：药材、矿石各 1~3 种，每种 1~4 个
-};
 
 // 四界地图容器（下面依次填 xian 仙界 / ming 冥界 / mo 魔界 / shen 神界）
 CFG.worldMaps = {};

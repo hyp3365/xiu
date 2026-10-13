@@ -257,20 +257,21 @@ G.module({
       }
       return got.join("、");
     },
-    rollEventMats(loot, ev, a, mulSet) {
-      const groups = DATA.mapDrop(a, ev), mul = mulSet !== undefined ? mulSet : DATA.mapMat(a);
+    // 药材矿石掉落：rule = 秘境的 { kinds, n }（不传按地图自己的规则）；特产 fixed 组必定掉
+    rollEventMats(loot, ev, a, mulSet, rule) {
+      const groups = DATA.mapDrop(a, ev, rule), mul = mulSet !== undefined ? mulSet : DATA.mapMat(a);
       if (!groups) return "";
       const got = [];
+      const add = (name, n0) => { const m = DATA.matByName[name], n = n0 > 0 ? Math.max(1, Math.round(n0 * mul)) : 0;
+        if (!m || n <= 0) return; const key = m.kind + "|" + name;
+        (loot.mats[key] = loot.mats[key] || { kind: m.kind, name, g: m.g, n: 0 }).n += n; got.push(`${name}×${U.fmt(n)}`); };
       for (const gr of groups) {
+        if (gr.fixed) { for (const name in gr.fixed) { const r = gr.fixed[name] || [1, 1]; add(name, U.rand(r[0], r[1])); } continue; }
         const names = Object.keys(gr.items || {}).filter(n => DATA.matByName[n]), w = names.map(n => gr.items[n]);
         const kinds = U.rand(gr.kinds[0], gr.kinds[1]);
         for (let i = 0; i < kinds && w.some(x => x > 0); i++) {
           const j = U.weighted(w); w[j] = 0;   // 同一组不重复
-          const name = names[j], m = DATA.matByName[name], n0 = U.rand(gr.n[0], gr.n[1]), n = n0 > 0 ? Math.max(1, Math.round(n0 * mul)) : 0;
-          if (n <= 0) continue;
-          const key = m.kind + "|" + name;
-          (loot.mats[key] = loot.mats[key] || { kind: m.kind, name, g: m.g, n: 0 }).n += n;
-          got.push(`${name}×${U.fmt(n)}`);
+          add(names[j], U.rand(gr.n[0], gr.n[1]));
         }
       }
       return got.join("、");
@@ -476,9 +477,9 @@ G.module({
       return this.addMagic({ name, Lm: d.L, kind, boss: kind === "boss", elite: kind === "elite",
         hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), crit: b.crit }, kind, b);
     },
-    // 秘境掉落 = 指定地图的普通掉落（× mat）+ extra 额外掉落
+    // 秘境掉落 = 指定地图的药材矿石表（种数个数按 CFG.dropRule.mijing，× 秘境 mat）+ extra 额外掉落
     rollMj(loot, ev, i) {
-      const d = this.mjDef(i), got = [this.rollEventMats(loot, ev, d.drops, d.mat === undefined ? 1 : d.mat)];
+      const d = this.mjDef(i), got = [this.rollEventMats(loot, ev, d.drops, d.mat === undefined ? 1 : d.mat, (CFG.dropRule || {}).mijing)];
       for (const x of (d.extra || {})[ev] || []) {
         if (Math.random() * 100 >= (x.chance || 0)) continue;
         const nn = x.n || [1, 1], n = U.rand(nn[0], nn[1]); if (n <= 0) continue;

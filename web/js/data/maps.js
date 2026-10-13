@@ -52,16 +52,15 @@ for (const pass of [0, 1]) for (const w of ["xian", "ming", "mo", "shen"]) {
   if (!W) continue;
   W.maps.forEach((m, i) => {
     if ((i < DATA.WORLD_MAP_OLD) === !!pass) return;
-    const a = DATA.maps.length, D = CFG.worldDrops[w] || {}, K = CFG.worldDrop || {};
+    const a = DATA.maps.length, D = CFG.worldDrops[w] || {};
     DATA.maps.push({ name: m.name, boss: m.boss, monsters: m.monsters, w, wi: i });
     DATA.worldMapIdx[w].push(a);
     CFG.monster.regions[a] = W.regions[i];
     CFG.monster.mapMult[a] = m.mult || {};
     CFG.monster.MAP_REALM[a] = m.realm;
-    const g = (items, ev) => ({ items, kinds: (K[ev] || {}).kinds || [1, 2], n: (K[ev] || {}).n || [1, 2] });
+    // 四界地图的掉落：药材表 / 矿石表 / 特产，掉几种几个按 CFG.dropRule.world
     CFG.mapDrops[a] = { stone: m.stone === undefined ? 1 : m.stone, mat: m.mat === undefined ? 1 : m.mat,
-      herbEvent: [g(D.herb, "herbEvent")], oreEvent: [g(D.ore, "oreEvent")],
-      monster: [g(D.herb, "monster"), g(D.ore, "monster")], elite: [g(D.herb, "elite"), g(D.ore, "elite")], boss: [g(D.herb, "boss"), g(D.ore, "boss")] };
+      herb: D.herb || {}, ore: D.ore || {}, special: D.special || {}, rule: "world" };
   });
 }
 
@@ -94,7 +93,19 @@ DATA.EXPLORE_STOP = _E.STOP;
 DATA.EXPLORE_TIME = _E.TIME;
 DATA.STONE_BASE = CFG.drop.STONE_BASE;
 DATA.STONE_GROW = CFG.drop.STONE_GROW;
-DATA.mapDrop = (a, ev) => { const m = (CFG.mapDrops || [])[a]; return m && m[ev]; };  // 该地图的掉落组
+// 该地图某个事件的掉落组：[{ items: {名字: 权重}, kinds, n }]，特产组为 { fixed: {名字: [最少, 最多]} }
+//   击败怪物：药材 + 矿石合成一张表抽（种数合计）；发现灵药 / 矿脉：只用药材 / 矿石表
+//   rule 不传时按地图自己的（凡界 fan / 四界 world）；秘境传 CFG.dropRule.mijing
+DATA.mapDrop = (a, ev, rule) => {
+  const m = (CFG.mapDrops || [])[a]; if (!m) return null;
+  const R = CFG.dropRule || {}, r = rule || (R[m.rule || "fan"] || {})[ev] || { kinds: [1, 2], n: [1, 2] };
+  const herb = m.herb || {}, ore = m.ore || {}, sp = m.special || {};
+  const items = ev === "herbEvent" ? herb : ev === "oreEvent" ? ore : Object.assign({}, herb, ore);
+  const fixed = {};
+  for (const n in sp) { const k = (DATA.matByName[n] || {}).kind;
+    if (ev === "herbEvent" ? k === "herb" : ev === "oreEvent" ? k === "ore" : true) fixed[n] = sp[n]; }
+  return [{ items, kinds: r.kinds, n: r.n }, { fixed }];
+};
 DATA.mapStone = a => { const m = (CFG.mapDrops || [])[a]; return m && m.stone !== undefined ? m.stone : 1; };
 DATA.mapMat = a => { const m = (CFG.mapDrops || [])[a]; return m && m.mat !== undefined ? m.mat : 1; };
 DATA.mapReq = a => { const v = (CFG.monster.MAP_REALM || [])[a]; return v === undefined ? a : v; }; // 该地图需要的境界
@@ -102,7 +113,7 @@ DATA.mapMob = a => (CFG.monster.mapMult || [])[a] || {};   // 该地图怪物属
 // 凡界地图会掉的全部药材、矿石名字（坊市只卖这些）
 DATA.fanMats = () => {
   const set = new Set();
-  for (const m of (CFG.mapDrops || []).slice(0, DATA.FAN_MAP_N)) for (const ev in m) if (Array.isArray(m[ev])) m[ev].forEach(gr => Object.keys(gr.items || {}).forEach(n => set.add(n)));
+  for (const m of (CFG.mapDrops || []).slice(0, DATA.FAN_MAP_N)) Object.keys(Object.assign({}, m.herb, m.ore)).forEach(n => set.add(n));
   return set;
 };
 // 材料出售价、宗门兑换贡献（js/config/ 数值文件 的 mats）
