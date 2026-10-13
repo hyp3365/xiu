@@ -150,11 +150,11 @@ G.module({
     needTrib() { return !this.s.mortal && this.s.L + 1 >= CFG.trib.START; },
 
     /* ---------- 雷劫 ---------- */
-    // 雷劫属性：js/config/ 数值文件 trib.realms 里该大境界「一层」的数值 × LAYER_GROW^层
+    // 雷劫属性 = 人物属性（突破后的境界、层数 + 全部宗门功法练到 trib.GF 层）× trib.MULT（config/trib.js）
     makeTrib(L) {
-      const T = CFG.trib, R = DATA.realms[Math.floor(L / DATA.LAYERS)], b = T.realms[R] || T.realms[Object.keys(T.realms).pop()];
-      const f = Math.pow(T.LAYER_GROW, L % DATA.LAYERS);
-      return { hp: b.hp * f, atk: b.atk * f, def: b.def * f, crit: b.crit };
+      const T = CFG.trib, M = T.MULT || {}, st = DATA.refStats(Math.floor(L / DATA.LAYERS), L % DATA.LAYERS + 1, T.GF === undefined ? 4 : T.GF);
+      const v = k => st[k] * (M[k] === undefined ? 1 : M[k]);
+      return { hp: v("hp"), atk: v("atk"), def: v("def"), crit: T.crit === undefined ? 5 : T.crit };
     },
     startTrib() {
       const s = this.s, L = s.L + 1, t = this.makeTrib(L);
