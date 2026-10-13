@@ -154,31 +154,35 @@ G.module({
       const lg = document.getElementById("tj-log"); if (lg) lg.innerHTML = x.log.slice(0, 8).map(l => `<p>${l}</p>`).join("");
       if (this._tribHit) { this.tribBolt(this._tribHit); this._tribHit = null; }
     },
-    // 一道闪电 + 人物身上飘伤害
+    // 一道劫雷：从劫云中心劈到人物头顶（带分叉），全屏一闪，人物一震，飘伤害数字
     tribBolt(h) {
-      const sky = document.getElementById("tj-sky"), hero = document.getElementById("tj-hero"); if (!sky || !hero) return;
-      const x = 20 + Math.random() * 60, pts = [[x, 0]];
-      for (let y = 12; y < 100; y += 12) pts.push([x + (Math.random() - 0.5) * 14, y]);
-      pts.push([50, 100]);
-      const b = document.createElement("div"); b.className = "tj-bolt";
-      b.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="${pts.map(p => p.join(",")).join(" ")}"/></svg>`;
-      sky.appendChild(b); setTimeout(() => b.remove(), 450);
-      const f = document.getElementById("trib"); f.classList.remove("tj-flash"); void f.offsetWidth; f.classList.add("tj-flash");
+      const st = document.getElementById("tj-stage"), hero = document.getElementById("tj-hero"); if (!st || !hero) return;
+      const zig = (x0, y0, x1, y1, n, amp) => {
+        const p = [[x0, y0]];
+        for (let i = 1; i < n; i++) { const k = i / n; p.push([x0 + (x1 - x0) * k + (Math.random() - 0.5) * amp, y0 + (y1 - y0) * k]); }
+        p.push([x1, y1]); return p;
+      };
+      const main = zig(50 + (Math.random() - 0.5) * 10, 16, 50, 60, 9, 9);
+      const lines = [main];
+      for (let i = 0; i < 3; i++) {   // 分叉
+        const s = main[1 + Math.floor(Math.random() * 5)], dir = Math.random() < 0.5 ? -1 : 1;
+        lines.push(zig(s[0], s[1], s[0] + dir * (8 + Math.random() * 14), s[1] + 8 + Math.random() * 12, 4, 5));
+      }
+      const pl = (p, w) => `<polyline points="${p.map(q => q.map(v => v.toFixed(1)).join(",")).join(" ")}" style="stroke-width:${w}"/>`;
+      const b = document.createElement("div"); b.className = "tj-bolt" + (h.c ? " crit" : "");
+      b.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none">${lines.map((p, i) => pl(p, i ? 1.5 : h.c ? 4.5 : 3)).join("")}</svg><div class="tj-hitglow"></div>`;
+      st.appendChild(b); setTimeout(() => b.remove(), 600);
+      st.classList.remove("tj-flash"); void st.offsetWidth; st.classList.add("tj-flash");
       hero.classList.remove("tj-shake"); void hero.offsetWidth; hero.classList.add("tj-shake");
       const n = document.createElement("div"); n.className = "tj-dmg" + (h.c ? " crit" : ""); n.textContent = "-" + U.fmt(h.d) + (h.c ? " 暴击" : "");
-      n.style.left = 35 + Math.random() * 30 + "%"; hero.appendChild(n); setTimeout(() => n.remove(), 1100);
+      n.style.left = 30 + Math.random() * 40 + "%"; st.appendChild(n); setTimeout(() => n.remove(), 1200);
     },
-    // 劫云（几团乌云叠起来）
-    tribCloudHtml() {
-      return `<div class="tj-sky" id="tj-sky"><div class="tj-cloud c1"></div><div class="tj-cloud c2"></div><div class="tj-cloud c3"></div><div class="tj-cloud c4"></div><div class="tj-glow"></div></div>`;
-    },
-    // 人物：打坐的剪影
-    tribHeroHtml(dead) {
-      return `<div class="tj-hero${dead ? " dead" : ""}" id="tj-hero"><div class="tj-aura"></div>
-        <svg viewBox="0 0 120 120"><circle cx="60" cy="28" r="12"/><path d="M60 8 l-4 8 h8z"/>
-        <path d="M60 40 C44 42 38 58 40 80 L80 80 C82 58 76 42 60 40Z"/>
-        <path d="M22 96 C24 82 40 78 60 80 C80 78 96 82 98 96 C86 102 34 102 22 96Z"/>
-        <path d="M42 62 C36 70 40 80 54 84 L66 84 C80 80 84 70 78 62 C72 72 48 72 42 62Z" opacity=".75"/></svg></div>`;
+    // 舞台：上方劫云（img/trib_cloud.webp），下方打坐人物（img/trib_hero.webp），中间放倒计时
+    tribStageHtml(mid, cls) {
+      return `<div class="tj-stage ${cls || ""}" id="tj-stage" style="background-image:url(img/trib_cloud.webp?v=${DATA.IMG_V || 1})">
+        <div class="tj-mid">${mid || ""}</div>
+        <div class="tj-hero" id="tj-hero"><div class="tj-aura"></div><img src="img/trib_hero.webp?v=${DATA.IMG_V || 1}" alt=""></div>
+      </div>`;
     },
     tribPrepHtml() {
       const s = this.s, N = this.tribSlotN(), L = s.L + 1, t = this.makeTrib(L), st = this.stats(), T = this.tribTime(L);
@@ -189,7 +193,7 @@ G.module({
       }).join("");
       return `<div class="tj-wrap">
         <div class="tj-head"><button class="sm" onclick="G.closeTrib()">返回</button><b>渡劫准备 · ${this.realmName(L)}</b><span></span></div>
-        ${this.tribCloudHtml()}
+        ${this.tribStageHtml(`<div class="tj-timer"><b>${T}</b><small> 秒</small></div>`, "calm")}
         <div class="tj-info">
           <div class="row small"><span>渡劫时长 ${T} 秒</span><span>劫雷每 ${CFG.trib.HIT_SEC || 1} 秒一击</span></div>
           <div class="row small"><span>劫云攻击 ${U.fmt(t.atk)} · 暴击 ${t.crit}%</span><span>你的气血 ${U.fmt(st.hp)} · 防御 ${U.fmt(st.def)}</span></div>
@@ -206,10 +210,8 @@ G.module({
         .map(f => `<div class="tj-slot on sm" onclick="G.tribUse()">${f.img ? `<img src="${f.img}" alt="">` : `<span class="tj-ic">${f.tag.slice(0, 1)}</span>`}<small>${f.name}</small></div>`).join("");
       return `<div class="tj-wrap${end ? win ? " win" : " lose" : ""}">
         <div class="tj-head"><button class="sm" onclick="G.closeTrib()">${end ? "离开" : "返回（渡劫继续）"}</button><b>渡劫 · ${this.realmName(x.L)}</b><span></span></div>
-        ${this.tribCloudHtml()}
-        <div class="tj-timer">${end ? (win ? "渡劫成功" : "渡劫失败") : `<b id="tj-left">${x.time - x.sec}</b><small> 秒</small>`}</div>
+        ${this.tribStageHtml(`<div class="tj-timer">${end ? `<b class="tj-res">${win ? "渡劫成功" : "渡劫失败"}</b>` : `<b id="tj-left">${x.time - x.sec}</b><small> 秒</small>`}</div>`, end ? win ? "win" : "dead" : "")}
         <div class="bar tick"><div id="tj-timebar" style="width:${x.sec / x.time * 100}%"></div></div>
-        ${this.tribHeroHtml(end && !win)}
         <div class="row small"><span>气血 <b id="tj-hp">${U.fmt(Math.max(0, s.hp))} / ${U.fmt(st.hp)}</b></span><span>共承受 <b id="tj-taken">${U.fmt(x.taken)}</b></span></div>
         <div class="bar hp"><div id="tj-hpbar" style="width:${Math.max(0, s.hp) / st.hp * 100}%"></div></div>
         ${end ? `<p class="${win ? "q4" : "q5"}" style="text-align:center"><b>${x.result}</b></p>` : ""}
