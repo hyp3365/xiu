@@ -432,6 +432,7 @@ G.module({
           if (!lost) this.mjDiscover(x.map);   // 地图走完一次：有几率发现秘境（凡界）/ 灵地（四界）
           if (x.once) { // 历练只走一次；走完且未战败 = 通过，解锁该区域自动探索
             const key = this.regionKey(x.map, x.reg || 0);
+            if (!lost && DATA.maps[x.map].w !== "fan" && this.xjGxAdd) { const g = CFG.xingjun.CONTRIB_RUN || 0; if (g) { this.xjGxAdd(x.map, g); this.log(`${DATA.maps[x.map].name}贡献 +${g}`, "gold"); } }   // 四界地图：完成一次历练得本图贡献（config/xingjun.js）
             if (!lost && !s.trainedR.includes(key)) { s.trainedR.push(key); this.log(`${DATA.regionName(x.map, x.reg || 0)}历练通过！已可自动探索。`, "gold"); }
             else if (lost) this.log("历练失败，提升实力后再来。", "bad");
             s.explore = null; break;
@@ -773,7 +774,8 @@ G.module({
           return tabs + back + page;
         }
         const ico = (id, cls) => halls[id] === undefined ? "" : `<button class="${cls || ""}" onclick="G.setHall('${id}')"><img src="img/hall_${id}.png" alt=""><span>${hn(id)}</span></button>`;
-        return tabs + grid + `<div class="xscene xs-${wid}">${ico("tg", "tg")}${["xj", "gd", "shop", "lilian", "wudao", "lingdi"].map(id => ico(id)).join("")}</div>`;
+        const gxTag = this.xjGxOf ? `<div class="xs-gx">贡献<b>${U.fmt(this.xjGxOf(sel))}</b></div>` : "";   // 本图贡献：显示在天宫图片左边
+        return tabs + grid + `<div class="xscene xs-${wid}"><div class="tgrow">${gxTag}${ico("tg", "tg")}</div>${["xj", "gd", "shop", "lilian", "wudao", "lingdi"].map(id => ico(id)).join("")}</div>`;
       }
       return tabs + bars + status + grid + (sel === "mj" ? this.mijingView() : this.regionsCard(sel));
     }
