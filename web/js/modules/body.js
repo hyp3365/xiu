@@ -38,7 +38,7 @@ G.module({
     bodyNeed(T) { const B = CFG.body; if (T === undefined) T = this.s.bodyL + 1; return T <= 0 ? B.FIRST_EXP : B.NEED_BASE * Math.pow(B.NEED_RATE, T - 1); },
     // 肉身修炼速度（每 10 秒）
     bodySpeed() {
-      const s = this.s, base = (CFG.body.BASE_SPEED || 0) * Math.pow(DATA.GROW, s.mortal ? 0 : s.L);
+      const s = this.s, base = (CFG.body.BASE_SPEED || 0) * Math.pow(CFG.body.SPEED_GROW || DATA.GROW, s.mortal ? 0 : s.L);
       const gf = this.gongfaBonus().body || 0, mf = this.mifaBonus().bodySpeed || 0;
       return { base, gf, mf, total: Math.floor(base + gf + mf) };
     },
