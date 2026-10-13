@@ -219,11 +219,11 @@ G.module({
       const xf = (kind === "xdan" || kind === "xqi") && this.s.furnaceUse.xqi >= 0;   // 仙炉：装有炼器仙炉时按炼器仙炉缩短
       return Math.ceil(base * (1 - (xf ? DATA.furnaceBonus("xqi", this.s.furnaceUse.xqi) : DATA.furnaceBonus("qi", this.s.furnaceUse.qi)) / 100) * (1 - this.mifaCut("qiTime") / 100));
     },
-    // 秘境专用材料：空间石要空间晶核，一阶法宝要同种模具 → [{ k, ft, n }]
+    // 秘境专用材料：空间石要空间晶核；法宝要同种模具（一阶 = MOLD 个一阶模具，升到 N 阶 = MOLD_UP 个 N 阶模具）→ [{ k, ft, tier, n }]
     jobSm(q) {
       if (q.kind === "ss") { const n = (CFG.forge.stone.special || [])[q.g] || 0; return n ? [{ k: "kj", n }] : []; }
       const out = [];
-      if (q.kind === "eq" && q.slot === "fabao" && q.g === 0) out.push({ k: "mold", ft: q.ft, n: CFG.forge.fabao.MOLD || 1 });
+      if (q.kind === "eq" && q.slot === "fabao" && q.ft !== undefined) { const n = this.moldNeed(q.g); if (n) out.push({ k: "mold", ft: q.ft, tier: q.g + 1, n }); }
       // v54：九曜石（config/forge.js 的 JIUYAO，对应品阶）
       if (q.kind === "eq" || q.kind === "ring") {
         const J = CFG.forge.JIUYAO || {}, n = (J[q.kind === "ring" ? "ring" : q.slot === "fabao" ? "fabao" : "equip"] || [])[q.g] || 0;
@@ -231,8 +231,10 @@ G.module({
       }
       return out;
     },
-    smHave(list) { return list.every(x => this.smCount(x.k, x.ft) >= x.n); },
-    smText(list) { return list.map(x => `<span class="${this.smCount(x.k, x.ft) >= x.n ? "" : "q5"}">${DATA.smName(x.k, x.ft)} ${U.fmt(this.smCount(x.k, x.ft))}/${U.fmt(x.n)}</span>`).join("、"); },
+    // 炼 / 升到第 g 阶（0 起）法宝要几个模具：一阶 MOLD，二阶起 MOLD_UP（config/forge.js 的 fabao）
+    moldNeed(g) { const F = CFG.forge.fabao; return g === 0 ? (F.MOLD === undefined ? 1 : F.MOLD) : (F.MOLD_UP === undefined ? 1 : F.MOLD_UP); },
+    smHave(list) { return list.every(x => this.smCount(x.k, x.ft, x.tier) >= x.n); },
+    smText(list) { return list.map(x => `<span class="${this.smCount(x.k, x.ft, x.tier) >= x.n ? "" : "q5"}">${DATA.li(DATA.smIcon(x.k, x.ft))}${DATA.smName(x.k, x.ft, x.tier)} ${U.fmt(this.smCount(x.k, x.ft, x.tier))}/${U.fmt(x.n)}</span>`).join("、"); },
     jobMats(q) { return q.kind === "eq" ? DATA.forgeEqMats(q.g) : q.kind === "ss" ? DATA.stoneMats(q.g) : q.kind === "ring" ? DATA.ringMats(q.g) : DATA.furnaceMats(q.kind, q.g); },
     jobName(q) { return q.kind === "eq" ? (q.slot === "fabao" && q.ft !== undefined ? DATA.JIE[q.g] + "·" + DATA.fabaoTypes[q.ft].name : DATA.forgeEqName(q.slot, q.g)) : q.kind === "ss" ? DATA.stoneName(q.g) : q.kind === "ring" ? DATA.ringName(q.r, q.g) : DATA.furnaceName(q.kind, q.g); },
     // 炼好：放进背包，背包满返回 false（等有空位再出炉）
@@ -284,14 +286,14 @@ G.module({
       }
       if (s.forgeJob && q.length >= CFG.furnace.QUEUE) return this.log(`队列已满（最多 ${CFG.furnace.QUEUE} 个）。`, "sys");
       const sm = this.jobSm(job);
-      if (!this.hasMats(mats) || !this.smHave(sm)) return this.log(sm.length && !this.smHave(sm) ? `缺少${sm.map(x => DATA.smName(x.k, x.ft)).join("、")}（秘境掉落）。` : "材料不足。", "sys");
+      if (!this.hasMats(mats) || !this.smHave(sm)) return this.log(sm.length && !this.smHave(sm) ? `缺少${sm.filter(x => this.smCount(x.k, x.ft, x.tier) < x.n).map(x => DATA.smName(x.k, x.ft, x.tier)).join("、")}（秘境掉落）。` : "材料不足。", "sys");
       let pi = -1;
       if (kind === "ring" && g < 1) return;
       if (kind === "eq" && g > 0) { pi = this.prevEquipIndex(slot, g, job.ft); if (pi < 0) return this.log(`需要一件${slot === "fabao" ? DATA.JIE[g - 1] + "·" + DATA.fabaoTypes[job.ft].name : DATA.forgeEqName(slot, g - 1)}。`, "sys"); }
       if (kind === "ring") { pi = this.prevEquipIndex("ring", g, job.r); if (pi < 0) return this.log(`需要一枚${DATA.ringName(job.r, g - 1)}。`, "sys"); }
       if (pi >= 0) { job.prev = s.bag[pi].e; s.bag.splice(pi, 1); }
       mats.forEach(m => this.takeMat(m.kind, m.g, m.n));
-      sm.forEach(x => this.takeSm(x.k, x.n, x.ft));
+      sm.forEach(x => this.takeSm(x.k, x.n, x.ft, x.tier)); if (sm.length) job.sm = sm;
       if (s.forgeJob) { q.push(job); this.log(`${this.jobName(job)}加入队列。`, "sys"); }
       else { s.forgeJob = Object.assign(job, { end: this.now() + this.forgePer(kind, g) }); this.log(`开始炼制${this.jobName(job)}。`, "good"); }
       if (slot === "fabao") this.closeModal();
@@ -300,20 +302,22 @@ G.module({
     // 法宝：选择 36 种之一炼制
     openFabaoPick(g) {
       const s = this.s, mats = DATA.forgeEqMats(g), full = s.forgeJob && s.forgeQueue.length >= CFG.furnace.QUEUE;
-      const ok0 = s.furnaceUse.qi >= g && this.hasMats(mats) && !full, M = CFG.forge.fabao.MOLD || 1;
-      this.modal(`<h2>炼制${DATA.JIE[g]}法宝</h2><p class="desc">${g ? `要用一件${DATA.JIE[g - 1]}同种法宝 + ` : `要用 ${M} 个同种模具（秘境掉落）+ `}${this.matsText(mats)} · ${U.dur(this.forgePer("eq", g) / 1000)} · 成功率 ${this.ratePct(this.craftRate("qi", g))}<br>属性由种类决定，新炼成的法宝属性最高绿色。</p>` +
+      const ok0 = s.furnaceUse.qi >= g && this.hasMats(mats) && !full, M = this.moldNeed(g);
+      this.modal(`<h2>炼制${DATA.JIE[g]}法宝</h2><p class="desc">${g ? `要用一件${DATA.JIE[g - 1]}同种法宝 + ` : ""}${M ? `${M} 个同种${DATA.JIE[g]}模具（秘境、灵地首领掉落）+ ` : ""}${this.matsText(mats)} · ${U.dur(this.forgePer("eq", g) / 1000)} · 成功率 ${this.ratePct(this.craftRate("qi", g))}<br>属性由种类决定，新炼成的法宝属性最高绿色。</p>` +
         DATA.fabaoTypes.map((T, ft) => {
-          const prevOK = g === 0 ? this.smCount("mold", ft) >= M : this.prevEquipIndex("fabao", g, ft) >= 0;
+          const prevOK = this.smCount("mold", ft, g + 1) >= M && (g === 0 || this.prevEquipIndex("fabao", g, ft) >= 0);
           if (!prevOK) return "";
           return `<div class="line"><div>${DATA.eqTierIco(DATA.iconImg("fbt" + ft), g)}${DATA.JIE[g]}·${T.name}<span class="tag">${DATA.elById[T.el].name}</span>
-            <small>${g ? `${DATA.JIE[g - 1]}·${T.name} ×1` : `${DATA.smName("mold", ft)} ${this.smCount("mold", ft)}/${M} · 伤害% ×${T.pct} · 属性伤害 ×${T.flat}`}</small></div>
+            <small>${g ? `${DATA.JIE[g - 1]}·${T.name} ×1、` : ""}${M ? `${DATA.li(DATA.smIcon("mold", ft))}${DATA.smName("mold", ft, g + 1)} ${this.smCount("mold", ft, g + 1)}/${M}` : ""}${g ? "" : ` · 伤害% ×${T.pct} · 属性伤害 ×${T.flat}`}</small></div>
             <button class="sm" onclick="G.craftFurnace('eq',${g},'fabao',${ft})" ${ok0 ? "" : "disabled"}>${s.forgeJob ? "排队" : "炼制"}</button></div>`;
-        }).join("") + (!this.fabaoAnyBase(g) ? `<p class="desc">${g ? `背包里没有${DATA.JIE[g - 1]}法宝。` : "背包里没有法宝模具（秘境首领掉落）。"}</p>` : "") +
+        }).join("") + (!this.fabaoAnyBase(g) ? `<p class="desc">${g ? `背包里没有${DATA.JIE[g - 1]}法宝和对应的${DATA.JIE[g]}模具。` : "背包里没有一阶法宝模具（秘境首领掉落）。"}</p>` : "") +
         `<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
     // 背包里有没有能炼这一阶法宝的底子：一阶 = 模具，二阶起 = 上一阶法宝
-    fabaoAnyBase(g) { const M = CFG.forge.fabao.MOLD || 1; return DATA.fabaoTypes.some((T, ft) => g === 0 ? this.smCount("mold", ft) >= M : this.prevEquipIndex("fabao", g, ft) >= 0); },
-    refundJob(q) { this.giveBack(this.jobMats(q)); this.jobSm(q).forEach(x => this.addSm(x.k, x.n, x.ft)); if (q.prev) this.addEquip(q.prev); },
+    //   升阶也要同种、新一阶的模具
+    fabaoAnyBase(g) { const M = this.moldNeed(g); return DATA.fabaoTypes.some((T, ft) => this.smCount("mold", ft, g + 1) >= M && (g === 0 || this.prevEquipIndex("fabao", g, ft) >= 0)); },
+    // 退回：按开始时实际扣的专用材料 q.sm；旧存档的任务没有 q.sm，按现在的规则算（旧的升阶任务当时没扣模具，不退模具）
+    refundJob(q) { this.giveBack(this.jobMats(q)); (q.sm || this.jobSm(q).filter(x => !(x.k === "mold" && q.g > 0))).forEach(x => this.addSm(x.k, x.n, x.ft, x.tier)); if (q.prev) this.addEquip(q.prev); },
     // 取消队列中的一项，退回材料
     cancelForgeQ(i) {
       const q = this.s.forgeQueue[i]; if (!q) return;
@@ -517,7 +521,7 @@ G.caveViews.forge = function () {
     if (sl === "fabao") {   // 法宝：36 种，点「选择」挑种类
       const prevOK = this.fabaoAnyBase(g), fsm = this.jobSm({ kind: "eq", g, slot: "fabao" }).filter(x => x.k === "jy");
       rows += `<div class="line"><div>${DATA.eqTierIco(DATA.iconImg("fbt0"), g)}${DATA.JIE[g]}法宝<span class="tag">${DATA.fabaoTypes.length} 种</span>
-        <small><span class="${prevOK ? "" : "q5"}">${g ? `${DATA.JIE[g - 1]}同种法宝 ×1` : `同种模具 ×${CFG.forge.fabao.MOLD || 1}`}</span>、${this.matsText(mats)}${fsm.length ? "、" + this.smText(fsm) : ""} · ${U.dur(this.forgePer("eq", g) / 1000)} · 成功率 ${rate}</small></div>
+        <small><span class="${prevOK ? "" : "q5"}">${g ? `${DATA.JIE[g - 1]}同种法宝 ×1、` : ""}同种${DATA.JIE[g]}模具 ×${this.moldNeed(g)}</span>、${this.matsText(mats)}${fsm.length ? "、" + this.smText(fsm) : ""} · ${U.dur(this.forgePer("eq", g) / 1000)} · 成功率 ${rate}</small></div>
         <button class="sm" onclick="G.openFabaoPick(${g})" ${!has || full || !tierOK || !prevOK || !this.hasMats(mats) || !this.smHave(fsm) ? "disabled" : ""}>选择</button></div>`;
       continue;
     }

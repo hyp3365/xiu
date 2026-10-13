@@ -93,17 +93,21 @@ DATA.EXPLORE_STOP = _E.STOP;
 DATA.EXPLORE_TIME = _E.TIME;
 DATA.STONE_BASE = CFG.drop.STONE_BASE;
 DATA.STONE_GROW = CFG.drop.STONE_GROW;
-// 该地图某个事件的掉落组：[{ items: {名字: 权重}, kinds, n }]，特产组为 { fixed: {名字: [最少, 最多]} }
-//   击败怪物：药材 + 矿石合成一张表抽（种数合计）；发现灵药 / 矿脉：只用药材 / 矿石表
-//   rule 不传时按地图自己的（凡界 fan / 四界 world）；秘境传 CFG.dropRule.mijing
+// 该地图某个事件的掉落组：[{ items: {名字: 权重}, kinds, n }, { fixed: {名字: [最少, 最多]} }]
+//   击败怪物：药材 + 矿石合成一张表抽（种数合计）；发现灵药 / 矿脉：只用药材 / 矿石表（只有普通药材矿石）
+//   fixed 必定掉落组：四界特产 special 只在 ev === "boss"（首领）时掉；再加该地图 config/drops.js 里写的 fixed[事件]
+//   rule 不传时按地图自己的（凡界 fan / 四界 world）；秘境、灵地借用这张地图的药材矿石表时传 CFG.dropRule.mijing / lingdi，
+//     借用时没有特产、没有 fixed
 DATA.mapDrop = (a, ev, rule) => {
   const m = (CFG.mapDrops || [])[a]; if (!m) return null;
   const R = CFG.dropRule || {}, r = rule || (R[m.rule || "fan"] || {})[ev] || { kinds: [1, 2], n: [1, 2] };
-  const herb = m.herb || {}, ore = m.ore || {}, sp = m.special || {};
+  const herb = m.herb || {}, ore = m.ore || {};
   const items = ev === "herbEvent" ? herb : ev === "oreEvent" ? ore : Object.assign({}, herb, ore);
   const fixed = {};
-  for (const n in sp) { const k = (DATA.matByName[n] || {}).kind;
-    if (ev === "herbEvent" ? k === "herb" : ev === "oreEvent" ? k === "ore" : true) fixed[n] = sp[n]; }
+  if (!rule) {
+    if (ev === "boss") Object.assign(fixed, m.special || {});
+    Object.assign(fixed, (m.fixed || {})[ev] || {});
+  }
   return [{ items, kinds: r.kinds, n: r.n }, { fixed }];
 };
 DATA.mapStone = a => { const m = (CFG.mapDrops || [])[a]; return m && m.stone !== undefined ? m.stone : 1; };
@@ -119,3 +123,9 @@ DATA.fanMats = () => {
 // 材料出售价、宗门兑换贡献（js/config/ 数值文件 的 mats）
 DATA.matPrice = (kind, g) => DATA.matCfg(kind, DATA[kind === "herb" ? "herbs" : "ores"][g])[0];
 DATA.matContrib = (kind, g) => DATA.matCfg(kind, DATA[kind === "herb" ? "herbs" : "ores"][g])[1];
+
+// 灵地（config/lingdi.js）：_map = 发现地图的地图序号（这一界第 find.map 张，0 起）；境界要求不写 = 那张地图的境界要求
+(((CFG.lingdi || {}).list) || []).forEach(d => {
+  d._map = DATA.maps.findIndex(m => m.w === d.w && m.wi === (d.find || {}).map);
+  if (d.realm === undefined) d.realm = d._map >= 0 ? DATA.mapReq(d._map) : 0;
+});

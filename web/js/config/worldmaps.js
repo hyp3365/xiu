@@ -13,7 +13,7 @@
  *   map: ["xian", 4] —— 可选，要求「仙界第 4 张地图」的北域已历练通过
  *
  * 二、halls：每张地图里的 7 处地点（只改名字，id 不要改）
- *   tg 主殿 / xj 星君殿 / gd 功德司 / shop 坊市 / lilian 历练 / wudao 悟道碑 / lingdi 灵地
+ *   tg 主殿 / xj 星君殿 / gd 功德司 / shop 坊市 / lilian 历练 / wudao 悟道碑 / lingdi 灵地（灵地见 config/lingdi.js：每界第 3 / 6 / 9 张地图能发现，任一张地图的灵地里显示四界全部已发现的灵地）
  *   名字里的 {map} 会换成地图名（例：玉皇天 + "{map}宫" → 玉皇天宫）；图片 img/hall_<id>.png；官位数值见 config/xingjun.js
  *
  * 三、maps：10 张地图，顺序 = 第 1 张 …… 第 10 张（顺序不要改，存档按序号记地图）
@@ -48,7 +48,7 @@
  *   种类和权重：config/drops.js 的 CFG.worldDrops[界id]（herb 药材表 / ore 矿石表 / special 特产）
  *   每次事件：掉几种 = 随机整数(kinds)，从药材 + 矿石合起来的表按权重抽，不重复
  *             每种个数 = max(1, 四舍五入( 随机整数(n) × 该地图 mat ))
- *   kinds 和 n 在 config/drops.js 的 CFG.dropRule.world；特产另外必定掉落（见 worldDrops 的 special）
+ *   kinds 和 n 在 config/drops.js 的 CFG.dropRule.world；特产只在击败首领时另外必定掉落（见 worldDrops 的 special）
  * ===================================================================== */
 window.CFG = window.CFG || {};
 
