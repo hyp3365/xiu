@@ -419,7 +419,10 @@ G.module({
       if (!x.ms) x.ms = this.exploreMs();
       while (s.explore && this.now() >= x.start + (x.step + 1) * x.ms) {
         changed = true;
-        const lost = this.exploreStep();
+        // 战败：先把战败那一步显示出来，再等一步的时间才结算「探索失败」
+        let lost = false;
+        if (x.lostWait) { lost = true; x.lostWait = 0; }
+        else if (this.exploreStep()) { x.lostWait = 1; continue; }
         if (x.step >= T || lost) {
           // 结算本次
           x.count++;
@@ -447,7 +450,7 @@ G.module({
             s.lastRun.title += "；气血不足三成，自动探索停止";
             s.explore = null; break;
           }
-          x.start = x.start + x.step * x.ms; x.ms = this.exploreMs(); x.step = 0; x.loot = this.newLoot(); x.ev = []; x.plan = this.makePlan(this.exCfg(x));
+          x.start = x.start + (x.step + (lost ? 1 : 0)) * x.ms; x.ms = this.exploreMs(); x.step = 0; x.loot = this.newLoot(); x.ev = []; x.plan = this.makePlan(this.exCfg(x));
           s.lastRun = null; // 开始新一次：不保留上一次的记录
         }
       }

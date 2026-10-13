@@ -147,11 +147,22 @@ G.module({
       const x = this.s.trib;
       if (!x) { if (full || el.dataset.mode !== "prep") { el.dataset.mode = "prep"; el.innerHTML = this.tribPrepHtml(); } return; }
       const mode = x.result ? "end" : "run";
+      // 最后一击（劈死或撑到最后一秒）：先在渡劫画面把这道雷劈出来、扣血，约 1 秒后再显示结果
+      if (!full && mode === "end" && el.dataset.mode === "run") {
+        if (this._tribHit) { this._tribHold = Date.now() + 1000; setTimeout(() => this.tribRender(false), 1050); }
+        if (this._tribHold && Date.now() < this._tribHold) { this.tribUpd(); return; }
+      }
+      this._tribHold = 0;
       if (full || el.dataset.mode !== mode) { el.dataset.mode = mode; el.innerHTML = this.tribRunHtml(); this._tribHit = null; return; }
-      // 只更新会变的部分
-      const s = this.s, st = this.stats(), hpPct = Math.max(0, s.hp) / st.hp * 100;
+      this.tribUpd();
+    },
+    // 渡劫画面：只更新会变的数字、血条、日志，有新的一击就画闪电
+    tribUpd() {
+      const x = this.s.trib; if (!x) return;
+      const s = this.s, st = this.stats(), dead = x.result && !/成功/.test(x.result);
+      const hp = dead ? 0 : Math.max(0, s.hp), hpPct = hp / st.hp * 100;   // 被劈倒：结算后气血留 1，画面上先显示 0
       const set = (id, v) => { const n = document.getElementById(id); if (n) n.textContent = v; };
-      set("tj-left", x.time - x.sec); set("tj-hp", `${U.fmt(Math.max(0, s.hp))} / ${U.fmt(st.hp)}`); set("tj-taken", U.fmt(x.taken));
+      set("tj-left", x.time - x.sec); set("tj-hp", `${U.fmt(hp)} / ${U.fmt(st.hp)}`); set("tj-taken", U.fmt(x.taken));
       const bar = document.getElementById("tj-hpbar"); if (bar) bar.style.width = hpPct + "%";
       set("tj-mp", `${U.fmt(Math.max(0, s.mana || 0))} / ${U.fmt(st.mana || 0)}`);
       const mb = document.getElementById("tj-mpbar"); if (mb) mb.style.width = (st.mana ? Math.max(0, s.mana || 0) / st.mana * 100 : 0) + "%";
