@@ -2,24 +2,39 @@
  * ★ 数值设置 · 战斗 ★
  * ---------------------------------------------------------------------
  * 所有数值文件都在 js/config/ 下，一个部分一个文件；改完把 index.html 里的 ?v=数字 加 1。
+ *
+ * 【伤害公式】（代码：js/modules/world.js 的 battle；雷劫在 js/modules/cultivate.js 的 advanceTrib）
+ *   历练、秘境、试炼塔、宗门考核、星君挑战都用 battle；雷劫用同样的 MIN_DMG / DEF_RATE / RAND / CRIT_MULT。
+ *   出手顺序：速度高者先手（相等时人物先手），双方轮流各出手一次为一回合，最多 MAX_ROUNDS 回合。
+ *
+ *   普通攻击：原始伤害 = max(攻击 × MIN_DMG, 攻击 − 对方防御 × DEF_RATE)
+ *   法术    ：原始伤害 = max(攻击 × MIN_DMG, (攻击 × 法术% + 法术固定伤害) × 灵根加成 − 对方该系抗性 × DEF_RATE)
+ *   法宝    ：原始伤害 = max(攻击 × MIN_DMG, 攻击 × 法宝% + 属性伤害 − 减免后该系抗性 × DEF_RATE) + 追加伤害
+ *   怪物法术 / 法宝：原始伤害 = max(攻击 × MIN_DMG, 攻击 × pct% − 对方该系抗性 × DEF_RATE)（见 config/monster.js 的 magic）
+ *   其中 某系抗性 = 防御 × RES_RATE + 该系抗性
+ *
+ *   然后：先判闪避（闪避几率 % = (防守方闪避 − 进攻方命中) ÷ 进攻方命中 × 100 ÷ DODGE_DIV，上限 DODGE_CAP，见 config/player.js）
+ *         没闪避 → 伤害 = 原始伤害 × 随机(RAND_MIN ~ RAND_MAX)
+ *         再判暴击（几率 = min(暴击%, CRIT_CAP)）→ 暴击时伤害 × CRIT_MULT
+ *   雷劫：伤害 = max(攻击 × MIN_DMG, 攻击 − 防御 × DEF_RATE) × 随机(RAND_MIN ~ RAND_MAX)，暴击 × CRIT_MULT；雷劫无法闪避
  * ===================================================================== */
 window.CFG = window.CFG || {};
 
-// 一次攻击伤害 = max(攻击 × MIN_DMG, 攻击 - 对方防御 × DEF_RATE) × 随机(RAND_MIN ~ RAND_MAX)
-// 暴击时伤害 × CRIT_MULT。历练、试炼塔、雷劫都用这里。
 CFG.battle = {
-  MIN_DMG: 0.01,      // 保底伤害 = 攻击 × MIN_DMG
-  DEF_RATE: 0.9,     // 防御抵消比例
-  RAND_MIN: 0.9,     // 伤害随机下限
-  RAND_MAX: 1.1,     // 伤害随机上限
-  CRIT_MULT: 2,      // 暴击倍率
-  MAX_ROUNDS: 300,    // 一场战斗最多回合，超过算平手各自退去
-  TOWER_HP_MIN: 0.3, // 气血低于上限这个比例不能挑战试炼塔
+  MIN_DMG: 0.01,     // 保底伤害 = 攻击 × 0.01（防御再高也至少打这么多）
+  DEF_RATE: 0.9,     // 防御 / 抗性抵消比例：伤害 = 攻击 − 防御 × 0.9
+  RAND_MIN: 0.9,     // 伤害随机下限（× 0.9）
+  RAND_MAX: 1.1,     // 伤害随机上限（× 1.1）
+  CRIT_MULT: 2,      // 暴击伤害倍率（× 2）
+  MAX_ROUNDS: 300,   // 一场战斗最多回合数，打满还没分胜负算平手，各自退去（雷劫不受此限）
+  TOWER_HP_MIN: 0.3, // 气血低于上限这个比例（30%）不能挑战试炼塔、宗门晋升考验
 };
 
 // ---------- 属性抗性 ----------
-// 战斗中某系抗性 = 防御 × RES_RATE + 该系抗性；被该系法术打中：伤害 = 法术威力 - 抗性 × DEF_RATE
-//   普通攻击、法宝只算防御
-CFG.battle.RES_RATE = 1;
-// 雷劫、试炼塔等战斗画面：每几秒打一回合 / 显示一条战斗信息
-CFG.battle.ROUND_SEC = 2;
+// 战斗中某系抗性 = 防御 × RES_RATE + 该系抗性
+// 被该系法术、法宝打中时按这个抗性减免（伤害 − 抗性 × DEF_RATE）；普通攻击只算防御
+CFG.battle.RES_RATE = 1;   // 防御计入抗性的比例（1 = 防御全额算进每系抗性）
+
+// ---------- 战斗画面播放速度 ----------
+// 雷劫：每 ROUND_SEC 秒打一回合；试炼塔等战斗画面：每 ROUND_SEC 秒显示一回合（结果已算好，只是播放）
+CFG.battle.ROUND_SEC = 2;   // 秒

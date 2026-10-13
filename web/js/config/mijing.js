@@ -1,60 +1,91 @@
 /* =====================================================================
  * ★ 数值设置 · 秘境 ★
  * ---------------------------------------------------------------------
- * 改完把 index.html 里的 ?v=数字 加 1。
+ * 所有数值文件都在 js/config/ 下，一个部分一个文件；改完把 index.html 里的 ?v=数字 加 1。
+ * 代码：js/modules/world.js（mjDiscover / makeMjMob / rollMj）、js/data/refstats.js（生成怪物属性）
  *
- * 发现：在凡界地图历练 / 自动探索，每走完一次（不战败），有 find.chance% 几率发现一处还没发现的秘境
- *   （find.map = 在哪张地图能发现，0 = 青云山林 …… 8 = 雷劫之地）。发现后永久保留。
- * 进入：每处秘境每天只能进 DAILY 次（历练、探索都算），先历练通过（走完不战败）才能自动探索。
- *   「一键探索」= 把今天还没进过、已历练通过的秘境依次自动探索一遍。
- * 走路：一次 TIME 步，每步秒数和凡界地图一样（config/explore.js 的 STEP_SEC，宗门秘法「神行」可减少）。
+ * 【发现】在凡界地图历练 / 自动探索 / 元婴出窍，每走完一次（没战败），对「能在这张地图发现、还没发现」的秘境
+ *   按 find.chance% 依次判定，一次最多发现一处。发现后永久保留。
+ * 【进入】每处秘境每天只能进 DAILY 次（历练、探索都算），先历练通过（走完不战败）才能自动探索。
+ *   「一键探索」= 把今天还能进、已历练通过的秘境按顺序依次自动探索一遍。
+ *   气血低于上限 × config/explore.js 的 STOP 不能进入。
+ * 【走路】一次 TIME 步；每步秒数、每步恢复用凡界的设置（config/explore.js 的 STEP_SEC / STEP_MIN / HEAL_STEP，
+ *   宗门秘法「神行」可减少）。事件排法同凡界：普通怪 MONSTERS + 精英 ELITES + 灵药 HERB_MIN~HERB_MAX
+ *   + 矿脉 ORE_MIN~ORE_MAX，其余无事发生，打乱后最后 BOSS 步是首领。
  *
- * 每处秘境：
- *   name 名字   realm 需要的境界（0 练气 1 筑基 …… 9 大乘）   L 层序（只用来算灵石掉落）
- *   怪物属性按上面 REF 自动生成（遇到时 ±RAND 浮动，法力抗性同凡界怪物）
- *   monsters 普通怪名字   bossName 首领名字
- *   drops  普通掉落用哪张地图的掉落组（config/drops.js 的 mapDrops，0 = 青云山林），mat = 药材矿石数量倍率，stone = 灵石倍率
- *   extra  额外掉落：每个事件（monster 普通怪 elite 精英 boss 首领 herbEvent 灵药 oreEvent 矿脉）一个列表，
- *          每条 { item 物品名, chance 几率%, n [最少, 最多] }
- *          物品名：火髓、空间晶核、九曜石（写全名，如 黄品九曜石）、法宝模具（随机一种）、某种模具（例 "飞剑模具"），
- *                  也可以写药材 / 矿石名字，或 content/items.js 里的自定义物品
+ * 【怪物属性】（js/data/refstats.js）
+ *   人物属性 = 该秘境 realm 境界第 REF.LAYER 层的人物属性 + 全部可学宗门功法练到 REF.GF 层的加成
+ *   怪物基础属性 = 人物属性 × REF.KIND[种类][属性] × REF.MULT；暴击% = REF.KIND[种类].crit
+ *   遇到时：属性 × 随机(1 − RAND ~ 1 + RAND)（RAND 用 config/monster.js 的 monster.RAND；秘境不乘 mapMult）
+ *   法力、抗性、法术、法宝同凡界怪物（config/monster.js 的 monster.magic）
+ *
+ * 【掉落】（击败怪物 / 发现灵药 / 发现矿脉 时）
+ *   灵石 = STONE_BASE × STONE_GROW^L × 随机(1~2.5) × STONE_RATE × 种类倍率 × 该秘境 stone（config/drops.js）
+ *          （用秘境自己的 stone，不再乘地图的 stone）
+ *   药材矿石 = config/drops.js 里 mapDrops[drops] 那张地图同一事件的掉落组，每种数量 = 四舍五入(n × 该秘境 mat)，至少 1
+ *          （用秘境自己的 mat，不再乘地图的 mat）
+ *   再加 extra 额外掉落：每条单独掷 chance%，掷中掉 随机(n[0]~n[1]) 个
+ *   元婴期秘境每次进入另外必定掉落养神灵露（数量见 config/sect.js 的 chuqiao.LU_DROP）
+ *
+ * 【每处秘境的字段】
+ *   name 名字   realm 需要的境界（0 练气 1 筑基 2 金丹 3 元婴 4 出窍 5 化神 6 练虚 7 合体 8 洞真 9 大乘）
+ *   find  { map 在哪张凡界地图能发现（0 青云山林 1 黑风谷 2 万妖岭 3 幽冥沼泽 4 落星海 5 虚空裂隙 6 天魔战场 7 九幽深渊 8 雷劫之地），
+ *           chance 每走完一次发现的几率% }
+ *   drops 普通药材矿石掉落用哪张地图的掉落组（序号同 find.map）   mat 药材矿石数量倍率   stone 灵石倍率
+ *   L     层序（只用来算灵石掉落：STONE_GROW^L）
+ *   bossName 首领名字   monsters 普通怪名字（随机取一个；精英怪 = "精英·" + 名字）
+ *   extra 额外掉落：按事件分列表（monster 普通怪 / elite 精英 / boss 首领 / herbEvent 灵药 / oreEvent 矿脉），
+ *         每条 { item 物品名, chance 几率%, n [最少, 最多] }
+ *         物品名：火髓、空间晶核、养神灵露、九曜石（写带品阶的全名，如 "黄品九曜石"）、
+ *                 "法宝模具"（随机一种法宝的模具）或某种模具（例 "飞剑模具"），
+ *                 也可以写药材 / 矿石名字，或 content/items.js 里的自定义物品
  * ===================================================================== */
 window.CFG = window.CFG || {};
 
 CFG.mijing = {
-  // v51：秘境怪物属性 = 人物属性（该秘境 realm 境界第 LAYER 层 + 全部宗门功法练到 GF 层）× MULT × KIND 倍率
+  // ---------- 秘境怪物参考属性（公式见文件开头） ----------
   REF: {
-    LAYER: 10, GF: 5,
-    MULT: 1.05,         // 比人物属性高 5%
+    LAYER: 10,          // 参考人物在该秘境境界的第几层（1~10）
+    GF: 5,              // 参考人物的宗门功法都练到第几层（0 = 不算功法）
+    MULT: 1.05,         // 统一倍率：比参考人物属性高 5%
+    // 怪物种类倍率：× 人物属性；crit 是暴击%，直接写数值
     KIND: {
-      normal: { hp: 1,   atk: 1,   def: 1,   speed: 1,   hit: 1,   dodge: 1,   crit: 5 },
-      elite:  { hp: 1.2, atk: 1.2, def: 1.2, speed: 1.2, hit: 1.2, dodge: 1.2, crit: 10 },
-      boss:   { hp: 1.5, atk: 1.5, def: 1.5, speed: 1.5, hit: 1.5, dodge: 1.5, crit: 15 },
+      normal: { hp: 1,   atk: 1,   def: 1,   speed: 1,   hit: 1,   dodge: 1,   crit: 5 },    // 普通怪：×1，暴击 5%
+      elite:  { hp: 1.2, atk: 1.2, def: 1.2, speed: 1.2, hit: 1.2, dodge: 1.2, crit: 10 },   // 精英怪：×1.2，暴击 10%
+      boss:   { hp: 1.5, atk: 1.5, def: 1.5, speed: 1.5, hit: 1.5, dodge: 1.5, crit: 15 },   // 首领：×1.5，暴击 15%
     },
   },
-  DAILY: 1,          // 每处秘境每天能进几次
+  DAILY: 1,          // 每处秘境每天能进几次（历练、探索合计）
   TIME: 100,         // 一次走多少步
-  // 一次固定遇到：普通怪、精英怪、首领（最后一步）、灵药、矿脉次数，其余步数无事发生
-  MONSTERS: 12, ELITES: 5, BOSS: 1,
-  HERB_MIN: 5, HERB_MAX: 10,
-  ORE_MIN: 5, ORE_MAX: 10,
+  // 一次固定遇到的事件数量（其余步数无事发生）：
+  MONSTERS: 12,      // 普通怪个数
+  ELITES: 5,         // 精英怪个数
+  BOSS: 1,           // 首领个数（放在最后几步）
+  HERB_MIN: 5,       // 发现灵药次数下限
+  HERB_MAX: 10,      // 发现灵药次数上限
+  ORE_MIN: 5,        // 发现矿脉次数下限
+  ORE_MAX: 10,       // 发现矿脉次数上限
 
   // ---------- 秘境专用材料 ----------
   //   name 名字   sell 出售价（灵石）   desc 说明
   items: {
-    kj:   { name: "空间晶核", sell: 20, desc: "炼制空间石的专用材料。" },
-    // v54：九曜石 —— 装备、戒指、法宝 炼制和强化的专用矿石，分品阶，只能用对应品阶的
-    //   grades 品阶名（低 → 高），TIER 一阶 ~ 十阶装备 / 法宝用第几品（0 = grades 第一个），sell 各品出售价
+    kj:   { name: "空间晶核", sell: 20, desc: "炼制空间石的专用材料。" },   // 空间晶核：出售 20 灵石
+    // 九曜石：装备、戒指、法宝炼制和强化的专用矿石，分品阶，只能用对应品阶的
+    //   grades 品阶名（低 → 高，序号 0~4）
+    //   TIER   第几阶装备 / 法宝用第几品：按顺序 一阶 二阶 三阶 四阶 五阶 六阶 七阶 八阶 九阶 十阶，值是 grades 的序号
+    //          （现在：一二阶 黄品，三四阶 玄品，五六阶 地品，七八阶 天品，九十阶 仙品）
+    //   sell   各品出售价（灵石），顺序同 grades：黄品 20、玄品 40、地品 80、天品 160、仙品 320
     //   秘境掉落写 "黄品九曜石" 这样的全名
     jy:   { name: "九曜石", grades: ["黄品", "玄品", "地品", "天品", "仙品"], TIER: [0, 0, 1, 1, 2, 2, 3, 3, 4, 4],
             sell: [20, 40, 80, 160, 320], desc: "装备、戒指、法宝炼制和强化的专用矿石，只能用于对应品阶。" },
-    lu:   { name: "养神灵露", sell: 20, desc: "修炼元婴出窍秘法的材料，元婴期秘境掉落。" },
-    mold: { name: "模具",     sell: 50, desc: "炼制一阶法宝的模具，没有属性、不能装备。学会宗门一阶法宝图谱后，在洞府炼器室用它炼成同种法宝。" },
+    lu:   { name: "养神灵露", sell: 20, desc: "修炼元婴出窍秘法的材料，元婴期秘境掉落。" },   // 养神灵露：出售 20 灵石
+    mold: { name: "模具",     sell: 50, desc: "炼制一阶法宝的模具，没有属性、不能装备。学会宗门一阶法宝图谱后，在洞府炼器室用它炼成同种法宝。" },   // 模具：出售 50 灵石；名字显示为「法宝种类 + 模具」
   },
 
+  // ---------- 秘境列表（顺序 = 秘境序号，不要调换，存档按序号记录） ----------
   list: [
     // ---------- 1. 灵泉洞天（需练气） ----------
-    { name: "灵泉洞天", realm: 0, find: { map: 0, chance: 5 }, drops: 0, mat: 2, stone: 2, L: 9,
+    { name: "灵泉洞天", realm: 0, find: { map: 0, chance: 5 }, drops: 0, mat: 2, stone: 2, L: 9,   // 需练气；在青云山林探索时发现；普通掉落用青云山林的掉落组
       bossName: "灵泉守护·碧水灵蛟", monsters: ["灵泉水妖", "碧鳞鱼精", "水灵", "青藤妖"],
       extra: {
         monster: [{ item: "火髓", chance: 2, n: [1, 1] }],
@@ -62,7 +93,7 @@ CFG.mijing = {
         boss:    [{ item: "火髓", chance: 100, n: [1, 3] }, { item: "空间晶核", chance: 50, n: [1, 1] }, { item: "黄品九曜石", chance: 50, n: [1, 1] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
       } },
     // ---------- 2. 古修洞府（需筑基） ----------
-    { name: "古修洞府", realm: 1, find: { map: 1, chance: 5 }, drops: 1, mat: 2, stone: 2, L: 19,
+    { name: "古修洞府", realm: 1, find: { map: 1, chance: 5 }, drops: 1, mat: 2, stone: 2, L: 19,   // 需筑基；在黑风谷探索时发现；普通掉落用黑风谷的掉落组
       bossName: "古修残魂", monsters: ["守府傀儡", "古修残影", "石甲卫", "噬灵鼠"],
       extra: {
         monster: [{ item: "火髓", chance: 2, n: [1, 1] }],
@@ -70,7 +101,7 @@ CFG.mijing = {
         boss:    [{ item: "火髓", chance: 100, n: [1, 3] }, { item: "空间晶核", chance: 50, n: [1, 1] }, { item: "黄品九曜石", chance: 50, n: [1, 1] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
       } },
     // ---------- 3. 赤炎火窟（需金丹） ----------
-    { name: "赤炎火窟", realm: 2, find: { map: 2, chance: 5 }, drops: 2, mat: 2, stone: 2, L: 29,
+    { name: "赤炎火窟", realm: 2, find: { map: 2, chance: 5 }, drops: 2, mat: 2, stone: 2, L: 29,   // 需金丹；在万妖岭探索时发现；普通掉落用万妖岭的掉落组
       bossName: "火窟之主·赤炎魔君", monsters: ["火灵", "炎魔", "赤炎蜥", "熔岩巨人"],
       extra: {
         monster: [{ item: "火髓", chance: 2, n: [1, 1] }],
@@ -78,7 +109,7 @@ CFG.mijing = {
         boss:    [{ item: "火髓", chance: 100, n: [2, 6] }, { item: "空间晶核", chance: 50, n: [1, 2] }, { item: "玄品九曜石", chance: 50, n: [1, 2] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
       } },
     // ---------- 4. 寒渊冰宫（需元婴） ----------
-    { name: "寒渊冰宫", realm: 3, find: { map: 3, chance: 5 }, drops: 3, mat: 2, stone: 2, L: 39,
+    { name: "寒渊冰宫", realm: 3, find: { map: 3, chance: 5 }, drops: 3, mat: 2, stone: 2, L: 39,   // 需元婴；在幽冥沼泽探索时发现；普通掉落用幽冥沼泽的掉落组
       bossName: "冰宫女帝·玄冰凤", monsters: ["冰魄妖", "寒霜狼", "冰傀儡", "雪妖"],
       extra: {
         monster: [{ item: "火髓", chance: 2, n: [1, 1] }],
@@ -86,7 +117,7 @@ CFG.mijing = {
         boss:    [{ item: "火髓", chance: 100, n: [2, 6] }, { item: "空间晶核", chance: 50, n: [1, 2] }, { item: "玄品九曜石", chance: 50, n: [1, 2] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
       } },
     // ---------- 5. 万剑冢（需出窍） ----------
-    { name: "万剑冢", realm: 4, find: { map: 3, chance: 5 }, drops: 3, mat: 2, stone: 2, L: 44,
+    { name: "万剑冢", realm: 4, find: { map: 3, chance: 5 }, drops: 3, mat: 2, stone: 2, L: 44,   // 需出窍；在幽冥沼泽探索时发现；普通掉落用幽冥沼泽的掉落组
       bossName: "剑冢剑灵", monsters: ["剑灵", "剑魂", "残剑傀儡", "剑奴"],
       extra: {
         monster: [{ item: "火髓", chance: 2, n: [1, 1] }],
@@ -94,7 +125,7 @@ CFG.mijing = {
         boss:    [{ item: "火髓", chance: 100, n: [3, 9] }, { item: "空间晶核", chance: 50, n: [1, 3] }, { item: "地品九曜石", chance: 50, n: [1, 3] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
       } },
     // ---------- 6. 上古战场（需化神） ----------
-    { name: "上古战场", realm: 5, find: { map: 4, chance: 5 }, drops: 4, mat: 2, stone: 2, L: 49,
+    { name: "上古战场", realm: 5, find: { map: 4, chance: 5 }, drops: 4, mat: 2, stone: 2, L: 49,   // 需化神；在落星海探索时发现；普通掉落用落星海的掉落组
       bossName: "上古战魂·不灭战神", monsters: ["上古战魂", "骷髅战将", "战场怨灵", "血煞魔兵"],
       extra: {
         monster: [{ item: "火髓", chance: 2, n: [1, 1] }],
@@ -102,7 +133,7 @@ CFG.mijing = {
         boss:    [{ item: "火髓", chance: 100, n: [3, 9] }, { item: "空间晶核", chance: 50, n: [1, 3] }, { item: "地品九曜石", chance: 50, n: [1, 3] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
       } },
     // ---------- 7. 星陨秘境（需练虚） ----------
-    { name: "星陨秘境", realm: 6, find: { map: 5, chance: 5 }, drops: 5, mat: 2, stone: 2, L: 59,
+    { name: "星陨秘境", realm: 6, find: { map: 5, chance: 5 }, drops: 5, mat: 2, stone: 2, L: 59,   // 需练虚；在虚空裂隙探索时发现；普通掉落用虚空裂隙的掉落组
       bossName: "星陨之主·噬星兽", monsters: ["星兽", "陨星傀儡", "星芒灵", "噬星虫"],
       extra: {
         monster: [{ item: "火髓", chance: 2, n: [1, 1] }],
@@ -110,7 +141,7 @@ CFG.mijing = {
         boss:    [{ item: "火髓", chance: 100, n: [4, 12] }, { item: "空间晶核", chance: 50, n: [1, 4] }, { item: "天品九曜石", chance: 50, n: [1, 4] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
       } },
     // ---------- 8. 幽冥鬼域（需合体） ----------
-    { name: "幽冥鬼域", realm: 7, find: { map: 6, chance: 5 }, drops: 6, mat: 2, stone: 2, L: 69,
+    { name: "幽冥鬼域", realm: 7, find: { map: 6, chance: 5 }, drops: 6, mat: 2, stone: 2, L: 69,   // 需合体；在天魔战场探索时发现；普通掉落用天魔战场的掉落组
       bossName: "鬼域之王·幽冥鬼帝", monsters: ["鬼将", "幽魂", "冥鬼", "骨魔"],
       extra: {
         monster: [{ item: "火髓", chance: 2, n: [1, 1] }],
@@ -118,7 +149,7 @@ CFG.mijing = {
         boss:    [{ item: "火髓", chance: 100, n: [4, 12] }, { item: "空间晶核", chance: 50, n: [1, 4] }, { item: "天品九曜石", chance: 50, n: [1, 4] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
       } },
     // ---------- 9. 太虚幻境（需洞真） ----------
-    { name: "太虚幻境", realm: 8, find: { map: 6, chance: 5 }, drops: 6, mat: 2, stone: 2, L: 74,
+    { name: "太虚幻境", realm: 8, find: { map: 6, chance: 5 }, drops: 6, mat: 2, stone: 2, L: 74,   // 需洞真；在天魔战场探索时发现；普通掉落用天魔战场的掉落组
       bossName: "太虚幻主", monsters: ["幻影修士", "心魔幻象", "虚空灵", "幻兽"],
       extra: {
         monster: [{ item: "火髓", chance: 2, n: [1, 1] }],
@@ -126,7 +157,7 @@ CFG.mijing = {
         boss:    [{ item: "火髓", chance: 100, n: [5, 15] }, { item: "空间晶核", chance: 50, n: [1, 5] }, { item: "仙品九曜石", chance: 50, n: [1, 5] }, { item: "法宝模具", chance: 30, n: [1, 1] }],
       } },
     // ---------- 10. 混沌古界（需大乘） ----------
-    { name: "混沌古界", realm: 9, find: { map: 7, chance: 5 }, drops: 7, mat: 2, stone: 2, L: 79,
+    { name: "混沌古界", realm: 9, find: { map: 7, chance: 5 }, drops: 7, mat: 2, stone: 2, L: 79,   // 需大乘；在九幽深渊探索时发现；普通掉落用九幽深渊的掉落组
       bossName: "混沌古兽", monsters: ["混沌兽", "太古魔灵", "混沌之灵", "古界巨人"],
       extra: {
         monster: [{ item: "火髓", chance: 2, n: [1, 1] }],
