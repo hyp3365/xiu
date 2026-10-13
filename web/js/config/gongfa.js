@@ -7,7 +7,7 @@
  *
  * 「效果」和「获得 / 修炼的消耗」是几套独立的公式，互不影响：
  *   功法效果、法术伤害 → base、LV_MULT、各来源的 TYPE_MULT / STAR_MULT / TIER_MULT / EFFECT_*
- *   法术伤害倍率、法力消耗 → SPELL_* / MANA_*
+ *   法术伤害倍率 → SPELL_*      法力消耗 → MANA_*（不受来源倍率影响）
  *   宗门学习贡献 → sect.learn、LEARN_*      坊市售价 → shop.price、PRICE_*      修炼升层 → STUDY_*
  *
  * 一、功法效果 / 法术固定伤害（所有来源共用一套 base）
@@ -20,8 +20,8 @@
  *             （RES_RATE、DEF_RATE 见 config/battle.js；最低 攻击 × MIN_DMG）
  *   伤害倍率% = SPELL_PCT × SPELL_STAR[星级-1] × SPELL_TIER[阶] × 法术层数 × SPELL_REALM[人物大境界]
  *               × 来源.TYPE_MULT.spell × 来源.EFFECT_PCT（四舍五入取整）
- *   法力消耗  = SPELL_MANA × MANA_STAR[星级-1] × MANA_TIER[阶] × 法术层数 × MANA_REALM[人物大境界]
- *               × 来源.TYPE_MULT.spell × 来源.EFFECT_MANA（四舍五入，至少 1）
+ *   法力消耗  = SPELL_MANA × MANA_TIER[阶] × MANA_STAR[星级-1] × MANA_REALM[人物大境界] × 灵根倍率（四舍五入，至少 1）
+ *               灵根倍率 = 1 + 该系灵根等级 × MANA_LINGEN
  *   境界数组写不满 24 个时，超出的境界用最后一个值。
  *
  * 三、修炼升层（功法、法术、宗门秘法都在「功法」页排队修炼）
@@ -159,7 +159,8 @@ CFG.gongfa = {
     3.6,   // 10 星
   ],
   MANA_TIER: { huang: 1, xuan: 1.3, di: 1.6, tian: 1.9 },   // 法力消耗的阶倍率：黄 玄 地 天
-  // 法力消耗的人物大境界倍率。默认 = 人物法力的境界成长（1.12^10 ≈ 3.11 倍 / 境界），这样消耗占法力上限的比例不随境界变化
+  MANA_LINGEN: 0.01,   // 灵根倍率 = 1 + 该系灵根等级 × 0.01（例：火灵根 100 级 → 火系法术法力消耗 × 2）
+  // 法力消耗的人物大境界倍率（每个境界直接写倍率）
   MANA_REALM: [
     1,              // 练气（凡人也按练气）
     3.11,           // 筑基
@@ -215,7 +216,6 @@ CFG.gongfa.sect = {
   EFFECT_GONGFA: 1,  // 功法效果
   EFFECT_SPELL: 1,   // 法术固定伤害
   EFFECT_PCT: 1,     // 法术伤害倍率%
-  EFFECT_MANA: 1,    // 法术法力消耗
 
   // ---- 学习消耗（贡献，不受上面的倍率影响）----
   learn: 100,        // 学习贡献的基础值
@@ -259,7 +259,6 @@ CFG.gongfa.shop = {
   EFFECT_GONGFA: 1,  // 功法效果总倍率
   EFFECT_SPELL: 1,   // 法术固定伤害总倍率
   EFFECT_PCT: 1,     // 法术伤害倍率% 总倍率
-  EFFECT_MANA: 1,    // 法术法力消耗总倍率
 
   // ---- 售价（灵石，不受上面的倍率影响）----
   price: 500,        // 售价的基础值

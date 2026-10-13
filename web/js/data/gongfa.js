@@ -185,8 +185,9 @@ DATA.spellInfo = (id, lv = 1, realm) => {
     // 伤害倍率% = SPELL_PCT × 星级 × 阶 × 层数 × 境界（× 来源倍率）
     pct: Math.round(v(_GF.SPELL_PCT, 100) * v((_GF.SPELL_STAR || [])[sect.star - 1]) * v((_GF.SPELL_TIER || {})[tier.id]) * lv * last(_GF.SPELL_REALM) * tm * v(C.EFFECT_PCT)),
     flat: per * DATA.lvMul(lv), next: per * DATA.lvMul(lv + 1), perLv: per,         // 固定伤害
-    // 法力消耗 = SPELL_MANA × 星级 × 阶 × 层数 × 境界（× 来源倍率）
-    mana: Math.max(1, Math.round(v(_GF.SPELL_MANA, 1) * v((_GF.MANA_STAR || [])[sect.star - 1]) * v((_GF.MANA_TIER || {})[tier.id]) * lv * last(_GF.MANA_REALM) * tm * v(C.EFFECT_MANA))),
+    // 法力消耗 = SPELL_MANA × 阶 × 星级 × 境界 × 灵根倍率（灵根倍率 = 1 + 该系灵根等级 × MANA_LINGEN）
+    mana: Math.max(1, Math.round(v(_GF.SPELL_MANA, 1) * v((_GF.MANA_TIER || {})[tier.id]) * v((_GF.MANA_STAR || [])[sect.star - 1]) * last(_GF.MANA_REALM)
+      * (1 + (window.G && G.s && G.s.lingen ? G.s.lingen[el.id] || 0 : 0) * v(_GF.MANA_LINGEN, 0)))),
     cost: DATA.gfLearnCost(sect, "spell", tier),
   };
 };
