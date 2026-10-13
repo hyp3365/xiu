@@ -25,6 +25,8 @@ const U = {
     return String(n);
   },
   // 小数字保留 1 位小数（如 1.6），大数字同 fmt
+  // 最多保留 2 位小数（0.8999999 → 0.9）
+  dec(n) { return String(Math.round(n * 100) / 100); },
   num(n) { return n < 100 ? String(Math.floor(n * 10) / 10) : U.fmt(n); },
   // 秒数 → “X天X小时X分”
   dur(sec) {
