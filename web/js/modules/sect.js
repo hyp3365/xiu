@@ -408,7 +408,7 @@ G.module({
         this.addPill(t, g, n); this.log(`秘境中发现前人遗留的${DATA.pills[t].name} ×${n}。`, "gold");
       } else if (roll < SC.stone.chance + SC.pill.chance + SC.equip.chance) {
         const sl = U.pick(Object.keys(DATA.slots));   // 头盔~吊坠：本门星级对应阶的炼器装备；戒指、法宝：旧品质装备
-        const e = DATA.forgeSlots.includes(sl) ? DATA.rollForged(sl, Math.min(9, this.sectInfo().star - 1)) : this.makeEquip(sl, g, U.rand(SC.equip.q[0], SC.equip.q[1]));
+        const e = DATA.forgeSlots.includes(sl) || sl === "ring" ? DATA.rollForged(sl, Math.min(9, this.sectInfo().star - 1)) : this.makeEquip(sl, g, U.rand(SC.equip.q[0], SC.equip.q[1]));
         if (this.addEquip(e)) this.log(`秘境深处得到<span class="q${e.q}">${this.eqQual(e)}${this.itemName({ t: "eq", e })}</span>！`, "gold");
       } else this.log("秘境中迷雾重重，一无所获。", "sys");
       this.after();
