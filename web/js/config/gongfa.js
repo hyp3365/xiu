@@ -20,7 +20,7 @@
  *             （RES_RATE、DEF_RATE 见 config/battle.js；最低 攻击 × MIN_DMG）
  *   伤害倍率% = SPELL_PCT × SPELL_STAR[星级-1] × SPELL_TIER[阶] × 法术层数 × SPELL_REALM[人物大境界]
  *               × 来源.TYPE_MULT.spell × 来源.EFFECT_PCT（四舍五入取整）
- *   法力消耗  = SPELL_MANA × MANA_TIER[阶] × MANA_STAR[星级-1] × MANA_REALM[人物大境界] × 灵根倍率（四舍五入，至少 1）
+ *   法力消耗  = SPELL_MANA × MANA_TIER[阶] × MANA_STAR[星级-1] × MANA_LV[法术层数-1] × MANA_REALM[人物大境界] × 灵根倍率（四舍五入，至少 1）
  *               灵根倍率 = 1 + 该系灵根等级 × MANA_LINGEN
  *   境界数组写不满 24 个时，超出的境界用最后一个值。
  *
@@ -159,6 +159,18 @@ CFG.gongfa = {
     3.6,   // 10 星
   ],
   MANA_TIER: { huang: 1, xuan: 1.3, di: 1.6, tian: 1.9 },   // 法力消耗的阶倍率：黄 玄 地 天
+  MANA_LV: [        // 法力消耗的层数倍率（法术本身练到第几层）
+    1,     // 1 层
+    2,     // 2 层
+    3,     // 3 层
+    4,     // 4 层
+    5,     // 5 层
+    6,     // 6 层
+    7,     // 7 层
+    8,     // 8 层
+    9,     // 9 层
+    10,    // 10 层
+  ],
   MANA_LINGEN: 0.01,   // 灵根倍率 = 1 + 该系灵根等级 × 0.01（例：火灵根 100 级 → 火系法术法力消耗 × 2）
   // 法力消耗的人物大境界倍率（每个境界直接写倍率）
   MANA_REALM: [
