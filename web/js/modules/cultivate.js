@@ -221,7 +221,7 @@ G.module({
         <button class="${s.auto ? "on" : "primary"}" onclick="G.toggleAuto()">自动修炼：${s.auto ? "开" : "关"}</button>
         <button onclick="G.openBody(true)">修炼肉身</button>
         <button class="primary" style="flex-basis:100%" onclick="G.breakthrough()" ${can || s.trib ? "" : "disabled"}>
-          ${s.trib ? (s.trib.result ? "查看渡劫结果" : "渡劫中…查看劫云") : can ? (this.needTrib() ? `${next}（渡劫 ${this.tribTime(s.L + 1)} 秒）` : next) : `修为未满，还差 ${U.fmt(this.needExp() - s.exp)}`}</button>
+          ${s.trib ? (s.trib.result ? "查看渡劫结果" : "渡劫中…查看劫云") : can ? next : `修为未满，还差 ${U.fmt(this.needExp() - s.exp)}`}</button>
       </div>
       <div class="row small" style="margin-top:8px"><span>修为</span><span>${U.fmt(s.exp)} / ${U.fmt(this.needExp())}</span></div>
       <div class="bar"><div style="width:${Math.min(100, s.exp / this.needExp() * 100)}%"></div></div>
