@@ -162,15 +162,15 @@ G.module({
         for (let i = 1; i < n; i++) { const k = i / n; p.push([x0 + (x1 - x0) * k + (Math.random() - 0.5) * amp, y0 + (y1 - y0) * k]); }
         p.push([x1, y1]); return p;
       };
-      const main = zig(50 + (Math.random() - 0.5) * 10, 16, 50, 62, 9, 9);
+      const main = zig(50 + (Math.random() - 0.5) * 10, 18, 50, 70, 9, 9);
       const lines = [main];
       for (let i = 0; i < 3; i++) {   // 分叉
         const s = main[1 + Math.floor(Math.random() * 5)], dir = Math.random() < 0.5 ? -1 : 1;
         lines.push(zig(s[0], s[1], s[0] + dir * (8 + Math.random() * 14), s[1] + 8 + Math.random() * 12, 4, 5));
       }
-      const pl = (p, w) => `<polyline points="${p.map(q => q.map(v => v.toFixed(1)).join(",")).join(" ")}" style="stroke-width:${w}"/>`;
+      const pl = (p, w, i) => `<polyline pathLength="1" points="${p.map(q => q.map(v => v.toFixed(1)).join(",")).join(" ")}" style="stroke-width:${w};animation-delay:${i ? 0.05 + i * 0.02 : 0}s"/>`;
       const b = document.createElement("div"); b.className = "tj-bolt" + (h.c ? " crit" : "");
-      b.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none">${lines.map((p, i) => pl(p, i ? 1.5 : h.c ? 4.5 : 3)).join("")}</svg><div class="tj-hitglow"></div>`;
+      b.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none">${lines.map((p, i) => pl(p, i ? 1.5 : h.c ? 4.5 : 3, i)).join("")}</svg><div class="tj-hitglow"></div>`;
       st.appendChild(b); setTimeout(() => b.remove(), 600);
       st.classList.remove("tj-flash"); void st.offsetWidth; st.classList.add("tj-flash");
       hero.classList.remove("tj-shake"); void hero.offsetWidth; hero.classList.add("tj-shake");
@@ -179,9 +179,14 @@ G.module({
     },
     // 舞台：上方劫云（img/trib_cloud.webp），下方打坐人物（img/trib_hero.webp），中间放倒计时
     tribStageHtml(mid, cls) {
-      return `<div class="tj-stage ${cls || ""}" id="tj-stage" style="background-image:url(img/trib_cloud.webp?v=${DATA.IMG_V || 1})">
+      const v = DATA.IMG_V || 1, cl = `url(img/trib_cloud.webp?v=${v})`;
+      return `<div class="tj-stage ${cls || ""}" id="tj-stage">
+        <div class="tj-sky" style="background-image:${cl}"></div>
+        <div class="tj-fog" style="background-image:${cl}"></div>
+        <div class="tj-vortex" style="background-image:${cl}"></div>
+        <div class="tj-amb"></div>
         <div class="tj-mid">${mid || ""}</div>
-        <div class="tj-hero" id="tj-hero"><div class="tj-aura"></div><img src="img/trib_hero.webp?v=${DATA.IMG_V || 1}" alt=""></div>
+        <div class="tj-hero" id="tj-hero"><div class="tj-aura"></div><img src="img/trib_hero.webp?v=${v}" alt=""></div>
       </div>`;
     },
     tribPrepHtml() {
@@ -192,16 +197,9 @@ G.module({
         return `<div class="tj-slot${f ? " on" : c ? " lost" : ""}" onclick="G.tribPick(${i})">${f ? `${f.img ? `<img src="${f.img}" alt="">` : `<span class="tj-ic">${f.tag.slice(0, 1)}</span>`}<small>${f.name}</small>` : c ? "<small>已失效</small>" : "<span class='tj-plus'>＋</span>"}</div>`;
       }).join("");
       return `<div class="tj-wrap">
-        <div class="tj-head"><button class="sm" onclick="G.closeTrib()">返回</button><b>渡劫准备 · ${this.realmName(L)}</b><span></span></div>
-        ${this.tribStageHtml(`<div class="tj-timer"><b>${T}</b><small> 秒</small></div>`, "calm")}
-        <div class="tj-info">
-          <div class="row small"><span>渡劫时长 ${T} 秒</span><span>劫雷每 ${CFG.trib.HIT_SEC || 1} 秒一击</span></div>
-          <div class="row small"><span>劫云攻击 ${U.fmt(t.atk)} · 暴击 ${t.crit}%</span><span>你的气血 ${U.fmt(st.hp)} · 防御 ${U.fmt(st.def)}</span></div>
-          <p class="desc">撑过 ${T} 秒没倒即突破成功；被劈倒则失败，损失当前修为的 ${Math.round(CFG.trib.FAIL_LOSS * 100)}%。开始时气血法力回满，渡劫中不恢复，离开游戏也会继续。</p>
-        </div>
+        <div class="tj-head"><span></span><b>突破准备</b><span></span></div>
         <div class="tj-slots">${cells}</div>
-        <p class="desc" style="text-align:center">点格子放入法宝、法术、丹药（丹药每格 1 颗）</p>
-        <div class="btns"><button class="primary" style="flex-basis:100%" onclick="G.startTrib()" ${ok ? "" : "disabled"}>开始渡劫</button></div>
+        <div class="btns"><button onclick="G.closeTrib()">放弃突破</button><button class="primary" onclick="G.startTrib()" ${ok ? "" : "disabled"}>开始突破</button></div>
       </div>`;
     },
     tribRunHtml() {
