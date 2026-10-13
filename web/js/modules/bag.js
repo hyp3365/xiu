@@ -242,7 +242,7 @@ G.module({
       const e = key.startsWith("fb") ? this.s.fabao[+key.slice(2)] : this.s.equip[key]; if (!e) return;
       const src = DATA.eqIcon(e);
       this.modal(`${src ? `<img class="item-img${DATA.eqCls(e)}" src="${src}" alt="">` : ""}<h2 class="q${e.q}">${this.eqQual(e)}${this.itemName({ t: "eq", e })}</h2><p>${DATA.slots[e.slot]} · ${this.equipDesc(e)}</p>
-        <div class="btns"><button onclick="G.unequip('${key}')">卸下</button>${e.attrs ? `<button onclick="G.openReset('${key}')">洗练</button>` : ""}${this.canEnhance(e) ? `<button onclick="G.openEnhance('${key}')">强化</button>` : ""}<button onclick="G.closeModal()">关闭</button></div>`);
+        <div class="btns"><button onclick="G.unequip('${key}')">卸下</button>${key.startsWith("fb") ? `<button onclick="G.openFabaoPick(${+key.slice(2)})">更换</button>` : ""}${e.attrs ? `<button onclick="G.openReset('${key}')">洗练</button>` : ""}${this.canEnhance(e) ? `<button onclick="G.openEnhance('${key}')">强化</button>` : ""}<button onclick="G.closeModal()">关闭</button></div>`);
     },
 
     /* ---------- 强化（config/forge.js 的 forge.enhance）：每条属性分别强化 ---------- */
@@ -367,20 +367,39 @@ G.module({
 
     /* ---------- 法术栏 ---------- */
     autoSlotSpell(id) { if (this.s.spellSlots.length < this.slotCount() && !this.s.spellSlots.includes(id)) this.s.spellSlots.push(id); },
-    openSpellPick() {
-      const s = this.s, list = Object.keys(s.gongfa).filter(id => DATA.isSpell(id) && !s.spellSlots.includes(id));
-      if (!list.length) return this.log("没有可放入的法术，请先去门派功法殿学习。", "sys");
-      this.modal(`<h2>放入法术</h2>` + list.map(id => { const g = DATA.spellInfo(id, s.gongfa[id]);
+    // rep：更换第几格（不写 = 放入空格）
+    openSpellPick(rep) {
+      const s = this.s, list = Object.keys(s.gongfa).filter(id => DATA.isSpell(id) && !s.spellSlots.includes(id)), r = rep === undefined ? "" : "," + rep;
+      if (!list.length) return this.log(rep === undefined ? "没有可放入的法术，请先去门派功法殿学习。" : "没有可更换的法术。", "sys");
+      this.modal(`<h2>${rep === undefined ? "放入" : "更换"}法术</h2>` + list.map(id => { const g = DATA.spellInfo(id, s.gongfa[id]);
         return `<div class="line"><div>《${g.name}》<span class="tag">${g.tier.name}</span><small>攻击×${g.pct}% + ${U.fmt(g.flat)} · 耗法力 ${U.fmt(g.mana)}</small></div>
-          <button class="sm" onclick="G.slotSpell('${id}')">放入</button></div>`; }).join("") + `<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+          <button class="sm" onclick="G.slotSpell('${id}'${r})">${rep === undefined ? "放入" : "更换"}</button></div>`; }).join("") + `<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
-    slotSpell(id) { if (this.s.spellSlots.length < this.slotCount()) this.s.spellSlots.push(id); this.closeModal(); this.after(); },
+    slotSpell(id, rep) {
+      const sl = this.s.spellSlots;
+      if (rep !== undefined && sl[rep] !== undefined) sl[rep] = id; else if (sl.length < this.slotCount()) sl.push(id);
+      this.closeModal(); this.after();
+    },
+    // 更换法宝：k 法宝栏第几格；从背包里选一件法宝换上，原来的放回背包
+    openFabaoPick(k) {
+      const s = this.s, list = s.bag.map((it, i) => i).filter(i => s.bag[i].t === "eq" && s.bag[i].e.slot === "fabao");
+      if (!list.length) return this.log("背包里没有可更换的法宝。", "sys");
+      this.modal(`<h2>更换法宝</h2>` + list.map(i => { const e = s.bag[i].e;
+        return `<div class="line"><div><span class="q${e.q}">${this.eqQual(e)}${this.itemName(s.bag[i])}</span><small>${this.equipDesc(e)}</small></div>
+          <button class="sm" onclick="G.swapFabao(${k},${i})">更换</button></div>`; }).join("") + `<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+    },
+    swapFabao(k, i) {
+      const s = this.s, it = s.bag[i], old = s.fabao[k];
+      if (!it || it.t !== "eq" || it.e.slot !== "fabao" || !old) return;
+      s.fabao[k] = it.e; s.bag[i] = { t: "eq", e: old };
+      this.log(`装备了${this.eqQual(it.e)}${it.e.name}。`, "good"); this.closeModal(); this.after();
+    },
     unslotSpell(i) { this.s.spellSlots.splice(i, 1); this.closeModal(); this.after(); },
     // 点法术栏：显示详细，可卸下
     openSpellSlot(i) {
       const id = this.s.spellSlots[i], g = id && DATA.spellInfo(id, this.s.gongfa[id]); if (!g) return;
       this.modal(`<h2 class="q${g.tier.idx + 1}">《${g.name}》</h2><p>${g.el.name}系 · ${g.tier.name} · ${g.lv} 层<br>伤害 = 攻击 × ${g.pct}% + ${U.fmt(g.flat)}<br>耗法力 ${U.fmt(g.mana)}</p>
-        <div class="btns"><button onclick="G.unslotSpell(${i})">卸下</button><button onclick="G.closeModal()">关闭</button></div>`);
+        <div class="btns"><button onclick="G.unslotSpell(${i})">卸下</button><button onclick="G.openSpellPick(${i})">更换</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
   },
 
