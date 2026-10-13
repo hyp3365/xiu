@@ -36,11 +36,11 @@ G.module({
   view() {
     const s = this.s, C = CFG.lingen;
     return `<div class="card"><h3>灵根<small>灵石 ${U.fmt(s.stone)}</small></h3>
-      <p class="desc">每升一级：对应属性法术伤害 +${C.SPELL_PCT}%，对应属性功法效果 +${C.GONGFA_PCT}%。最高 ${C.MAX} 级。</p></div>` +
+      <p class="desc">每升一级：对应属性法术伤害 +${U.dec(C.SPELL_PCT)}%，对应属性功法效果 +${U.dec(C.GONGFA_PCT)}%。最高 ${C.MAX} 级。</p></div>` +
       DATA.elements.map(e => {
         const lv = s.lingen[e.id] || 0, max = lv >= C.MAX, c = this.lingenCost(lv);
         return `<div class="card"><div class="line"><div><b>${e.name}灵根</b><span class="tag">${lv} / ${C.MAX} 级</span>
-          <small>${e.name}系法术伤害 +${lv * C.SPELL_PCT}% · ${e.name}系功法效果 +${lv * C.GONGFA_PCT}%</small></div></div>
+          <small>${e.name}系法术伤害 +${U.dec(lv * C.SPELL_PCT)}% · ${e.name}系功法效果 +${U.dec(lv * C.GONGFA_PCT)}%</small></div></div>
           <div class="btns">${max ? `<button disabled>已达极限</button>` :
             `<button onclick="G.upgradeLingen('${e.id}',1)" ${s.stone < c ? "disabled" : ""}>升级（${U.fmt(c)} 灵石）</button>
              <button onclick="G.upgradeLingen('${e.id}',10)" ${s.stone < c ? "disabled" : ""}>升 10 级</button>`}</div></div>`;
