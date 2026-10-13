@@ -145,11 +145,17 @@ CFG.forge.ring = {
  *   ignRes 无视X系抗性（点）   ignResPct 无视X系抗性（%）   —— 只有和法宝同属性才生效
  *   elDmg  追加X系伤害（点）   elDmgPct  追加X系伤害（攻击的%）—— 只按对方X系抗性减免（不算防御）
  *   manaCut 法力消耗减少（点） manaCutPct 法力消耗减少（%）
- * 每次祭出消耗法力 = MANA[阶]（v43，单独设置；不写 MANA 就按 base.mana × GROW[阶]），再减去 manaCut / manaCutPct
+ * 法宝伤害（pct、flat）= 基础 × 阶成长（GROW / PCT_GROW）× 颜色 × DMG_REALM[人物大境界]
+ * 每次祭出消耗法力 = MANA[阶] × MANA_COLOR[主属性颜色] × MANA_REALM[人物大境界]，再减去 manaCut / manaCutPct
+ *   颜色只看主属性（伤害%那条）：主属性白色、附加属性金色，也按白色算消耗
  *   法力不够就放不出法宝（改用法术或普通攻击） */
 CFG.forge.fabao = {
-  // v43 一阶 ~ 十阶 每次祭出消耗的法力
+  // 一阶 ~ 十阶 每次祭出消耗的法力（不写 MANA 就按 base.mana × GROW[阶]）
   MANA: [20, 50, 300, 5000, 85000, 580000, 3900000, 26000000, 175000000, 455000000],
+  MANA_COLOR: [1, 1.3, 1.7, 2.3],     // 法力消耗的主属性颜色倍率：白 绿 紫 金
+  // 人物大境界倍率（第 1 个 = 练气 …… 共 24 个，超出用最后一个）
+  DMG_REALM:  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],   // 伤害（pct、flat）
+  MANA_REALM: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],   // 法力消耗
   base: { pct: 100, flat: 8, mana: 0.5, ignRes: 10, ignResPct: 5, elDmg: 4, elDmgPct: 10, manaCut: 0.1, manaCutPct: 5 },
   // 点数类（flat、mana、ignRes、elDmg、manaCut）的阶成长
   GROW: [1.61, 4.18, 28.1, 490.37, 8560, 57600, 387000, 2610000, 17500000, 45500000],

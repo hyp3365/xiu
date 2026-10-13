@@ -199,7 +199,14 @@ DATA.fabaoInfo = e => {
     else if (a.k === "manaCut") o.cut += v; else if (a.k === "manaCutPct") o.cutPct += v;
   }
   o.ignPct = Math.min(F.CAP.ignResPct || 100, o.ignPct); o.cutPct = Math.min(F.CAP.manaCutPct || 80, o.cutPct);
-  const m0 = F.MANA && F.MANA[e.g] !== undefined ? F.MANA[e.g] : (F.base.mana || 0) * (F.GROW[e.g] || 1);   // v43：MANA 单独设置
+  // 人物大境界倍率（同法术）
+  const R = window.G && G.s && !G.s.mortal ? Math.min(Math.floor(G.s.L / DATA.LAYERS), 23) : 0;
+  const rv = a => a && a.length ? (a[R] === undefined ? a[a.length - 1] : a[R]) : 1;
+  o.pct *= rv(F.DMG_REALM); o.flat *= rv(F.DMG_REALM);
+  // 法力 = MANA[阶] × MANA_COLOR[主属性颜色] × MANA_REALM[境界]；颜色只看主属性（伤害%那条）
+  const main = e.attrs.find(a => a.m && a.k === "pct") || e.attrs.find(a => a.m) || {};
+  const mc = (F.MANA_COLOR || [])[main.c || 0];
+  const m0 = (F.MANA && F.MANA[e.g] !== undefined ? F.MANA[e.g] : (F.base.mana || 0) * (F.GROW[e.g] || 1)) * (mc === undefined ? 1 : mc) * rv(F.MANA_REALM);
   o.mana = Math.max(0, m0 * (1 - o.cutPct / 100) - o.cut);
   return o;
 };
