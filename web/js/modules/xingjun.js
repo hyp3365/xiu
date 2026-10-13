@@ -20,7 +20,7 @@ G.module({
   api: {
     xjW(a) { return DATA.maps[a].w; },
     xjC(w) { return CFG.xingjun.worlds[w] || CFG.xingjun.worlds.xian; },
-    xjTpl(t, a, seat) { const n = DATA.maps[a].name; return t.replace("{map}", n).replace("{short}", n.replace(/天$/, "") || n).replace("{seat}", seat || ""); },
+    xjTpl(t, a, seat) { const n = DATA.maps[a].name; return t.replace("{map}", n).replace("{short}", n.replace(/(天|地狱)$/, "") || n).replace("{seat}", seat || ""); },
     xjSeats(a) { const S = this.xjC(this.xjW(a)).SEATS || []; return (S.length === 1 ? S[0] : S[DATA.maps[a].wi || 0]) || []; },
     xjSeatName(a, i) { return this.xjTpl(this.xjC(this.xjW(a)).SEAT, a, this.xjSeats(a)[i]); },
     xjDadi(a) { return this.xjTpl(this.xjC(this.xjW(a)).JZ, a); },
