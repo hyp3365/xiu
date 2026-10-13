@@ -150,7 +150,7 @@ CFG.worldMaps.xian = {
 
 /* ================= 冥界 ming（散仙 11 起开放） ================= */
 CFG.worldMaps.ming = {
-  open: { realm: 11 },   // 开放条件：玩家大境界 ≥ 11
+  open: { realm: 0 },   // 开放条件：玩家大境界 ≥ 0（整个冥界的门槛；每张地图的进入境界在 config/mobs.js 的 界主 第 1 个数）
   // 每张地图的 7 处地点：id 不要改，名字可以改；{map} = 地图名；图片 img/hall_<id>.png；官位数值见 config/xingjun.js
   halls: { tg: "{map}森罗殿", xj: "阎君殿", gd: "功德司", shop: "鬼市", lilian: "历练", wudao: "悟道碑", lingdi: "灵地" },   // 7 处地点名字（id 不要改）
   maps: [   // 10 张地图（顺序 = 第 1~10 张；字段见文件开头）
