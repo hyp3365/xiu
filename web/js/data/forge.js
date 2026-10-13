@@ -109,6 +109,8 @@ DATA.rollAttr = (k, m, el, w) => { const a = { k, c: U.weighted(w || _FG.attr.co
 // 法宝颜色权重：新得到的最高 NEW_COLOR_MAX（默认绿），洗练用 reset.WASH_WEIGHT
 DATA.fabaoNewW = () => { const mx = _FG.fabao.NEW_COLOR_MAX === undefined ? 1 : _FG.fabao.NEW_COLOR_MAX; return _FG.attr.colors.map((c, i) => i <= mx ? c.weight : 0); };
 DATA.fabaoWashW = () => _FG.reset.WASH_WEIGHT || _FG.attr.colors.map(c => c.weight);
+// v53：新得到的装备 / 戒指颜色权重，最高 attr.NEW_COLOR_MAX（默认绿）；紫、金只能洗练
+DATA.equipNewW = () => { const mx = _FG.attr.NEW_COLOR_MAX === undefined ? 1 : _FG.attr.NEW_COLOR_MAX; return _FG.attr.colors.map((c, i) => i <= mx ? c.weight : 0); };
 // 随机生成一件装备 / 戒指（r = 戒指种类）/ 法宝
 DATA.rollForged = (slot, g, r) => {
   const A = _FG.attr;
@@ -120,9 +122,9 @@ DATA.rollForged = (slot, g, r) => {
     return { slot, g, ft, el: T.el, name: T.name, enh: 0, q: DATA.bestQ(attrs), attrs };
   }
   if (slot === "ring" && r === undefined) r = Math.floor(Math.random() * DATA.ringNames.length);
-  const main = (slot === "ring" ? _FG.ring.main[r] : A.main[slot] || []).slice(0, 2), attrs = main.map(k => DATA.rollAttr(k, 1));
+  const main = (slot === "ring" ? _FG.ring.main[r] : A.main[slot] || []).slice(0, 2), W = DATA.equipNewW(), attrs = main.map(k => DATA.rollAttr(k, 1, undefined, W));
   const pool = A.pool.filter(k => !main.includes(k)), n = Math.min(pool.length, U.weighted(A.AFFIX_COUNT) + 1);
-  for (let i = 0; i < n; i++) { const j = Math.floor(Math.random() * pool.length); attrs.push(DATA.rollAttr(pool.splice(j, 1)[0], 0)); }
+  for (let i = 0; i < n; i++) { const j = Math.floor(Math.random() * pool.length); attrs.push(DATA.rollAttr(pool.splice(j, 1)[0], 0, undefined, W)); }
   const e = { slot, g, name: slot === "ring" ? DATA.ringNames[r] : DATA.forgeNames[slot][g], q: DATA.bestQ(attrs), attrs };
   if (slot === "ring") e.r = r;
   return e;
