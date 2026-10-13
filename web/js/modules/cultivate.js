@@ -8,9 +8,8 @@
  * 每 10 秒修炼一次：消耗 灵气 = 修炼速度，获得同等修为（1 灵气 = 1 修为）
  * 灵气不够时，只能把剩下的灵气全部转化；灵气为 0 时无法修炼（进度条不走）。
  * 修为满了不会自动突破，必须手动点“突破”。修为会继续累积，不会浪费。
- * 雷劫：从 js/config/ 数值文件 trib.START 层开始（默认突破筑基期一层起），每层突破都要渡雷劫：
- *   弹出窗口，50 秒内人物和雷劫每秒互相攻击一次；打掉雷劫全部气血且自己没死 = 突破成功，
- *   否则失败并损失修为。窗口手动关闭，关了也会继续，可再次打开查看。按 G.now() 计时，离线也会算完。
+ * 渡劫：从 config/trib.js 的 START 层开始（默认突破筑基期一层起），每层突破都要渡劫：
+ *   点「突破」进渡劫准备页，开始后撑过劫云 TIME 秒没倒 = 突破成功（详见 modules/trib.js）。
  * 没有雷劫的突破：小境界 100% 成功；大境界有成功率，失败损失 30% 修为。
  * ===================================================================== */
 G.module({
@@ -23,12 +22,12 @@ G.module({
     buffs: {},        // 丹药效果 { juqi: {pct, left} }，left = 剩余修炼次数
     autoPill: { juqi: false, juling: false, peiyuan: false }, // 自动服丹开关
     lackWarned: false,
-    trib: null,       // 正在进行（或刚结束未关闭）的雷劫
+    trib: null,       // 正在进行（或刚结束未关闭）的渡劫（modules/trib.js）
   }),
 
   tick(offline) {
     const s = this.s;
-    if (s.trib) this.advanceTrib(); // 雷劫（离线也会算完）
+    if (s.trib) this.advanceTrib(); // 渡劫（离线也会算完）
     if (!this.isCultivating()) return;
     if (!this.hasMijue() || this.exBlocksCult()) { s.manual = false; return; } // 未学秘诀 / 探索中（出窍除外）：不能修炼
 
@@ -149,86 +148,14 @@ G.module({
     // 这次突破是否要渡雷劫（突破后的层序 ≥ trib.START）
     needTrib() { return !this.s.mortal && this.s.L + 1 >= CFG.trib.START; },
 
-    /* ---------- 雷劫 ---------- */
-    // 雷劫属性 = 人物属性（突破后的境界、层数 + 全部宗门功法练到 trib.GF 层）× trib.MULT（config/trib.js）
-    makeTrib(L) {
-      const T = CFG.trib, M = T.MULT || {}, st = DATA.refStats(Math.floor(L / DATA.LAYERS), L % DATA.LAYERS + 1, T.GF === undefined ? 4 : T.GF);
-      const v = k => st[k] * (M[k] === undefined ? 1 : M[k]);
-      return { hp: v("hp"), atk: v("atk"), def: v("def"), crit: T.crit === undefined ? 5 : T.crit };
-    },
-    startTrib() {
-      const s = this.s, L = s.L + 1, t = this.makeTrib(L);
-      s.trib = { L, start: this.now(), sec: 0, max: t.hp, hp: t.hp, atk: t.atk, def: t.def, crit: t.crit, dealt: 0, taken: 0, log: [], result: "" };
-      this.log(`天雷滚滚，${this.realmName(L)}雷劫降临！`, "gold");
-      this.tribOpen = true; this.showTrib(); this.after();
-    },
-    // 每 ROUND_SEC 秒一回合（config/battle.js）：人物先出手，雷劫再劈下（雷劫无法闪避）
-    advanceTrib() {
-      const s = this.s, x = s.trib; if (!x || x.result) return;
-      const T = CFG.trib, st = this.stats();
-      const BT = CFG.battle;
-      const dmg = (atk, def, crit) => { let d = Math.max(atk * BT.MIN_DMG, atk - def * BT.DEF_RATE) * (BT.RAND_MIN + Math.random() * (BT.RAND_MAX - BT.RAND_MIN)); const c = Math.random() * 100 < crit; return [c ? d * BT.CRIT_MULT : d, c]; };
-      const RS = CFG.battle.ROUND_SEC || 1;   // 每 ROUND_SEC 秒一回合；雷劫中不恢复气血、法力
-      while (!x.result && this.now() >= x.start + (x.sec + RS) * 1000) {
-        x.sec = Math.min(T.TIME, x.sec + RS);
-        const [d1, c1] = dmg(st.atk, x.def, st.crit); x.hp -= d1; x.dealt += d1;
-        let line = `第${x.sec}秒：你攻击雷劫 ${U.fmt(d1)}${c1 ? "（暴击）" : ""}`;
-        if (x.hp > 0) {
-          const [d2, c2] = dmg(x.atk, st.def, x.crit); s.hp -= d2; x.taken += d2;
-          line += `，雷劫劈中你 ${U.fmt(d2)}${c2 ? "（暴击）" : ""}`;
-        }
-        x.log.unshift(line);
-        if (x.hp <= 0) this.endTrib(true, "雷劫气血被打散");
-        else if (s.hp <= 0) this.endTrib(false, "你被天雷劈倒");
-        else if (x.sec >= T.TIME) this.endTrib(false, `${T.TIME} 秒内未能打散雷劫`);
-      }
-    },
-    endTrib(win, why) {
-      const s = this.s, x = s.trib;
-      if (win) {
-        s.exp -= this.needExp(); s.L = x.L; this.dirty();
-        const st = this.stats(); s.hp = st.hp; s.mana = st.mana;
-        x.result = `渡劫成功！${why}，你踏入【${this.realmName()}】。`;
-        this.log(x.result, "gold");
-      } else {
-        s.hp = 1;
-        const loss = Math.floor(s.exp * CFG.trib.FAIL_LOSS); s.exp -= loss;
-        x.result = `渡劫失败：${why}，修为 -${U.fmt(loss)}。`;
-        this.log(x.result, "bad");
-      }
-      x.hp = Math.max(0, x.hp); x.log = x.log.slice(0, 60);
-      this.dirty(); if (!this.silent) { this.save(); this.render(); }
-    },
-    // 雷劫窗口（每秒刷新，手动关闭）
-    showTrib() {
-      const s = this.s, x = s.trib; if (!x) { this.tribOpen = false; return; }
-      const st = this.stats(), T = CFG.trib.TIME;
-      this._lockModal = true;
-      this.modal(`<h2>雷劫 · ${this.realmName(x.L)}</h2>
-        <div class="row small"><span>${x.result ? "已结束" : `剩余 ${T - x.sec} 秒`}</span><span>第 ${x.sec} / ${T} 秒</span></div>
-        <div class="bar tick"><div style="width:${x.sec / T * 100}%"></div></div>
-        <div class="row small"><span>雷劫气血 ${U.fmt(Math.max(0, x.hp))} / ${U.fmt(x.max)}</span><span>攻 ${U.fmt(x.atk)} 防 ${U.fmt(x.def)}</span></div>
-        <div class="bar trib"><div style="width:${Math.max(0, x.hp) / x.max * 100}%"></div></div>
-        <div class="row small"><span>你的气血 ${U.fmt(Math.max(0, s.hp))} / ${U.fmt(st.hp)}</span><span>攻 ${U.fmt(st.atk)} 防 ${U.fmt(st.def)}</span></div>
-        <div class="bar hp"><div style="width:${Math.max(0, s.hp) / st.hp * 100}%"></div></div>
-        ${x.result ? `<p class="${/成功/.test(x.result) ? "q4" : "q5"}"><b>${x.result}</b></p>` : ""}
-        <div class="row small"><span>共造成 ${U.fmt(x.dealt)}</span><span>共承受 ${U.fmt(x.taken)}</span></div>
-        <div class="trib-log">${x.log.map(l => `<p>${l}</p>`).join("") || "<p>乌云压顶，雷光翻涌……</p>"}</div>
-        <div class="btns"><button class="primary" onclick="G.closeTrib()">${x.result ? "关闭" : "关闭窗口（雷劫继续）"}</button></div>`);
-    },
-    closeTrib() {
-      this.tribOpen = false; this._lockModal = false; this.closeModal();
-      if (this.s.trib && this.s.trib.result) this.s.trib = null; // 结束后关窗口才清除记录
-      this.render();
-    },
-    openTrib() { this.tribOpen = true; this.showTrib(); },
+    // 渡劫（准备页、劫云、结算）在 modules/trib.js
 
     // 手动突破
     breakthrough() {
       if (this.s.trib) return this.openTrib();
       if (!this.canBreak()) return;
       const s = this.s, major = this.isMajor();
-      if (this.needTrib()) return this.startTrib();
+      if (this.needTrib()) return this.openTrib();   // 进渡劫准备页
       if (s.mortal) { // 凡人 → 练气期一层
         s.exp -= this.needExp(); s.mortal = false; this.dirty();
         const st = this.stats(); s.hp = st.hp; s.mana = st.mana;
@@ -289,7 +216,7 @@ G.module({
     const boost = sp.pill || sp.room || this.arrayFactor() > 1 || sp.mifa, R0 = this.regen(false), R1 = this.regenStep();
     return `
     <div class="card">
-      <h3>${this.realmName()}<small>${this.needTrib() ? "下次突破需渡雷劫" : ""}</small></h3>
+      <h3>${this.realmName()}<small>${this.needTrib() ? "下次突破需渡劫" : ""}</small></h3>
       <div class="row small"><span>修炼速度 <b class="q4">${U.num(sp.total)}</b> 修为 / 10秒</span>
         <button class="sm ${boost ? "on" : ""}" onclick="G.openBoost()">修炼加成${sp.pill ? ` · 丹药+${Math.round(sp.pill)}%` : ""}</button></div>
       <div class="row small"><span>本次修炼</span><span>${!this.isCultivating() ? "未修炼" : block ? `<b class='q5'>${block}</b>` : `${s.auto ? "自动修炼中" : "修炼中"} · <b id="tick-left"></b>`}</span></div>
@@ -300,7 +227,7 @@ G.module({
         <button class="${s.auto ? "on" : "primary"}" onclick="G.toggleAuto()">自动修炼：${s.auto ? "开" : "关"}</button>
         <button onclick="G.openBody(true)">修炼肉身</button>
         <button class="primary" style="flex-basis:100%" onclick="G.breakthrough()" ${can || s.trib ? "" : "disabled"}>
-          ${s.trib ? (s.trib.result ? "查看雷劫结果" : "渡劫中…查看雷劫") : can ? (this.needTrib() ? `${next}（渡雷劫 ${CFG.trib.TIME} 秒）` : `${next}（成功率 ${Math.round(this.breakChance() * 100)}%）`) : `修为未满，还差 ${U.fmt(this.needExp() - s.exp)}`}</button>
+          ${s.trib ? (s.trib.result ? "查看渡劫结果" : "渡劫中…查看劫云") : can ? (this.needTrib() ? `${next}（渡劫 ${this.tribTime(s.L + 1)} 秒）` : `${next}（成功率 ${Math.round(this.breakChance() * 100)}%）`) : `修为未满，还差 ${U.fmt(this.needExp() - s.exp)}`}</button>
       </div>
       <div class="row small" style="margin-top:8px"><span>修为</span><span>${U.fmt(s.exp)} / ${U.fmt(this.needExp())}</span></div>
       <div class="bar"><div style="width:${Math.min(100, s.exp / this.needExp() * 100)}%"></div></div>

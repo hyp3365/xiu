@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#14110f">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>问道长生 · 文字修仙</title>
-<link rel="stylesheet" href="css/style.css?v=76">
+<link rel="stylesheet" href="css/style.css?v=77">
 </head>
 <body>
 <div id="app">
@@ -38,6 +38,7 @@
 <div id="toast"></div>
 
 <!-- 弹窗 -->
+<div id="trib" class="trib hidden"></div>
 <div id="modal" class="modal hidden"><div class="modal-box" id="modal-box"></div></div>
 
 <!-- 加载顺序：数据 → 核心 → 模块（模块的 tick 按这里的顺序执行） -->
@@ -51,65 +52,66 @@
     b.textContent += "脚本错误：" + e.filename.split("/").slice(-2).join("/").split("?")[0] + " 第 " + e.lineno + " 行：" + e.message + "\n";
   });
 </script>
-<script src="js/config/realm.js?v=76"></script>
-<script src="js/config/player.js?v=76"></script>
-<script src="js/config/array.js?v=76"></script>
-<script src="js/config/monster.js?v=76"></script>
-<script src="js/config/explore.js?v=76"></script>
-<script src="js/config/drops.js?v=76"></script>
-<script src="js/config/worldmaps.js?v=76"></script>
-<script src="js/config/xingjun.js?v=76"></script>
-<script src="js/config/battle.js?v=76"></script>
-<script src="js/config/equip.js?v=76"></script>
-<script src="js/config/start.js?v=76"></script>
-<script src="js/config/gongfa.js?v=76"></script>
-<script src="js/config/lingen.js?v=76"></script>
-<script src="js/config/items.js?v=76"></script>
-<script src="js/config/alchemy.js?v=76"></script>
-<script src="js/config/furnace.js?v=76"></script>
-<script src="js/config/forge.js?v=76"></script>
-<script src="js/config/garden.js?v=76"></script>
-<script src="js/config/trib.js?v=76"></script>
-<script src="js/config/sect.js?v=76"></script>
-<script src="js/config/wudao.js?v=76"></script>
-<script src="js/config/craftsman.js?v=76"></script>
-<script src="js/config/mijing.js?v=76"></script>
-<script src="js/config/lingdi.js?v=76"></script>
-<script src="js/config/body.js?v=76"></script>
-<script src="js/config/names.js?v=76"></script>
+<script src="js/config/realm.js?v=77"></script>
+<script src="js/config/player.js?v=77"></script>
+<script src="js/config/array.js?v=77"></script>
+<script src="js/config/monster.js?v=77"></script>
+<script src="js/config/explore.js?v=77"></script>
+<script src="js/config/drops.js?v=77"></script>
+<script src="js/config/worldmaps.js?v=77"></script>
+<script src="js/config/xingjun.js?v=77"></script>
+<script src="js/config/battle.js?v=77"></script>
+<script src="js/config/equip.js?v=77"></script>
+<script src="js/config/start.js?v=77"></script>
+<script src="js/config/gongfa.js?v=77"></script>
+<script src="js/config/lingen.js?v=77"></script>
+<script src="js/config/items.js?v=77"></script>
+<script src="js/config/alchemy.js?v=77"></script>
+<script src="js/config/furnace.js?v=77"></script>
+<script src="js/config/forge.js?v=77"></script>
+<script src="js/config/garden.js?v=77"></script>
+<script src="js/config/trib.js?v=77"></script>
+<script src="js/config/sect.js?v=77"></script>
+<script src="js/config/wudao.js?v=77"></script>
+<script src="js/config/craftsman.js?v=77"></script>
+<script src="js/config/mijing.js?v=77"></script>
+<script src="js/config/lingdi.js?v=77"></script>
+<script src="js/config/body.js?v=77"></script>
+<script src="js/config/names.js?v=77"></script>
 <!-- 自定义物品、坊市、宗门宝库、地图掉落（不是数值文件） -->
-<script src="js/content/items.js?v=76"></script>
-<script src="js/data/names.js?v=76"></script>
-<script src="js/data/realms.js?v=76"></script>
-<script src="js/data/pills.js?v=76"></script>
-<script src="js/data/cave.js?v=76"></script>
-<script src="js/data/sects.js?v=76"></script>
-<script src="js/data/gongfa.js?v=76"></script>
-<script src="js/data/items.js?v=76"></script>
-<script src="js/data/maps.js?v=76"></script>
-<script src="js/data/craft.js?v=76"></script>
-<script src="js/data/forge.js?v=76"></script>
-<script src="js/data/refstats.js?v=76"></script>
+<script src="js/content/items.js?v=77"></script>
+<script src="js/data/names.js?v=77"></script>
+<script src="js/data/realms.js?v=77"></script>
+<script src="js/data/pills.js?v=77"></script>
+<script src="js/data/cave.js?v=77"></script>
+<script src="js/data/sects.js?v=77"></script>
+<script src="js/data/gongfa.js?v=77"></script>
+<script src="js/data/items.js?v=77"></script>
+<script src="js/data/maps.js?v=77"></script>
+<script src="js/data/craft.js?v=77"></script>
+<script src="js/data/forge.js?v=77"></script>
+<script src="js/data/refstats.js?v=77"></script>
 
-<script src="js/core/util.js?v=76"></script>
-<script src="js/core/api.js?v=76"></script>
-<script src="js/core/game.js?v=76"></script>
+<script src="js/core/util.js?v=77"></script>
+<script src="js/core/api.js?v=77"></script>
+<script src="js/core/game.js?v=77"></script>
 
-<script src="js/modules/player.js?v=76"></script>
-<script src="js/modules/cave.js?v=76"></script>
-<script src="js/modules/bag.js?v=76"></script>
-<script src="js/modules/custom.js?v=76"></script>
-<script src="js/modules/gongfa.js?v=76"></script>
-<script src="js/modules/sect.js?v=76"></script>
-<script src="js/modules/cultivate.js?v=76"></script>
-<script src="js/modules/body.js?v=76"></script>
-<script src="js/modules/world.js?v=76"></script>
-<script src="js/modules/xingjun.js?v=76"></script>
-<script src="js/modules/lingen.js?v=76"></script>
-<script src="js/modules/craft.js?v=76"></script>
-<script src="js/modules/wudao.js?v=76"></script>
-<script src="js/modules/garden.js?v=76"></script>
-<script src="js/modules/account.js?v=76"></script>
+<script src="js/modules/player.js?v=77"></script>
+<script src="js/modules/cave.js?v=77"></script>
+<script src="js/modules/bag.js?v=77"></script>
+<script src="js/modules/custom.js?v=77"></script>
+<script src="js/modules/gongfa.js?v=77"></script>
+<script src="js/modules/sect.js?v=77"></script>
+<script src="js/modules/cultivate.js?v=77"></script>
+<script src="js/modules/trib.js?v=77"></script>
+<script src="js/modules/body.js?v=77"></script>
+<script src="js/modules/world.js?v=77"></script>
+<script src="js/modules/xingjun.js?v=77"></script>
+<script src="js/modules/lingen.js?v=77"></script>
+<script src="js/modules/craft.js?v=77"></script>
+<script src="js/modules/wudao.js?v=77"></script>
+<script src="js/modules/garden.js?v=77"></script>
+<script src="js/modules/account.js?v=77"></script>
 
 <script>G.init();</script>
 </body>

@@ -174,3 +174,48 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24
 
 /* 功法属性数值：无加成白色，有加成绿色 */
 .gf-base{color:#ffffff;font-weight:normal}.gf-up{color:#5fd35f;font-weight:normal}
+
+/* ---------- 渡劫页（modules/trib.js）：全屏，上方劫云、下方人物 ---------- */
+.trib{position:fixed;inset:0;z-index:8;background:radial-gradient(ellipse at 50% 0%,#2a2340 0%,#15121c 55%,#0d0b0a 100%);overflow-y:auto;padding:calc(8px + env(safe-area-inset-top)) 12px 16px}
+.trib.hidden{display:none}
+.trib.tj-flash::after{content:"";position:fixed;inset:0;background:#d8d4ff;pointer-events:none;animation:tjFlash .35s ease-out forwards}
+@keyframes tjFlash{0%{opacity:.55}100%{opacity:0}}
+.tj-wrap{max-width:560px;margin:0 auto}
+.tj-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.tj-head b{color:#e9c46a;font-size:16px}
+.tj-head span{width:60px}
+.tj-sky{position:relative;height:190px;overflow:hidden;border-radius:12px;background:linear-gradient(#0c0a14,#1d1830 70%,transparent)}
+.tj-cloud{position:absolute;border-radius:50%;background:radial-gradient(circle at 50% 60%,#5a5470 0%,#383349 45%,#221e2e 70%,transparent 72%);filter:blur(2px)}
+.tj-cloud.c1{width:260px;height:120px;left:-40px;top:-30px;animation:tjDrift 9s ease-in-out infinite alternate}
+.tj-cloud.c2{width:300px;height:130px;right:-60px;top:-40px;animation:tjDrift 11s ease-in-out infinite alternate-reverse}
+.tj-cloud.c3{width:240px;height:110px;left:22%;top:10px;animation:tjDrift 7s ease-in-out infinite alternate}
+.tj-cloud.c4{width:200px;height:90px;left:5%;top:40px;opacity:.8;animation:tjDrift 13s ease-in-out infinite alternate-reverse}
+.tj-glow{position:absolute;left:0;right:0;top:20px;height:90px;background:radial-gradient(ellipse at 50% 50%,#8f86ff33,transparent 60%);animation:tjGlow 2.4s ease-in-out infinite}
+@keyframes tjDrift{0%{transform:translateX(-14px) scale(1)}100%{transform:translateX(14px) scale(1.06)}}
+@keyframes tjGlow{0%,100%{opacity:.3}50%{opacity:1}}
+.tj-bolt{position:absolute;inset:40px 0 0 0;pointer-events:none;animation:tjBolt .45s ease-out forwards}
+.tj-bolt svg{width:100%;height:100%;overflow:visible}
+.tj-bolt polyline{fill:none;stroke:#f2efff;stroke-width:1.4;vector-effect:non-scaling-stroke;stroke-width:3;filter:drop-shadow(0 0 4px #a99cff) drop-shadow(0 0 10px #7d6bff)}
+@keyframes tjBolt{0%{opacity:1}60%{opacity:.8}100%{opacity:0}}
+.tj-info{margin:8px 0}
+.tj-timer{text-align:center;color:#e9c46a;margin-top:6px}
+.tj-timer b{font-size:34px;line-height:1}
+.tj-hero{position:relative;width:150px;height:150px;margin:6px auto 0}
+.tj-hero svg{position:relative;width:100%;height:100%;fill:#1a1512;stroke:#e9c46a88;stroke-width:1.2}
+.tj-aura{position:absolute;inset:8px;border-radius:50%;background:radial-gradient(circle,#e9c46a33 0%,#e9c46a11 45%,transparent 70%);animation:tjGlow 3s ease-in-out infinite}
+.tj-hero.dead svg{opacity:.45;transform:rotate(-8deg) translateY(6px)}
+.tj-hero.dead .tj-aura{display:none}
+.tj-shake{animation:tjShake .3s}
+@keyframes tjShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.tj-dmg{position:absolute;top:30%;color:#e07a5f;font-weight:bold;font-size:15px;text-shadow:0 1px 3px #000;pointer-events:none;animation:tjDmg 1.1s ease-out forwards;white-space:nowrap}
+.tj-dmg.crit{color:#ffd166;font-size:18px}
+@keyframes tjDmg{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-40px)}}
+.tj-slots{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:10px 0 6px}
+.tj-slot{aspect-ratio:1;border:1px dashed #4a3d31;border-radius:8px;background:#1b1713;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;padding:3px;text-align:center;cursor:pointer}
+.tj-slot.on{border:1px solid #c9a45c;background:#241d17}
+.tj-slot.lost{border-color:#7a3b33}
+.tj-slot img{width:60%;height:auto;max-height:60%;object-fit:contain}
+.tj-slot small{font-size:10px;line-height:1.2;color:#c9bb9f;max-height:2.4em;overflow:hidden}
+.tj-plus{color:#4a3d31;font-size:22px}
+.tj-ic{width:28px;height:28px;border-radius:50%;background:#3a3027;color:#e9c46a;display:flex;align-items:center;justify-content:center;font-size:14px}
+.tj-wrap.win .tj-aura{background:radial-gradient(circle,#e9c46a66 0%,#e9c46a22 50%,transparent 72%)}
