@@ -241,3 +241,11 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24
 .tj-prep{min-height:calc(100vh - 40px);display:flex;flex-direction:column;justify-content:center}
 .tj-prep-title{text-align:center;color:#e9c46a;font-size:20px;letter-spacing:4px;margin-bottom:10px}
 .bar.mp>div{background:linear-gradient(90deg,#3d5a99,#6c8fd8)}
+
+/* 背包装备 / 法宝 / 法术栏：格子固定大小，有没有装备都一样；名字最多两行 */
+.equip.four .slot-eq{height:96px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
+.equip.four .slot-eq .nm{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.25;word-break:break-all}
+/* 小按钮文字不换行；列表行左边文字可收缩，按钮不被挤压 */
+button.sm{white-space:nowrap;flex-shrink:0}
+.line>div:first-child{min-width:0;flex:1 1 auto}
+.line>button,.line>div:last-child>button{white-space:nowrap;flex-shrink:0}

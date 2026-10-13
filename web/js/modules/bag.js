@@ -417,22 +417,22 @@ G.module({
     const tabs = `<div class="sub-tabs">${[["eq", "装备"], ["fb", DATA.slots.fabao], ["sp", "法术"]].map(([k, t]) =>
       `<button class="${tab === k ? "active" : ""}" onclick="G.setBagTab('${k}')">${t}</button>`).join("")}</div>`;
     const cell = (key, label, e) => { const src = DATA.eqIcon(e); return `<div class="slot-eq ${e ? "q" + e.q : ""}${DATA.eqCls(e)}" onclick="G.openEquip('${key}')"><b>${label}</b>
-        ${src ? `<img class="si" src="${src}" alt="">` : ""}${e ? e.name : "空"}</div>`; }; // 只显示名字，点击看详细
+        ${src ? `<img class="si" src="${src}" alt="">` : ""}<span class="nm">${e ? e.name : "空"}</span></div>`; }; // 只显示名字，点击看详细
 
     let top;
     if (tab === "eq") {
       top = `<div class="card"><h3>装备</h3><div class="equip four">${DATA.equipSlots.map(k => cell(k, DATA.slots[DATA.slotOf(k)], s.equip[k])).join("")}</div></div>`;
     } else if (tab === "fb") {
       let h = "";
-      for (let i = 0; i < DATA.SLOT_MAX; i++) h += i < n ? cell("fb" + i, "法宝", s.fabao[i]) : `<div class="slot-eq lock"><b>法宝</b>${DATA.realmLabel(i)}开启</div>`;
+      for (let i = 0; i < DATA.SLOT_MAX; i++) h += i < n ? cell("fb" + i, "法宝", s.fabao[i]) : `<div class="slot-eq lock"><b>法宝</b><span class="nm">${DATA.realmLabel(i)}开启</span></div>`;
       top = `<div class="card"><h3>法宝<small>已开启 ${n} / ${DATA.SLOT_MAX} 格</small></h3><div class="equip four">${h}</div></div>`;
     } else {
       let h = "";
       for (let i = 0; i < DATA.SLOT_MAX; i++) {
         const id = s.spellSlots[i];
-        if (i >= n) h += `<div class="slot-eq lock"><b>法术</b>${DATA.realmLabel(i)}开启</div>`;
-        else if (id) { const g = DATA.spellInfo(id, s.gongfa[id]); h += `<div class="slot-eq q${g.tier.idx + 1}" onclick="G.openSpellSlot(${i})"><b>法术</b><img class="si" src="${DATA.skillIcon(g)}" alt="">${g.name}</div>`; }
-        else h += `<div class="slot-eq" onclick="G.openSpellPick()"><b>法术</b>空</div>`;
+        if (i >= n) h += `<div class="slot-eq lock"><b>法术</b><span class="nm">${DATA.realmLabel(i)}开启</span></div>`;
+        else if (id) { const g = DATA.spellInfo(id, s.gongfa[id]); h += `<div class="slot-eq q${g.tier.idx + 1}" onclick="G.openSpellSlot(${i})"><b>法术</b><img class="si" src="${DATA.skillIcon(g)}" alt=""><span class="nm">${g.name}</span></div>`; }
+        else h += `<div class="slot-eq" onclick="G.openSpellPick()"><b>法术</b><span class="nm">空</span></div>`;
       }
       top = `<div class="card"><h3>法术<small>已开启 ${n} / ${DATA.SLOT_MAX} 格 · 点法术看详细</small></h3><div class="equip four">${h}</div>
         <p class="desc">战斗中按顺序轮流施放，法力不足时普通攻击。</p></div>`;
