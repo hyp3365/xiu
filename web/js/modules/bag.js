@@ -42,6 +42,8 @@ G.module({
       s.bagCap = Math.max(s.bagCap, DATA.BAG_START);
       // 法宝 36 种：旧法宝按属性归类
       s.bag.forEach(it => it.t === "eq" && DATA.fixFabao(it.e)); (s.fabao || []).forEach(DATA.fixFabao);
+      // v54：炼宝玄晶 / 淬器玄晶 → 黄品九曜石
+      s.bag.filter(it => it.t === "sm" && (it.k === "jj" || it.k === "qj")).forEach(it => { const n = it.n; s.bag.splice(s.bag.indexOf(it), 1); const j = s.bag.findIndex(x => x.t === "sm" && x.k === "jy" && (x.ft || 0) === 0); if (j >= 0) s.bag[j].n += n; else s.bag.push({ t: "sm", k: "jy", ft: 0, n }); });
       // v10：内丹、灵血已删除；旧存档里的清掉
       s.bag = s.bag.filter(it => !(it.t === "mat" && (it.kind === "core" || it.kind === "blood")));
       if (s.explore && s.explore.loot) for (const k in s.explore.loot.mats) if (!/^(herb|ore)\|/.test(k)) delete s.explore.loot.mats[k];
@@ -146,7 +148,7 @@ G.module({
       if (it.t === "eq" && it.e.cid) { const d = this.cuDef(it.e.cid); if (d && d.sell !== undefined) return d.sell; }
       if (it.t === "ss") return 0;
       if (it.t === "hx") return CFG.forge.reset.SELL || 0;
-      if (it.t === "sm") return (CFG.mijing.items[it.k] || {}).sell || 0;
+      if (it.t === "sm") { const v = (CFG.mijing.items[it.k] || {}).sell || 0; return Array.isArray(v) ? v[it.ft || 0] || 0 : v; }
       if (it.t === "rbp") return CFG.forge.ring.bpSell[it.g] || 0;
       if (it.t === "eq" && it.e.attrs) return (it.e.slot === "ring" ? CFG.forge.ring.sell : CFG.forge.equip.sell)[it.e.g] || 0;
       if (it.t === "fu" || it.t === "bp") return Math.floor(DATA.blueprintCost(it.kind, it.g) * (it.t === "fu" ? 2 : 1));
@@ -250,10 +252,10 @@ G.module({
     // 第 i 条属性下一次强化的消耗 { fire 火髓, jj 炼宝玄晶, mats 三种矿石 }
     enhCost(e, i) {
       const E = DATA.enhCfg(e), a = e.attrs[i], k = 1 + ((a && a.enh) || 0) * (E.COST_STEP || 0);
-      return { fire: Math.ceil((E.FIRE[e.g] || 1) * k), jj: Math.ceil(((E.SPECIAL || [])[e.g] || 0) * k), sk: E.SPECIAL_ITEM || "jj",
+      return { fire: Math.ceil((E.FIRE[e.g] || 1) * k), jj: Math.ceil(((E.SPECIAL || [])[e.g] || 0) * k), sk: "jy", sf: DATA.jyGrade(e.g),
         mats: DATA.parseMats(E.ORES[e.g] || E.ORES[0]).map(m => Object.assign(m, { n: Math.ceil(m.n * k) })) };
     },
-    enhHave(c) { return this.fireCount() >= c.fire && this.smCount(c.sk) >= c.jj && this.hasMats(c.mats); },
+    enhHave(c) { return this.fireCount() >= c.fire && this.smCount(c.sk, c.sf) >= c.jj && this.hasMats(c.mats); },
     // 成功率 0~1 = 炼器成功率 − 这一条已强化次数 × RATE_DROP
     enhRate(e, i) { return Math.max(0, this.craftRate("qi", e.g) - ((e.attrs[i] && e.attrs[i].enh) || 0) * (DATA.enhCfg(e).RATE_DROP || 0) / 100); },
     openEnhance(src) { const e = this.resetTarget(src); if (!this.canEnhance(e)) return; DATA.fixEnh(e); this._enhObj = e; this.drawEnhance(); },
@@ -261,12 +263,12 @@ G.module({
       const e = this._enhObj; if (!e) return;
       const E = DATA.enhCfg(e);
       this.modal(`<img class="item-img${DATA.eqCls(e)}" src="${DATA.eqIcon(e)}" alt=""><h2 class="q${e.q}">强化 · ${this.itemName({ t: "eq", e })}</h2>
-        <p class="desc">火髓 ${U.fmt(this.fireCount())} · ${DATA.smName(E.SPECIAL_ITEM || "jj")} ${U.fmt(this.smCount(E.SPECIAL_ITEM || "jj"))} · 失败只扣材料，不掉强化等级。</p>` +
+        <p class="desc">火髓 ${U.fmt(this.fireCount())} · ${DATA.smName("jy", DATA.jyGrade(e.g))} ${U.fmt(this.smCount("jy", DATA.jyGrade(e.g)))} · 失败只扣材料，不掉强化等级。</p>` +
         e.attrs.map((a, i) => {
           if (!DATA.attrEnhOK(a, e)) return `<div class="line"><div><span class="ac${a.c}">${DATA.attrText(a, e)}</span><small>不能强化</small></div></div>`;
           const n = a.enh || 0, max = n >= E.MAX, c = this.enhCost(e, i), base = DATA.attrBase(a, e.g, e);
           return `<div class="line"><div><span class="ac${a.c}">${DATA.attrText(a, e)}</span>
-            <small>强化 ${n}/${E.MAX}${max ? " · 已满" : ` → ${U.num(base * DATA.enhMult(a, e, n + 1))} · <span class="${this.fireCount() >= c.fire ? "" : "q5"}">火髓 ${c.fire}</span>${c.jj ? `、<span class="${this.smCount(c.sk) >= c.jj ? "" : "q5"}">${DATA.smName(c.sk)} ${c.jj}</span>` : ""}、${this.matsText(c.mats)} · 成功率 ${this.ratePct(this.enhRate(e, i))}`}</small></div>
+            <small>强化 ${n}/${E.MAX}${max ? " · 已满" : ` → ${U.num(base * DATA.enhMult(a, e, n + 1))} · <span class="${this.fireCount() >= c.fire ? "" : "q5"}">火髓 ${c.fire}</span>${c.jj ? `、<span class="${this.smCount(c.sk, c.sf) >= c.jj ? "" : "q5"}">${DATA.smName(c.sk, c.sf)} ${c.jj}</span>` : ""}、${this.matsText(c.mats)} · 成功率 ${this.ratePct(this.enhRate(e, i))}`}</small></div>
             <button class="sm" onclick="G.doEnhance(${i})" ${!max && this.enhHave(c) ? "" : "disabled"}>强化</button></div>`;
         }).join("") +
         `<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
@@ -277,7 +279,7 @@ G.module({
       const E = DATA.enhCfg(e), c = this.enhCost(e, i);
       if ((a.enh || 0) >= E.MAX) return;
       if (!this.enhHave(c)) return this.log("材料不足。", "sys");
-      this.takeFire(c.fire); if (c.jj) this.takeSm(c.sk, c.jj); c.mats.forEach(m => this.takeMat(m.kind, m.g, m.n));
+      this.takeFire(c.fire); if (c.jj) this.takeSm(c.sk, c.jj, c.sf); c.mats.forEach(m => this.takeMat(m.kind, m.g, m.n));
       if (Math.random() < this.enhRate(e, i)) { a.enh = (a.enh || 0) + 1; this.log(`强化成功！${this.itemName({ t: "eq", e })}：${DATA.attrText(a, e)}`, "gold"); }
       else this.log(`强化失败，材料已耗尽，${e.name}完好无损。`, "bad");
       this.after(); this.drawEnhance();
@@ -293,13 +295,13 @@ G.module({
     },
     takeFire(n) { const i = this.s.bag.findIndex(x => x.t === "hx"); if (i < 0 || this.s.bag[i].n < n) return false; this.removeAt(i, n); return true; },
     /* ---------- 秘境专用材料：空间晶核 kj、炼宝玄晶 jj、模具 mold（ft = 法宝种类） ---------- */
-    smFind(k, ft) { return this.s.bag.findIndex(x => x.t === "sm" && x.k === k && (k !== "mold" || x.ft === ft)); },
+    smFind(k, ft) { return this.s.bag.findIndex(x => x.t === "sm" && x.k === k && (!DATA.SM_GRADED.includes(k) || (x.ft || 0) === (ft || 0))); },
     smCount(k, ft) { const i = this.smFind(k, ft); return i < 0 ? 0 : this.s.bag[i].n; },
     addSm(k, n, ft) {
       const i = this.smFind(k, ft);
       if (i >= 0) { this.s.bag[i].n += n; return true; }
       if (this.bagFull()) { if (!this.silent) this.log(`背包已满，${DATA.smName(k, ft)}遗失了。`, "bad"); return false; }
-      const it = { t: "sm", k, n }; if (k === "mold") it.ft = ft;
+      const it = { t: "sm", k, n }; if (DATA.SM_GRADED.includes(k)) it.ft = ft || 0;
       this.s.bag.push(it); return true;
     },
     takeSm(k, n, ft) { const i = this.smFind(k, ft); if (i < 0 || this.s.bag[i].n < n) return false; this.removeAt(i, n); return true; },
