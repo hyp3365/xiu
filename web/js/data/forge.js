@@ -219,7 +219,7 @@ DATA.fabaoInfo = e => {
   }
   o.ignPct = Math.min(F.CAP.ignResPct || 100, o.ignPct); o.cutPct = Math.min(F.CAP.manaCutPct || 80, o.cutPct);
   // 人物大境界倍率（同法术）
-  const R = window.G && G.s && !G.s.mortal ? Math.min(Math.floor(G.s.L / DATA.LAYERS), 23) : 0;
+  const R = typeof G !== "undefined" && G.s && !G.s.mortal ? Math.min(Math.floor(G.s.L / DATA.LAYERS), 23) : 0;
   const rv = a => { if (!a) return 1; const x = Array.isArray(a) ? a[R] : a[DATA.realms[R]]; return x === undefined ? 1 : x; };   // 按境界名取倍率
   o.pct *= rv(F.DMG_REALM); o.flat *= rv(F.DMG_REALM);
   // 法力 = MANA[阶] × MANA_COLOR[主属性颜色] × MANA_REALM[境界]；颜色只看主属性（伤害%那条）

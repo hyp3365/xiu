@@ -177,7 +177,7 @@ DATA.spellInfo = (id, lv = 1, realm) => {
   if (!sect || !el || !tier) return null;
   const per = DATA.gfCalc(sect, "spell", tier, "spell", "EFFECT_SPELL"); // 每层固定伤害
   const C = DATA.srcCfg(sect), v = (x, d = 1) => x === undefined ? d : x, tm = v((C.TYPE_MULT || {}).spell);
-  const R = realm !== undefined ? realm : (window.G && G.s && !G.s.mortal ? Math.floor(G.s.L / DATA.LAYERS) : 0);
+  const R = realm !== undefined ? realm : (typeof G !== "undefined" && G.s && !G.s.mortal ? Math.floor(G.s.L / DATA.LAYERS) : 0);
   const ri = Math.min(R, 23), last = a => a && a.length ? v(a[ri], a[a.length - 1]) : 1;
   return {
     kind: "sp", id, sect, src: DATA.srcType(sect), star: sect.star, el, tier, lv,
@@ -188,7 +188,7 @@ DATA.spellInfo = (id, lv = 1, realm) => {
     // 法力消耗 = SPELL_MANA × 阶 × 星级 × 层数倍率 × 境界 × 灵根倍率（灵根倍率 = 1 + 该系灵根等级 × MANA_LINGEN）
     mana: Math.max(1, Math.round(v(_GF.SPELL_MANA, 1) * v((_GF.MANA_TIER || {})[tier.id]) * v((_GF.MANA_STAR || [])[sect.star - 1])
       * (_GF.MANA_LV && _GF.MANA_LV.length ? v(_GF.MANA_LV[lv - 1], _GF.MANA_LV[_GF.MANA_LV.length - 1]) : lv) * last(_GF.MANA_REALM)
-      * (1 + (window.G && G.s && G.s.lingen ? G.s.lingen[el.id] || 0 : 0) * v(_GF.MANA_LINGEN, 0)))),
+      * (1 + (typeof G !== "undefined" && G.s && G.s.lingen ? G.s.lingen[el.id] || 0 : 0) * v(_GF.MANA_LINGEN, 0)))),
     cost: DATA.gfLearnCost(sect, "spell", tier),
   };
 };
