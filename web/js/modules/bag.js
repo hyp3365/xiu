@@ -138,7 +138,7 @@ G.module({
       if (it.t === "bp") return DATA.furnaceName(it.kind, it.g) + "图纸";
       if (it.t === "cu") return it.name;
       if (it.t === "ss") return DATA.stoneName(it.g);
-      if (it.t === "hx") return "火髓";
+      if (it.t === "hx") return DATA.HX;
       if (it.t === "sm") return DATA.smName(it.k, it.ft, it.tier);
       if (it.t === "rbp") return DATA.ringBpName(it.g, it.r);
       if (it.e.cid) return it.e.name;
@@ -190,7 +190,7 @@ G.module({
         return `<div class="line"><div>${img}<span class="q${q}">${it.t === "eq" ? this.eqQual(it.e) : ""}${this.itemName(it)}</span>${n > 1 ? ` ×${U.fmt(n)}` : ""}<small>单价 ${U.fmt(p)} 灵石</small></div>
           <div><button class="sm" onclick="G.sellItem(${i},1)" ${p > 0 ? "" : "disabled"}>卖1个</button>${n > 1 ? ` <button class="sm" onclick="G.sellItem(${i},${n})" ${p > 0 ? "" : "disabled"}>全部</button>` : ""}</div></div>`;
       }).join("");
-      return `<div class="card"><h3>出售<small>${{ all: "全部", dan: "丹药", herb: "药材", ore: "矿石" }[flt]} · 灵石 ${U.fmt(s.stone)}</small></h3>${rows || `<p class="desc">没有可出售的物品。</p>`}
+      return `<div class="card"><h3>出售<small>${{ all: "全部", dan: "丹药", herb: DATA.matKinds.herb, ore: DATA.matKinds.ore }[flt]} · 灵石 ${U.fmt(s.stone)}</small></h3>${rows || `<p class="desc">没有可出售的物品。</p>`}
         <div class="btns"><button onclick="G.closeSellPage()">返回储物格</button></div></div>`;
     },
 
@@ -270,12 +270,12 @@ G.module({
       const e = this._enhObj; if (!e) return;
       const E = DATA.enhCfg(e);
       this.modal(`<img class="item-img${DATA.eqCls(e)}" src="${DATA.eqIcon(e)}" alt=""><h2 class="q${e.q}">强化 · ${this.itemName({ t: "eq", e })}</h2>
-        <p class="desc">火髓 ${U.fmt(this.fireCount())} · ${[...new Set(e.attrs.filter(a => DATA.attrEnhOK(a, e) && (a.enh || 0) < E.MAX).map(a => DATA.enhJyGrade(e, a.enh || 0)))].sort().map(f => `${DATA.li(DATA.smIcon("jy", f))}${DATA.smName("jy", f)} ${U.fmt(this.smCount("jy", f))}`).join(" · ")} · 每 ${E.JY_STEP || 9} 次强化换高一品九曜石 · 失败只扣材料，不掉强化等级。</p>` +
+        <p class="desc">${DATA.HX} ${U.fmt(this.fireCount())} · ${[...new Set(e.attrs.filter(a => DATA.attrEnhOK(a, e) && (a.enh || 0) < E.MAX).map(a => DATA.enhJyGrade(e, a.enh || 0)))].sort().map(f => `${DATA.li(DATA.smIcon("jy", f))}${DATA.smName("jy", f)} ${U.fmt(this.smCount("jy", f))}`).join(" · ")} · 每 ${E.JY_STEP || 9} 次强化换高一品九曜石 · 失败只扣材料，不掉强化等级。</p>` +
         e.attrs.map((a, i) => {
           if (!DATA.attrEnhOK(a, e)) return `<div class="line"><div><span class="ac${a.c}">${DATA.attrText(a, e)}</span><small>不能强化</small></div></div>`;
           const n = a.enh || 0, max = n >= E.MAX, c = this.enhCost(e, i), base = DATA.attrBase(a, e.g, e);
           return `<div class="line"><div><span class="ac${a.c}">${DATA.attrText(a, e)}</span>
-            <small>强化 ${n}/${E.MAX}${max ? " · 已满" : ` → ${U.num(base * DATA.enhMult(a, e, n + 1))} · <span class="${this.fireCount() >= c.fire ? "" : "q5"}">火髓 ${c.fire}</span>${c.jj ? `、<span class="${this.smCount(c.sk, c.sf) >= c.jj ? "" : "q5"}">${DATA.li(DATA.smIcon(c.sk, c.sf))}${DATA.smName(c.sk, c.sf)} ${c.jj}</span>` : ""}、${this.matsText(c.mats)} · 成功率 ${this.ratePct(this.enhRate(e, i))}`}</small></div>
+            <small>强化 ${n}/${E.MAX}${max ? " · 已满" : ` → ${U.num(base * DATA.enhMult(a, e, n + 1))} · <span class="${this.fireCount() >= c.fire ? "" : "q5"}">${DATA.HX} ${c.fire}</span>${c.jj ? `、<span class="${this.smCount(c.sk, c.sf) >= c.jj ? "" : "q5"}">${DATA.li(DATA.smIcon(c.sk, c.sf))}${DATA.smName(c.sk, c.sf)} ${c.jj}</span>` : ""}、${this.matsText(c.mats)} · 成功率 ${this.ratePct(this.enhRate(e, i))}`}</small></div>
             <button class="sm" onclick="G.doEnhance(${i})" ${!max && this.enhHave(c) ? "" : "disabled"}>强化</button></div>`;
         }).join("") +
         `<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
@@ -297,7 +297,7 @@ G.module({
     addFire(n) {
       const it = this.s.bag.find(x => x.t === "hx");
       if (it) { it.n += n; return true; }
-      if (this.bagFull()) { if (!this.silent) this.log("背包已满，火髓遗失了。", "bad"); return false; }
+      if (this.bagFull()) { if (!this.silent) this.log(`背包已满，${DATA.HX}遗失了。`, "bad"); return false; }
       this.s.bag.push({ t: "hx", n }); return true;
     },
     takeFire(n) { const i = this.s.bag.findIndex(x => x.t === "hx"); if (i < 0 || this.s.bag[i].n < n) return false; this.removeAt(i, n); return true; },
@@ -328,11 +328,11 @@ G.module({
       const e = this._resetObj; if (!e) return;
       const L = this._locks || (this._locks = []), cost = DATA.resetCost(e, L.length);
       const wash = e.slot === "fabao", nm = "洗练";
-      this.modal(`<h2 class="q${e.q}">火髓${nm} · ${this.itemName({ t: "eq", e })}</h2>
-        <p class="desc">点属性锁定 / 解锁，锁定的属性不变。每锁定一条，火髓消耗翻一倍。</p>` +
+      this.modal(`<h2 class="q${e.q}">${DATA.HX}${nm} · ${this.itemName({ t: "eq", e })}</h2>
+        <p class="desc">点属性锁定 / 解锁，锁定的属性不变。每锁定一条，${DATA.HX}消耗翻一倍。</p>` +
         e.attrs.map((a, i) => `<div class="line"><div><span class="ac${a.c}">${DATA.attrText(a, e)}</span></div>
           <button class="sm ${L.includes(i) ? "active" : ""}" onclick="G.toggleLock(${i})">${L.includes(i) ? "已锁定" : "锁定"}</button></div>`).join("") +
-        `<p>消耗火髓 <b>${cost}</b>（拥有 ${this.fireCount()}）</p>
+        `<p>消耗${DATA.HX} <b>${cost}</b>（拥有 ${this.fireCount()}）</p>
         ${wash ? `<p class="desc">炼制、购买得到的法宝属性最高绿色，紫色、金色只能洗练得到。</p>` : ""}
         <div class="btns"><button class="primary" onclick="G.doReset()" ${this.fireCount() >= cost && L.length < e.attrs.length ? "" : "disabled"}>${nm}</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
@@ -341,11 +341,11 @@ G.module({
       const e = this._resetObj; if (!e || !e.attrs) return;
       const L = this._locks || [], cost = DATA.resetCost(e, L.length);
       if (L.length >= e.attrs.length) return;
-      if (!this.takeFire(cost)) return this.log("火髓不足。", "sys");
+      if (!this.takeFire(cost)) return this.log(`${DATA.HX}不足。`, "sys");
       const keep = L.map(i => e.attrs[i]);
       DATA.rerollForged(e, L);
       this._locks = keep.map(a => e.attrs.indexOf(a)).filter(i => i >= 0);   // 条数变了，锁定的序号跟着属性走
-      this.log(`消耗火髓 ${cost}，洗练了${this.itemName({ t: "eq", e })}的属性。`, "good");
+      this.log(`消耗${DATA.HX} ${cost}，洗练了${this.itemName({ t: "eq", e })}的属性。`, "good");
       this.after(); this.drawReset();
     },
     equipItem(i) {
@@ -414,7 +414,7 @@ G.module({
 
   view() {
     const s = this.s, tab = this.bagTab || "eq", n = this.slotCount();
-    const tabs = `<div class="sub-tabs">${[["eq", "装备"], ["fb", "法宝"], ["sp", "法术"]].map(([k, t]) =>
+    const tabs = `<div class="sub-tabs">${[["eq", "装备"], ["fb", DATA.slots.fabao], ["sp", "法术"]].map(([k, t]) =>
       `<button class="${tab === k ? "active" : ""}" onclick="G.setBagTab('${k}')">${t}</button>`).join("")}</div>`;
     const cell = (key, label, e) => { const src = DATA.eqIcon(e); return `<div class="slot-eq ${e ? "q" + e.q : ""}${DATA.eqCls(e)}" onclick="G.openEquip('${key}')"><b>${label}</b>
         ${src ? `<img class="si" src="${src}" alt="">` : ""}${e ? e.name : "空"}</div>`; }; // 只显示名字，点击看详细
@@ -441,7 +441,7 @@ G.module({
     this.sortBag();
     // v26：储物格分类（全部 丹药 药材 矿石）+ 出售页
     const flt = this.bagFilter || "all", match = it => flt === "all" || (flt === "dan" ? it.t === "pill" || it.t === "dan" : it.t === "mat" && it.kind === flt);
-    const ftabs = `<div class="bag-tabs">${[["all", "全部"], ["dan", "丹药"], ["herb", "药材"], ["ore", "矿石"]].map(([k, t]) =>
+    const ftabs = `<div class="bag-tabs">${[["all", "全部"], ["dan", "丹药"], ["herb", DATA.matKinds.herb], ["ore", DATA.matKinds.ore]].map(([k, t]) =>
       `<button class="${flt === k && !this.bagSell ? "active" : ""}" onclick="G.setBagFilter('${k}')">${t}</button>`).join("")}
       <button class="sell ${this.bagSell ? "active" : ""}" onclick="G.openSellPage()">出售</button></div>`;
     if (this.bagSell) return tabs + top + `<div class="card"><h3>储物格<small>${s.bag.length} / ${s.bagCap}</small></h3>${ftabs}</div>` + this.sellPageView(match);
@@ -458,9 +458,9 @@ G.module({
       else if (it.t === "fu") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.furnaceIcon(it.kind)}" alt="">${DATA.furnaceName(it.kind, it.g)}${it.n > 1 ? `<span class="n">${it.n}</span>` : ""}</div>`;
       else if (it.t === "bp") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("bp")}" alt="">${DATA.furnaceName(it.kind, it.g)}</div>`;
  else if (it.t === "sm") cells += `<div class="cell q3" onclick="G.openItem(${i})"><img class="mi${it.k === "mold" ? " mold" : ""}" src="${DATA.smIcon(it.k, it.ft)}" alt="">${DATA.smName(it.k, it.ft, it.tier)}<span class="n">${U.fmt(it.n)}</span></div>`;
- else if (it.t === "hx") cells += `<div class="cell q4" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("hx")}" alt="">火髓<span class="n">${U.fmt(it.n)}</span></div>`;
+ else if (it.t === "hx") cells += `<div class="cell q4" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("hx")}" alt="">${DATA.HX}<span class="n">${U.fmt(it.n)}</span></div>`;
       else if (it.t === "rbp") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("bp")}" alt="">${DATA.ringNames[it.r] || "戒指"}图纸${it.n > 1 ? `<span class="n">${it.n}</span>` : ""}</div>`;
- else if (it.t === "ss") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("ss")}" alt="">${DATA.JIE[it.g]}空间石<span class="n">${it.n}</span></div>`;
+ else if (it.t === "ss") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("ss")}" alt="">${DATA.stoneName(it.g)}<span class="n">${it.n}</span></div>`;
       else if (it.t === "cu") { const d = this.cuDef(it.name); cells += `<div class="cell q${d ? d.q || 0 : 0}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.cuIcon(d)}" alt="">${it.name}<span class="n">${U.fmt(it.n)}</span></div>`; }
       else { const src = DATA.eqIcon(it.e); cells += `<div class="cell q${it.e.q}${DATA.eqCls(it.e)}" onclick="G.openItem(${i})">${src ? `<img class="mi" src="${src}" alt="">` : ""}${it.e.name}${it.e.enh ? `<span class="n">+${it.e.enh}</span>` : ""}${src ? "" : `<span class="g">${DATA.slots[it.e.slot]}</span>`}</div>`; }
     }

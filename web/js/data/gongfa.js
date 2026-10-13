@@ -26,6 +26,9 @@ const _GF = CFG.gongfa;
 DATA.tiers = [
   { id: "huang", name: "黄阶" }, { id: "xuan", name: "玄阶" }, { id: "di", name: "地阶" }, { id: "tian", name: "天阶" },
 ];
+// 名字在 config/names.js（gfTier / gfType / gfSource / element / gfWords / spellSuffix / shopGf / towerGf / mifa / mifaStar）
+const _NM = CFG.names;
+DATA.tiers.forEach(t => { t.name = DATA.nmPick(_NM.gfTier, t.id, t.name); });
 DATA.tierById = Object.fromEntries(DATA.tiers.map((t, i) => [t.id, Object.assign(t, { idx: i })]));
 
 // 功法类别：stat = 加成的属性（数值见 config/gongfa.js 的 base）
@@ -41,12 +44,16 @@ DATA.gongfaTypes = [
   { id: "tijue",    name: "肉身秘诀", suffix: "炼体诀", stat: "body", label: "肉身修炼速度", sectOnly: true }, // 修炼肉身的前提；只在宗门功法殿学习
 ];
 
+DATA.gongfaTypes.forEach(t => { const n = (_NM.gfType || {})[t.id]; if (n) { t.name = DATA.nmPick(n, 0, t.name); t.suffix = DATA.nmPick(n, 1, t.suffix); } });
+
 /* 功法来源类型（内部标记）：sect 宗门功法、shop 凡界坊市功法；以后加新类型在这里加一行 + config 加一组 */
 DATA.gfSources = {
   sect: { name: "宗门", cfg: () => _GF.sect },
   shop: { name: "坊市", cfg: () => _GF.shop },
   tower: { name: "试炼塔", cfg: () => _GF.tower || _GF.sect },   // v25：试炼塔秘诀
 };
+
+for (const k in DATA.gfSources) DATA.gfSources[k].name = DATA.nmPick(_NM.gfSource, k, DATA.gfSources[k].name);
 
 /* 六种属性。words：起名用的词（门派前缀 + 随机词 + 后缀，如 青阳 + 赤炎 + 心法）
  * 每个门派从 本属性词 + 通用词 里随机（按门派固定）选，保证同门派功法不重名。 */
@@ -58,10 +65,12 @@ DATA.elements = [
   { id: "tu",   name: "土", words: ["厚土", "戊土", "镇岳", "玄黄", "息壤", "磐石", "山河", "后土", "不动", "大地", "坤元", "黄庭", "撼山", "岩甲", "千仞", "载物"] },
   { id: "lei",  name: "雷", words: ["紫霄", "神霄", "九霄", "惊雷", "奔雷", "天罚", "雷音", "掌心", "五雷", "玄雷", "雷霆", "紫电", "天劫", "震霄", "破虚", "引雷"] },
 ];
+DATA.elements.forEach(e => { e.name = DATA.nmPick(_NM.element, e.id, e.name); if ((_NM.gfWords || {})[e.id]) e.words = DATA.nmArr(_NM.gfWords[e.id], e.words); });
 DATA.elById = Object.fromEntries(DATA.elements.map(e => [e.id, e]));
 DATA.COMMON_WORDS = ["太虚", "混元", "归元", "无相", "紫府", "玄妙", "长生", "通天", "周天", "大衍", "两仪", "太乙",
   "玉清", "灵虚", "抱朴", "逍遥", "凌云", "浩然", "天罡", "北斗", "星河", "鸿蒙", "九转", "不灭"];
-DATA.spellSuffix = ["术", "诀", "印", "神通"]; // 法术后缀：黄 玄 地 天
+if ((_NM.gfWords || {}).common) DATA.COMMON_WORDS = DATA.nmArr(_NM.gfWords.common, DATA.COMMON_WORDS);
+DATA.spellSuffix = ["术", "诀", "印", "神通"].map((x, i) => DATA.nmPick(_NM.spellSuffix, DATA.tiers[i].id, x)); // 法术后缀：黄 玄 地 天
 
 // 同一门派固定的随机词表（按门派 id 洗牌，结果每次都一样）
 DATA._words = {};
@@ -94,12 +103,13 @@ DATA.SHOP_GF_PREFIX = [["青冥", "云笈"], ["琼华", "栖霞"], ["抱朴", "�
 DATA.shopSources = [];
 DATA.SHOP_GF_PREFIX.forEach((pair, i) => pair.forEach((prefix, n) => {
   const star = i + 1;
-  DATA.shopSources.push({ id: `f${star}_${n}`, src: "shop", star, prefix, name: prefix + "传承", el: DATA.elements[(star * 2 + n) % 6].id,
+  const id = `f${star}_${n}`; prefix = DATA.nmPick(_NM.shopGf, id, prefix);
+  DATA.shopSources.push({ id, src: "shop", star, prefix, name: prefix + DATA.nmPick(_NM, "shopGfSuffix", "传承"), el: DATA.elements[(star * 2 + n) % 6].id,
     reqRealm: DATA.sectReq(star) });   // 境界要求 = 同星级门派
 }));
 /* ---------- v25：试炼塔秘诀的「来源」（每星一个，id t星级，只有秘诀） ---------- */
 DATA.TOWER_GF_PREFIX = ["问心", "登仙", "通玄", "摘星", "揽月", "踏虚", "擎天", "证道", "归真", "登极"];
-DATA.towerSources = DATA.TOWER_GF_PREFIX.map((prefix, i) => ({ id: `t${i + 1}`, src: "tower", star: i + 1, prefix, name: prefix + "塔", el: DATA.elements[i % 6].id, reqRealm: -1 }));
+DATA.towerSources = DATA.TOWER_GF_PREFIX.map((p0, i) => DATA.nmPick(_NM.towerGf, `t${i + 1}`, p0)).map((prefix, i) => ({ id: `t${i + 1}`, src: "tower", star: i + 1, prefix, name: prefix + DATA.nmPick(_NM, "towerGfSuffix", "塔"), el: DATA.elements[i % 6].id, reqRealm: -1 }));
 // 第 star 星试炼塔秘诀某一阶的功法 id
 DATA.towerMijueId = (star, tierId) => `t${star}:mijue:${tierId}`;
 // 所有来源：门派（src = "sect"）+ 坊市 + 试炼塔
@@ -204,8 +214,9 @@ DATA.mifaKinds = [
   { id: "plantTime", name: "育灵秘法", label: "灵药生长时间", unit: "%", sign: "-", el: "mu" },
   { id: "plantYield",name: "丰灵秘法", label: "灵药收获数量", unit: "%", sign: "+", el: "mu" },
 ];
+DATA.mifaKinds.forEach(k => { k.name = DATA.nmPick(_NM.mifa, k.id, k.name); });
 DATA.mifaKindById = Object.fromEntries(DATA.mifaKinds.map(k => [k.id, k]));
-DATA.MIFA_PREFIX = ["一元", "两仪", "三才", "四象", "五行", "六合", "七星", "八荒", "九宫", "十方"];
+DATA.MIFA_PREFIX = ["一元", "两仪", "三才", "四象", "五行", "六合", "七星", "八荒", "九宫", "十方"].map((x, i) => DATA.nmPick(_NM.mifaStar, i + 1, x));
 DATA.MIFA_TIER = { id: "mifa", name: "秘法", idx: 0 };
 DATA.mifaId = (star, kind) => `w${star}:mf:${kind}`;
 DATA.isMifa = id => id.split(":")[1] === "mf";

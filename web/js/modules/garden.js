@@ -94,7 +94,7 @@ G.caveViews.garden = function () {
       <div class="bar"><div style="width:${p}%"></div></div></div>`;
   }).join("");
   const full = n >= DATA.GARDEN_MAX, c = DATA.fieldCost(n);
-  return this.craftsmanCard("ling") + (s.seeds.some(g => g >= DATA.FAN_HERB_N) ? this.craftsmanCard("xling") : "") + `<div class="card"><h3>灵药园<small>灵田 ${n} / ${DATA.GARDEN_MAX} · 种子 ${s.seeds.length} 种 · 灵气 ${U.fmt(s.ling)}</small></h3>
+  return this.craftsmanCard("ling") + (s.seeds.some(g => g >= DATA.FAN_HERB_N) ? this.craftsmanCard("xling") : "") + `<div class="card"><h3>${DATA.caveName("garden")}<small>灵田 ${n} / ${DATA.GARDEN_MAX} · 种子 ${s.seeds.length} 种 · 灵气 ${U.fmt(s.ling)}</small></h3>
     ${n ? `<div class="equip four">${cells}</div>` : `<p class="desc">还没有灵田。</p>`}
     <div class="btns"><button class="primary" onclick="G.openField()" ${full || s.stone < c ? "disabled" : ""}>${full ? "灵田已满" : `开辟灵田（${U.fmt(c)} 灵石）`}</button></div>
     <p class="desc">每季消耗灵气，成熟自动收获进背包并自动续种。点灵田可种植、换种、铲除。种子在门派宗门宝库兑换，每种只需一次。</p></div>`;

@@ -55,6 +55,7 @@ DATA.furnaceMats = (kind, g) => DATA.parseMats(_FU[kind].mats[g]);
 DATA.furnaceTime = (kind, g) => _FU[kind].time[g] * 60000;
 DATA.furnaceBonus = (kind, g) => g >= 0 ? _FU[kind].bonus[g] : 0;  // 缩短时间 %
 DATA.furnaceKinds = { dan: "炼丹炉", qi: "炼器炉", xdan: "炼丹仙炉", xqi: "炼器仙炉" };
+for (const k in DATA.furnaceKinds) if (_FU[k] && _FU[k].name) DATA.furnaceKinds[k] = _FU[k].name;   // 名字在 config/names.js 的 furnace
 DATA.FURNACE_KINDS = Object.keys(DATA.furnaceKinds).filter(k => _FU[k]);
 DATA.isDanFu = k => k === "dan" || k === "xdan";                                // 炼丹用的炉子
 // v42：宗门宝库兑换第 g 阶图纸需要的门派星级

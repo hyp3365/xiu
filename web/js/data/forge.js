@@ -18,21 +18,25 @@ DATA.forgeNames = {
   boots:   ["青铜靴", "玄铁靴", "赤炎靴", "寒玉靴", "紫金靴", "星辰靴", "太虚靴", "混元靴", "鸿蒙靴", "道源靴"],
   pendant: ["青铜坠", "玄铁坠", "赤炎佩", "寒玉佩", "紫金坠", "星辰佩", "太虚佩", "混元坠", "鸿蒙佩", "道源佩"],
 };
+// 名字在 config/names.js 的 forge（上面是原名，读档对照用）
+DATA.NM_DEF.forge = JSON.parse(JSON.stringify(DATA.forgeNames));
+for (const k in DATA.forgeNames) DATA.forgeNames[k] = DATA.nmArr((CFG.names.forge || {})[k], DATA.forgeNames[k]);
 DATA.forgeSlots = Object.keys(DATA.forgeNames);            // 能炼的部位
 DATA.attrNames = { hp: "气血", atk: "攻击", def: "防御", mana: "法力", speed: "速度", hit: "命中", dodge: "闪避", crit: "暴击%" };
+for (const k in DATA.attrNames) DATA.attrNames[k] = DATA.nmPick(CFG.names.attr, k, DATA.attrNames[k]);
 DATA.COLOR_Q = [0, 1, 3, 4];                                // 颜色 → 品质样式（白 绿 紫 金）
 
 DATA.forgeEqName = (slot, g) => DATA.JIE[g] + "·" + DATA.forgeNames[slot][g];
 DATA.forgeEqMats = g => DATA.parseMats(_FG.equip.mats[g]);
 DATA.forgeEqTime = g => _FG.equip.time[g] * 60000;
-DATA.stoneName = g => DATA.JIE[g] + "空间石";
+DATA.stoneName = g => DATA.JIE[g] + DATA.SS;
 DATA.stoneMats = g => DATA.parseMats(_FG.stone.mats[g]);
 DATA.stoneTime = g => _FG.stone.time[g] * 60000;
 
 // 法宝：每阶 36 种（config/forge.js 的 fabao.types），属性由种类决定，显示如 一阶·火·赤炎鼎
 //   法宝在存档里多一个 ft = 种类序号、enh = 强化次数
 DATA.fabaoTypes = _FG.fabao.types;
-DATA.forgeNames.fabao = DATA.JIE.map(() => "法宝");        // 门派炼器室图谱名：一阶·法宝
+DATA.forgeNames.fabao = DATA.JIE.map(() => DATA.slots.fabao);        // 门派炼器室图谱名：一阶·法宝
 // 旧法宝（没有种类）：按属性归到该属性的第一种
 DATA.fixFabao = e => {
   if (!e || e.slot !== "fabao" || !e.attrs || e.ft !== undefined) return;
@@ -48,14 +52,14 @@ DATA.jyMax = () => Math.max(0, ((CFG.mijing.items.jy || {}).grades || []).length
 DATA.enhJyGrade = (e, n) => { const E = DATA.enhCfg(e), st = E.JY_STEP || 9; return Math.min(DATA.jyMax(), Math.floor((n || 0) / st)); };
 DATA.moldTier = t => Math.max(1, Math.min(DATA.JIE.length, Math.floor(+t || 1)));   // 模具阶 1 ~ 10（没写 = 1 阶）
 DATA.smName = (k, ft, tier) => k === "jy" ? (((CFG.mijing.items.jy || {}).grades || [])[ft || 0] || "") + CFG.mijing.items.jy.name
-  : k === "mold" ? (ft !== undefined && DATA.fabaoTypes[ft] ? DATA.JIE[DATA.moldTier(tier) - 1] + DATA.fabaoTypes[ft].name : "法宝") + CFG.mijing.items.mold.name
+  : k === "mold" ? (ft !== undefined && DATA.fabaoTypes[ft] ? DATA.JIE[DATA.moldTier(tier) - 1] + DATA.fabaoTypes[ft].name : DATA.slots.fabao) + CFG.mijing.items.mold.name
   : (CFG.mijing.items[k] || {}).name || k;
 // 按名字找专用材料：「黄品九曜石」「法宝模具」（随机种类）「飞剑模具」「三阶飞剑模具」……
 DATA.smByName = name => {
   const I = CFG.mijing.items;
   if (I.jy) { const f = (I.jy.grades || []).findIndex(x => x + I.jy.name === name); if (f >= 0) return { k: "jy", ft: f }; }
   for (const k in I) if (k !== "mold" && k !== "jy" && I[k].name === name) return { k };
-  if (name === "法宝" + I.mold.name) return { k: "mold" };          // 随机一种模具
+  if (name === DATA.slots.fabao + I.mold.name) return { k: "mold" };          // 随机一种模具
   let tier, rest = name;
   const t = DATA.JIE.findIndex(j => name.startsWith(j)); if (t >= 0) { tier = t + 1; rest = name.slice(DATA.JIE[t].length); }
   const ft = DATA.fabaoTypes.findIndex(x => x.name + I.mold.name === rest);
@@ -69,12 +73,15 @@ DATA.forgeSlots = Object.keys(DATA.forgeNames);            // 能炼的部位（
 DATA.eqSlots6 = DATA.forgeSlots.filter(x => x !== "fabao"); // 头盔 ~ 吊坠
 // v25：戒指 9 种（主属性见 config/forge.js 的 forge.ring.main）
 DATA.ringNames = ["破军戒", "磐石戒", "长生戒", "灵犀戒", "疾风戒", "鹰眼戒", "幻影戒", "烈阳戒", "玄武戒"];
+DATA.NM_DEF.ring = DATA.ringNames.slice();                  // 原名（读档对照用）；名字在 config/names.js 的 ring
+DATA.ringNames = DATA.nmArr(CFG.names.ring, DATA.ringNames);
 DATA.ringName = (r, g) => DATA.JIE[g] + "·" + DATA.ringNames[r];
 DATA.ringMats = g => DATA.parseMats(_FG.ring.mats[g]);
 DATA.ringTime = g => _FG.ring.time[g] * 60000;
 DATA.ringBpName = (g, r) => DATA.JIE[g] + (DATA.ringNames[r] || "戒指") + "图纸";   // v26：图纸分戒指种类（r）
 // 法宝属性名（附加属性带一个属性 el）
 DATA.fbAttrNames = { pct: "伤害", flat: "属性伤害", ignRes: "无视抗性", ignResPct: "无视抗性%", elDmg: "追加伤害", elDmgPct: "追加伤害%", manaCut: "法力消耗减少", manaCutPct: "法力消耗减少%" };
+for (const k in DATA.fbAttrNames) DATA.fbAttrNames[k] = DATA.nmPick(CFG.names.fbAttr, k, DATA.fbAttrNames[k]);
 DATA.FB_PCT = ["pct", "ignResPct", "elDmgPct", "manaCutPct"];   // 百分比类
 
 // 颜色 c 在第 g 阶的数值范围 [最小, 最大]（没设置 RANGE 时用旧算法 colors.mult × RAND）

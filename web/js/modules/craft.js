@@ -362,7 +362,7 @@ G.module({
     addStone(g, n = 1) {
       const it = this.s.bag.find(x => x.t === "ss" && x.g === g);
       if (it) { it.n += n; return true; }
-      if (this.bagFull()) { if (!this.silent) this.log("背包已满，空间石暂停出炉。", "bad"); return false; }
+      if (this.bagFull()) { if (!this.silent) this.log(`背包已满，${DATA.SS}暂停出炉。`, "bad"); return false; }
       this.s.bag.push({ t: "ss", g, n }); return true;
     },
     stoneLeft(g) { return CFG.forge.stone.MAX_USE - ((this.s.stoneUsed || {})[g] || 0); },
@@ -567,10 +567,10 @@ G.sectForgeView = function () {
       <button class="sm" onclick="G.learnForge('${kind}',${g}${sl ? `,'${sl}'` : ""})" ${has || lock || st || s.contrib < c ? "disabled" : ""}>${has ? "已学会" : lock ? `${g + 1}星宗门可学习` : "学习"}</button></div>`;
   };
   h += `<div class="room-grid five">${DATA.JIE.map((n, i) => `<button class="${g === i ? "active" : ""}" onclick="G.setForgeLibTier(${i})">${n}</button>`).join("")}</div>
-    <div class="card"><h3>炼器室 · 图谱</h3>` +
+    <div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "forge", "炼器室")} · 图谱</h3>` +
     DATA.forgeSlots.map(sl => line("eq", sl, DATA.forgeEqName(sl, g), DATA.slots[sl],
       (sl === "fabao" ? (g ? `升阶图谱：把${DATA.JIE[g - 1]}法宝升为${DATA.JIE[g]}（${DATA.fabaoTypes.length} 种通用，颜色不变）` : `炼制图谱：用秘境掉落的同种模具炼成一阶法宝（${DATA.fabaoTypes.length} 种，属性由种类决定）`) : `主属性 ${CFG.forge.attr.main[sl].map(k => DATA.attrNames[k]).join("、")} + 1~5 条附加属性`) + (g ? ` · 需上一阶${DATA.slots[sl]}` : ""))).join("") +
-    line("ss", null, DATA.stoneName(g), "空间石", `使用一个储物格 +1，每阶最多 ${CFG.forge.stone.MAX_USE} 个；炼制要空间晶核（秘境掉落）`) + `</div>`;
+    line("ss", null, DATA.stoneName(g), DATA.SS, `使用一个储物格 +1，每阶最多 ${CFG.forge.stone.MAX_USE} 个；炼制要空间晶核（秘境掉落）`) + `</div>`;
   return h;
 };
 
@@ -583,7 +583,7 @@ G.sectAlchemyView = function () {
   h += this.danCatBar("danLibCat");
   const cat = this.danLibCat || 0, catName = (CFG.alchemy.CATS || [])[cat] || "", types = Object.keys(DATA.recipes).filter(t => DATA.danCat(t) === cat);
   h += `<div class="room-grid five">${DATA.JIE.map((n, g) => `<button class="${tier === g ? "active" : ""}" onclick="G.setDanLibTier(${g})">${n}</button>`).join("")}</div>
-    <div class="card"><h3>炼丹房 · ${catName}丹方</h3>` +
+    <div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "alchemy", "炼丹房")} · ${catName}丹方</h3>` +
     types.map(t => {
       const key = t + "|" + tier, has = s.recipes.includes(key), c = DATA.danLearnCost(t, tier), need = DATA.danStar(t, tier), lock = need > star;
       return `<div class="line"><div>${DATA.li(DATA.danIcon(t))}《${DATA.danName(t, tier)}》<span class="tag">${DATA.recipeEffect(t, tier)}</span>

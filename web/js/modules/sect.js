@@ -359,7 +359,7 @@ G.module({
     towerReward(f) {
       const s = this.s, star = this.sectInfo().star, T = CFG.sect.trial, F = T.floor, i = star - 1, out = [];
       const c = DATA.towerReward(f, star); s.contrib += c; out.push(`贡献 +${U.fmt(c)}`);
-      const fire = F.fire[i] || 0; if (fire && this.addFire(fire)) out.push(`火髓 ×${fire}`);
+      const fire = F.fire[i] || 0; if (fire && this.addFire(fire)) out.push(`${DATA.HX} ×${fire}`);
       const st = Math.floor((F.stone || 0) * this.starMul() * f); if (st) { s.stone += st; out.push(`灵石 +${U.fmt(st)}`); }
       const mx = Math.min(5, F.MAT_MAX[i] === undefined ? 5 : F.MAT_MAX[i]);
       for (const kind of ["herb", "ore"]) {
@@ -432,13 +432,14 @@ G.module({
     // ---------- 已入门 ----------
     const x = this.sectInfo(), tab = this.sectTab || "hall";
     const TABS = [["hall", "宗门大殿"], ["lib", "功法殿"], ["affair", "事务堂"], ["room", "修炼室"], ["gfroom", "练功房"], ["treasury", "宗门宝库"],
-                  ["alchemy", "炼丹房"], ["forge", "炼器室"], ["wudao", "悟道室"], ["tower", "试炼塔"], ["secret", "宗门秘境"]];
+                  ["alchemy", "炼丹房"], ["forge", "炼器室"], ["wudao", "悟道室"], ["tower", "试炼塔"], ["secret", "宗门秘境"]]
+      .map(([k, n]) => [k, DATA.nmPick(CFG.names.sectHall, k, n)]);   // 名字在 config/names.js 的 sectHall
     let h = `<div class="card"><h3>${x.name} <span class="tag">${x.star}星</span><span class="tag">${DATA.elById[x.el].name}</span><small>${DATA.ranks[s.rank].name} · 贡献 ${U.fmt(s.contrib)}</small></h3></div>
       <div class="room-grid">${TABS.map(([k, n]) => `<button class="${tab === k ? "active" : ""}" onclick="G.setSectTab('${k}')">${n}</button>`).join("")}</div>`;
 
     if (tab === "hall") {
       const next = s.rank + 1 < DATA.ranks.length ? s.rank + 1 : -1, got = s.salaryDay === this.today();
-      h += `<div class="card"><h3>宗门大殿<small>当前：${DATA.ranks[s.rank].name}</small></h3>
+      h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "hall", "宗门大殿")}<small>当前：${DATA.ranks[s.rank].name}</small></h3>
         <div class="line"><div>每日俸禄<small>${U.fmt(this.salary())} 灵石</small></div>
         <button class="sm" onclick="G.claimSalary()" ${got ? "disabled" : ""}>${got ? "今日已领" : "领取"}</button></div>
         ${next < 0 ? `<p class="desc">你已是一宗之主。</p>` : `<div class="line"><div>晋升【${DATA.ranks[next].name}】
@@ -469,7 +470,7 @@ G.module({
           })() + `</div>`).join("");
     } else if (tab === "affair") {
       const a = s.affair, cur = a.task >= 0 ? DATA.affairs[a.task] : null;
-      h += `<div class="card"><h3>事务堂<small>点任务开始，完成后自动继续，离线也进行</small></h3>` +
+      h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "affair", "事务堂")}<small>点任务开始，完成后自动继续，离线也进行</small></h3>` +
         (cur ? (() => { const T = cur.time * 60000, p = Math.min(100, (Date.now() - a.start) / T * 100);
           return `<div class="row small"><span>执行中：${cur.name}（已完成 ${a.count} 次）</span><span>${U.dur(Math.max(0, a.start + T - Date.now()) / 1000)}</span></div>
             <div class="bar tick"><div style="width:${p}%"></div></div>`; })() : `<p class="desc">当前没有执行任务。</p>`) +
@@ -478,7 +479,7 @@ G.module({
             <button class="sm ${on ? "on" : ""}" onclick="G.startAffair(${i})" ${lock ? "disabled" : ""}>${lock ? "职务不足" : on ? "停止" : "执行"}</button></div>`; }).join("") + `</div>`;
     } else if (tab === "room") {
       const FC = CFG.sect.freeRoom, fc = s.freeCult || {}, fcOn = this.freeCultOn(), fcLeft = fc.left > 0, fcDone = !fcLeft && this.freeUsed(fc) >= FC.daily;
-      h += `<div class="card"><h3>修炼室<small>加快修炼 · 每次修炼消耗贡献</small></h3>
+      h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "room", "修炼室")}<small>加快修炼 · 每次修炼消耗贡献</small></h3>
         <div class="line"><div>${FC.name}<span class="tag">+${U.num(this.freeCultPct())}%</span><small>${fcLeft ? `本次剩余 ${fc.left} 次修炼` : `每天 ${FC.daily} 次 · 每次 ${FC.times} 次修炼 · 不消耗贡献`}</small></div>
           <button class="sm ${fcOn ? "on" : ""}" onclick="G.enterFreeRoom()" ${fcDone ? "disabled" : ""}>${fcOn ? "使用中" : fcDone ? "今日已用" : "进入"}</button></div>` + DATA.rooms.map((r, i) => {
         const on = s.room === i, lock = !on && this.roomLocked(i);
@@ -487,7 +488,7 @@ G.module({
       }).join("") + `</div>`;
     } else if (tab === "gfroom") {
       const FG = CFG.sect.freeGfRoom, fg = s.freeGf || {}, fgOn = this.freeGfOn(), fgDone = !fgOn && this.freeUsed(fg) >= FG.daily;
-      h += `<div class="card"><h3>练功房<small>加快功法修炼 · 修炼功法时每 5 秒消耗贡献</small></h3>
+      h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "gfroom", "练功房")}<small>加快功法修炼 · 修炼功法时每 5 秒消耗贡献</small></h3>
         <div class="line"><div>${FG.name}<span class="tag">功法修炼 +${U.num(this.freeGfPct())}%</span><small>${fgOn ? `剩余 ${U.dur(Math.ceil((fg.end - this.now()) / 1000))}` : `每天 ${FG.daily} 次 · 每次 ${FG.minutes} 分钟 · 不消耗贡献`}</small></div>
           <button class="sm ${fgOn ? "on" : ""}" onclick="G.enterFreeGfRoom()" ${fgOn || fgDone ? "disabled" : ""}>${fgOn ? "使用中" : fgDone ? "今日已用" : "进入"}</button></div>` + DATA.gfRooms.map((r, i) => {
         const on = s.gfRoom === i, lock = !on && this.gfRoomLocked(i);
@@ -496,7 +497,7 @@ G.module({
       }).join("") + `<p class="desc">只在功法修炼队列有功法在修炼时才消耗；功法修炼时间缩短，消耗的修为不变。</p></div>`;
     } else if (tab === "treasury") {
       const tt = this.treasuryTab || "pill", maxG = this.treasuryMaxG();
-      h += `<div class="sub-tabs">${[["pill", "杂物"], ["herb", "药材"], ["ore", "矿石"], ["seed", "种子"], ["bp", "图纸"]].map(([k, n]) =>
+      h += `<div class="sub-tabs">${[["pill", "杂物"], ["herb", DATA.matKinds.herb], ["ore", DATA.matKinds.ore], ["seed", "种子"], ["bp", "图纸"]].map(([k, n]) =>
         `<button class="${tt === k ? "active" : ""}" onclick="G.setTreasuryTab('${k}')">${n}</button>`).join("")}</div>`;
       if (tt === "pill") {
         h += `<div class="card"><h3>杂物<small>以贡献兑换 · 炉子放进背包后点「使用」</small></h3>` + this.treasuryList().map((it, i) => {
@@ -541,13 +542,13 @@ G.module({
       // 下一个每 10 层的奖励
       const E = T.EVERY || 10, nb = Math.ceil(f / E) * E, bonus = nb <= max ? this.towerBonus(star, nb) : null;
       h += `<div class="card"><h3>${star}星试炼塔<small>已通关 ${cur} / ${max} 层</small></h3>
-        ${done ? `<p class="desc">你已登顶试炼塔！</p>` : `<div class="line"><div>第 ${f} 层守关者<small>首通：贡献 +${U.fmt(DATA.towerReward(f, star))}、火髓 ×${F.fire[star - 1] || 0}、灵石 +${U.fmt(Math.floor((F.stone || 0) * this.starMul() * f))}、药材 ×${F.herb[star - 1] || 0}、矿石 ×${F.ore[star - 1] || 0}</small></div>
+        ${done ? `<p class="desc">你已登顶试炼塔！</p>` : `<div class="line"><div>第 ${f} 层守关者<small>首通：贡献 +${U.fmt(DATA.towerReward(f, star))}、${DATA.HX} ×${F.fire[star - 1] || 0}、灵石 +${U.fmt(Math.floor((F.stone || 0) * this.starMul() * f))}、药材 ×${F.herb[star - 1] || 0}、矿石 ×${F.ore[star - 1] || 0}</small></div>
         <button class="sm" onclick="G.challengeTower()">挑战</button></div>`}
         ${bonus ? `<p class="desc">第 ${nb} 层额外奖励：${this.towerBonusText(bonus)}</p>` : ""}
         <p class="desc">进度按门派星级记录，换门派不会重置。${(T.RING || [])[star - 1] >= 0 && DATA.ringNames[T.RING[star - 1]] ? `本塔第 10 层奖励${DATA.ringName(T.RING[star - 1], 0)}，第 20~100 层依次奖励它的二阶~十阶升级图纸，之后每 10 层奖励试炼塔秘诀。` : "本塔每 10 层奖励试炼塔秘诀（每次 +1 层）。"}</p></div>`;
     } else if (tab === "secret") {
       const c = DATA.secretCost(x.star);
-      h += `<div class="card"><h3>宗门秘境<small>每次消耗 ${U.fmt(c)} 贡献</small></h3>
+      h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "secret", "宗门秘境")}<small>每次消耗 ${U.fmt(c)} 贡献</small></h3>
         <p class="desc">秘境中或有灵石矿脉、前人遗丹、上品法器，也可能一无所获。</p>
         <div class="btns"><button class="primary" onclick="G.exploreSecret()" ${s.contrib < c ? "disabled" : ""}>进入探索</button></div></div>`;
     }

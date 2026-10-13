@@ -16,7 +16,7 @@ CFG.bag = {
  *   坊市买价 = max(1, 向上取整(出售价 × price.SHOP_MAT))
  *   宗门宝库兑换 n 个 = 第 2 个数 × n 贡献
  * 顺序就是品级（第1种 = 1 品 ……，灵植夫经验按品级算），图片 img/mats/herb序号.png / ore序号.png 也按这个顺序。
- * 各地图掉哪些、权重多少见 config/drops.js。改名字这里改即可（drops.js 等处用到的名字也要一起改）。 */
+ * 各地图掉哪些、权重多少见 config/drops.js。改名字在 config/names.js 的 herb / ore（这里和其它数值文件继续写原名，会自动换成新名）。 */
 CFG.mats = {
   herb: {   // 药材
     青灵草: [1, 3],    // 1 品：售 1 灵石，兑换 3 贡献

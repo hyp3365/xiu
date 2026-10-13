@@ -40,6 +40,11 @@ DATA.maps = [
     monsters: ["雷灵", "劫雷兽", "心魔", "雷鹏", "紫电蛟", "天罚使者", "劫火灵", "雷霆巨人"] },
 ];
 
+// 名字在 config/names.js 的 world / map.fan（这里是原名）
+DATA.worlds.forEach(w => { w.name = DATA.nmPick(CFG.names.world, w.id, w.name); });
+DATA.maps.forEach((m, i) => { const n = ((CFG.names.map || {}).fan || [])[i]; if (!n) return;
+  m.name = DATA.nmPick(n, "name", m.name); m.boss = DATA.nmPick(n, "boss", m.boss); if (n.monsters) m.monsters = DATA.nmArr(n.monsters, m.monsters); });
+
 // v45：仙界 / 冥界 / 魔界 / 神界各 10 张地图（config/worldmaps.js）接在凡界后面，序号 9 起
 //   DATA.maps[a].w = 所在界；DATA.worldMapIdx[界] = 这一界的地图序号列表
 DATA.FAN_MAP_N = DATA.maps.length;
@@ -71,13 +76,13 @@ DATA.FAN_ORE_N = Object.keys(CFG.mats.ore).length;
 DATA.herbs = [...Object.keys(CFG.mats.herb), ...Object.keys((CFG.matsOther || {}).herb || {})];
 DATA.ores  = [...Object.keys(CFG.mats.ore), ...Object.keys((CFG.matsOther || {}).ore || {})];
 DATA.matCfg = (kind, name) => (CFG.mats[kind] || {})[name] || ((CFG.matsOther || {})[kind] || {})[name] || [0, 0];
-DATA.PIN = ["一品", "二品", "三品", "四品", "五品", "六品", "七品", "八品", "九品"];
+DATA.PIN = DATA.nmArr(CFG.names.pin, ["一品", "二品", "三品", "四品", "五品", "六品", "七品", "八品", "九品"]);
 // 丹药、炉子、丹方分十阶（一星门派对应一阶 …… 十星对应十阶）
-DATA.JIE = ["一阶", "二阶", "三阶", "四阶", "五阶", "六阶", "七阶", "八阶", "九阶", "十阶"];
-DATA.matKinds = { herb: "药材", ore: "矿石" };
+DATA.JIE = DATA.nmArr(CFG.names.jie, ["一阶", "二阶", "三阶", "四阶", "五阶", "六阶", "七阶", "八阶", "九阶", "十阶"]);
+DATA.matKinds = { herb: DATA.nmPick(CFG.names.matKind, "herb", "药材"), ore: DATA.nmPick(CFG.names.matKind, "ore", "矿石") };
 
 /* ---------- 东西南北四域 ---------- */
-DATA.regionDirs = ["东", "西", "南", "北"];
+DATA.regionDirs = DATA.nmArr(CFG.names.region, ["东", "西", "南", "北"]);
 DATA.regionCount = 4;
 DATA.region = (a, r) => CFG.monster.regions[a][r];          // 数值（js/config/ 数值文件）
 DATA.regionName = (a, r) => DATA.maps[a].name + "·" + DATA.regionDirs[r] + "域";

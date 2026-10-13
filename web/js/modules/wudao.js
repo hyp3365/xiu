@@ -38,7 +38,7 @@ G.module({
 G.sectWudaoView = function () {
   const s = this.s, x = this.sectInfo(), c = DATA.mifaLearnCost(x.star), tot = this.mifaBonus();
   const fmt = (K, v) => `${K.sign}${U.num(v)}${K.unit}`;
-  return `<div class="card"><h3>悟道室 · ${x.star}星宗门秘法<small>灵石 ${U.fmt(s.stone)} · 贡献 ${U.fmt(s.contrib)}</small></h3>` +
+  return `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "wudao", "悟道室")} · ${x.star}星宗门秘法<small>灵石 ${U.fmt(s.stone)} · 贡献 ${U.fmt(s.contrib)}</small></h3>` +
     DATA.mifaKinds.map(K => {
       const id = DATA.mifaId(x.star, K.id), lv = s.gongfa[id] || 0, g = DATA.mifaInfo(id, Math.max(1, lv));
       const eff = K.id === "explore" ? `圆满后每步 -${U.num(g.perLv)} 秒` : `每层 ${fmt(K, g.perLv)}`;

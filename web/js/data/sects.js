@@ -6,7 +6,7 @@
  * 进入任意门派的功法殿，都能学到【本星级全部门派】的功法和法术。
  * prefix：功法名前缀，例如 青阳 → 青阳紫霄心法
  * 加入门派需要的境界：config/sect.js 的 REQ_REALM（按星级）
- * 想改名字/属性：直接改下面 SECT_NAMES（[前缀, 全名, 属性]）。
+ * 改名字在 config/names.js 的 sect（下面 SECT_NAMES 是原名，[前缀, 全名, 属性]）；改属性改下面。
  * 注意：顺序决定门派 id（s星级_序号），已有存档会按 id 对应，不要调换前 10 个的顺序。
  * ===================================================================== */
 const SECT_NAMES = [
@@ -43,6 +43,8 @@ SECT_NAMES.forEach((list, i) => {
       id: `s${star}_${j}`, star, prefix, name, el: EL_ID[el],
       reqRealm: DATA.sectReq(star),
     };
+    const nm = (CFG.names.sect || {})[sect.id];   // 名字在 config/names.js 的 sect：[功法名前缀, 门派名]
+    if (nm) { sect.prefix = DATA.nmPick(nm, 0, prefix); sect.name = DATA.nmPick(nm, 1, name); }
     DATA.sects.push(sect);
     DATA.sectById[sect.id] = sect;
   });

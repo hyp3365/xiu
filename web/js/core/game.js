@@ -67,10 +67,12 @@ const G = {
   newSave(name) {
     let s = { v: 5, realmV: 2, name, last: Date.now(), log: [] };   // realmV 2 = 24 境界版
     for (const m of this.modules) if (m.defaults) Object.assign(s, m.defaults());
+    s._nm = DATA.nmSnap();   // 新存档记下当前用的名字（config/names.js），以后改名读档时对照
     return s;
   },
   // 旧存档缺字段时，用模块默认值补上（以后加新功能不会坏档）
   migrate(s) {
+    DATA.nmMigrate(s);   // 存档里的旧名字 → config/names.js 的新名字
     for (const m of this.modules) if (m.defaults) {
       const d = m.defaults();
       for (const k in d) if (s[k] === undefined) s[k] = d[k];
@@ -226,6 +228,10 @@ const G = {
   },
 
   init() {
+    document.querySelectorAll("#tabs button").forEach(b => {   // 底部导航按钮名字在 config/names.js 的 tab
+      const n = DATA.nmPick(CFG.names.tab, b.dataset.tab, ""), t = b.lastChild;
+      if (n && t && t.nodeType === 3) t.textContent = n;
+    });
     document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
       this.tab = b.dataset.tab; $("#view").scrollTop = 0; this.render();
     });

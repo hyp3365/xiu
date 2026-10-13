@@ -38,7 +38,7 @@ G.module({
 
   view() {
     const s = this.s, C = CFG.lingen;
-    return `<div class="card"><h3>灵根<small>灵石 ${U.fmt(s.stone)}</small></h3>
+    return `<div class="card"><h3>${DATA.nmPick(CFG.names.tab, "lingen", "灵根")}<small>灵石 ${U.fmt(s.stone)}</small></h3>
       <p class="desc">提升对应属性的法术伤害、功法效果。最高 ${C.MAX} 级。</p></div>` +
       DATA.elements.map(e => {
         const lv = s.lingen[e.id] || 0, max = lv >= C.MAX, c = this.lingenCost(lv);

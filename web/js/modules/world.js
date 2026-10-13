@@ -300,7 +300,7 @@ G.module({
         loot.pills.forEach(p => add(`${DATA.realms[p.g]}·${DATA.pills[p.t].name}`, 1));
         loot.equips.forEach(e => add(this.itemName({ t: "eq", e }), 1));
         for (const name in loot.cu || {}) add(name, loot.cu[name]);
-        if (loot.hx) add("火髓", loot.hx);
+        if (loot.hx) add(DATA.HX, loot.hx);
         for (const k in loot.sm || {}) { const p = DATA.smParse(k); add(DATA.smName(p.k, p.ft, p.tier), loot.sm[k]); }
       }
       s.stone += loot.stone; if (loot.stone) parts.push(`灵石${U.fmt(loot.stone)}`);
@@ -309,7 +309,7 @@ G.module({
       loot.pills.forEach(p => { if (this.addPill(p.t, p.g)) parts.push(`${DATA.realms[p.g]}·${DATA.pills[p.t].name}`); else lost++; });
       loot.equips.forEach(e => { if (this.addEquip(e)) parts.push(`<span class="q${e.q}">${DATA.quals[e.q]}${e.name}</span>`); else lost++; });
       for (const name in loot.cu || {}) { if (this.addCustom(name, loot.cu[name])) parts.push(`${name}×${U.fmt(loot.cu[name])}`); else lost++; } // 自定义物品
-      if (loot.hx) { if (this.addFire(loot.hx)) parts.push(`火髓×${U.fmt(loot.hx)}`); else lost++; }   // 秘境：火髓、专用材料、模具
+      if (loot.hx) { if (this.addFire(loot.hx)) parts.push(`${DATA.HX}×${U.fmt(loot.hx)}`); else lost++; }   // 秘境：火髓、专用材料、模具
       for (const k in loot.sm || {}) { const p = DATA.smParse(k);
         if (this.addSm(p.k, loot.sm[k], p.ft, p.tier)) parts.push(`${DATA.smName(p.k, p.ft, p.tier)}×${U.fmt(loot.sm[k])}`); else lost++; }
       if (o) o.exLost += lost;
@@ -456,7 +456,7 @@ G.module({
     exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
     exName(x) { return x.mj !== undefined ? this.mjLabel(x.mk) + "·" + this.mjDef(x.mj, x.mk).name : DATA.regionName(x.map, x.reg || 0); },
     mjCfg(k) { return k === "ld" ? CFG.lingdi : CFG.mijing; },
-    mjLabel(k) { return k === "ld" ? "灵地" : "秘境"; },
+    mjLabel(k) { return k === "ld" ? DATA.nmPick(CFG.names.mjLabel, "ld", "灵地") : DATA.nmPick(CFG.names.mjLabel, "mj", "秘境"); },   // 名字在 config/names.js 的 mjLabel
     mjDef(i, k) { return this.mjCfg(k).list[i]; },
     mjToday() { const d = new Date(this.now()); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; },
     // 秘境 / 灵地存档（换日自动清空今天的次数）
@@ -510,7 +510,7 @@ G.module({
     // 按名字把东西记进 loot：火髓 / 专用材料 / 模具 / 药材矿石 / 自定义物品
     //   模具：名字没写种类（"法宝模具"）每个随机一种法宝；tier = [最低阶, 最高阶] 每个随机一阶（名字里写了阶就用名字的，都没写 = 一阶）
     lootAdd(loot, name, n, tier) {
-      if (name === "火髓") { loot.hx = (loot.hx || 0) + n; return `火髓×${n}`; }
+      if (name === DATA.HX) { loot.hx = (loot.hx || 0) + n; return `${DATA.HX}×${n}`; }
       const sm = DATA.smByName(name);
       if (sm) {
         loot.sm = loot.sm || {};
@@ -587,7 +587,7 @@ G.module({
     mijingView() {
       const m = this.mjState(), L = CFG.mijing.list, ready = this.mjReady();
       const rows = m.found.slice().sort((a, b) => a - b).map(i => this.mjRow(i)).join("");
-      return `<div class="card"><h3>秘境<small>已发现 ${m.found.length} / ${L.length}</small></h3>
+      return `<div class="card"><h3>${this.mjLabel("mj")}<small>已发现 ${m.found.length} / ${L.length}</small></h3>
         ${rows || `<p class="desc">还没有发现秘境。在凡界地图历练、自动探索时，有几率探得秘境消息。</p>`}
         ${m.found.length ? `<div class="btns"><button class="primary" onclick="G.mjAll()" ${ready ? "" : "disabled"}>一键探索（${ready} 处）</button></div>` : ""}</div>`;
     },
@@ -599,7 +599,7 @@ G.module({
         const all = L.filter(d => d.w === w).length, wn = (DATA.worlds.find(o => o.id === w) || {}).name || w;
         return `<p class="desc"><b>${wn}</b> · 已发现 ${ids.length} / ${all}</p>` + ids.map(i => this.mjRow(i, "ld")).join("");
       }).join("");
-      return `<div class="card"><h3>灵地<small>已发现 ${m.found.filter(i => L[i]).length} / ${L.length}</small></h3>
+      return `<div class="card"><h3>${this.mjLabel("ld")}<small>已发现 ${m.found.filter(i => L[i]).length} / ${L.length}</small></h3>
         ${groups || `<p class="desc">还没有发现灵地。在仙界、冥界、魔界、神界的地图历练、自动探索时，有几率探得灵地消息。</p>`}
         ${m.found.length ? `<div class="btns"><button class="primary" onclick="G.mjAll('ld')" ${ready ? "" : "disabled"}>一键探索（${ready} 处）</button></div>` : ""}</div>`;
     },
@@ -679,7 +679,7 @@ G.module({
     },
     shopView() {
       const s = this.s, t = this.shopTab || "pill";
-      const tabs = `<div class="sub-tabs">${[["pill", "丹药"], ["eq", "装备"], ["gf", "功法"], ["herb", "药材"], ["ore", "矿石"]].map(([k, n]) =>
+      const tabs = `<div class="sub-tabs">${[["pill", "丹药"], ["eq", "装备"], ["gf", "功法"], ["herb", DATA.matKinds.herb], ["ore", DATA.matKinds.ore]].map(([k, n]) =>
         `<button class="${t === k ? "active" : ""}" onclick="G.setShopTab('${k}')">${n}</button>`).join("")}</div>
         <div class="sub-tabs">${[["room", "修炼室"], ["gfroom", "练功房"]].map(([k, n]) =>
         `<button class="${t === k ? "active" : ""}" onclick="G.setShopTab('${k}')">${n}</button>`).join("")}</div>`;
@@ -729,8 +729,8 @@ G.module({
     const W = DATA.worlds.find(w => w.id === wid);
     if (!this.worldOpen(wid)) return worlds + `<div class="card"><h3>${W.name}</h3><p class="desc">${W.desc}</p>${(CFG.worldMaps || {})[wid] ? "" : `<p class="desc">界壁未开，以你如今的修为尚无法踏足。</p>`}</div>`;
     const tabs = wid !== "fan" ? worlds : worlds + `<div class="sub-tabs">
-      <button class="${wt === "explore" ? "active" : ""}" onclick="G.setWorldTab('explore')">历练</button>
-      <button class="${wt === "shop" ? "active" : ""}" onclick="G.setWorldTab('shop')">坊市</button>
+      <button class="${wt === "explore" ? "active" : ""}" onclick="G.setWorldTab('explore')">${DATA.nmPick(CFG.names.worldTab, "explore", "历练")}</button>
+      <button class="${wt === "shop" ? "active" : ""}" onclick="G.setWorldTab('shop')">${DATA.nmPick(CFG.names.worldTab, "shop", "坊市")}</button>
       <button class="${wt === "set" ? "active" : ""}" onclick="G.setWorldTab('set')">设置</button></div>`;
 
     if (wt === "explore") {
@@ -740,7 +740,7 @@ G.module({
         <div class="row small"><span>法力 ${U.fmt(s.mana)} / ${U.fmt(st.mana)}</span><span>灵石 ${U.fmt(s.stone)}</span></div>`;
       const status = (() => s.explore ? (() => { const x = s.explore, T = this.exCfg(x).TIME, L = x.loot;
           const mats = Object.values(L.mats).map(m => `${m.name}×${U.fmt(m.n)}`);
-          if (L.hx) mats.push(`火髓×${U.fmt(L.hx)}`);
+          if (L.hx) mats.push(`${DATA.HX}×${U.fmt(L.hx)}`);
           for (const k in L.sm || {}) { const p = DATA.smParse(k); mats.push(`${DATA.smName(p.k, p.ft, p.tier)}×${U.fmt(L.sm[k])}`); }
           for (const n in L.cu || {}) mats.push(`${n}×${U.fmt(L.cu[n])}`);
           const sub = x.mj !== undefined ? (x.once ? "" : x.queue && x.queue.length ? `一键探索 · 后面还有 ${x.queue.length} 处` : this.mjLabel(x.mk) + "探索") : x.once ? "" : x.cq ? `已完成 ${x.count} / ${x.cq} 次` : `已完成 ${x.count} 次`;
@@ -761,7 +761,7 @@ G.module({
       const ok = idx.filter(a => this.mapOpen(a));
       const sel = this.mapSel !== undefined && (this.mapSel === "mj" ? fan : idx.includes(this.mapSel)) ? this.mapSel : ex !== undefined ? ex : ok.length ? ok[ok.length - 1] : idx[0];
       const grid = `<div class="room-grid five">${idx.map(a => { const m = DATA.maps[a]; return `<button class="${sel === a ? "active" : ""}" onclick="G.setMapSel(${a})">${m.name}${!this.realmOK(DATA.mapReq(a)) ? `<small>需${DATA.realmLabel(DATA.mapReq(a))}</small>` : !this.mapUnlocked(a) ? `<small>未开启</small>` : ""}</button>`; }).join("")}
-            ${fan ? `<button class="${sel === "mj" ? "active" : ""}" onclick="G.setMapSel('mj')">秘境<small>${this.mjState().found.length ? `已发现 ${this.mjState().found.length} 处` : "未发现"}</small></button>` : ""}</div>`;
+            ${fan ? `<button class="${sel === "mj" ? "active" : ""}" onclick="G.setMapSel('mj')">${this.mjLabel("mj")}<small>${this.mjState().found.length ? `已发现 ${this.mjState().found.length} 处` : "未发现"}</small></button>` : ""}</div>`;
       const halls = ((CFG.worldMaps || {})[wid] || {}).halls;
       if (halls && sel !== "mj") {
         // v49：仙冥魔神每张地图 7 处地点（config/worldmaps.js 的 halls，图片 img/hall_<id>.png），点进去是各自的页面

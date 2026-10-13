@@ -50,7 +50,7 @@ G.module({
       const stoneBase = DATA.STONE_BASE * Math.pow(DATA.STONE_GROW, DATA.region(a, 3).L) * ((CFG.mapDrops[a] || {}).stone || 1);
       return { merit: Math.floor((P.merit || 0) * gr("merit") * k), stone: Math.floor((P.stone || 0) * stoneBase * k), hx: Math.floor((P.hx || 0) * gr("hx") * k) };
     },
-    xjRateText(r) { return [r.merit ? `功德 ${U.fmt(r.merit)}` : "", r.stone ? `灵石 ${U.fmt(r.stone)}` : "", r.hx ? `火髓 ${U.fmt(r.hx)}` : ""].filter(x => x).join("、") || "无"; },
+    xjRateText(r) { return [r.merit ? `功德 ${U.fmt(r.merit)}` : "", r.stone ? `灵石 ${U.fmt(r.stone)}` : "", r.hx ? `${DATA.HX} ${U.fmt(r.hx)}` : ""].filter(x => x).join("、") || "无"; },
     xjValid(o) { return o && DATA.maps[o.map] && (o.t !== "xj" || this.xjSeats(o.map)[o.seat] !== undefined); },
     // 结算俸禄（每 HOUR 秒一次）；顺带把旧存档的 office / gongde 转过来
     xjSettle() {

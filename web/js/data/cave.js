@@ -40,3 +40,5 @@ DATA.caveRooms = [
   { id: "formation",name:"洞府阵法", open: false, desc: "布置护府大阵。" },
   { id: "servant", name: "道童居",   open: false, desc: "招募道童，代为打理洞府。" },
 ];
+DATA.caveRooms.forEach(r => { r.name = DATA.nmPick(CFG.names.cave, r.id, r.name); });   // 名字在 config/names.js 的 cave
+DATA.caveName = id => (DATA.caveRooms.find(r => r.id === id) || {}).name || id;

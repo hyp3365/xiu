@@ -7,12 +7,13 @@
  * ===================================================================== */
 // 物品部位（slot）：装备 + 法宝
 DATA.slots = { helmet: "头盔", armor: "护甲", weapon: "武器", legs: "腿甲", boots: "靴", pendant: "吊坠", ring: "戒指", fabao: "法宝" };
+for (const k in DATA.slots) DATA.slots[k] = DATA.nmPick(CFG.names.slot, k, DATA.slots[k]);   // 名字在 config/names.js 的 slot
 // 装备栏位（ring0~ring5 都放戒指）
 DATA.equipSlots = ["helmet", "armor", "weapon", "legs", "boots", "pendant", "ring0", "ring1", "ring2", "ring3", "ring4", "ring5"];
 DATA.slotOf = key => key.startsWith("ring") ? "ring" : key; // 栏位 → 部位
 DATA.SLOT_MAX = CFG.equip.SLOT_MAX; // 法宝栏、法术栏最多格数（config/equip.js）
 
-DATA.quals = ["凡品", "灵品", "宝品", "玄品", "地品", "天品"];
+DATA.quals = DATA.nmArr(CFG.names.quality, ["凡品", "灵品", "宝品", "玄品", "地品", "天品"]);
 DATA.qualMult = CFG.equip.QUAL_MULT;   // 品质倍率（config/equip.js）
 DATA.equipNames = {
   helmet:  ["布帽", "青云冠", "玄铁盔", "紫金冠", "凤翅盔", "混元冠"],
@@ -24,6 +25,9 @@ DATA.equipNames = {
   ring:    ["铁戒", "灵玉戒", "星辰戒", "凤鸣戒", "太虚戒", "鸿蒙戒"],
   fabao:   ["铜镜", "聚宝盆", "乾坤袋", "镇魂钟", "昊天塔", "造化玉碟"],
 };
+// 名字在 config/names.js 的 equip（上面是原名，读档对照用）
+DATA.NM_DEF.equip = JSON.parse(JSON.stringify(DATA.equipNames));
+for (const k in DATA.equipNames) DATA.equipNames[k] = DATA.nmArr((CFG.names.equip || {})[k], DATA.equipNames[k]);
 /* 各部位属性系数（× 玩家同境界基础属性 × 品质倍率）
  * atk/hp/def/mana：按基础属性倍数；crit/speed/hpPct：× (品质+1)
  * hit/dodge（命中、闪避，数值）：× (品质+1) × (境界+1) */
