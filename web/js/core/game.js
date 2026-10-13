@@ -169,6 +169,8 @@ const G = {
     if (tb) tb.style.width = this.isCultivating() && this.canCultivate() ? pct : "0%";
     const gb = $("#gather-bar"); // 洞府聚灵阵进度条（一直聚灵）
     if (gb) gb.style.width = pct;
+    const bb = $("#body-bar"); // 肉身修炼进度条（自动修炼且能修炼时 10 秒走满）
+    if (bb) bb.style.width = this.bodyActive() ? pct : "0%";
     const tl = $("#tick-left");  // 本次修炼倒计时
     if (tl) tl.textContent = Math.max(0, Math.ceil(DATA.TICK - (now - this._lastTick) / 1000)) + " 秒";
   },

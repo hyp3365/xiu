@@ -169,3 +169,6 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24
 .xs-ming button img{filter:drop-shadow(0 6px 8px rgba(0,0,0,.55)) hue-rotate(150deg) saturate(.6) brightness(.85)}
 .xs-mo button img{filter:drop-shadow(0 6px 8px rgba(0,0,0,.55)) hue-rotate(-40deg) saturate(1.3) brightness(.8)}
 .xs-shen button img{filter:drop-shadow(0 6px 8px rgba(0,0,0,.55)) saturate(1.2) brightness(1.08)}
+
+/* 功法属性数值：无加成白色，有加成绿色 */
+.gf-base{color:#ffffff;font-weight:normal}.gf-up{color:#5fd35f;font-weight:normal}

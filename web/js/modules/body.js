@@ -29,6 +29,8 @@ G.module({
   },
 
   api: {
+    // 肉身此刻是否在自动修炼（进度条用）
+    bodyActive() { return !!this.s.bodyAuto && this.hasTijue() && !this.exBlocksCult() && !this.bodyMax() && this.s.ling >= 1; },
     hasTijue() { return Object.keys(this.s.gongfa || {}).some(id => id.split(":")[1] === "tijue"); },
     bodyMaxL() { return CFG.body.names.length * DATA.LAYERS - 1; },
     bodyMax() { return this.s.bodyL >= this.bodyMaxL(); },
@@ -60,7 +62,7 @@ G.module({
     bodyBlock() {
       const s = this.s; if (this.bodyMax()) return "已达肉身极境";
       const c = this.bodyCost();
-      if (s.bodyExp < this.bodyNeed()) return `肉身修为未满，还差 ${U.fmt(this.bodyNeed() - s.bodyExp)}`;
+      if (s.bodyExp < this.bodyNeed()) return `气血未满，还差 ${U.fmt(this.bodyNeed() - s.bodyExp)}`;
       if (s.hp <= c.hp) return "气血不足";
       if (s.stone < c.stone) return "灵石不足";
       if (c.herbs.some(h => this.herbCount(h.name) < h.n)) return "药材不足";
@@ -92,7 +94,8 @@ G.module({
       return `<div class="card"><h3>修炼肉身 · ${this.bodyName()}<small>${s.bodyL < 0 ? "" : `第 ${Math.floor(s.bodyL / DATA.LAYERS) + 1} / ${B.names.length} 境`}</small></h3>
         ${has ? "" : `<p class="desc q5">需要先学会一本肉身秘诀（宗门 → 功法殿）。</p>`}
         <div class="row small"><span>肉身修炼速度 <b class="q4">${U.num(sp.total)}</b> / 10秒</span><span>${status}</span></div>
-        <p class="desc">基础 ${U.num(sp.base)} + 肉身秘诀 ${U.num(sp.gf)} + 炼体秘法 ${U.num(sp.mf)} · 每点消耗灵气 ${U.num(B.LING_RATE)}</p>
+        <p class="desc">基础 ${U.num(sp.base)} + 肉身秘诀 ${U.num(sp.gf)} + 炼体秘法 ${U.num(sp.mf)}</p>
+        <div class="bar tick"><div id="body-bar" style="width:${this.bodyActive() ? this.tickPct() : 0}%"></div></div>
         <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>
         <div class="bar ling"><div style="width:${Math.min(100, s.ling / cap * 100)}%"></div></div>
         <div class="btns">
@@ -100,7 +103,7 @@ G.module({
           <button onclick="G.openBody(false)">返回修炼</button>
           <button class="primary" style="flex-basis:100%" onclick="G.bodyBreak()" ${why ? "disabled" : ""}>${max ? "已达肉身极境" : why || `突破至${this.bodyName(s.bodyL + 1)}`}</button>
         </div>
-        ${max ? "" : `<div class="row small" style="margin-top:8px"><span>肉身修为</span><span>${U.fmt(s.bodyExp)} / ${U.fmt(need)}</span></div>
+        ${max ? "" : `<div class="row small" style="margin-top:8px"><span>气血</span><span>${U.fmt(s.bodyExp)} / ${U.fmt(need)}</span></div>
         <div class="bar"><div style="width:${Math.min(100, s.bodyExp / need * 100)}%"></div></div>
         <p class="desc">突破消耗：<span class="${s.hp > c.hp ? "" : "q5"}">气血 ${U.fmt(c.hp)}</span>、<span class="${s.stone >= c.stone ? "" : "q5"}">灵石 ${U.fmt(c.stone)}</span>、${c.herbs.map(h => { const hv = this.herbCount(h.name); return `<span class="${hv >= h.n ? "" : "q5"}">${h.name} ${U.fmt(hv)}/${U.fmt(h.n)}</span>`; }).join("、")}</p>`}
         </div>
