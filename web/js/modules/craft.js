@@ -222,8 +222,14 @@ G.module({
     // 秘境专用材料：空间石要空间晶核，一阶法宝要同种模具 → [{ k, ft, n }]
     jobSm(q) {
       if (q.kind === "ss") { const n = (CFG.forge.stone.special || [])[q.g] || 0; return n ? [{ k: "kj", n }] : []; }
-      if (q.kind === "eq" && q.slot === "fabao" && q.g === 0) return [{ k: "mold", ft: q.ft, n: CFG.forge.fabao.MOLD || 1 }];
-      return [];
+      const out = [];
+      if (q.kind === "eq" && q.slot === "fabao" && q.g === 0) out.push({ k: "mold", ft: q.ft, n: CFG.forge.fabao.MOLD || 1 });
+      // v54：九曜石（config/forge.js 的 JIUYAO，对应品阶）
+      if (q.kind === "eq" || q.kind === "ring") {
+        const J = CFG.forge.JIUYAO || {}, n = (J[q.kind === "ring" ? "ring" : q.slot === "fabao" ? "fabao" : "equip"] || [])[q.g] || 0;
+        if (n) out.push({ k: "jy", ft: DATA.jyGrade(q.g), n });
+      }
+      return out;
     },
     smHave(list) { return list.every(x => this.smCount(x.k, x.ft) >= x.n); },
     smText(list) { return list.map(x => `<span class="${this.smCount(x.k, x.ft) >= x.n ? "" : "q5"}">${DATA.smName(x.k, x.ft)} ${U.fmt(this.smCount(x.k, x.ft))}/${U.fmt(x.n)}</span>`).join("、"); },
@@ -509,26 +515,26 @@ G.caveViews.forge = function () {
   for (const sl of DATA.forgeSlots) if (s.forgeKnown.includes(this.forgeKey("eq", g, sl))) {
     const mats = DATA.forgeEqMats(g);
     if (sl === "fabao") {   // 法宝：36 种，点「选择」挑种类
-      const prevOK = this.fabaoAnyBase(g);
+      const prevOK = this.fabaoAnyBase(g), fsm = this.jobSm({ kind: "eq", g, slot: "fabao" }).filter(x => x.k === "jy");
       rows += `<div class="line"><div>${DATA.eqTierIco(DATA.iconImg("fbt0"), g)}${DATA.JIE[g]}法宝<span class="tag">${DATA.fabaoTypes.length} 种</span>
-        <small><span class="${prevOK ? "" : "q5"}">${g ? `${DATA.JIE[g - 1]}同种法宝 ×1` : `同种模具 ×${CFG.forge.fabao.MOLD || 1}`}</span>、${this.matsText(mats)} · ${U.dur(this.forgePer("eq", g) / 1000)} · 成功率 ${rate}</small></div>
-        <button class="sm" onclick="G.openFabaoPick(${g})" ${!has || full || !tierOK || !prevOK || !this.hasMats(mats) ? "disabled" : ""}>选择</button></div>`;
+        <small><span class="${prevOK ? "" : "q5"}">${g ? `${DATA.JIE[g - 1]}同种法宝 ×1` : `同种模具 ×${CFG.forge.fabao.MOLD || 1}`}</span>、${this.matsText(mats)}${fsm.length ? "、" + this.smText(fsm) : ""} · ${U.dur(this.forgePer("eq", g) / 1000)} · 成功率 ${rate}</small></div>
+        <button class="sm" onclick="G.openFabaoPick(${g})" ${!has || full || !tierOK || !prevOK || !this.hasMats(mats) || !this.smHave(fsm) ? "disabled" : ""}>选择</button></div>`;
       continue;
     }
-    const prevOK = g === 0 || this.prevEquipIndex(sl, g) >= 0;
+    const prevOK = g === 0 || this.prevEquipIndex(sl, g) >= 0, esm = this.jobSm({ kind: "eq", g, slot: sl });
     rows += `<div class="line"><div>${DATA.eqTierIco(DATA.iconImg("eq_" + sl), g)}${DATA.forgeEqName(sl, g)}<span class="tag">${DATA.slots[sl]}</span>
-      <small>${g ? `<span class="${prevOK ? "" : "q5"}">${DATA.forgeEqName(sl, g - 1)} ×1</span>、` : ""}${this.matsText(mats)} · ${U.dur(this.forgePer("eq", g) / 1000)} · 成功率 ${rate}</small></div>
-      ${btn(tierOK && prevOK && this.hasMats(mats), `G.craftFurnace('eq',${g},'${sl}')`)}</div>`;
+      <small>${g ? `<span class="${prevOK ? "" : "q5"}">${DATA.forgeEqName(sl, g - 1)} ×1</span>、` : ""}${this.matsText(mats)}${esm.length ? "、" + this.smText(esm) : ""} · ${U.dur(this.forgePer("eq", g) / 1000)} · 成功率 ${rate}</small></div>
+      ${btn(tierOK && prevOK && this.hasMats(mats) && this.smHave(esm), `G.craftFurnace('eq',${g},'${sl}')`)}</div>`;
   }
   // 戒指（试炼塔图纸学会，二阶起）
   if (g > 0) {
     const mats = DATA.ringMats(g);
     DATA.ringNames.forEach((n, r) => {
       if (!this.ringKnown(r, g)) return;
-      const prevOK = this.prevEquipIndex("ring", g, r) >= 0;
+      const prevOK = this.prevEquipIndex("ring", g, r) >= 0, rsm = this.jobSm({ kind: "ring", g, r });
       rows += `<div class="line"><div>${DATA.li(DATA.iconImg("eq_ring"))}${DATA.ringName(r, g)}<span class="tag">戒指</span>
-        <small><span class="${prevOK ? "" : "q5"}">${DATA.ringName(r, g - 1)} ×1</span>、${this.matsText(mats)} · ${U.dur(this.forgePer("ring", g) / 1000)} · 成功率 ${rate}</small></div>
-        ${btn(tierOK && prevOK && this.hasMats(mats), `G.craftFurnace('ring',${g},${r})`)}</div>`;
+        <small><span class="${prevOK ? "" : "q5"}">${DATA.ringName(r, g - 1)} ×1</span>、${this.matsText(mats)}${rsm.length ? "、" + this.smText(rsm) : ""} · ${U.dur(this.forgePer("ring", g) / 1000)} · 成功率 ${rate}</small></div>
+        ${btn(tierOK && prevOK && this.hasMats(mats) && this.smHave(rsm), `G.craftFurnace('ring',${g},${r})`)}</div>`;
     });
   }
   // 空间石
