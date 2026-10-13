@@ -47,11 +47,16 @@ G.module({
     // 突破到第 T 层的消耗
     bodyCost(T) {
       const B = CFG.body, s = this.s; if (T === undefined) T = s.bodyL + 1;
-      const ri = Math.floor(T / DATA.LAYERS), xian = ri >= B.HERB_FROM;
-      const k = xian ? T - B.HERB_FROM * DATA.LAYERS : T, base = xian ? B.HERB_XIAN_BASE : B.HERB_BASE;
-      const n = Math.max(1, Math.round(base * Math.pow(B.HERB_RATE, k)));
+      const ri = Math.floor(T / DATA.LAYERS), seg = (B.HERB_SEG || []).find(g => ri >= g.from && ri <= g.to);
+      let n, herbs;
+      if (seg) {   // 分段规则：(base + step × 段内层数) × 凡界 / 仙界倍率
+        const k = T - seg.from * DATA.LAYERS, mult = seg.mult === "xian" ? B.HERB_MULT_XIAN : B.HERB_MULT_FAN;
+        n = Math.max(1, Math.round((seg.base + seg.step * k) * (mult === undefined ? 1 : mult))); herbs = seg.herbs;
+      } else {     // 旧规则（神体及以上）
+        n = Math.max(1, Math.round(B.HERB_XIAN_BASE * Math.pow(B.HERB_RATE, T - B.HERB_FROM * DATA.LAYERS))); herbs = B.HERBS_XIAN;
+      }
       return { hp: this.stats().hp * B.HP_PCT / 100, stone: Math.floor(B.STONE_BASE * Math.pow(B.STONE_RATE, T)),
-        herbs: (xian ? B.HERBS_XIAN : B.HERBS_FAN).map(name => ({ name, n })) };
+        herbs: herbs.map(name => ({ name, n })) };
     },
     // 按名字数 / 扣药材（凡界药材或 content/items.js 的自定义物品）
     herbCount(name) { const m = DATA.matByName[name]; if (m) return this.countMat(m.kind, m.g); return this.s.bag.reduce((a, it) => a + (it.t === "cu" && it.name === name ? it.n : 0), 0); },
