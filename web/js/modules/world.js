@@ -201,11 +201,13 @@ G.module({
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
     // 战斗画面（试炼塔）：每 ROUND_SEC 秒播放一回合，3 秒后可跳过；结果已经结算好，这里只是播放
-    playBattle(b, title, txt, win) {
+    // 结果提示（log）等战斗播放完才出：logs = [[文字, 颜色], …]，不传则用 txt（胜 gold / 败 bad）
+    playBattle(b, title, txt, win, logs) {
       if (this._bp && this._bp.timer) clearInterval(this._bp.timer);
+      if (this._bp) this.battleDone(this._bp);
       const rounds = [];
       b.log.forEach(x => { (rounds[x[0] - 1] = rounds[x[0] - 1] || []).push(x); });
-      const bp = this._bp = { b, title, txt, win, rounds: rounds.filter(Boolean), shown: 0, t0: Date.now(), done: false };
+      const bp = this._bp = { b, title, txt, win, logs: logs || [[txt, win ? "gold" : "bad"]], rounds: rounds.filter(Boolean), shown: 0, t0: Date.now(), done: false };
       this._lockModal = true;
       const step = () => {
         if (this._bp !== bp) return clearInterval(bp.timer);
@@ -217,8 +219,11 @@ G.module({
       this.drawBattle();
       if (!bp.done || Date.now() - bp.t0 < 3000) bp.timer = setInterval(step, (CFG.battle.ROUND_SEC || 1) * 1000);
     },
+    // 播放完：这时才在信息栏提示胜负（只提示一次）
+    battleDone(bp) { if (bp.logged) return; bp.logged = true; bp.logs.forEach(([m, c]) => this.log(m, c)); },
     drawBattle() {
       const bp = this._bp; if (!bp) return;
+      if (bp.done) this.battleDone(bp);
       const b = bp.b, canSkip = Date.now() - bp.t0 >= 3000;
       const rows = bp.rounds.slice(0, bp.shown).map(r => r.map(x => this.battleRow(b, x)).join("")).join("");
       const el = b.el ? DATA.elById[b.el].name : "";

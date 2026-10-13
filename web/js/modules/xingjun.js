@@ -111,8 +111,14 @@ G.module({
       }
       s.hp = hp0; s.mana = mp0;
       this.xjLast = { title: `${title} · ${win ? "胜" : "未胜"}`, bad: !win, ev, map: a };
-      if (win) onWin(); else this.log(`${title}，${ev[ev.length - 1].t}。`, "bad");
+      // 胜负提示等战斗画面播放完再出（播放最后一场）
+      const logs = [];
+      if (win) { const L0 = this.log; this.log = (m, c) => logs.push([m, c]); try { onWin(); } finally { this.log = L0; } }
+      else logs.push([`${title}，${ev[ev.length - 1].t}。`, "bad"]);
       this.after();
+      const last = ev[ev.length - 1];
+      if (last && last.b) this.playBattle(last.b, title, logs.length ? logs[logs.length - 1][0] : last.t, win, logs);
+      else logs.forEach(([m, c]) => this.log(m, c));
     },
     xjChallenge(a, i) {
       const w = this.xjW(a), o = this.xjOfficeOf(w); if (o && o.t === "xj" && o.map === a && o.seat === i) return;

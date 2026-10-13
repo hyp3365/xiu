@@ -114,8 +114,8 @@ G.module({
       s.contrib -= c;
       const res = this.battle(this.makeRankGuard(i));
       let txt;
-      if (res.win) { s.rankPass = i; txt = `${res.rounds}回合击败${DATA.ranks[i].name}考官，通过晋升考验！`; this.log(txt, "gold"); }
-      else { txt = `${DATA.ranks[i].name}晋升考验失败${res.lose ? "" : "（回合耗尽，各自退去）"}。`; this.log(txt, "bad"); }
+      if (res.win) { s.rankPass = i; txt = `${res.rounds}回合击败${DATA.ranks[i].name}考官，通过晋升考验！`; }
+      else { txt = `${DATA.ranks[i].name}晋升考验失败${res.lose ? "" : "（回合耗尽，各自退去）"}。`; }
       this.after();
       this.playBattle(res.detail, `晋升考验 · ${DATA.ranks[i].name}`, txt, res.win);   // 见 world.js
     },
@@ -388,8 +388,7 @@ G.module({
       if (res.win) {
         this.s.towers[star] = f; this.s.tower = f;
         txt = `${res.rounds}回合击败${star}星试炼塔第 ${f} 层守关者，获得 ${this.towerReward(f)}。`;
-        this.log(txt, "gold");
-      } else { txt = `挑战试炼塔第 ${f} 层失败${res.lose ? "" : "（回合耗尽，各自退去）"}。`; this.log(txt, "bad"); }
+      } else { txt = `挑战试炼塔第 ${f} 层失败${res.lose ? "" : "（回合耗尽，各自退去）"}。`; }
       this.after();
       this.playBattle(res.detail, `试炼塔 · 第 ${f} 层`, txt, res.win);   // 见 world.js
     },
