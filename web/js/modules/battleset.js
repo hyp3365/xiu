@@ -21,7 +21,7 @@ G.module({
       const b = this.s.bset || (this.s.bset = {});
       if (!Array.isArray(b.off)) b.off = [];
       if (!Array.isArray(b.order)) b.order = [];
-      if (!Array.isArray(b.r)) { b.r = [b.first || "auto", "auto", "auto"]; delete b.first; }   // 旧存档：只有第一回合
+      if (!Array.isArray(b.r)) b.r = ["auto", "auto", "auto"];
       if (!["rot", "sp", "fb", "max", "cheap", "list"].includes(b.mode)) b.mode = "rot";
       return b;
     },
