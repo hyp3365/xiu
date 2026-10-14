@@ -84,6 +84,7 @@ DATA.sectWords = sect => {
 };
 // 功法名：门派前缀 + 随机词 + 类别后缀（每个 类别×阶 用不同的词）
 DATA.gongfaName = (sect, type, tier) => {
+  if (sect.book) return `${sect.prefix}${type.suffix}·第${sect.book}卷`;   // 试炼塔秘诀
   const w = DATA.sectWords(sect), ti = DATA.gongfaTypes.indexOf(type);
   return sect.prefix + w[(ti * 4 + tier.idx) % w.length] + type.suffix;
 };
@@ -110,10 +111,19 @@ DATA.SHOP_GF_PREFIX.forEach((pair, i) => pair.forEach((prefix, n) => {
 /* ---------- v25：试炼塔秘诀的「来源」（每星一个，id t星级，只有秘诀） ---------- */
 DATA.TOWER_GF_PREFIX = ["问心", "登仙", "通玄", "摘星", "揽月", "踏虚", "擎天", "证道", "归真", "登极"];
 DATA.towerSources = DATA.TOWER_GF_PREFIX.map((p0, i) => DATA.nmPick(_NM.towerGf, `t${i + 1}`, p0)).map((prefix, i) => ({ id: `t${i + 1}`, src: "tower", star: i + 1, prefix, name: prefix + DATA.nmPick(_NM, "towerGfSuffix", "塔"), el: DATA.elements[i % 6].id, reqRealm: -1 }));
-// 第 star 星试炼塔秘诀某一阶的功法 id
+// 第 star 星试炼塔秘诀某一阶的功法 id（旧版：每星 4 本，按层给；只用于旧存档转换）
 DATA.towerMijueId = (star, tierId) => `t${star}:mijue:${tierId}`;
+// 新版：试炼塔每 10 层（除去给戒指、戒指升级图纸的那几次）给一本秘诀，每本单独一个来源 t星级_第几本
+//   N 星塔的秘诀本数 = 总层数 ÷ EVERY − 戒指和图纸的次数（RING 写了戒指 = 10 次）
+//   品阶：前 1/4 黄阶、再 1/4 玄阶、再 1/4 地阶、最后 1/4 天阶
+DATA.towerBookCount = star => { const T = (CFG.sect || {}).trial || {}, E = T.EVERY || 10, r = (T.RING || [])[star - 1]; return Math.max(0, Math.floor(DATA.towerMax(star) / E) - (r !== undefined && r >= 0 ? 10 : 0)); };
+DATA.towerBooks = [];
+DATA.towerSources.forEach(src => { const M = DATA.towerBookCount(src.star);
+  for (let k = 1; k <= M; k++) { const tier = DATA.tiers[Math.min(DATA.tiers.length - 1, Math.floor((k - 1) * DATA.tiers.length / M))];
+    DATA.towerBooks.push({ id: `${src.id}_${k}`, src: "tower", star: src.star, prefix: src.prefix, name: src.name, el: src.el, reqRealm: -1, book: k, tierId: tier.id }); } });
+DATA.towerBookId = (star, k) => { const b = DATA.towerBooks.find(x => x.star === star && x.book === k); return b ? `${b.id}:mijue:${b.tierId}` : null; };
 // 所有来源：门派（src = "sect"）+ 坊市 + 试炼塔
-DATA.gfSrcById = Object.assign({}, ...DATA.sects.map(x => ({ [x.id]: x })), ...DATA.shopSources.map(x => ({ [x.id]: x })), ...DATA.towerSources.map(x => ({ [x.id]: x })));
+DATA.gfSrcById = Object.assign({}, ...DATA.sects.map(x => ({ [x.id]: x })), ...DATA.shopSources.map(x => ({ [x.id]: x })), ...DATA.towerSources.map(x => ({ [x.id]: x })), ...DATA.towerBooks.map(x => ({ [x.id]: x })));
 DATA.srcType = o => o.src || "sect";
 DATA.srcCfg = o => DATA.gfSources[DATA.srcType(o)].cfg();
 
@@ -163,7 +173,7 @@ DATA.gongfaInfo = (id, lv = 1) => {
   if (id === DATA.START_GF) return DATA.startGfInfo(lv);
   const [sectId, typeId, tierId] = id.split(":");
   const sect = DATA.gfSrcById[sectId], type = DATA.gongfaTypes.find(x => x.id === typeId), tier = DATA.tierById[tierId];
-  if (!sect || !type || !tier) return null;
+  if (!sect || !type || !tier || (sect.tierId && sect.tierId !== tierId)) return null;
   const per = DATA.gfCalc(sect, type.id, tier, type.stat, "EFFECT_GONGFA");
   return {
     kind: "gf", id, sect, src: DATA.srcType(sect), star: sect.star, type, tier, lv, el: DATA.elById[sect.el],
