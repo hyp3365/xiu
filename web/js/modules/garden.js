@@ -39,7 +39,7 @@ G.module({
     // 生长时间缩短 %（灵植夫 + 秘法，有上限）、收获增加 %
     //   g = 药材序号：凡界药材按灵植夫，仙界药材（序号 ≥ 凡界种数）按仙植师（v42）
     plantCraft(g) { return g >= DATA.FAN_HERB_N ? "xling" : "ling"; },
-    plantCut(g = 0) { const k = this.plantCraft(g), L = CFG.craftsman[k]; return Math.min(CFG.wudao.TIME_CUT_MAX.plantTime || 80, (L.GROW_CUT[this.craftLv(k) - 1] || 0) + (this.mifaBonus().plantTime || 0) + this.servantPct("mu")); },
+    plantCut(g = 0) { const k = this.plantCraft(g), L = CFG.craftsman[k]; return Math.min(CFG.wudao.TIME_CUT_MAX.plantTime || 80, (L.GROW_CUT[this.craftLv(k) - 1] || 0) + (this.mifaBonus().plantTime || 0) + this.servantPct("ling")); },
     plantYieldPct(g = 0) { const k = this.plantCraft(g); return (CFG.craftsman[k].YIELD_ADD[this.craftLv(k) - 1] || 0) + (this.mifaBonus().plantYield || 0); },
     fieldTime(g) { return Math.ceil(DATA.growTime(g) * (1 - this.plantCut(g) / 100)); },
     // 开始新的一季：扣灵气，不够就等待
