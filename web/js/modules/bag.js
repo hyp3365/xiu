@@ -28,52 +28,10 @@ G.module({
   }),
 
   api: {
-    // 旧存档：武器/护甲/饰品/法宝 四格 → 新装备栏
-    fixEquip() {
-      this.fixRealmV2();
-      const s = this.s, old = s.equip || {};
-      if (!("helmet" in old)) {
-        s.equip = Object.fromEntries(DATA.equipSlots.map(k => [k, null]));
-        if (old.weapon) s.equip.weapon = old.weapon;
-        if (old.armor) s.equip.armor = old.armor;
-        if (old.acc) s.equip.pendant = Object.assign(old.acc, { slot: "pendant", name: DATA.equipNames.pendant[old.acc.q] });
-        if (old.fabao) s.fabao.push(old.fabao);
-      }
-      s.bagCap = Math.max(s.bagCap, DATA.BAG_START);
-      // v57：法宝改成 7 种形状（旧的 36 种按名字归类，属性保留）；模具、九曜石取消，按出售价折成灵石
-      s.bag.forEach(it => it.t === "eq" && DATA.fixFabao(it.e)); (s.fabao || []).forEach(DATA.fixFabao);
-      { const OLD = { jj: 20, qj: 20, jy: [20, 40, 80, 160, 160], mold: 50 }, val = (k, ft, n) => { const v = OLD[k]; return (Array.isArray(v) ? v[Math.min(ft || 0, v.length - 1)] : v) * n; };
-        let pay = 0;
-        s.bag = s.bag.filter(it => { if (it.t === "sm" && it.k in OLD) { pay += val(it.k, it.ft, it.n); return false; } return true; });
-        if (s.explore && s.explore.loot && s.explore.loot.sm) { const L = s.explore.loot.sm; for (const k in L) { const p = DATA.smParse(k); if (p.k in OLD) { pay += val(p.k, p.ft, L[k]); delete L[k]; } } }
-        [s.forgeJob, ...(s.forgeQueue || [])].forEach(q => {
-          if (!q) return;
-          if (q.sm) { q.sm = q.sm.filter(x => { if (x.k in OLD) { pay += val(x.k, x.ft, x.n); return false; } return true; }); }
-          else if (q.kind === "eq" || q.kind === "ring") q.sm = [];   // 旧任务：没记扣了什么，取消时不退专用材料
-          if (q.prev) DATA.fixFabao(q.prev);
-          if (q.slot === "fabao" && !q.fv) { const o = q.ft || 0; q.ft = DATA.FB_OLD_MAP[o] || 0; q.el = q.prev ? q.prev.el : DATA.FB_OLD_EL[o] || "jin"; q.fv = 2; }
-        });
-        if (pay) { s.stone += pay; this.log && this.log(`法宝模具、九曜石已取消，按出售价折成 ${U.fmt(pay)} 灵石。`, "sys"); }
-      }
-      // v10：内丹、灵血已删除；旧存档里的清掉
-      s.bag = s.bag.filter(it => !(it.t === "mat" && (it.kind === "core" || it.kind === "blood")));
-      if (s.explore && s.explore.loot) for (const k in s.explore.loot.mats) if (!/^(herb|ore)\|/.test(k)) delete s.explore.loot.mats[k];
-      if (s.explore && !s.trained.includes(s.explore.map)) s.trained.push(s.explore.map); // 旧存档在探索的地图算已历练
-      // v12：药材、矿石只剩 6 种，删掉的折算成灵石（按原出售价）
-      const OLD = { 天魔花: 1020, 九幽莲: 1837, 渡劫花: 3306, 魔晶: 1020, 九幽玄铁: 1837, 天雷石: 3306 };
-      let refund = 0;
-      s.bag = s.bag.filter(it => {
-        if (it.t !== "mat") return true;
-        const names = it.kind === "herb" ? DATA.herbs : DATA.ores, g = names.indexOf(it.name);
-        if (g >= 0) { it.g = g; return true; }
-        refund += (OLD[it.name] || 100) * it.n; return false;
-      });
-      if (refund) { s.stone += refund; this.log(`药材、矿石改为 6 种，已下架的材料折算灵石 +${U.fmt(refund)}。`, "sys"); }
-      if (s.explore && s.explore.loot) for (const k in s.explore.loot.mats) { const m = s.explore.loot.mats[k]; if ((m.kind === "herb" ? DATA.herbs : DATA.ores).indexOf(m.name) < 0) delete s.explore.loot.mats[k]; }
-      const hmax = DATA.herbs.length - 1;
-      if (s.seeds) s.seeds = s.seeds.filter(g => g <= hmax);
-      if (s.fields) s.fields.forEach(f => { if (f.g > hmax) f.g = hmax; if (f.next != null && f.next > hmax) f.next = null; });
-      s.bag.forEach(it => { if (it.t === "eq" && it.e.slot === "acc") { it.e.slot = "pendant"; it.e.name = DATA.equipNames.pendant[it.e.q]; } });
+    // 法宝名字跟着 config/names.js 的 fabaoName
+    fabaoNames() {
+      const s = this.s, f = e => { if (e && e.slot === "fabao" && e.attrs) e.name = DATA.fabaoName(e.ft, e.g); };
+      s.bag.forEach(it => it.t === "eq" && f(it.e)); (s.fabao || []).forEach(f);
     },
     // 法宝栏、法术栏当前开启格数：每个大境界 1 格
     // 背包排序：先按类型（修炼丹 → 属性丹 → 药材 → 矿石 → 装备），同类型再按品阶从低到高
@@ -289,7 +247,7 @@ G.module({
     enhHave(c) { return this.fireCount() >= c.fire && this.smCount(c.sk, c.sf) >= c.jj && this.hasMats(c.mats); },
     // 成功率 0~1 = 炼器成功率 − 这一条已强化次数 × RATE_DROP
     enhRate(e, i) { return Math.max(0, this.craftRate("qi", e.g) - ((e.attrs[i] && e.attrs[i].enh) || 0) * (DATA.enhCfg(e).RATE_DROP || 0) / 100); },
-    openEnhance(src) { const e = this.resetTarget(src); if (!this.canEnhance(e)) return; DATA.fixEnh(e); this._enhObj = e; this.drawEnhance(); },
+    openEnhance(src) { const e = this.resetTarget(src); if (!this.canEnhance(e)) return; this._enhObj = e; this.drawEnhance(); },
     drawEnhance() {
       const e = this._enhObj; if (!e) return;
       const E = DATA.enhCfg(e);
