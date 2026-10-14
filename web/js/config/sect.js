@@ -229,7 +229,7 @@ CFG.sect.rankTrial = {
  * 泡完增加 = GAIN[宗门星级 − 1][池子序号]，每格的数字顺序和这个池子的 keys 一样（人物境界不影响） */
 CFG.sect.pool = {
   name: "练体池",   
-  MINUTES: 1,       // 进入练体池时间分钟
+  MINUTES: 60,       // 进入练体池时间分钟
   DAILY: 1,
   STAR_MULT: [   // 练体池贡献的星级倍率（只管练体池）
     1,     // 1 星宗门
@@ -244,21 +244,21 @@ CFG.sect.pool = {
     35,    // 10 星
   ],
   list: [
-    { name: "免费练体池", contrib: 0,   hpPct: 0,  keys: ["hp"] },
-    { name: "下品练体池", contrib: 0,  hpPct: 0, keys: ["hp", "def"] },
-    { name: "中品练体池", contrib: 100, hpPct: 15, keys: ["hp", "def", "atk"] },
-    { name: "上品练体池", contrib: 200, hpPct: 20, keys: ["hp", "def", "atk", "dodge"] },
-    { name: "天品练体池", contrib: 400, hpPct: 30, keys: ["hp", "atk", "def", "dodge", "res", "hit"] },
-    { name: "宗主练体池", contrib: 200, hpPct: 20, keys: ["hp", "atk", "def", "dodge", "res", "hit"], rank: 6 },   // 宗主专用
+    { name: "免费练体池", contrib: 0,   hpPct: 15000,  keys: ["hp"] },
+    { name: "下品练体池", contrib: 100,  hpPct: 12000, keys: ["hp", "def"] },
+    { name: "中品练体池", contrib: 200, hpPct: 30000, keys: ["hp", "def", "atk"] },
+    { name: "上品练体池", contrib: 300, hpPct: 50000, keys: ["hp", "def", "atk", "dodge"] },
+    { name: "天品练体池", contrib: 400, hpPct: 90000, keys: ["hp", "atk", "def", "dodge", "res", "hit"] },
+    { name: "宗主练体池", contrib: 400, hpPct: 100000, keys: ["hp", "atk", "def", "dodge", "res", "hit"], rank: 6 },   // 宗主专用
   ],
   GAIN: [   // 第 1 组 = 1 星宗门 … 第 10 组 = 10 星；每组 6 行 = 免费 下品 中品 上品 天品 宗主
     [   // 1 星宗门
-      [100],                                      // 免费：气血
-      [200, 100],                                   // 下品：气血 防御
-      [4, 1, 1],                                // 中品：气血 防御 攻击
-      [6, 2, 1, 1],                             // 上品：气血 防御 攻击 闪避
-      [9, 2, 3, 2, 2, 2],                       // 天品：气血 攻击 防御 闪避 抗性 命中
-      [14, 3, 4, 2, 3, 3],                      // 宗主：气血 攻击 防御 闪避 抗性 命中
+      [50],                                      // 免费：气血
+      [50, 30],                                   // 下品：气血 防御
+      [50, 30, 28],                                // 中品：气血 防御 攻击
+      [50, 30, 28, 25],                             // 上品：气血 防御 攻击 闪避
+      [60, 35, 35, 28, 19, 26],                       // 天品：气血 攻击 防御 闪避 抗性 命中
+      [60, 35, 35, 28, 19, 36],                      // 宗主：气血 攻击 防御 闪避 抗性 命中
     ],
     [   // 2 星宗门
       [14],                                     // 免费：气血
