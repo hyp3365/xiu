@@ -233,7 +233,7 @@ G.module({
     smHave(list) { return list.every(x => this.smCount(x.k, x.ft) >= x.n); },
     smText(list) { return list.map(x => `<span class="${this.smCount(x.k, x.ft) >= x.n ? "" : "q5"}">${DATA.li(DATA.smIcon(x.k, x.ft))}${DATA.smName(x.k, x.ft)} ${U.fmt(this.smCount(x.k, x.ft))}/${U.fmt(x.n)}</span>`).join("、"); },
     jobMats(q) { return q.kind === "eq" ? DATA.forgeEqMats(q.g) : q.kind === "ss" ? DATA.stoneMats(q.g) : q.kind === "ring" ? DATA.ringMats(q.g) : DATA.furnaceMats(q.kind, q.g); },
-    jobName(q) { return q.kind === "eq" ? (q.slot === "fabao" && q.ft !== undefined ? DATA.JIE[q.g] + "·" + (DATA.elById[q.el] ? DATA.elById[q.el].name + "·" : "") + DATA.fabaoTypes[q.ft].name : DATA.forgeEqName(q.slot, q.g)) : q.kind === "ss" ? DATA.stoneName(q.g) : q.kind === "ring" ? DATA.ringName(q.r, q.g) : DATA.furnaceName(q.kind, q.g); },
+    jobName(q) { return q.kind === "eq" ? (q.slot === "fabao" && q.ft !== undefined ? DATA.JIE[q.g] + "·" + (DATA.elById[q.el] ? DATA.elById[q.el].name + "·" : "") + DATA.fabaoName(q.ft, q.g) : DATA.forgeEqName(q.slot, q.g)) : q.kind === "ss" ? DATA.stoneName(q.g) : q.kind === "ring" ? DATA.ringName(q.r, q.g) : DATA.furnaceName(q.kind, q.g); },
     // 炼好：放进背包，背包满返回 false（等有空位再出炉）
     forgeCraft(kind) { return kind === "xdan" || kind === "xqi" ? "xqi" : "qi"; },   // 仙炉按炼器仙师算
     finishForge(j) {
@@ -286,7 +286,7 @@ G.module({
       if (!this.hasMats(mats) || !this.smHave(sm)) return this.log(sm.length && !this.smHave(sm) ? `缺少${sm.filter(x => this.smCount(x.k, x.ft) < x.n).map(x => DATA.smName(x.k, x.ft)).join("、")}（秘境、灵地掉落）。` : "材料不足。", "sys");
       let pi = -1;
       if (kind === "ring" && g < 1) return;
-      if (kind === "eq" && g > 0) { pi = this.prevEquipIndex(slot, g, job.ft, job.el); if (pi < 0) return this.log(`需要一件${slot === "fabao" ? DATA.JIE[g - 1] + "·" + DATA.elById[job.el].name + "·" + DATA.fabaoTypes[job.ft].name : DATA.forgeEqName(slot, g - 1)}。`, "sys"); }
+      if (kind === "eq" && g > 0) { pi = this.prevEquipIndex(slot, g, job.ft, job.el); if (pi < 0) return this.log(`需要一件${slot === "fabao" ? DATA.JIE[g - 1] + "·" + DATA.elById[job.el].name + "·" + DATA.fabaoName(job.ft, g - 1) : DATA.forgeEqName(slot, g - 1)}。`, "sys"); }
       if (kind === "ring") { pi = this.prevEquipIndex("ring", g, job.r); if (pi < 0) return this.log(`需要一枚${DATA.ringName(job.r, g - 1)}。`, "sys"); }
       if (pi >= 0) { job.prev = s.bag[pi].e; s.bag.splice(pi, 1); }
       mats.forEach(m => this.takeMat(m.kind, m.g, m.n));
@@ -306,8 +306,8 @@ G.module({
       this.modal(`<h2>炼制${DATA.JIE[g]}法宝</h2>${els}<p class="desc">${g ? `${DATA.JIE[g - 1]}同形状同属性法宝 ×1、` : ""}${this.matsText(mats)}${sm.length ? "、" + this.smText(sm) : ""} · ${U.dur(this.forgePer("eq", g) / 1000)} · 成功率 ${this.ratePct(this.craftRate("qi", g))}</p>` +
         DATA.fabaoTypes.map((T, ft) => {
           const prevOK = g === 0 || this.prevEquipIndex("fabao", g, ft, el) >= 0;
-          return `<div class="line"><div>${DATA.eqTierIco(DATA.iconImg("fbs" + ft + "_" + DATA.elIdx(el)), g)}${DATA.JIE[g]}·${DATA.elById[el].name}·${T.name}
-            <small>${g ? `<span class="${prevOK ? "" : "q5"}">${DATA.JIE[g - 1]}·${DATA.elById[el].name}·${T.name} ×1</span>` : ""}</small></div>
+          return `<div class="line"><div>${DATA.eqTierIco(DATA.iconImg("fbs" + ft + "_" + DATA.elIdx(el)), g)}${DATA.JIE[g]}·${DATA.elById[el].name}·${DATA.fabaoName(ft, g)}
+            <small>${g ? `<span class="${prevOK ? "" : "q5"}">${DATA.JIE[g - 1]}·${DATA.elById[el].name}·${DATA.fabaoName(ft, g - 1)} ×1</span>` : ""}</small></div>
             <button class="sm" onclick="G.craftFurnace('eq',${g},'fabao',${ft},'${el}')" ${ok0 && smOK && prevOK ? "" : "disabled"}>${s.forgeJob ? "排队" : "炼制"}</button></div>`;
         }).join("") +
         `<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
