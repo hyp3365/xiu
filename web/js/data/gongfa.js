@@ -130,7 +130,7 @@ DATA.gfCalc = (o, typeId, tier, key, eff) => {
 // 层数倍率：第 lv 层效果 = 每层效果 × LV_MULT[lv-1]（没写就是 lv）
 DATA.lvMul = lv => { const m = (_GF.LV_MULT || [])[lv - 1]; return m === undefined ? lv : m; };
 // 修炼：每 5 秒消耗修为 = STUDY_RATE × STUDY_STAR[星级-1] × STUDY_TIER[阶]（不乘层数）
-DATA.studyPer = info => { const v = (x, d) => x === undefined ? d : x;
+DATA.studyPer = info => { const v = (x, d) => x === undefined ? d : x; if (info.per) return info.per;
   return Math.max(1, Math.floor(v(_GF.STUDY_RATE, 5) * v((_GF.STUDY_STAR || [])[info.star - 1], info.star) * v((_GF.STUDY_TIER || {})[info.tier.id], 1))); };
 // 当前层 → 下一层一共消耗的修为 = 每 5 秒消耗 × 次数（由这一层的修炼时间决定）
 DATA.studySteps = lv => Math.ceil(DATA.studyMin[lv - 1] * 60 / DATA.STUDY_STEP);
@@ -151,7 +151,16 @@ DATA.tierRank = tier => ((_GF.sect.TIER_RANK || {})[tier.id]) || 0;
 /* ---------- 功法 ----------
  * id 规则："来源id:类别id:阶id"，例如 "s1_0:mijue:huang"（门派）、"f1_0:mijue:huang"（坊市） */
 DATA.gongfaId = (sectId, typeId, tierId) => `${sectId}:${typeId}:${tierId}`;
+// 开局功法书（config/start.js 的 book）：id "start:mijue:huang"，无属性，层数上限 MAX
+DATA.START_GF = "start:mijue:huang";
+DATA.startGfInfo = (lv = 1) => {
+  const B = CFG.start.book || {}, type = DATA.gongfaTypes.find(x => x.id === "mijue"), sp = B.SPEED || 0;
+  return { kind: "gf", id: DATA.START_GF, src: "start", star: 0, type, tier: DATA.tierById.huang, lv, noEl: true, el: { id: "", name: "" },
+    max: B.MAX || 1, studyMin: B.STUDY_MIN || [], per: B.STUDY_PER || 1,
+    label: type.label, name: B.name || "练气诀", value: sp * lv, next: sp * (lv + 1), perLv: sp, cost: 0 };
+};
 DATA.gongfaInfo = (id, lv = 1) => {
+  if (id === DATA.START_GF) return DATA.startGfInfo(lv);
   const [sectId, typeId, tierId] = id.split(":");
   const sect = DATA.gfSrcById[sectId], type = DATA.gongfaTypes.find(x => x.id === typeId), tier = DATA.tierById[tierId];
   if (!sect || !type || !tier) return null;
