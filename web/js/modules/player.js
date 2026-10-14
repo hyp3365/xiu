@@ -38,17 +38,6 @@ G.module({
     r() { return Math.floor(this.s.L / DATA.LAYERS); },          // 当前大境界序号
     layer() { return this.s.L % DATA.LAYERS; },
     // 境界够不够：req = -1 凡人即可，否则需要（非凡人且）大境界 ≥ req
-    // v21：18 境界 → 24 境界。旧存档按原境界名字换算序号（层数不变），丹药、旧装备的境界品质一起换算
-    fixRealmV2() {
-      const s = this.s; if (s.realmV === 2) return;
-      const M = i => DATA.REALM_V1_MAP[i] !== undefined ? DATA.REALM_V1_MAP[i] : i;
-      s.L = M(Math.floor(s.L / DATA.LAYERS)) * DATA.LAYERS + s.L % DATA.LAYERS;
-      const fe = e => { if (e && !e.cid && !e.attrs && e.g !== undefined) e.g = M(e.g); };
-      (s.bag || []).forEach(it => { if (it.t === "pill") it.g = M(it.g); else if (it.t === "eq") fe(it.e); });
-      Object.values(s.equip || {}).forEach(fe); (s.fabao || []).forEach(fe);
-      if (s.trib && !s.trib.result) s.trib = null;
-      s.realmV = 2; this.dirty && this.dirty();
-    },
     realmOK(req) { return req < 0 || (!this.s.mortal && this.r() >= req); },                    // 当前层（0~9）
     needExp() { return this.s.mortal ? DATA.MORTAL_EXP : DATA.needExp(this.s.L); },
     realmName(L) {
