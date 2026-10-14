@@ -270,7 +270,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send(400, {"error": "礼包码需 2~32 位字母、数字、下划线或中文"})
                 if not code:
                     while True:
-                        code = "".join(secrets.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(8))
+                        code = "".join(secrets.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(16))
                         if not c.execute("SELECT 1 FROM gifts WHERE code=?", (code,)).fetchone():
                             break
                 elif c.execute("SELECT 1 FROM gifts WHERE code=?", (code,)).fetchone():
