@@ -149,19 +149,10 @@ G.module({
         if (nx) { const per = this.danPer(nx.type, nx.g); s.alchJob = { type: nx.type, g: nx.g, n: nx.n, done: 0, per, next: a.next - a.per + per }; }
       }
     },
-    // 旧存档转换
+    // 改了配置（炉子种类、阶数、丹方）后清掉存档里无效的数据
     fixCraft() {
       const s = this.s;
-      if (s.furnace) { for (const k of ["dan", "qi"]) if (s.furnace[k] >= 0) { s.furnaces[k] = [s.furnace[k]]; s.furnaceUse[k] = s.furnace[k]; } delete s.furnace; }
-      if (s.furnaceJob) { // v11：两个炉子各自炼制 → v12：炼器室一条队列
-        for (const k of ["dan", "qi"]) {
-          const fj = s.furnaceJob[k];
-          if (fj) { if (!s.forgeJob) s.forgeJob = { kind: k, g: fj.g, end: fj.end }; else s.forgeQueue.push({ kind: k, g: fj.g }); }
-          ((s.furnaceQueue || {})[k] || []).forEach(g => s.forgeQueue.push({ kind: k, g }));
-        }
-        delete s.furnaceJob; delete s.furnaceQueue;
-      }
-      for (const k of DATA.FURNACE_KINDS) {   // v42：旧存档补上仙炉
+      for (const k of DATA.FURNACE_KINDS) {
         if (!s.blueprints[k]) s.blueprints[k] = [];
         if (!s.furnaces[k]) s.furnaces[k] = [];
         if (s.furnaceUse[k] === undefined) s.furnaceUse[k] = -1;
@@ -170,7 +161,7 @@ G.module({
       }
       if (s.alchJob && !DATA.recipes[s.alchJob.type]) s.alchJob = null;
       s.alchQueue = s.alchQueue.filter(q => DATA.recipes[q.type]);
-      if (s.bag.some(it => it.t === "dan" && !DATA.dans[it.type])) s.bag = s.bag.filter(it => it.t !== "dan" || DATA.dans[it.type]);   // 删掉的丹方（v42 抗性丹、仙界暴击丹）
+      if (s.bag.some(it => it.t === "dan" && !DATA.dans[it.type])) s.bag = s.bag.filter(it => it.t !== "dan" || DATA.dans[it.type]);
     },
 
     /* ---------- 门派炼丹房：学习丹方 ---------- */
