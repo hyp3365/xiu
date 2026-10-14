@@ -12,7 +12,7 @@ G.module({
 
   api: {
     loginForm(msg) {
-      this._lockModal = true;
+      this._lockModal = true; document.body.classList.add("nologin");   // 未登录：只显示登录框
       this.modal(`<h2>问道长生</h2><p>${msg || "登录后存档保存在服务器，随时随地继续修仙。"}</p>
         <p><input id="lg-user" maxlength="20" placeholder="账号（字母、数字或中文）" value="${API.user || ""}"></p>
         <p><input id="lg-pass" type="password" maxlength="64" placeholder="密码（至少 6 位）"></p>
@@ -49,6 +49,7 @@ G.module({
       this.fixEquip();  // 旧版装备栏转换
       this.s.manual = false;
       this.offline();
+      document.body.classList.remove("nologin");
       this.start();
     },
     relogin() { API.logout(); this.loginForm("登录已过期，请重新登录（进度已保存在本机，登录后会同步）。"); },
@@ -72,7 +73,7 @@ G.module({
       $("#start-btn").onclick = () => {
         const name = ($("#name-input").value || "").trim() || "无名散修";
         this.s = this.newSave(name);
-        this._lockModal = false; this.closeModal();
+        this._lockModal = false; this.closeModal(); document.body.classList.remove("nologin");
         this.dirty(); const st = this.stats(); this.s.hp = st.hp; this.s.mana = st.mana;
         this.log(`${name}，自此踏上仙途。赠你聚气丹三枚、${CFG.start.book ? CFG.start.book.name : "练气诀"}一本。`, "gold");
         this.log("提示：修炼页开启“自动修炼”，聚灵阵会为你聚集灵气；离线也会继续修炼。", "sys");
