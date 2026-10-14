@@ -387,7 +387,8 @@ G.module({
     },
 
     /* ---------- 炼丹 ---------- */
-    danPer(type, g) { const fk = DATA.danFu(type); return Math.ceil(DATA.danTime(type, g) * (1 - this.mifaCut("danTime", DATA.furnaceBonus(fk, this.s.furnaceUse[fk])) / 100)); },
+    danPer(type, g) { const fk = DATA.danFu(type), ck = DATA.danCraft(type), tc = (CFG.craftsman[ck].TIME_CUT || [])[this.craftLv(ck) - 1] || 0;   // 炉子% + 炼丹仙师% + 丹火秘法% 相加
+      return Math.ceil(DATA.danTime(type, g) * (1 - this.mifaCut("danTime", DATA.furnaceBonus(fk, this.s.furnaceUse[fk]) + tc) / 100)); },
     setDanTier(g) { this.danTier = g; this.render(); },
     // 丹药分类（config/alchemy.js 的 CATS）：0 = 现有丹方，其余暂时没有丹方
     setDanCat(k, c) { this[k] = c; this.render(); },
