@@ -506,10 +506,10 @@ G.module({
         <div class="btns"><button onclick="G.leaveSect()" ${s.contrib < this.leaveCost() ? "disabled" : ""}>叛出门派（贡献 ${U.fmt(this.leaveCost())}）</button></div>`;
     } else if (tab === "lib") {
       // 功法殿：本星级全部门派的功法、法术；按 属性 筛选
-      const el = this.libEl || x.el;
+      const el = this.libEl && this.libEl !== "all" ? this.libEl : x.el;
       const btn = g => this.gfLearnBtn(g, `G.learnGongfa('${g.id}')`, s.contrib < g.cost);
       const sects = DATA.sects.filter(o => o.star === x.star && (el === "all" || o.el === el));
-      h += `<div class="room-grid">${[["all", "全部"], ...DATA.elements.map(e => [e.id, e.name])].map(([k, n]) =>
+      h += `<div class="room-grid six">${DATA.elements.map(e => [e.id, e.name]).map(([k, n]) =>
           `<button class="${el === k ? "active" : ""}" onclick="G.setLibEl('${k}')">${n}</button>`).join("")}</div>` +
         sects.map(o => `<div class="card"><h3>${o.name}<span class="tag">${DATA.elById[o.el].name}</span></h3>` +
           DATA.gongfaTypes.map(t => {
