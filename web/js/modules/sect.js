@@ -45,6 +45,7 @@ G.module({
   // 每 10 秒：事务堂任务到时间就结算一次，并自动开始下一次（离线也会补算）
   tick() {
     this.freeRoomDaily(); this.poolTick();
+    if (this.s.shopRoom >= 0 || this.s.shopGfRoom >= 0) { this.s.shopRoom = -1; this.s.shopGfRoom = -1; }   // v97：坊市修炼室 / 练功房已取消
     const s = this.s, a = s.affair;
     if (!s.sect || !a || a.task === undefined || a.task < 0) return;
     const t = DATA.affairs[a.task]; if (!t) { a.task = -1; return; }
@@ -61,16 +62,16 @@ G.module({
     roomPct(i) { return DATA.rooms[i].pct * this.starMul(); },
     roomCost(i) { return Math.floor(DATA.rooms[i].cost * this.starMul()); },
     roomLocked(i) { return (DATA.rooms[i].rank || 0) > this.s.rank; },
-    gfRoomPct(i) { return DATA.gfRooms[i].pct * this.starMul(); },
+    gfRoomPct(i) { return DATA.gfRooms[i].pct; },   // v97：减少修炼时间 %，不乘星级
     gfRoomCost(i) { return Math.floor(DATA.gfRooms[i].cost * this.starMul()); },
     gfRoomLocked(i) { return (DATA.gfRooms[i].rank || 0) > this.s.rank; },
     // 当前练功房（宗门或坊市）：{ name, pct, cost, cur: "contrib"|"stone" } 或 null
+    // v97：pct = 减少修炼时间 %；mul = 修炼进度倍率 = 100 ÷ (100 − pct)；坊市练功房已取消
     gfRoomNow() {
-      const s = this.s;
-      if (this.freeGfOn()) return { name: CFG.sect.freeGfRoom.name, pct: this.freeGfPct(), cost: 0, cur: "contrib", free: true };
-      if (s.gfRoom >= 0 && s.sect && DATA.gfRooms[s.gfRoom]) return { name: DATA.gfRooms[s.gfRoom].name, pct: this.gfRoomPct(s.gfRoom), cost: this.gfRoomCost(s.gfRoom), cur: "contrib" };
-      const r = DATA.shopRooms.gf[s.shopGfRoom];
-      return s.shopGfRoom >= 0 && r ? { name: r.name, pct: r.pct, cost: r.cost, cur: "stone" } : null;
+      const s = this.s, M = p => 100 / (100 - Math.min(95, Math.max(0, p)));
+      if (this.freeGfOn()) { const p = this.freeGfPct(); return { name: CFG.sect.freeGfRoom.name, pct: p, mul: M(p), cost: 0, cur: "contrib", free: true }; }
+      if (s.gfRoom >= 0 && s.sect && DATA.gfRooms[s.gfRoom]) { const p = this.gfRoomPct(s.gfRoom); return { name: DATA.gfRooms[s.gfRoom].name, pct: p, mul: M(p), cost: this.gfRoomCost(s.gfRoom), cur: "contrib" }; }
+      return null;
     },
     leaveGfRoom(why) { const r = this.gfRoomNow(); this.s.gfRoom = -1; this.s.shopGfRoom = -1; if (r && why) this.log(`${why}，已离开${r.name}。`, "bad"); this.dirty(); },
     setSectStar(n) { this.sectStar = n; this.render(); },
@@ -166,7 +167,7 @@ G.module({
 
     /* ---------- 免费修炼室 / 免费练功房（config/sect.js 的 freeRoom / freeGfRoom） ---------- */
     freeCultPct() { const p = CFG.sect.freeRoom.pct; return p ? p * this.starMul() : this.roomPct(0); },
-    freeGfPct() { const p = CFG.sect.freeGfRoom.pct; return p ? p * this.starMul() : this.gfRoomPct(0); },
+    freeGfPct() { const p = CFG.sect.freeGfRoom.pct; return p ? p : this.gfRoomPct(0); },
     freeCultOn() { const f = this.s.freeCult; return !!(this.s.sect && f && f.on && f.left > 0); },
     freeGfOn() { const f = this.s.freeGf; return !!(this.s.sect && f && this.now() < f.end); },
     freeUsed(f) { return f && f.day === this.bjDay() ? f.used || 0 : 0; },
@@ -539,11 +540,11 @@ G.module({
       }).join("") + `</div>`;
     } else if (tab === "gfroom") {
       const FG = CFG.sect.freeGfRoom, fg = s.freeGf || {}, fgOn = this.freeGfOn(), fgDone = !fgOn && this.freeUsed(fg) >= FG.daily;
-      h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "gfroom", "练功房")}<small>加快功法修炼 · 修炼功法时每 5 秒消耗贡献</small></h3>
-        <div class="line"><div>${FG.name}<span class="tag">功法修炼 +${U.num(this.freeGfPct())}%</span><small>${fgOn ? `剩余 ${U.dur(Math.ceil((fg.end - this.now()) / 1000))}` : `每天 ${FG.daily} 次 · 每次 ${FG.minutes} 分钟 · 不消耗贡献`}</small></div>
+      h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "gfroom", "练功房")}<small>减少功法修炼时间 · 修炼功法时每 5 秒消耗贡献</small></h3>
+        <div class="line"><div>${FG.name}<span class="tag">修炼时间 -${U.num(this.freeGfPct())}%</span><small>${fgOn ? `剩余 ${U.dur(Math.ceil((fg.end - this.now()) / 1000))}` : `每天 ${FG.daily} 次 · 每次 ${FG.minutes} 分钟 · 不消耗贡献`}</small></div>
           <button class="sm ${fgOn ? "on" : ""}" onclick="G.enterFreeGfRoom()" ${fgOn || fgDone ? "disabled" : ""}>${fgOn ? "使用中" : fgDone ? "今日已用" : "进入"}</button></div>` + DATA.gfRooms.map((r, i) => {
         const on = s.gfRoom === i, lock = !on && this.gfRoomLocked(i);
-        return `<div class="line"><div>${r.name}<span class="tag">功法修炼 +${U.num(this.gfRoomPct(i))}%</span>${r.rank ? `<span class="tag">${DATA.ranks[r.rank].name}专用</span>` : ""}<small>每 5 秒消耗 ${U.fmt(this.gfRoomCost(i))} 贡献</small></div>
+        return `<div class="line"><div>${r.name}<span class="tag">修炼时间 -${U.num(this.gfRoomPct(i))}%</span>${r.rank ? `<span class="tag">${DATA.ranks[r.rank].name}专用</span>` : ""}<small>每 5 秒消耗 ${U.fmt(this.gfRoomCost(i))} 贡献</small></div>
           <button class="sm ${on ? "on" : ""}" onclick="G.enterGfRoom(${i})" ${lock ? "disabled" : ""}>${on ? "使用中" : lock ? "职务不足" : "进入"}</button></div>`;
       }).join("") + `<p class="desc">只在功法修炼队列有功法在修炼时才消耗；功法修炼时间缩短，消耗的修为不变。</p></div>`;
     } else if (tab === "pool") {
