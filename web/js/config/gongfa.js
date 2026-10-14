@@ -232,9 +232,9 @@ CFG.gongfa.sect = {
   // ---- 学习消耗（贡献，不受上面的倍率影响）----
   learn: 100,        // 学习贡献的基础值
   // 学习贡献的类别倍率
-  LEARN_TYPE: { xinfa: 1.3, gongjue: 1.2, zhenjing: 1, mijue: 1.1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1.2, tijue: 1.1 },
+  LEARN_TYPE: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1, tijue: 1.1 },
   LEARN_STAR: [      // 学习贡献的门派星级倍率
-    1,     // 1 星门派
+    0.5,     // 1 星门派
     5,     // 2 星
     10,    // 3 星
     20,    // 4 星
@@ -245,7 +245,7 @@ CFG.gongfa.sect = {
     150,   // 9 星
     200,   // 10 星
   ],
-  LEARN_TIER: { huang: 1, xuan: 2, di: 3, tian: 5 },   // 学习贡献的阶倍率：黄 玄 地 天
+  LEARN_TIER: { huang: 1, xuan: 1.5, di: 2, tian: 3 },   // 学习贡献的阶倍率：黄 玄 地 天
   EFFECT_LEARN: 1,   // 学习贡献的总倍率
   // 学习需要的最低门派职务（0 外门弟子 1 内门弟子 2 真传弟子 3 核心弟子 4 宗门长老 5 宗门供奉 6 宗主）
   TIER_RANK: { huang: 0, xuan: 2, di: 4, tian: 6 },   // 黄阶 外门、玄阶 真传、地阶 长老、天阶 宗主
