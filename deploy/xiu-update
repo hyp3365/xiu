@@ -55,10 +55,18 @@ if ! cmp -s "$DIR/deploy/xiu-server.service" /etc/systemd/system/xiu-server.serv
   systemctl daemon-reload
 fi
 
+# 卸载命令
+install -m 755 "$DIR/deploy/uninstall.sh" /usr/local/bin/xiu-uninstall
+
+# 日志瘦身：server.log / update.log 超过 1MB 只保留最后 200KB
+for L in /var/lib/xiu/server.log /var/lib/xiu/update.log; do
+  [ -f "$L" ] && [ "$(stat -c %s "$L")" -gt 1048576 ] && { tail -c 204800 "$L" > "$L.tmp" && cat "$L.tmp" > "$L"; rm -f "$L.tmp"; }
+done
+
 echo ">>> 重启存档服务..."
 systemctl restart xiu-server
 sleep 1
-systemctl is-active --quiet xiu-server && echo "存档服务运行中" || { echo "存档服务启动失败："; journalctl -u xiu-server -n 20 --no-pager; exit 1; }
+systemctl is-active --quiet xiu-server && echo "存档服务运行中" || { echo "存档服务启动失败："; tail -n 20 /var/lib/xiu/server.log 2>/dev/null || journalctl -u xiu-server -n 20 --no-pager; exit 1; }
 
 # nginx 配置有更新也一起装（装完检查不通过就还原）
 for NGX in /etc/nginx/conf.d/central_vps_users/*/xiuxian.conf /etc/nginx/snippets/xiuxian.conf; do
