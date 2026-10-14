@@ -30,7 +30,7 @@ window.CFG = window.CFG || {};
  * 公式：
  *   学习需要门派星级 = CAT_STAR[分类] + floor((阶 − 1) ÷ STAR_TIERS)        （高星门派也能学低阶）
  *   学习：扣 learnCost[阶] 门派贡献，等待 learnTime[阶] 分钟；同时只能学一个丹方
- *   实际每枚炼制时间 = time[阶] × (1 − (炉子缩短% + 秘法「丹火秘法」缩短% + 炼丹仙师 TIME_CUT%（仙冥魔神丹）) ÷ 100)，两者相加最多减 config/wudao.js 的 TIME_CUT_MAX
+ *   实际每枚炼制时间 = time[阶] × (1 − (炉子缩短% + 秘法「丹火秘法」缩短% + 炼丹师 / 炼丹仙师 TIME_CUT%) ÷ 100)，两者相加最多减 config/wudao.js 的 TIME_CUT_MAX
  *     炉子缩短% 见 config/furnace.js 的 bonus；凡丹用炼丹炉，仙/冥/魔/神丹用炼丹仙炉
  *   炼制条件：必须装有对应炉子，且 炉子阶 ≥ 丹阶；成功率按炼丹师/炼丹仙师计算（config/craftsman.js），
  *     每枚单独判定，失败的药材不退
