@@ -771,6 +771,7 @@ CFG.names.shopGf = {
   f5_5: "摇光",      // 5 星坊市功法（火）
 };
 CFG.names.shopGfSuffix = "传承";         // 坊市功法来源名后缀
+CFG.names.jieGfSuffix = { gongjue: "攻诀" };   // 仙魔冥神坊市、功德司功法的后缀（没写的用 gfType 的后缀）：梵度天攻诀
 CFG.names.gdGfWord = "功德";            // 仙魔冥神功德司功法：地图名 + 这个 + 后缀（梵度天功德秘诀）
 /* 试炼塔秘诀的来源：代号 = t星级；显示为「问心塔」 */
 CFG.names.towerGf = {
