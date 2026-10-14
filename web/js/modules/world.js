@@ -11,7 +11,7 @@
  *   法术伤害 = 威力 - (对方防御 + 对方该属性抗性) × DEF_RATE；普通攻击、法宝只算防御。
  *   怪物也有法力、六系抗性、法术和法宝（见 config/mobs.js 的 mobs.magic）。
  *   一次探索中获得的东西先记下，走完后一起放进背包；
- *   气血够（≥ 三成）就继续下一次，不够就停止；探索时不能修炼；离线也继续。
+ *   生命够（≥ 三成）就继续下一次，不够就停止；探索时不能修炼；离线也继续。
  *   探索信息栏显示每一步发生的事，每秒刷新。
  * 秘境（config/mijing.js）：历练探索时有几率发现；每处每天进一次，先历练通过才能自动探索；探索中 x.mj = 秘境序号、x.queue = 一键探索还没走的秘境。
  * 灵地（config/lingdi.js）：和秘境共用同一套（mjXxx 函数多一个参数 k = "ld"）；探索中 x.mk = "ld"、x.mj = 灵地序号；存档 s.ld。
@@ -46,7 +46,7 @@ G.module({
               ${lock ? `<button class="sm" disabled>需${DATA.realmLabel(DATA.mapReq(sel))}</button>` : !unl || !this.regionOpen(sel, r) ? `<button class="sm" disabled>未开启</button>` : `<div><button class="sm ${x && x.once ? "on" : ""}" onclick="G.toggleExplore(${sel},${r},true)" ${s.explore && s.explore.cq ? "disabled" : ""}>${x && x.once ? "停止" : "历练"}</button>
               <button class="sm ${x && !x.once && !x.cq ? "on" : ""}" onclick="G.toggleExplore(${sel},${r})" ${ok && !(s.explore && s.explore.cq) ? "" : "disabled"}>${x && !x.once && !x.cq ? "停止" : "探索"}</button>
               <button class="sm ${x && x.cq ? "on" : ""}" onclick="G.openChuqiao(${sel},${r})" ${x && x.cq || ok && s.cqLv && !(s.explore && s.explore.cq) ? "" : "disabled"}>${x && x.cq ? "停止" : "出窍"}</button></div>`}</div>`;
-          }).join("") + `<p class="desc">历练、探索期间无法修炼；气血低于三成停止。</p></div>`;
+          }).join("") + `<p class="desc">历练、探索期间无法修炼；生命低于三成停止。</p></div>`;
     },
     setWorld(id) { if (this.worldId !== id) { this.mapSel = undefined; this.hallSel = null; } this.worldId = id; this.render(); },
     // v45：这一界开放没有（config/worldmaps.js 的 open）
@@ -102,7 +102,7 @@ G.module({
       return m;
     },
 
-    // 通用战斗：速度高者先手，判闪避、暴击。返回 { win, lose, rounds, why, log }，并更新玩家气血、法力
+    // 通用战斗：速度高者先手，判闪避、暴击。返回 { win, lose, rounds, why, log }，并更新玩家生命、法力
     //   log：完整战斗过程（点「详情」查看），格式见 battleDetail
     battle(m) {
       const st = this.stats(), s = this.s;
@@ -173,7 +173,7 @@ G.module({
       const ordIdx = key => { const i = (BS.order || []).indexOf(key); return i < 0 ? 999 + jOf(key) : i; };
       const myHit = () => {
         let d;
-        // 气血低于设定：先用设定的防御法宝 / 法术（可动用保留法力）
+        // 生命低于设定：先用设定的防御法宝 / 法术（可动用保留法力）
         if (BS.lowPct > 0 && BS.lowKey && php < st.hp * BS.lowPct / 100 && (d = cast(jOf(BS.lowKey), true)) !== null) return d;
         // 第一 ~ 三回合：每回合第一次出手按设置
         if (rDone !== rounds) {
@@ -203,7 +203,7 @@ G.module({
         return roll(mE(), st, Math.max(m.atk * BT.MIN_DMG, m.atk * c.pct / 100 - (el ? resOf(st, el) : st.def) * BT.DEF_RATE), k === "spell" ? 1 : 2);
       };
       const mobHit = () => { let d = mCast("spell", m.el); if (d < 0) d = mCast("fabao", m.el); return d < 0 ? hit(mE(), st) : d; };   // v25：怪物法宝也是属性伤害
-      // 每一下记一条：[回合, 谁(0 你 / 1 对方), 方式, 法术名序号, 结果, 伤害, 你的气血, 你的法力, 对方气血, 对方法力]
+      // 每一下记一条：[回合, 谁(0 你 / 1 对方), 方式, 法术名序号, 结果, 伤害, 你的生命, 你的法力, 对方生命, 对方法力]
       const log = [], R = Math.round;
       //   v57 多两格：[10] 标记（1 眩晕对方 2 鼎减益 4 护盾破碎）、[11] 护盾抵挡的伤害；方式 3 = 祭起护盾（伤害格 = 护盾值）、4 = 被眩晕
       const rec = (w, d) => log.push([rounds, w, act.k, act.sp === undefined ? -1 : act.sp, act.f, R(d), R(Math.max(0, php)), R(s.mana), R(Math.max(0, mhp)), R(m.mana || 0), act.x || 0, R(act.ab || 0)]);
@@ -232,7 +232,7 @@ G.module({
       }
       s.hp = Math.max(1, php);
       // 战斗说明（显示在探索信息里）
-      const why = `你出战时气血 ${U.fmt(hp0)}，共造成 ${U.fmt(dealt)} 伤害（对方剩余气血 ${U.fmt(Math.max(0, mhp))}/${U.fmt(m.hp)}），承受 ${U.fmt(taken)} 伤害；对方攻击 ${U.fmt(m.atk)} 防御 ${U.fmt(m.def)}${m.el ? `，${DATA.elById[m.el].name}属性，施法术 ${mSp} 次、法宝 ${mFb} 次` : ""}`;
+      const why = `你出战时生命 ${U.fmt(hp0)}，共造成 ${U.fmt(dealt)} 伤害（对方剩余生命 ${U.fmt(Math.max(0, mhp))}/${U.fmt(m.hp)}），承受 ${U.fmt(taken)} 伤害；对方攻击 ${U.fmt(m.atk)} 防御 ${U.fmt(m.def)}${m.el ? `，${DATA.elById[m.el].name}属性，施法术 ${mSp} 次、法宝 ${mFb} 次` : ""}`;
       const detail = { name: m.name, el: m.el || "", sp: spNames, first: meFirst ? 0 : 1, log,
         me: [R(hp0), R(st.hp), R(mana0), R(st.mana)], mob: [R(m.hp), R(m.hp), R(m.maxMana || 0), R(m.maxMana || 0)] };
       return { win: mhp <= 0 && php > 0, lose: php <= 0, rounds, why, detail };
@@ -249,7 +249,7 @@ G.module({
       if (fx & 4) res += "，护盾破碎";
       if (fx & 2) res += `，${tgt}速度、命中、闪避降低`;
       if (fx & 1) res += `，${tgt}被眩晕`;
-      return `<p class="${w ? "bad" : "good"}"><b>第${r}回合</b> ${who}${how}${res}<br><small>你 气血 ${U.fmt(ph)}/${U.fmt(b.me[1])} 法力 ${U.fmt(pm)}/${U.fmt(b.me[3])} · ${b.name} 气血 ${U.fmt(mh)}/${U.fmt(b.mob[1])} 法力 ${U.fmt(mm)}/${U.fmt(b.mob[3])}</small></p>`;
+      return `<p class="${w ? "bad" : "good"}"><b>第${r}回合</b> ${who}${how}${res}<br><small>你 生命 ${U.fmt(ph)}/${U.fmt(b.me[1])} 法力 ${U.fmt(pm)}/${U.fmt(b.me[3])} · ${b.name} 生命 ${U.fmt(mh)}/${U.fmt(b.mob[1])} 法力 ${U.fmt(mm)}/${U.fmt(b.mob[3])}</small></p>`;
     },
     // 战斗总览：先手、开战数值、双方各方式伤害合计
     battleHead(b) {
@@ -257,7 +257,7 @@ G.module({
       const sum = (w, k) => b.log.filter(x => x[1] === w && x[2] === k).reduce((t, x) => t + x[5], 0);
       const cnt = (w, k) => b.log.filter(x => x[1] === w && x[2] === k).length;
       const line = w => K.map((n, k) => cnt(w, k) ? `${n} ${cnt(w, k)} 次${k < 3 ? " " + U.fmt(sum(w, k)) : ""}` : "").filter(Boolean).join("，") || "无";
-      return `<p class="desc">${el ? `${b.name}为${el}属性 · ` : ""}${b.first ? `${b.name}先手` : "你先手"}<br>开战：你 气血 ${U.fmt(b.me[0])}/${U.fmt(b.me[1])} 法力 ${U.fmt(b.me[2])}/${U.fmt(b.me[3])} · ${b.name} 气血 ${U.fmt(b.mob[0])} 法力 ${U.fmt(b.mob[2])}<br>
+      return `<p class="desc">${el ? `${b.name}为${el}属性 · ` : ""}${b.first ? `${b.name}先手` : "你先手"}<br>开战：你 生命 ${U.fmt(b.me[0])}/${U.fmt(b.me[1])} 法力 ${U.fmt(b.me[2])}/${U.fmt(b.me[3])} · ${b.name} 生命 ${U.fmt(b.mob[0])} 法力 ${U.fmt(b.mob[2])}<br>
         你造成：${line(0)}<br>${b.name}造成：${line(1)}</p>`;
     },
     // 完整战斗过程弹窗：src = "cur" 本次探索 / "last" 上一次结果，i = 事件序号
@@ -401,7 +401,7 @@ G.module({
       if (!this.regionOpen(a, r)) return;
       if (!once && !this.isTrained(a, r)) return this.log("需先在此区域历练通过，才能自动探索。", "sys");
       if (s.explore) this.stopExplore("更换");
-      if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("气血不足三成，先休养片刻（每 10 秒恢复 1%）。", "sys");
+      if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("生命不足三成，先休养片刻（每 10 秒恢复 1%）。", "sys");
       s.explore = { map: a, reg: r, once: !!once, start: this.now(), step: 0, count: 0, loot: this.newLoot(), ev: [], last: "", plan: this.makePlan(), ms: this.exploreMs() };
       s.lastRun = null;
       this.exploreOpen = true;
@@ -429,7 +429,7 @@ G.module({
       if (n < 1) return;
       this.closeModal();
       if (s.explore) this.stopExplore("更换");
-      if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("气血不足三成，先休养片刻（每 10 秒恢复 1%）。", "sys");
+      if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("生命不足三成，先休养片刻（每 10 秒恢复 1%）。", "sys");
       this.cqUse(n);   // 开始先扣次数，停止时返还没走的（stopExplore）
       s.explore = { map: a, reg: r, once: false, cq: n, start: this.now(), step: 0, count: 0, loot: this.newLoot(), ev: [], last: "", plan: this.makePlan(), ms: this.exploreMs() };
       s.lastRun = null;
@@ -453,7 +453,7 @@ G.module({
       if (!x.plan) x.plan = this.makePlan(this.exCfg(x));
       const type = { n: "nothing", m: "monster", e: "elite", b: "boss", h: "herb", o: "ore" }[x.plan[x.step]] || "nothing";
       x.step++;
-      // 每走一步恢复气血、法力（HEAL_STEP + 宗门秘法「斗血 / 斗灵」）；战斗回合中不恢复
+      // 每走一步恢复生命、法力（HEAL_STEP + 宗门秘法「斗血 / 斗灵」）；战斗回合中不恢复
       const st = this.stats(), H = this.regenStep();
       this.s.hp = Math.min(st.hp, this.s.hp + st.hp * H.hp / 100); this.s.mana = Math.min(st.mana, this.s.mana + st.mana * H.mana / 100);
       let t = "", c = "", bd = null;
@@ -520,8 +520,8 @@ G.module({
           }
           if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) {
             const back = x.cq ? Math.max(0, x.cq - x.count) : 0; this.cqRefund(back);   // 出窍：已完成的扣掉，剩下的返还
-            this.log(`气血不足三成，自动探索停止（共探索 ${x.count} 次${back ? `，返还 ${back} 次出窍` : ""}）。`, "bad");
-            s.lastRun.title += "；气血不足三成，自动探索停止";
+            this.log(`生命不足三成，自动探索停止（共探索 ${x.count} 次${back ? `，返还 ${back} 次出窍` : ""}）。`, "bad");
+            s.lastRun.title += "；生命不足三成，自动探索停止";
             s.explore = null; break;
           }
           x.start = x.start + (x.step + (lost ? 1 : 0)) * x.ms; x.ms = this.exploreMs(); x.step = 0; x.loot = this.newLoot(); x.ev = []; x.plan = this.makePlan(this.exCfg(x));
@@ -616,7 +616,7 @@ G.module({
       if (!this.realmOK(d.realm)) return;
       if (!once && !m.trained.includes(i)) return this.log(`需先历练通过这处${L}，才能自动探索。`, "sys");
       if (this.mjLeft(i, k) <= 0) return this.log(`这处${L}今天已经进过了，明天再来。`, "sys");
-      if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("气血不足三成，先休养片刻。", "sys");
+      if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("生命不足三成，先休养片刻。", "sys");
       if (x) this.stopExplore("更换");
       this.mjStart(i, once, null, null, k); this.exploreOpen = true; this.after();
     },
@@ -625,7 +625,7 @@ G.module({
       const s = this.s, m = this.mjState(k), list = m.found.filter(i => m.trained.includes(i) && this.mjCanEnter(i, k)).sort((a, b) => a - b);
       if (this.cqBusy()) return;
       if (!list.length) return this.log(`没有可以探索的${this.mjLabel(k)}（要已发现、已历练通过、今天还没进过）。`, "sys");
-      if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("气血不足三成，先休养片刻。", "sys");
+      if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("生命不足三成，先休养片刻。", "sys");
       if (s.explore) this.stopExplore("更换");
       this.mjStart(list[0], false, list.slice(1), null, k); this.exploreOpen = true; this.after();
     },
@@ -638,7 +638,7 @@ G.module({
       }
       const q = (x.queue || []).filter(i => this.mjCanEnter(i, k));
       if (lost || !q.length) { s.explore = null; if (x.queue && x.queue.length && lost) s.lastRun.title += "；战败，一键探索停止"; return false; }
-      if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) { this.log("气血不足三成，一键探索停止。", "bad"); s.lastRun.title += "；气血不足三成，一键探索停止"; s.explore = null; return false; }
+      if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) { this.log("生命不足三成，一键探索停止。", "bad"); s.lastRun.title += "；生命不足三成，一键探索停止"; s.explore = null; return false; }
       this.mjStart(q[0], false, q.slice(1), x, k);
       return true;
     },
@@ -804,7 +804,7 @@ G.module({
 
     if (wt === "explore") {
       const st = this.stats();
-      const bars = `<div class="row small"><span>气血 ${U.fmt(s.hp)} / ${U.fmt(st.hp)}</span><span>斩妖 ${s.kills}</span></div>
+      const bars = `<div class="row small"><span>生命 ${U.fmt(s.hp)} / ${U.fmt(st.hp)}</span><span>斩妖 ${s.kills}</span></div>
         <div class="bar hp"><div style="width:${s.hp / st.hp * 100}%"></div></div>
         <div class="row small"><span>法力 ${U.fmt(s.mana)} / ${U.fmt(st.mana)}</span><span>灵石 ${U.fmt(s.stone)}</span></div>`;
       const status = (() => s.explore ? (() => { const x = s.explore, T = this.exCfg(x).TIME, L = x.loot;
