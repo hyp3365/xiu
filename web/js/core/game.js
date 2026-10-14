@@ -149,9 +149,17 @@ const G = {
   /* ---------- 主循环（每 0.2 秒检查一次） ---------- */
   loop() {
     if (this._stopped) return;
-    const now = Date.now();
-    if (now - this._lastTick >= DATA.TICK * 1000) {
-      this._lastTick = now;
+    const now = Date.now(), T = DATA.TICK * 1000;
+    if (now - this._lastTick >= T) {
+      // 浏览器切到后台会暂停/降频定时器：按实际经过时间补齐漏掉的结算，不再丢修为、气血、灵气
+      const n = Math.min(Math.floor((now - this._lastTick) / T), 3e6);
+      if (n > 1) {
+        this.silent = true;
+        try { for (let i = 1; i < n; i++) { this._simNow = this._lastTick + i * T; this.tickAll(true); } }
+        finally { this._simNow = 0; this.silent = false; }
+        this.dirty();
+      }
+      this._lastTick = now - (now - this._lastTick) % T;
       this.tickAll(false);
       this.save();
       this.render();
@@ -225,7 +233,7 @@ const G = {
     setInterval(() => { if (this.s && this.s.trib) this.advanceTrib(); if (this.tribOpen) this.showTrib(); }, 1000); // 雷劫每秒一回合
     setInterval(() => { if ((this.tab === "gongfa" && (this.s.gfStudy || this.s.cqStudy)) || (this.tab === "sect" && (this.sectTab === "affair" || this.sectTab === "alchemy" || (this.sectTab === "gfroom" && this.freeGfOn()))) || (this.tab === "world" && this.s.explore) || this.tab === "cave") this.render(); }, 1000);
     // 切到后台 / 关闭页面时立即上传
-    document.addEventListener("visibilitychange", () => { if (document.hidden && !this._stopped) { this.save(); API.beacon(this.s); } });
+    document.addEventListener("visibilitychange", () => { if (document.hidden && !this._stopped) { this.save(); API.beacon(this.s); } else if (!document.hidden) this.loop(); });
     window.addEventListener("pagehide", () => { if (!this._stopped) API.beacon(this.s); });
   },
 
