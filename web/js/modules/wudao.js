@@ -24,6 +24,8 @@ G.module({
       // 破军无视防御 %、金蝉伤害降低 %：按修满的星级相加
       const PJ = CFG.wudao.POJUN || {}, JC = CFG.wudao.JINCHAN || {}, full = k => { const r = []; for (let st = 1; st <= 10; st++) if ((this.s.gongfa[DATA.mifaId(st, k)] || 0) >= DATA.GONGFA_MAX) r.push(st); return r; };
       out.pojunIgn = Math.min(PJ.IGNORE_MAX === undefined ? 100 : PJ.IGNORE_MAX, full("pojun").reduce((t, st) => t + ((PJ.IGNORE || [])[st - 1] || 0), 0));
+      const pctOf = (k, arr) => full(k).reduce((t, st) => t + ((arr || [])[st - 1] || 0), 0);
+      out.expSpeedPct = pctOf("expSpeed", CFG.wudao.JUYUAN_PCT); out.bodySpeedPct = pctOf("bodySpeed", CFG.wudao.LIANTI_PCT);   // 聚元 / 炼体 圆满后额外 %
       const ZH = CFG.wudao.ZHENHUN || {}, zf = full("zhenhun"); out.zhenhunR = zf.length ? ((ZH.ROUNDS || [])[zf[zf.length - 1] - 1] || 3) : 0;
       out.jinchanCut = Math.max(JC.CUT_MIN || 0, (JC.CUT_START || 0) - full("jinchan").reduce((t, st) => t + ((JC.CUT_STEP || [])[st - 1] || 0), 0));
       return out;
