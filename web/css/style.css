@@ -260,3 +260,6 @@ button.sm{white-space:nowrap;flex-shrink:0}
 .fb-huo,.fb-huo .nm{color:#ff6a4a}.cell.fb-huo,.slot-eq.fb-huo,.ico.fb-huo{border-color:#a84a32}
 .fb-tu,.fb-tu .nm{color:#d8a868}.cell.fb-tu,.slot-eq.fb-tu,.ico.fb-tu{border-color:#8a6a3a}
 .fb-lei,.fb-lei .nm{color:#b98aff}.cell.fb-lei,.slot-eq.fb-lei,.ico.fb-lei{border-color:#6e4fa8}
+
+/* 未登录：只显示登录框，游戏界面全部隐藏 */
+body.nologin #app, body.nologin #toast { display: none; }
