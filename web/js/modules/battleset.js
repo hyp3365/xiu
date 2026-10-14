@@ -43,15 +43,30 @@ G.module({
     },
     bsetSet(k, v) { const b = this.bsetGet(); b[k] = k === "lowPct" || k === "keep" ? Math.max(0, Math.min(100, Math.floor(+v || 0))) : v; this.dirty(); this.render(); },
     bsetToggle(key) { const b = this.bsetGet(), i = b.off.indexOf(key); if (i >= 0) b.off.splice(i, 1); else b.off.push(key); this.dirty(); this.render(); },
+    // 游戏风格的下拉选择（代替浏览器自带的 select）：key 唯一名字，opts [[值, 显示]]，cur 当前值，fn(值) 选中后调用
+    selBox(key, opts, cur, fn) {
+      const esc = x => String(x).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+      (this._sels || (this._sels = {}))[key] = { opts, cur, fn };
+      const o = opts.find(x => String(x[0]) === String(cur)) || opts[0] || ["", ""];
+      return `<button class="sel" onclick="G.openSel('${esc(key)}')"><span>${esc(o[1])}</span><i>▾</i></button>`;
+    },
+    openSel(key) {
+      const o = (this._sels || {})[key]; if (!o) return;
+      const esc = x => String(x).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+      this.modal(`<div class="sel-list">${o.opts.map(([v, t], i) => `<button class="${String(v) === String(o.cur) ? "on" : ""}" onclick="G.pickSel('${key}',${i})">${esc(t)}</button>`).join("")}</div>
+        <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+      const cur = document.querySelector(".sel-list button.on"); if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: "center" });
+    },
+    pickSel(key, i) { const o = (this._sels || {})[key]; this.closeModal(); if (o && o.opts[i]) o.fn(o.opts[i][0]); },
     bsetView() {
       const b = this.bsetGet(), acts = this.bsetActs(), esc = x => String(x).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
       const opt = (opts, cur) => opts.map(([v, t]) => `<option value="${esc(v)}" ${String(v) === String(cur || "") ? "selected" : ""}>${esc(t)}</option>`).join("");
-      const sel = (k, opts) => `<select onchange="G.bsetSet('${k}',this.value)">${opt(opts, b[k])}</select>`;
+      const sel = (k, opts) => this.selBox("bs:" + k, opts, b[k], v => this.bsetSet(k, v));
       const num = k => `<input type="number" min="0" max="100" value="${b[k] || 0}" onchange="G.bsetSet('${k}',this.value)" style="width:5em">%`;
       const lost = key => key && key !== "auto" && key !== "atk" && !acts.some(a => a.key === key) ? `<small class="q5">已不在法术栏 / 法宝栏</small>` : "";
       const actOpts = acts.map(a => [a.key, a.name]);
       return `<div class="card"><h3>战斗设置</h3>
-        ${["第一回合", "第二回合", "第三回合"].map((t, i) => `<div class="line"><div>${t}${lost(b.r[i])}</div><select onchange="G.bsetRound(${i},this.value)">${opt([["auto", "按出手方式"], ["atk", "普通攻击"], ...actOpts], b.r[i])}</select></div>`).join("")}
+        ${["第一回合", "第二回合", "第三回合"].map((t, i) => `<div class="line"><div>${t}${lost(b.r[i])}</div>${this.selBox("bs:r" + i, [["auto", "按出手方式"], ["atk", "普通攻击"], ...actOpts], b.r[i], v => this.bsetRound(i, v))}</div>`).join("")}
         <div class="line"><div>出手方式</div>${sel("mode", [["rot", "法术、法宝轮流"], ["sp", "优先法术"], ["fb", "优先法宝"], ["max", "伤害最高优先"], ["cheap", "消耗最低优先"], ["list", "按列表顺序"]])}</div>
         <div class="line"><div>生命低于</div>${num("lowPct")}</div>
         <div class="line"><div>先使用${lost(b.lowKey)}</div>${sel("lowKey", [["", "不使用"], ...acts.filter(a => a.shield).map(a => [a.key, a.name]), ...acts.filter(a => !a.shield).map(a => [a.key, a.name])])}</div>
