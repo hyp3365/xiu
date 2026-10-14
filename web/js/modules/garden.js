@@ -39,7 +39,7 @@ G.module({
     // 生长时间缩短 %（灵植夫 + 秘法，有上限）、收获增加 %
     //   g = 药材序号：凡界药材按灵植夫，仙界药材（序号 ≥ 凡界种数）按仙植师（v42）
     plantCraft(g) { return g >= DATA.FAN_HERB_N ? "xling" : "ling"; },
-    plantCut(g = 0) { const k = this.plantCraft(g), L = CFG.craftsman[k]; return Math.min(CFG.wudao.TIME_CUT_MAX.plantTime || 80, (L.GROW_CUT[this.craftLv(k) - 1] || 0) + (this.mifaBonus().plantTime || 0)); },
+    plantCut(g = 0) { const k = this.plantCraft(g), L = CFG.craftsman[k]; return Math.min(CFG.wudao.TIME_CUT_MAX.plantTime || 80, (L.GROW_CUT[this.craftLv(k) - 1] || 0) + (this.mifaBonus().plantTime || 0) + this.servantPct("mu")); },
     plantYieldPct(g = 0) { const k = this.plantCraft(g); return (CFG.craftsman[k].YIELD_ADD[this.craftLv(k) - 1] || 0) + (this.mifaBonus().plantYield || 0); },
     fieldTime(g) { return Math.ceil(DATA.growTime(g) * (1 - this.plantCut(g) / 100)); },
     // 开始新的一季：扣灵气，不够就等待
@@ -60,8 +60,16 @@ G.module({
       if (!s.seeds.length) return this.log("没有种子，可在门派 → 宗门宝库兑换。", "sys");
       const seeds = s.seeds.slice().sort((a, b) => a - b).map(g => { const H = DATA.herbGrow(g), k = 1 + this.plantYieldPct(g) / 100;
         return `<button onclick="G.plantField(${i},${g})" ${f.g === g && f.next == null ? "disabled" : ""}><img class="mi" src="${DATA.matImg("herb", g)}" alt="" style="width:36px">${DATA.herbs[g]}<small>${U.dur(this.fieldTime(g) / 1000)} · ${Math.floor(H.yield[0] * k)}~${Math.floor(H.yield[1] * k)}株 · 灵气${U.fmt(H.ling)}</small></button>`; }).join("");
-      this.modal(`<h2>第 ${i + 1} 块灵田</h2>
-        <p>${f.g < 0 ? "空地，选择要种植的灵药：" : `正在种植 ${DATA.herbs[f.g]}${f.wait ? "（灵气不足，等待中）" : ""}${f.next != null ? `，本季结束后改种 ${DATA.herbs[f.next]}` : ""}。<br>更换种植类型要等这一季成熟后才生效。`}</p>
+      let info = "";
+      if (f.g >= 0) {
+        const T = this.fieldTime(f.g), now = this.now(), H = DATA.herbGrow(f.g), k = 1 + this.plantYieldPct(f.g) / 100, p = f.wait ? 0 : Math.min(100, (now - f.start) / T * 100);
+        info = `<div class="line"><div>剩余时间</div><b>${f.wait ? "灵气不足，等待中" : U.dur(Math.max(0, f.start + T - now) / 1000)}</b></div>
+          <div class="bar"><div style="width:${p}%"></div></div>
+          <div class="line"><div>产量</div><b>${Math.floor(H.yield[0] * k)}~${Math.floor(H.yield[1] * k)} 株</b></div>
+          ${f.next != null ? `<div class="line"><div>本季结束后改种</div><b>${DATA.herbs[f.next]}</b></div>` : ""}`;
+      }
+      this.modal(`<h2>${f.g < 0 ? "空地" : DATA.herbs[f.g]}</h2>${info}
+        <h3 style="margin-top:8px">${f.g < 0 ? "种植" : "更换种植"}</h3>
         <div class="room-grid">${seeds}</div>
         <div class="btns">${f.g >= 0 ? `<button onclick="G.clearField(${i})">铲除</button>` : ""}<button onclick="G.closeModal()">关闭</button></div>`);
     },
@@ -87,11 +95,8 @@ G.module({
 G.caveViews.garden = function () {
   const s = this.s, n = s.fields.length, now = Date.now();
   const cells = s.fields.map((f, i) => {
-    if (f.g < 0) return `<div class="slot-eq" onclick="G.openFieldMenu(${i})"><b>灵田${i + 1}</b>空地</div>`;
-    const T = this.fieldTime(f.g), p = f.wait ? 0 : Math.min(100, (now - f.start) / T * 100);
-    return `<div class="slot-eq q${Math.min(5, Math.floor(f.g / 2))}" onclick="G.openFieldMenu(${i})"><b>灵田${i + 1}</b><img class="si" src="${DATA.matImg("herb", f.g)}" alt="">${DATA.herbs[f.g]}
-      <br><span class="g">${f.wait ? "缺灵气" : U.dur(Math.max(0, f.start + T - now) / 1000 + 59)}</span>${f.next != null ? `<br><span class="g">→${DATA.herbs[f.next]}</span>` : ""}
-      <div class="bar"><div style="width:${p}%"></div></div></div>`;
+    if (f.g < 0) return `<div class="slot-eq field-cell" onclick="G.openFieldMenu(${i})"><span class="g">空地</span></div>`;
+    return `<div class="slot-eq field-cell q${Math.min(5, Math.floor(f.g / 2))}" onclick="G.openFieldMenu(${i})"><img class="si" src="${DATA.matImg("herb", f.g)}" alt=""><span>${DATA.herbs[f.g]}</span></div>`;
   }).join("");
   const full = n >= DATA.GARDEN_MAX, c = DATA.fieldCost(n);
   return this.craftsmanCard("ling") + (s.seeds.some(g => g >= DATA.FAN_HERB_N) ? this.craftsmanCard("xling") : "") + `<div class="card"><h3>${DATA.caveName("garden")}<small>灵田 ${n} / ${DATA.GARDEN_MAX} · 种子 ${s.seeds.length} 种 · 灵气 ${U.fmt(s.ling)}</small></h3>
