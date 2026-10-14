@@ -139,8 +139,8 @@ G.module({
         }
         return d;
       };
-      const BS = this.bsetGet(), off = BS.off || [], keepMp = st.mana * (BS.keep || 0) / 100;
-      let firstDone = false;
+      const BS = this.bsetGet(), off = BS.off || [], keepMp = st.mana * (BS.keep || 0) / 100, rKeys = BS.r || [];
+      let rDone = 0;
       // 出一招：a = acts[j]；res = true 可以动用保留的法力；放不出返回 null
       const cast = (j, res) => {
         const a = acts[j]; if (!a) return null;
@@ -159,31 +159,40 @@ G.module({
         return d;
       };
       const est = a => a.k === 1 ? Math.max(st.atk * BT.MIN_DMG, st.atk * a.sp.pct / 100 + a.sp.flat * this.lingenSpell(a.sp.el.id) - resOf(m, a.sp.el.id) * BT.DEF_RATE) : a.fb.shield ? -1 : fabaoDmg(a.fb);
+      const costOf = a => a.k === 1 ? a.sp.mana : a.fb.mana;
       const jOf = key => acts.findIndex(a => a.key === key);
+      const useJ = acts.map((a, j) => j).filter(j => !off.includes(acts[j].key));
+      const ptr = {};   // 各组轮流到第几个
+      const rot = (js, g) => {   // 在 js 里轮流，放出一招返回伤害，都放不出返回 null
+        let d; const p = ptr[g] || 0;
+        for (let k = 0; k < js.length; k++) { const i = (p + k) % js.length; if ((d = cast(js[i])) !== null) { ptr[g] = i + 1; return d; } }
+        return null;
+      };
+      const seq = js => { let d; for (const j of js) if ((d = cast(j)) !== null) return d; return null; };
+      const spJ = useJ.filter(j => acts[j].k === 1), fbJ = useJ.filter(j => acts[j].k === 2);
+      const ordIdx = key => { const i = (BS.order || []).indexOf(key); return i < 0 ? 999 + jOf(key) : i; };
       const myHit = () => {
         let d;
         // 气血低于设定：先用设定的防御法宝 / 法术（可动用保留法力）
         if (BS.lowPct > 0 && BS.lowKey && php < st.hp * BS.lowPct / 100 && (d = cast(jOf(BS.lowKey), true)) !== null) return d;
-        // 第一回合
-        if (!firstDone) {
-          firstDone = true;
-          if (BS.first === "atk") return hit(st, mE());
-          if (BS.first && BS.first !== "auto" && (d = cast(jOf(BS.first), true)) !== null) return d;
+        // 第一 ~ 三回合：每回合第一次出手按设置
+        if (rDone !== rounds) {
+          rDone = rounds;
+          const rk = rKeys[rounds - 1];
+          if (rk === "atk") return hit(st, mE());
+          if (rk && rk !== "auto" && (d = cast(jOf(rk), true)) !== null) return d;
         }
-        if (BS.mode === "atk") return hit(st, mE());
-        if (BS.mode === "max") {   // 每次放预计伤害最高、法力够的
-          const order = acts.map((a, j) => j).filter(j => !off.includes(acts[j].key) && est(acts[j]) >= 0).sort((x, y) => est(acts[y]) - est(acts[x]));
-          for (const j of order) if ((d = cast(j)) !== null) return d;
-          return hit(st, mE());
-        }
-        for (let k = 0; k < acts.length; k++) {
-          const j = (si + k) % acts.length;
-          if (off.includes(acts[j].key)) continue;
-          if ((d = cast(j)) !== null) { si = (j + 1) % acts.length; return d; }
-        }
-        return hit(st, mE());
+        const md = BS.mode || "rot";
+        if (md === "sp") d = rot(spJ, "s"), d = d !== null ? d : rot(fbJ, "f");
+        else if (md === "fb") d = rot(fbJ, "f"), d = d !== null ? d : rot(spJ, "s");
+        else if (md === "max") d = seq(useJ.filter(j => est(acts[j]) >= 0).sort((x, y) => est(acts[y]) - est(acts[x])));
+        else if (md === "cheap") d = seq(useJ.filter(j => est(acts[j]) >= 0).sort((x, y) => costOf(acts[x]) - costOf(acts[y])));
+        else if (md === "list") d = seq(useJ.slice().sort((x, y) => ordIdx(acts[x].key) - ordIdx(acts[y].key)));
+        else d = rot(useJ, "a");
+        return d !== null ? d : hit(st, mE());
       };
       let php = s.hp, mhp = m.hp, rounds = 0, dealt = 0, taken = 0;
+      const LX = CFG.wudao.LIANXING || {}, lxMe = this.mifaBonus().lianxing || 0, lxMob = LX.MOB || 0;
       const hp0 = s.hp, mana0 = s.mana, meFirst = st.speed >= m.speed;
       // 怪物出手：先判法术，再判法宝（都按 防御×RES_RATE + 该系抗性 减免），都没有就普通攻击
       let mSp = 0, mFb = 0;
@@ -198,10 +207,11 @@ G.module({
       const log = [], R = Math.round;
       //   v57 多两格：[10] 标记（1 眩晕对方 2 鼎减益 4 护盾破碎）、[11] 护盾抵挡的伤害；方式 3 = 祭起护盾（伤害格 = 护盾值）、4 = 被眩晕
       const rec = (w, d) => log.push([rounds, w, act.k, act.sp === undefined ? -1 : act.sp, act.f, R(d), R(Math.max(0, php)), R(s.mana), R(Math.max(0, mhp)), R(m.mana || 0), act.x || 0, R(act.ab || 0)]);
-      const me = () => { const d = myHit(); mhp -= d; dealt += d; rec(0, act.k === 3 ? shield.hp : d); };
-      const him = () => {
+      const me = (lx) => { const d = myHit(); if (lx) act.x = (act.x || 0) | 8; mhp -= d; dealt += d; rec(0, act.k === 3 ? shield.hp : d); };
+      const him = (lx) => {
         if (m.stun > 0) { m.stun--; act = { k: 4, f: 0 }; rec(1, 0); return; }   // 被眩晕：这次不能出手
         let d = mobHit();
+        if (lx) act.x = (act.x || 0) | 8;
         if (shield && act.f !== 1 && d > 0) {   // 护盾：先减盾防御，同属性再减 %、点，再减「受到伤害减少」，剩下先扣护盾值
           d = Math.max(0, d - shield.def * BT.DEF_RATE);
           if (act.k && m.el === shield.el) d = Math.max(0, d * (1 - shield.pct / 100) - shield.flat);
@@ -213,8 +223,11 @@ G.module({
       };
       while (php > 0 && mhp > 0 && rounds < BT.MAX_ROUNDS) {
         rounds++;
-        if (st.speed >= mE().speed) { me(); if (mhp > 0) him(); }   // 每回合按当前速度定先手（鼎会降低对方速度）
-        else { him(); if (php > 0) me(); }
+        // 连星秘法：这回合有几率再出手一次（[10] 标记 8）
+        const meT = () => { me(); if (mhp > 0 && php > 0 && Math.random() * 100 < lxMe) me(true); };
+        const himT = () => { him(); if (act.k !== 4 && mhp > 0 && php > 0 && Math.random() * 100 < lxMob) him(true); };
+        if (st.speed >= mE().speed) { meT(); if (mhp > 0) himT(); }   // 每回合按当前速度定先手（鼎会降低对方速度）
+        else { himT(); if (php > 0) meT(); }
         if (m.deb && --m.deb.left <= 0) m.deb = null;
       }
       s.hp = Math.max(1, php);
@@ -228,9 +241,9 @@ G.module({
     // 战斗过程每一下的文字（b = battle() 返回的 detail）
     battleRow(b, x) {
       const [r, w, k, sp, f, d, ph, pm, mh, mm, fx, ab] = x, el = b.el ? DATA.elById[b.el].name : "";
-      const who = w ? b.name : "你", tgt = w ? "你" : b.name;
+      const who = (w ? b.name : "你") + (fx & 8 ? "发动连星秘法，" : ""), tgt = w ? "你" : b.name;
       const how = k === 1 ? `施放${w ? `${el}系法术` : `《${b.sp[sp] || "法术"}》`}` : k === 2 ? (w || !b.sp[sp] ? "祭出法宝" : `祭出法宝「${b.sp[sp]}」`)
-        : k === 3 ? `祭起法宝「${b.sp[sp] || "盾"}」` : k === 4 ? "被眩晕" : "发动普通攻击";
+        : k === 3 ? `祭起法宝「${b.sp[sp] || "盾"}」` : k === 4 ? "被眩晕" : fx & 8 ? "普通攻击" : "发动普通攻击";
       let res = k === 3 ? `，护盾值 <b>${U.fmt(d)}</b>` : k === 4 ? "，无法行动" : f === 1 ? `，被${tgt}闪避` : `，${f === 2 ? "暴击！" : ""}对${tgt}造成 <b>${U.fmt(d)}</b> 伤害`;
       if (ab) res += `（护盾抵挡 ${U.fmt(ab)}）`;
       if (fx & 4) res += "，护盾破碎";
