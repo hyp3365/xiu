@@ -167,16 +167,16 @@ G.module({
     },
     giftAdminView() {
       const d = this.gd, a = this.giftFix(d.c, d.a), esc = x => String(x).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
-      const sel = (on, opts, cur) => `<select onchange="${on}">${opts.map(([v, t]) => `<option value="${esc(v)}" ${String(v) === String(cur) ? "selected" : ""}>${esc(t)}</option>`).join("")}</select>`;
+      const sel = (key, opts, cur, fn) => this.selBox(key, opts, cur, fn);
       const fields = this.giftFields(d.c, a).map(f => `<div class="row small"><span>${f.label}</span>${f.num
         ? `<input type="number" min="1" value="${a[f.k]}" oninput="G.gdNum('${f.k}',this.value)" style="width:8em">`
-        : sel(`G.gdSet('${f.k}',this.value)`, f.opts, a[f.k])}</div>`).join("");
+        : sel("gd:" + f.k, f.opts, a[f.k], v => this.gdSet(f.k, v))}</div>`).join("");
       const items = d.list.map((it, i) => `<div class="line"><div>${this.giftLabel(it)}</div><button class="sm" onclick="G.gdDel(${i})">移除</button></div>`).join("");
       const list = (this.giftList || []).map(g => `<div class="line"><div><b>${esc(g.code)}</b><small>已兑换 ${g.used} / ${g.uses} · ${(g.items || []).map(it => this.giftLabel(it)).join("、")}</small></div>
         <button class="sm" onclick="G.delGift('${esc(g.code).replace(/'/g, "\\'")}')">删除</button></div>`).join("");
       return `<div class="row" style="margin:6px 0"><b>生成礼包码</b><button class="sm" onclick="G.openGiftAdmin(false)">返回</button></div>
         <div class="card"><h3>添加物品</h3>
-          <div class="row small"><span>类别</span>${sel("G.gdCat(this.value)", this.giftCats(), d.c)}</div>${fields}
+          <div class="row small"><span>类别</span>${sel("gd:cat", this.giftCats(), d.c, v => this.gdCat(v))}</div>${fields}
           <div class="btns"><button onclick="G.gdAdd()">加入礼包</button></div></div>
         <div class="card"><h3>礼包物品<small>${d.list.length} 件</small></h3>${items || ""}
           <div class="row small"><span>兑换次数</span><input type="number" min="1" value="${d.uses}" oninput="G.gdUses(this.value)" style="width:8em"></div>
