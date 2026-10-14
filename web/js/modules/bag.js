@@ -422,7 +422,7 @@ G.module({
       const s = this.s, list = Object.keys(s.gongfa).filter(id => DATA.isSpell(id) && !s.spellSlots.includes(id)), r = rep === undefined ? "" : "," + rep;
       if (!list.length) return this.log(rep === undefined ? "没有可放入的法术，请先去门派功法殿学习。" : "没有可更换的法术。", "sys");
       this.modal(`<h2>${rep === undefined ? "放入" : "更换"}法术</h2>` + list.map(id => { const g = DATA.spellInfo(id, s.gongfa[id]);
-        return `<div class="line"><div>《${g.name}》<span class="tag">${g.tier.name}</span><small>${this.spellDmgTxt(g)} · 耗法力 ${U.fmt(g.mana)}</small></div>
+        return `<div class="line"><div>《${g.name}》<small>${this.spellDmgTxt(g)} · 耗法力 ${U.fmt(g.mana)}</small></div>
           <button class="sm" onclick="G.slotSpell('${id}'${r})">${rep === undefined ? "放入" : "更换"}</button></div>`; }).join("") + `<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
     slotSpell(id, rep) {
@@ -448,7 +448,7 @@ G.module({
     // 点法术栏：显示详细，可卸下
     openSpellSlot(i) {
       const id = this.s.spellSlots[i], g = id && DATA.spellInfo(id, this.s.gongfa[id]); if (!g) return;
-      this.modal(`<h2 class="q${g.tier.idx + 1}">《${g.name}》</h2><p>${g.el.name}系 · ${g.tier.name} · ${g.lv} 层<br>伤害 = ${this.spellDmgTxt(g)}<br>耗法力 ${U.fmt(g.mana)}</p>
+      this.modal(`<h2 class="q${g.tier.idx + 1}">《${g.name}》</h2><p>${g.el.name}系 · ${g.lv} 层<br>伤害 = ${this.spellDmgTxt(g)}<br>耗法力 ${U.fmt(g.mana)}</p>
         <div class="btns"><button onclick="G.unslotSpell(${i})">卸下</button><button onclick="G.openSpellPick(${i})">更换</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
   },
