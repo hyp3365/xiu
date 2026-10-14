@@ -23,7 +23,7 @@ G.module({
     xjTpl(t, a, seat) { const n = DATA.maps[a].name; return t.replace("{map}", n).replace("{short}", n.replace(/(天|地狱)$/, "") || n).replace("{seat}", seat || ""); },
     xjSeats(a) { const S = this.xjC(this.xjW(a)).SEATS || []; return (S.length === 1 ? S[0] : S[DATA.maps[a].wi || 0]) || []; },
     xjSeatName(a, i) { return this.xjTpl(this.xjC(this.xjW(a)).SEAT, a, this.xjSeats(a)[i]); },
-    xjDadi(a) { return this.xjTpl(this.xjC(this.xjW(a)).JZ, a); },
+    xjDadi(a) { const C = this.xjC(this.xjW(a)), L = C.JZS; return (L && L[DATA.maps[a].wi || 0]) || this.xjTpl(C.JZ, a); },
     xjTjName(a) { return this.xjC(this.xjW(a)).TJ || "天将"; },
     xjHallName(a, id) { const H = ((CFG.worldMaps || {})[this.xjW(a)] || {}).halls || {}; return this.xjTpl(H[id] || "", a); },
     // 挑战需要的境界（config/mobs.js 天将 / 星君 第 1 个数）
