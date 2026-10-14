@@ -124,8 +124,9 @@ G.module({
       let shield = null;
       // v25：炼制法宝也能祭出（金木水火土雷属性伤害，消耗法力）
       const fabaos = s.fabao.slice(0, this.slotCount()).filter(e => e && e.attrs).map(e => DATA.fabaoInfo(e));
-      // 玩家出手：法术、法宝按顺序轮流（法术在前），法力不足的跳过，都放不出就普通攻击
-      const acts = [...spells.map(sp => ({ k: 1, sp })), ...fabaos.map(fb => ({ k: 2, fb }))];
+      // 玩家出手：法术、法宝按顺序轮流（法术在前），法力不足的跳过，都放不出就普通攻击；战斗设置（battleset.js 的 s.bset）可改
+      const fbSlots = s.fabao.slice(0, this.slotCount()).map((e, i) => e && e.attrs ? i : -1).filter(i => i >= 0);
+      const acts = [...spells.map((sp, i) => ({ k: 1, sp, key: "sp:" + sp.id })), ...fabaos.map((fb, i) => ({ k: 2, fb, key: "fb:" + fbSlots[i] }))];
       const spNames = [...spells.map(sp => sp.name), ...fabaos.map(fb => fb.name)];
       // 法宝伤害：主伤害（攻击×% + 属性伤害）按「防御×RES_RATE + 该系抗性 − 无视」减免；追加伤害只按对方该系抗性减免
       const fabaoDmg = fb => {
@@ -138,22 +139,47 @@ G.module({
         }
         return d;
       };
+      const BS = this.bsetGet(), off = BS.off || [], keepMp = st.mana * (BS.keep || 0) / 100;
+      let firstDone = false;
+      // 出一招：a = acts[j]；res = true 可以动用保留的法力；放不出返回 null
+      const cast = (j, res) => {
+        const a = acts[j]; if (!a) return null;
+        const cost = a.k === 1 ? a.sp.mana : a.fb.mana;
+        if (a.k === 2 && a.fb.shield && shield) return null;   // 护盾还在：盾不用再祭
+        if (s.mana < cost || (!res && s.mana - cost < keepMp)) return null;
+        s.mana -= cost;
+        if (a.k === 1) { const sp = a.sp; return roll(st, mE(), Math.max(st.atk * BT.MIN_DMG, st.atk * sp.pct / 100 + sp.flat * this.lingenSpell(sp.el.id) - resOf(m, sp.el.id) * BT.DEF_RATE), 1, j); }
+        const fb = a.fb;
+        if (fb.shield) { shield = Object.assign({ el: fb.el }, fb.shield); act = { k: 3, sp: j, f: 0 }; return 0; }
+        const d = roll(st, mE(), fabaoDmg(fb), 2, j);
+        if (act.f !== 1) {
+          if (fb.ding) { m.deb = { speed: fb.ding.speed, hit: fb.ding.hit, dodge: fb.ding.dodge, left: fb.ding.rounds }; act.x = 2; }
+          if (fb.yin && Math.random() * 100 < fb.yin.chance) { m.stun = Math.max(m.stun || 0, fb.yin.rounds); act.x = (act.x || 0) | 1; }
+        }
+        return d;
+      };
+      const est = a => a.k === 1 ? Math.max(st.atk * BT.MIN_DMG, st.atk * a.sp.pct / 100 + a.sp.flat * this.lingenSpell(a.sp.el.id) - resOf(m, a.sp.el.id) * BT.DEF_RATE) : a.fb.shield ? -1 : fabaoDmg(a.fb);
+      const jOf = key => acts.findIndex(a => a.key === key);
       const myHit = () => {
+        let d;
+        // 气血低于设定：先用设定的防御法宝 / 法术（可动用保留法力）
+        if (BS.lowPct > 0 && BS.lowKey && php < st.hp * BS.lowPct / 100 && (d = cast(jOf(BS.lowKey), true)) !== null) return d;
+        // 第一回合
+        if (!firstDone) {
+          firstDone = true;
+          if (BS.first === "atk") return hit(st, mE());
+          if (BS.first && BS.first !== "auto" && (d = cast(jOf(BS.first), true)) !== null) return d;
+        }
+        if (BS.mode === "atk") return hit(st, mE());
+        if (BS.mode === "max") {   // 每次放预计伤害最高、法力够的
+          const order = acts.map((a, j) => j).filter(j => !off.includes(acts[j].key) && est(acts[j]) >= 0).sort((x, y) => est(acts[y]) - est(acts[x]));
+          for (const j of order) if ((d = cast(j)) !== null) return d;
+          return hit(st, mE());
+        }
         for (let k = 0; k < acts.length; k++) {
-          const j = (si + k) % acts.length, a = acts[j], cost = a.k === 1 ? a.sp.mana : a.fb.mana;
-          if (a.k === 2 && a.fb.shield && shield) continue;   // 护盾还在：盾不用再祭
-          if (s.mana >= cost) {
-            si = (j + 1) % acts.length; s.mana -= cost;
-            if (a.k === 1) { const sp = a.sp; return roll(st, mE(), Math.max(st.atk * BT.MIN_DMG, st.atk * sp.pct / 100 + sp.flat * this.lingenSpell(sp.el.id) - resOf(m, sp.el.id) * BT.DEF_RATE), 1, j); }
-            const fb = a.fb;
-            if (fb.shield) { shield = Object.assign({ el: fb.el }, fb.shield); act = { k: 3, sp: j, f: 0 }; return 0; }
-            const d = roll(st, mE(), fabaoDmg(fb), 2, j);
-            if (act.f !== 1) {
-              if (fb.ding) { m.deb = { speed: fb.ding.speed, hit: fb.ding.hit, dodge: fb.ding.dodge, left: fb.ding.rounds }; act.x = 2; }
-              if (fb.yin && Math.random() * 100 < fb.yin.chance) { m.stun = Math.max(m.stun || 0, fb.yin.rounds); act.x = (act.x || 0) | 1; }
-            }
-            return d;
-          }
+          const j = (si + k) % acts.length;
+          if (off.includes(acts[j].key)) continue;
+          if ((d = cast(j)) !== null) { si = (j + 1) % acts.length; return d; }
         }
         return hit(st, mE());
       };
@@ -760,6 +786,7 @@ G.module({
     const tabs = wid !== "fan" ? worlds : worlds + `<div class="sub-tabs">
       <button class="${wt === "explore" ? "active" : ""}" onclick="G.setWorldTab('explore')">${DATA.nmPick(CFG.names.worldTab, "explore", "历练")}</button>
       <button class="${wt === "shop" ? "active" : ""}" onclick="G.setWorldTab('shop')">${DATA.nmPick(CFG.names.worldTab, "shop", "坊市")}</button>
+      <button class="${wt === "battle" ? "active" : ""}" onclick="G.setWorldTab('battle')">战斗</button>
       <button class="${wt === "set" ? "active" : ""}" onclick="G.setWorldTab('set')">设置</button></div>`;
 
     if (wt === "explore") {
@@ -808,6 +835,7 @@ G.module({
       return tabs + bars + status + grid + (sel === "mj" ? this.mijingView() : this.regionsCard(sel));
     }
     if (wt === "shop") return tabs + this.shopView();
+    if (wt === "battle") return tabs + this.bsetView();
 
     if (this.giftPage && this.adminInfo && this.adminInfo.admin) return tabs + this.giftAdminView();
     if (this.adminInfo === undefined) { this.adminInfo = null; API.adminInfo().then(j => { this.adminInfo = j; this.render(); }).catch(() => {}); }
