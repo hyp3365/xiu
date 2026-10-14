@@ -49,7 +49,7 @@ CFG.worldMaps = {};
 
 /* ================= 仙界 xian（设计为散仙 11 起开放；目前测试中，open 和各地图进入境界（config/mobs.js 界主第 1 个数）暂设 0 练气） ================= */
 CFG.worldMaps.xian = {
-  open: { realm: 0 },   // 开放条件：玩家大境界 ≥ 0
+  open: { realm: 9 },   // 开放条件：玩家大境界 ≥ 0
   // 每张地图的 7 处地点：id 不要改，名字可以改；{map} = 地图名（玉皇天 → 玉皇天宫）；图片 img/hall_<id>.png；官位数值见 config/xingjun.js
   halls: { tg: "{map}宫", xj: "星君殿", gd: "功德司", shop: "坊市", lilian: "历练", wudao: "悟道碑", lingdi: "灵地" },   // 7 处地点名字（id 不要改）
   maps: [   // 10 张地图（顺序 = 第 1~10 张；字段见文件开头）
@@ -150,7 +150,7 @@ CFG.worldMaps.xian = {
 
 /* ================= 冥界 ming（散仙 11 起开放） ================= */
 CFG.worldMaps.ming = {
-  open: { realm: 0 },   // 开放条件：玩家大境界 ≥ 0（整个冥界的门槛；每张地图的进入境界在 config/mobs.js 的 界主 第 1 个数）
+  open: { realm: 9 },   // 开放条件：玩家大境界 ≥ 0（整个冥界的门槛；每张地图的进入境界在 config/mobs.js 的 界主 第 1 个数）
   // 每张地图的 7 处地点：id 不要改，名字可以改；{map} = 地图名；图片 img/hall_<id>.png；官位数值见 config/xingjun.js
   halls: { tg: "{short}冥宫", xj: "阎君殿", gd: "功德司", shop: "鬼市", lilian: "历练", wudao: "悟道碑", lingdi: "灵地" },   // 7 处地点名字（id 不要改）
   maps: [   // 10 张地图（顺序 = 第 1~10 张；字段见文件开头）
@@ -251,7 +251,7 @@ CFG.worldMaps.ming = {
 
 /* ================= 魔界 mo（天仙 14 起开放） ================= */
 CFG.worldMaps.mo = {
-  open: { realm: 14 },   // 开放条件：玩家大境界 ≥ 14
+  open: { realm: 10 },   // 开放条件：玩家大境界 ≥ 14
   // 每张地图的 7 处地点：id 不要改，名字可以改；{map} = 地图名；图片 img/hall_<id>.png；官位数值见 config/xingjun.js
   halls: { tg: "{map}魔宫", xj: "魔君殿", gd: "功德司", shop: "魔市", lilian: "历练", wudao: "悟道碑", lingdi: "灵地" },   // 7 处地点名字（id 不要改）
   maps: [   // 10 张地图（顺序 = 第 1~10 张；字段见文件开头）
