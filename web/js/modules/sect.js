@@ -25,13 +25,10 @@ G.module({
     rank: 0,          // 职务（DATA.ranks 下标）
     room: -1,         // 正在使用的修炼室（原练功房），-1 为未使用
     gfRoom: -1,       // v27：宗门练功房（加快功法修炼）
-    shopRoom: -1,     // v27：坊市修炼室
-    shopGfRoom: -1,   // v27：坊市练功房
     merit: 0,         // v27：功德
     salaryDay: "",    // 上次领取俸禄的日期
     affair: { task: -1, start: 0, count: 0 },     // 事务堂：正在循环执行的任务（-1 = 无）
-    tower: 0,         // 试炼塔已通关层数（当前门派星级，和 towers 同步，旧字段）
-    towers: {},       // v25：各星级试炼塔已通关层数 { 星级: 层数 }
+    towers: {},       // 各星级试炼塔已通关层数 { 星级: 层数 }
     rankPass: -1,     // 已通过考验、可以晋升的职务序号（-1 = 没有）
     freeCult: { day: "", used: 0, left: 0, on: false },   // 免费修炼室：今天用了几次、本次剩余修炼次数
     freeGf: { day: "", used: 0, end: 0 },
@@ -45,7 +42,6 @@ G.module({
   // 每 10 秒：事务堂任务到时间就结算一次，并自动开始下一次（离线也会补算）
   tick() {
     this.freeRoomDaily(); this.poolTick();
-    if (this.s.shopRoom >= 0 || this.s.shopGfRoom >= 0) { this.s.shopRoom = -1; this.s.shopGfRoom = -1; }   // v97：坊市修炼室 / 练功房已取消
     const s = this.s, a = s.affair;
     if (!s.sect || !a || a.task === undefined || a.task < 0) return;
     const t = DATA.affairs[a.task]; if (!t) { a.task = -1; return; }
@@ -65,15 +61,15 @@ G.module({
     gfRoomPct(i) { return DATA.gfRooms[i].pct; },   // v97：减少修炼时间 %，不乘星级
     gfRoomCost(i) { return DATA.gfRooms[i].cost; },   // v98：写多少就是多少，不乘星级
     gfRoomLocked(i) { return (DATA.gfRooms[i].rank || 0) > this.s.rank; },
-    // 当前练功房（宗门或坊市）：{ name, pct, cost, cur: "contrib"|"stone" } 或 null
-    // v97：pct = 减少修炼时间 %；mul = 修炼进度倍率 = 100 ÷ (100 − pct)；坊市练功房已取消
+    // 当前练功房：{ name, pct, mul, cost, cur: "contrib" } 或 null
+    // pct = 减少修炼时间 %；mul = 修炼进度倍率 = 100 ÷ (100 − pct)
     gfRoomNow() {
       const s = this.s, M = p => 100 / (100 - Math.min(95, Math.max(0, p)));
       if (this.freeGfOn()) { const p = this.freeGfPct(); return { name: CFG.sect.freeGfRoom.name, pct: p, mul: M(p), cost: 0, cur: "contrib", free: true }; }
       if (s.gfRoom >= 0 && s.sect && DATA.gfRooms[s.gfRoom]) { const p = this.gfRoomPct(s.gfRoom); return { name: DATA.gfRooms[s.gfRoom].name, pct: p, mul: M(p), cost: this.gfRoomCost(s.gfRoom), cur: "contrib" }; }
       return null;
     },
-    leaveGfRoom(why) { const r = this.gfRoomNow(); this.s.gfRoom = -1; this.s.shopGfRoom = -1; if (r && why) this.log(`${why}，已离开${r.name}。`, "bad"); this.dirty(); },
+    leaveGfRoom(why) { const r = this.gfRoomNow(); this.s.gfRoom = -1; if (r && why) this.log(`${why}，已离开${r.name}。`, "bad"); this.dirty(); },
     setSectStar(n) { this.sectStar = n; this.render(); },
     setSectTab(t) { this.sectTab = t; this.render(); },
 
@@ -81,8 +77,7 @@ G.module({
     joinSect(id) {
       const x = DATA.sectById[id];
       if (!this.realmOK(x.reqRealm)) return;
-      this.fixTower();
-      Object.assign(this.s, { sect: id, rank: 0, room: -1, rankPass: -1, tower: this.s.towers[x.star] || 0, affair: { task: -1, start: 0, count: 0 } });
+      Object.assign(this.s, { sect: id, rank: 0, room: -1, rankPass: -1, affair: { task: -1, start: 0, count: 0 } });
       this.sectTab = "hall";
       this.log(`你拜入${x.name}（${x.star}星），成为外门弟子。`, "gold"); this.after();
     },
@@ -138,7 +133,6 @@ G.module({
     },
 
     /* ---------- 功法殿 ---------- */
-    setLibTier(t) { this.libTier = t; this.render(); },
     setLibEl(e) { this.libEl = e; this.render(); },
     learnGongfa(id) {
       const g = DATA.skillInfo(id);
@@ -228,24 +222,12 @@ G.module({
     /* ---------- 练功房 ---------- */
     enterRoom(i) {
       if (this.s.room !== i && this.roomLocked(i)) return this.log(`需要职务【${DATA.ranks[DATA.rooms[i].rank].name}】。`, "sys");
-      this.s.room = this.s.room === i ? -1 : i; if (this.s.room >= 0) this.s.shopRoom = -1; this.after();
+      this.s.room = this.s.room === i ? -1 : i; this.after();
     },
     enterGfRoom(i) {
       if (this.s.gfRoom !== i && this.gfRoomLocked(i)) return this.log(`需要职务【${DATA.ranks[DATA.gfRooms[i].rank].name}】。`, "sys");
-      this.s.gfRoom = this.s.gfRoom === i ? -1 : i; if (this.s.gfRoom >= 0) this.s.shopGfRoom = -1; this.after();
+      this.s.gfRoom = this.s.gfRoom === i ? -1 : i; this.after();
     },
-    // 坊市修炼室 / 练功房（灵石）
-    enterShopRoom(i) { this.s.shopRoom = this.s.shopRoom === i ? -1 : i; if (this.s.shopRoom >= 0) this.s.room = -1; this.after(); },
-    enterShopGfRoom(i) { this.s.shopGfRoom = this.s.shopGfRoom === i ? -1 : i; if (this.s.shopGfRoom >= 0) this.s.gfRoom = -1; this.after(); },
-    shopRoomView(kind) {
-      const s = this.s, cult = kind === "cult", list = DATA.shopRooms[kind] || [], cur = cult ? s.shopRoom : s.shopGfRoom;
-      return `<div class="card"><h3>坊市${cult ? "修炼室" : "练功房"}<small>${cult ? "加快修炼 · 每次修炼消耗灵石" : "加快功法修炼 · 修炼功法时每 5 秒消耗灵石"} · 灵石 ${U.fmt(s.stone)}</small></h3>` +
-        list.map((r, i) => { const on = cur === i;
-          return `<div class="line"><div>${r.name}<span class="tag">+${U.num(r.pct)}%</span><small>${cult ? "每次修炼" : "每 5 秒"}消耗 ${U.fmt(r.cost)} 灵石</small></div>
-            <button class="sm ${on ? "on" : ""}" onclick="G.${cult ? "enterShopRoom" : "enterShopGfRoom"}(${i})">${on ? "使用中" : "进入"}</button></div>`; }).join("") +
-        `<p class="desc">和宗门的${cult ? "修炼室" : "练功房"}同时只能用一个。</p></div>`;
-    },
-
     /* ---------- 宗门宝库 ---------- */
     treasuryCost(it) { return it.kind === "chuqiao" ? this.cqCost() : it.cost; },
     // 元婴出窍秘法（config/sect.js 的 CFG.chuqiao）
@@ -357,12 +339,7 @@ G.module({
     },
 
     /* ---------- 试炼塔（v25：1~10 星，层数见 config/sect.js 的 sect.trial） ---------- */
-    // 旧存档：s.tower → s.towers[当前门派星级]
-    fixTower() {
-      const s = this.s; if (!s.towers) s.towers = {};
-      if (s.sect && s.tower > 0) { const st = this.sectInfo().star; s.towers[st] = Math.max(s.towers[st] || 0, s.tower); }
-    },
-    towerFloor() { this.fixTower(); return this.s.towers[this.sectInfo().star] || 0; },
+    towerFloor() { return this.s.towers[this.sectInfo().star] || 0; },
     towerMax() { return DATA.towerMax(this.sectInfo().star); },
     // 守关者属性 = 人物属性 × MULT × GROW^(层数-1)（config/sect.js 的 sect.tower）
     // v59：config/mobs.js 的 tower 有这个星级时按三个阶段算（每段从「起」渐变到「止」），没有才用旧算法
@@ -385,21 +362,6 @@ G.module({
       return { kind: "mijue" };
     },
     towerBonusText(b) { return !b ? "" : b.kind === "ring" ? DATA.ringName(b.r, 0) : b.kind === "rbp" ? DATA.ringBpName(b.g, b.r) : "试炼塔秘诀一本"; },
-    // 旧存档：旧版试炼塔秘诀（每星 4 本按层给）→ 新版每 10 层一本；已得的本数按通关层数算，旧的总层数分到这些书上（每本最多满层）
-    fixTowerBooks() {
-      const s = this.s, MAX = DATA.GONGFA_MAX, T = CFG.sect.trial, E = T.EVERY || 10;
-      for (let st = 1; st <= 10; st++) {
-        let old = 0; for (const t of DATA.ALL_TIERS) { const id = DATA.towerMijueId(st, t.id); if (s.gongfa[id]) { old += s.gongfa[id]; delete s.gongfa[id]; } }
-        if (!old) continue;
-        const r = (T.RING || [])[st - 1], M = DATA.towerBookCount(st);
-        let R = Math.min(M, Math.max(0, Math.floor(((s.towers || {})[st] || 0) / E) - (r !== undefined && r >= 0 ? 10 : 0)));
-        if (!R) R = Math.min(M, Math.ceil(old / MAX));
-        let extra = old - R;
-        for (let k = 1; k <= R; k++) { const id = DATA.towerBookId(st, k); if (!id) continue; const add = Math.max(0, Math.min(MAX - 1, extra)); s.gongfa[id] = Math.max(s.gongfa[id] || 0, 1 + add); extra -= add; }
-      }
-      if (s.gfQueue) s.gfQueue = s.gfQueue.filter(q => DATA.skillInfo(typeof q === "string" ? q : q.id));
-      if (s.gfStudy && !DATA.skillInfo(s.gfStudy.id)) s.gfStudy = null;
-    },
     // 试炼塔秘诀：每次给下一本（习得第 1 层，之后在「功法」页修炼升层）；本数给完后给灵石
     giveTowerMijue(star) {
       const s = this.s, M = DATA.towerBookCount(star);
@@ -443,7 +405,7 @@ G.module({
       const res = this.battle(m);
       let txt;
       if (res.win) {
-        this.s.towers[star] = f; this.s.tower = f;
+        this.s.towers[star] = f;
         txt = `${res.rounds}回合击败${star}星试炼塔第 ${f} 层守关者，获得 ${this.towerReward(f)}。`;
       } else { txt = `挑战试炼塔第 ${f} 层失败${res.timeout ? "（回合耗尽，未能击败）" : ""}。`; }
       this.after();
