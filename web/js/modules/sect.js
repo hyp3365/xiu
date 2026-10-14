@@ -42,6 +42,7 @@ G.module({
 
   // 每 10 秒：事务堂任务到时间就结算一次，并自动开始下一次（离线也会补算）
   tick() {
+    this.freeRoomDaily();
     const s = this.s, a = s.affair;
     if (!s.sect || !a || a.task === undefined || a.task < 0) return;
     const t = DATA.affairs[a.task]; if (!t) { a.task = -1; return; }
@@ -166,6 +167,13 @@ G.module({
     freeCultOn() { const f = this.s.freeCult; return !!(this.s.sect && f && f.on && f.left > 0); },
     freeGfOn() { const f = this.s.freeGf; return !!(this.s.sect && f && this.now() < f.end); },
     freeUsed(f) { return f && f.day === this.bjDay() ? f.used || 0 : 0; },
+    // 北京时间 0 点：正在用的免费修炼室恢复满次数、免费练功房恢复满时长（算作当天那一次）
+    freeRoomDaily() {
+      const s = this.s, day = this.bjDay(), D = 86400000, B = 8 * 3600000, mid = Math.floor((this.now() + B) / D) * D - B;   // 今天北京时间 0 点
+      const fc = s.freeCult, fg = s.freeGf;
+      if (fc && fc.day && fc.day !== day && fc.left > 0) { Object.assign(fc, { day, used: 1, left: CFG.sect.freeRoom.times }); this.dirty(); }
+      if (fg && fg.day && fg.day !== day && fg.end > mid) { Object.assign(fg, { day, used: 1, end: mid + CFG.sect.freeGfRoom.minutes * 60000 }); this.dirty(); }
+    },
     enterFreeRoom() {
       const s = this.s, C = CFG.sect.freeRoom;
       if (!s.freeCult) s.freeCult = { day: "", used: 0, left: 0, on: false };
