@@ -46,9 +46,9 @@ CFG.body = {
   LING_RATE: 2,       // 1 点肉身修为消耗几点灵气
 
   // ---------- 需要的气血（肉身修为，修炼攒够后才能突破，突破时扣掉） ----------
-  FIRST_EXP: 1000,     // 凡体 → 第一境界一层（T = 0）
-  NEED_BASE: 1800,    // 第一境界一层 → 二层（T = 1）
-  NEED_RATE: 1.386,   // 之后每层 × 这个倍率：NEED_BASE × NEED_RATE^(T-1)
+  FIRST_EXP: 500,     // 凡体 → 第一境界一层（T = 0）
+  NEED_BASE: 1000,    // 第一境界一层 → 二层（T = 1）
+  NEED_RATE: 1.142,   // 之后每层 × 这个倍率：NEED_BASE × NEED_RATE^(T-1)
 
   // ---------- 突破消耗 ----------
   STONE_BASE: 100, STONE_RATE: 1.2,                   // 灵石 = STONE_BASE 100 × STONE_RATE 1.2 ^T
