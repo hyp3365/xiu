@@ -185,7 +185,10 @@ G.module({
       const spm = g.kind === "sp" ? this.lingenSpell(g.el.id) : 1;   // 法术固定伤害的灵根倍率（只乘每层那部分，显示含加成后的数值）
       const cv = v => `<b class="${lg ? "gf-up" : "gf-base"}">${v}</b>`;
       const mfv = v => `${g.mk.sign}${U.num(v)}${g.mk.unit}`;
-      const desc = g.kind === "mf"
+      const xp = g.kind === "mf" ? ((CFG.wudao[g.mk.id === "expSpeed" ? "JUYUAN_PCT" : g.mk.id === "bodySpeed" ? "LIANTI_PCT" : ""] || [])[g.star - 1] || 0) : 0;   // 聚元 / 炼体 圆满额外 %
+      const desc = g.kind === "mf" && xp
+        ? `${g.label} ${mfv(g.value)}${max ? "" : `，下一层 ${mfv(g.next)}`}，圆满${max ? "" : "后"}再 +${U.num(xp)}%`
+        : g.kind === "mf"
         ? (g.mk.id === "explore" || g.mk.full ? `${g.label} ${max ? mfv(g.value) : `圆满后 ${mfv(g.perLv)}`}` : `${g.label} ${mfv(g.value)}${max ? "" : `，下一层 ${mfv(g.next)}`}`)
         : g.kind === "sp"
         ? `伤害 攻击×<b class="gf-base">${U.dec(g.pct) + "%"}</b> + ${cv(U.fmt(g.flat * spm))}${lgTxt}，耗法力 ${U.fmt(g.mana)}${max ? "" : `，下一层 +${cv(U.fmt(g.next * spm))}`}`
