@@ -18,12 +18,20 @@ G.module({
   id: "gongfa",
   tab: "gongfa",
 
-  defaults: () => ({ gongfa: {}, gfStudy: null, gfQueue: [] }),
+  defaults: () => ({ gongfa: {}, gfStudy: null, gfQueue: [], gfLearn: null }),   // gfLearn：正在学习（首次习得）{ id, end }
 
   // 每 10 秒结算修炼：按 5 秒一步扣修为、累计进度
   tick() {
     const s = this.s, STEP = DATA.STUDY_STEP * 1000;
     this.cqTick();   // 元婴出窍秘法修炼（sect.js）
+    const L = s.gfLearn;   // v93：学习功法 / 法术需要时间（config/gongfa.js 的 LEARN_MIN）
+    if (L && this.now() >= L.end) {
+      s.gfLearn = null; s.gongfa[L.id] = Math.max(1, s.gongfa[L.id] || 0);
+      const info = DATA.skillInfo(L.id, 1);
+      if (info && info.kind === "sp") this.autoSlotSpell(L.id);   // 法术栏有空位就自动放入（见 bag.js）
+      if (info) this.log(`习得《${info.name}》第 1 层，可在功法栏修炼提升。`, "gold");
+      this.dirty();
+    }
     if (!s.gfStudy) this.nextStudy();
     while (s.gfStudy) {
       const st = s.gfStudy;
@@ -45,20 +53,49 @@ G.module({
       // 完成，升一层
       s.gongfa[st.id] = (s.gongfa[st.id] || 1) + 1;
       const info = DATA.skillInfo(st.id, s.gongfa[st.id]);
-      this.log(`修炼有成，《${info.name}》（${info.tier.name}）提升至第 ${info.lv} 层！共消耗修为 ${U.fmt(st.spent)}${st.spentStone ? `、灵石 ${U.fmt(st.spentStone)}` : ""}。`, "gold");
+      this.log(`修炼有成，《${info.name}》提升至第 ${info.lv} 层！共消耗修为 ${U.fmt(st.spent)}${st.spentStone ? `、灵石 ${U.fmt(st.spentStone)}` : ""}。`, "gold");
       s.gfStudy = null; this.dirty();
       this.nextStudy(st.at);
     }
   },
 
   api: {
-    // 旧存档格式转换：v3 数组 → 对象；v4 无阶 id → 黄阶
+    // 开始学习（已付过贡献 / 灵石）：等 LEARN_MIN 分钟后习得第 1 层
+    startGfLearn(id) {
+      const g = DATA.skillInfo(id); if (!g) return;
+      this.s.gfLearn = { id, end: this.now() + DATA.gfLearnMin(g.star) * 60000 };
+      this.log(`开始学习《${g.name}》。`, "good");
+      this.tickAll(false);   // 时间为 0 时立刻学会
+    },
+    // 功法殿 / 坊市的学习按钮
+    gfLearnBtn(g, on, poor, word = "学习") {
+      const L = this.s.gfLearn;
+      if (this.hasGongfa(g.id)) return `<button class="sm" disabled>已学会</button>`;
+      if (L && L.id === g.id) return `<button class="sm" disabled>学习中 ${U.dur(Math.max(0, (L.end - this.now()) / 1000))}</button>`;
+      return `<button class="sm" onclick="${on}" ${L || poor ? "disabled" : ""}>${word}</button>`;
+    },
+    // v93：旧的玄 / 地 / 天阶 id 统一成一本（id 用 huang），同一本取最高层
+    gfNormId(id) {
+      if (typeof id !== "string") return id;
+      const p = id.split(":");
+      if (p[1] === "sp" && p.length === 4) p[3] = "huang";
+      else if (p.length === 3 && p[1] !== "mf" && !/^t\d+$/.test(p[0])) p[2] = "huang";   // 旧版试炼塔 t星级 留给 fixTowerBooks
+      return p.join(":");
+    },
+    // 旧存档格式转换：v3 数组 → 对象；v4 无阶 id → 黄阶；v93 四阶合并
     fixGongfa() {
       let g = this.s.gongfa;
       if (Array.isArray(g)) { const m = {}; g.forEach(id => { m[id.split(":").slice(0, 2).join(":")] = 1; }); g = m; }
       const m = {};
-      for (const id in g) m[id.split(":").length === 2 ? id + ":huang" : id] = g[id];
+      for (const id0 in g) { const id = this.gfNormId(id0.split(":").length === 2 ? id0 + ":huang" : id0); m[id] = Math.max(m[id] || 0, g[id0]); }
       this.s.gongfa = m;
+      const s = this.s, N = x => this.gfNormId(x), NK = k => typeof k === "string" && k.startsWith("sp:") ? "sp:" + N(k.slice(3)) : k;
+      if (s.gfStudy && s.gfStudy.id) s.gfStudy.id = N(s.gfStudy.id);
+      if (s.gfQueue) s.gfQueue = s.gfQueue.map(q => typeof q === "string" ? N(q) : q && q.id ? Object.assign(q, { id: N(q.id) }) : q);
+      if (s.gfLearn) s.gfLearn.id = N(s.gfLearn.id);
+      if (Array.isArray(s.spellSlots)) s.spellSlots = s.spellSlots.map(N).filter((x, i, a) => !x || a.indexOf(x) === i);
+      if (Array.isArray(s.tribSlots)) s.tribSlots = s.tribSlots.map(c => c && c.k === "sp" ? Object.assign(c, { id: N(c.id) }) : c);
+      if (s.bset) { const b = s.bset; if (b.r) b.r = b.r.map(NK); b.lowKey = NK(b.lowKey); if (b.order) b.order = [...new Set(b.order.map(NK))]; if (b.off) b.off = [...new Set(b.off.map(NK))]; }
       if (this.s.gfStudy && (this.s.gfStudy.id.split(":").length === 2 || this.s.gfStudy.done === undefined)) this.s.gfStudy = null; // 旧格式的修炼直接作废
       if (!this.s.gfQueue) this.s.gfQueue = [];
       delete this.s.gfActive;
@@ -161,7 +198,7 @@ G.module({
       html += `<div class="card"><h3>排队中<small>${s.gfQueue.length} / ${DATA.GF_QUEUE}${s.gfQueue.length ? ` · 全部完成约 ${this.countdown(acc)}` : ""}</small></h3>` +
         (s.gfQueue.length ? s.gfQueue.map((id, i) => {
           const q = DATA.skillInfo(id); if (!q) return "";
-          return `<div class="line"><div>${i + 1}. 《${q.name}》${q.noEl ? "" : `<span class="tag">${q.star}星</span><span class="tag">${q.tier.name}</span>`}<small>第 ${rows[i].lv} → ${rows[i].lv + 1} 层 · 需 ${this.countdown(rows[i].ms)} · 约 ${this.countdown(rows[i].acc)} 后完成</small></div><button class="sm" onclick="G.removeQueue(${i})">移除</button></div>`; }).join("")
+          return `<div class="line"><div>${i + 1}. 《${q.name}》${q.noEl ? "" : `<span class="tag">${q.star}星</span>`}<small>第 ${rows[i].lv} → ${rows[i].lv + 1} 层 · 需 ${this.countdown(rows[i].ms)} · 约 ${this.countdown(rows[i].acc)} 后完成</small></div><button class="sm" onclick="G.removeQueue(${i})">移除</button></div>`; }).join("")
           : `<p class="desc">队列为空。</p>`) + `</div>`;
       return html;
     },
