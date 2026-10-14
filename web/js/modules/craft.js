@@ -73,7 +73,8 @@ G.module({
     },
     ratePct(r) { return `${Math.round(r * 1000) / 10}%`; },
     // 秘法缩短时间 %（有上限）
-    mifaCut(kind) { const cap = (CFG.wudao.TIME_CUT_MAX || {})[kind]; const v = this.mifaBonus()[kind] || 0; return cap === undefined ? v : Math.min(cap, v); },
+    // 时间减少 % 合计 = 炉子% + 秘法%（相加，不相乘），最多 TIME_CUT_MAX
+    mifaCut(kind, add = 0) { const cap = (CFG.wudao.TIME_CUT_MAX || {})[kind]; const v = (this.mifaBonus()[kind] || 0) + add; return cap === undefined ? Math.min(100, v) : Math.min(cap, v); },
     // 技艺卡片（炼丹房、炼器室、灵药园顶部）
     craftsmanCard(k) {
       const C = CFG.craftsman, c = this.craftInfo(k), max = c.lv >= C.MAX, need = (C[k].EXP || C.EXP)[c.lv - 1] || 1, pg = k === "xling" ? DATA.FAN_HERB_N : 0;
@@ -217,7 +218,7 @@ G.module({
     forgePer(kind, g) {
       const base = kind === "eq" ? DATA.forgeEqTime(g) : kind === "ss" ? DATA.stoneTime(g) : kind === "ring" ? DATA.ringTime(g) : DATA.furnaceTime(kind, g);
       const xf = (kind === "xdan" || kind === "xqi") && this.s.furnaceUse.xqi >= 0;   // 仙炉：装有炼器仙炉时按炼器仙炉缩短
-      return Math.ceil(base * (1 - (xf ? DATA.furnaceBonus("xqi", this.s.furnaceUse.xqi) : DATA.furnaceBonus("qi", this.s.furnaceUse.qi)) / 100) * (1 - this.mifaCut("qiTime") / 100));
+      return Math.ceil(base * (1 - this.mifaCut("qiTime", xf ? DATA.furnaceBonus("xqi", this.s.furnaceUse.xqi) : DATA.furnaceBonus("qi", this.s.furnaceUse.qi)) / 100));
     },
     // 秘境专用材料：空间石要空间晶核；装备 / 戒指 / 法宝要耀石（config/forge.js 的 YAOSHI）→ [{ k, ft, n }]
     //   法宝用同属性耀石（q.el），装备、戒指任意一种（ft = -1）
@@ -386,7 +387,7 @@ G.module({
     },
 
     /* ---------- 炼丹 ---------- */
-    danPer(type, g) { const fk = DATA.danFu(type); return Math.ceil(DATA.danTime(type, g) * (1 - DATA.furnaceBonus(fk, this.s.furnaceUse[fk]) / 100) * (1 - this.mifaCut("danTime") / 100)); },
+    danPer(type, g) { const fk = DATA.danFu(type); return Math.ceil(DATA.danTime(type, g) * (1 - this.mifaCut("danTime", DATA.furnaceBonus(fk, this.s.furnaceUse[fk])) / 100)); },
     setDanTier(g) { this.danTier = g; this.render(); },
     // 丹药分类（config/alchemy.js 的 CATS）：0 = 现有丹方，其余暂时没有丹方
     setDanCat(k, c) { this[k] = c; this.render(); },
