@@ -38,9 +38,9 @@ G.module({
       let steps = Math.floor((this.now() - st.at) / STEP);
       if (steps <= 0) break;
       st.at += steps * STEP;
-      // v27：练功房（宗门扣贡献 / 坊市扣灵石）：进度 ×(1+pct%)，每步修为同比例多扣，总消耗不变
+      // 练功房（扣贡献）：减少修炼时间，进度 × mul，每步修为同比例多扣，总消耗不变
       let R = this.gfRoomNow();
-      if (R && R.cost > 0 && Math.floor(s[R.cur] / Math.max(1, R.cost)) < Math.min(steps, Math.ceil((st.total - st.done) / STEP))) { this.leaveGfRoom(R.cur === "stone" ? "灵石不足" : "门派贡献不足"); R = null; }
+      if (R && R.cost > 0 && Math.floor(s[R.cur] / Math.max(1, R.cost)) < Math.min(steps, Math.ceil((st.total - st.done) / STEP))) { this.leaveGfRoom("门派贡献不足"); R = null; }
       const mul = R ? R.mul : 1, per = st.per * mul;
       // 修为（秘法还要灵石）够几步就走几步
       const sp = (st.stone || 0) * mul;
@@ -74,33 +74,6 @@ G.module({
       if (L && L.id === g.id) return `<button class="sm" disabled>学习中 ${U.dur(Math.max(0, (L.end - this.now()) / 1000))}</button>`;
       return `<button class="sm" onclick="${on}" ${L || poor ? "disabled" : ""}>${word}</button>`;
     },
-    // v93：旧的玄 / 地 / 天阶 id 统一成一本（id 用 huang），同一本取最高层
-    gfNormId(id) {
-      if (typeof id !== "string") return id;
-      const p = id.split(":");
-      if (p[1] === "sp" && p.length === 4) p[3] = "huang";
-      else if (p.length === 3 && p[1] !== "mf" && !/^t\d+$/.test(p[0])) p[2] = "huang";   // 旧版试炼塔 t星级 留给 fixTowerBooks
-      return p.join(":");
-    },
-    // 旧存档格式转换：v3 数组 → 对象；v4 无阶 id → 黄阶；v93 四阶合并
-    fixGongfa() {
-      let g = this.s.gongfa;
-      if (Array.isArray(g)) { const m = {}; g.forEach(id => { m[id.split(":").slice(0, 2).join(":")] = 1; }); g = m; }
-      const m = {};
-      for (const id0 in g) { const id = this.gfNormId(id0.split(":").length === 2 ? id0 + ":huang" : id0); m[id] = Math.max(m[id] || 0, g[id0]); }
-      this.s.gongfa = m;
-      const s = this.s, N = x => this.gfNormId(x), NK = k => typeof k === "string" && k.startsWith("sp:") ? "sp:" + N(k.slice(3)) : k;
-      if (s.gfStudy && s.gfStudy.id) s.gfStudy.id = N(s.gfStudy.id);
-      if (s.gfQueue) s.gfQueue = s.gfQueue.map(q => typeof q === "string" ? N(q) : q && q.id ? Object.assign(q, { id: N(q.id) }) : q);
-      if (s.gfLearn) s.gfLearn.id = N(s.gfLearn.id);
-      if (Array.isArray(s.spellSlots)) s.spellSlots = s.spellSlots.map(N).filter((x, i, a) => !x || a.indexOf(x) === i);
-      if (Array.isArray(s.tribSlots)) s.tribSlots = s.tribSlots.map(c => c && c.k === "sp" ? Object.assign(c, { id: N(c.id) }) : c);
-      if (s.bset) { const b = s.bset; if (b.r) b.r = b.r.map(NK); b.lowKey = NK(b.lowKey); if (b.order) b.order = [...new Set(b.order.map(NK))]; if (b.off) b.off = [...new Set(b.off.map(NK))]; }
-      if (this.s.gfStudy && (this.s.gfStudy.id.split(":").length === 2 || this.s.gfStudy.done === undefined)) this.s.gfStudy = null; // 旧格式的修炼直接作废
-      if (!this.s.gfQueue) this.s.gfQueue = [];
-      delete this.s.gfActive;
-    },
-
     // 所有已学功法的加成合计（法术不算）
     gongfaBonus() {
       const b = { def: 0, atk: 0, hp: 0, cultivate: 0, hit: 0, dodge: 0, mana: 0, body: 0, res: {} };   // body：肉身秘诀加的肉身修炼速度 // res：真诀加的各系抗性
