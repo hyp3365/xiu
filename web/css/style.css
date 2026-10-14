@@ -252,3 +252,11 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24
 button.sm{white-space:nowrap;flex-shrink:0}
 .line>div:first-child{min-width:0;flex:1 1 auto}
 .line>button,.line>div:last-child>button{white-space:nowrap;flex-shrink:0}
+/* 法宝：按属性（金木水火土雷）显示颜色，和法术一样不褪色 */
+.fbel.eqt0 img,img.fbel.eqt0,.fbel.eqt1 img,img.fbel.eqt1,.fbel.eqt2 img,img.fbel.eqt2{filter:none}
+.fb-jin,.fb-jin .nm{color:#f0d060}.cell.fb-jin,.slot-eq.fb-jin,.ico.fb-jin{border-color:#a8903a}
+.fb-mu,.fb-mu .nm{color:#6fd07a}.cell.fb-mu,.slot-eq.fb-mu,.ico.fb-mu{border-color:#3f8a4a}
+.fb-shui,.fb-shui .nm{color:#5fb0ff}.cell.fb-shui,.slot-eq.fb-shui,.ico.fb-shui{border-color:#3a6ea8}
+.fb-huo,.fb-huo .nm{color:#ff6a4a}.cell.fb-huo,.slot-eq.fb-huo,.ico.fb-huo{border-color:#a84a32}
+.fb-tu,.fb-tu .nm{color:#d8a868}.cell.fb-tu,.slot-eq.fb-tu,.ico.fb-tu{border-color:#8a6a3a}
+.fb-lei,.fb-lei .nm{color:#b98aff}.cell.fb-lei,.slot-eq.fb-lei,.ico.fb-lei{border-color:#6e4fa8}
