@@ -16,6 +16,10 @@
   GET  /api/admin/gifts     管理员：礼包码列表 {list:[{code, items, uses, used, created}]}
   POST /api/admin/gift      管理员：生成礼包码 {code?, items, uses} → {code}（code 不填自动生成）
   POST /api/admin/gift/del  管理员：删除礼包码 {code}
+  GET  /api/admin/users     管理员：账号列表 {reg_open, list:[{id, username, created, updated, admin}]}
+  POST /api/admin/reg       管理员：开启 / 关闭注册 {open: true/false}
+  POST /api/admin/user/del  管理员：删除账号 {id}（连同存档、登录令牌；管理员账号不能删）
+  POST /api/password        修改密码 {old, new}（Header X-Token；改完其他设备要重新登录）
   POST /api/gift            兑换礼包码 {code} → {items}（每个账号每个码一次，次数用完失效）
                           管理员账号：环境变量 XIU_ADMIN（多个用逗号隔开），没设置就是第 1 个注册的账号
 
@@ -92,7 +96,19 @@ def init_db():
             at INTEGER NOT NULL,
             PRIMARY KEY(code, user_id)
         );
+        CREATE TABLE IF NOT EXISTS settings(
+            k TEXT PRIMARY KEY,
+            v TEXT
+        );
         """)
+
+
+def reg_open(conn):
+    """是否允许注册（默认开启；还没有任何账号时总是允许，保证能注册第一个管理员）。"""
+    row = conn.execute("SELECT v FROM settings WHERE k='reg_open'").fetchone()
+    if not row or row["v"] != "0":
+        return True
+    return not conn.execute("SELECT 1 FROM users LIMIT 1").fetchone()
 
 
 def hash_pw(password, salt):
@@ -177,6 +193,15 @@ class Handler(BaseHTTPRequestHandler):
 
     # ---------- GET ----------
     def do_GET(self):
+        if self.route() == "admin/users":
+            with db() as c:
+                if not is_admin(c, user_by_token(c, self.headers.get("X-Token"))):
+                    return self.send(403, {"error": "只有管理员可以查看"})
+                rows = c.execute("SELECT u.id, u.username, u.created, s.updated FROM users u "
+                                 "LEFT JOIN saves s ON s.user_id=u.id ORDER BY u.id").fetchall()
+                lst = [{"id": r["id"], "username": r["username"], "created": r["created"], "updated": r["updated"] or 0,
+                        "admin": is_admin(c, r["id"])} for r in rows]
+                return self.send(200, {"reg_open": reg_open(c), "list": lst})
         if self.route() == "admin/gifts":
             with db() as c:
                 if not is_admin(c, user_by_token(c, self.headers.get("X-Token"))):
@@ -225,6 +250,8 @@ class Handler(BaseHTTPRequestHandler):
             with _lock, db() as c:
                 row = c.execute("SELECT * FROM users WHERE username=?", (u,)).fetchone()
                 if r == "register":
+                    if not reg_open(c):
+                        return self.send(403, {"error": "暂未开放注册"})
                     if row:
                         return self.send(409, {"error": "账号已存在"})
                     salt = secrets.token_hex(16)
@@ -247,6 +274,44 @@ class Handler(BaseHTTPRequestHandler):
                 c.execute("INSERT INTO saves(user_id,data,updated) VALUES(?,?,?) "
                           "ON CONFLICT(user_id) DO UPDATE SET data=excluded.data, updated=excluded.updated",
                           (uid, None if save is None else json.dumps(save, ensure_ascii=False, separators=(",", ":")), int(time.time())))
+            return self.send(200, {"ok": True})
+
+        if r == "password":
+            old = str(data.get("old", "")); new = str(data.get("new", ""))
+            if len(new) < 6:
+                return self.send(400, {"error": "新密码至少 6 位"})
+            token = self.headers.get("X-Token")
+            with _lock, db() as c:
+                uid = user_by_token(c, token)
+                if not uid:
+                    return self.send(401, {"error": "请重新登录"})
+                row = c.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+                if not row or not hmac.compare_digest(row["pw_hash"], hash_pw(old, row["salt"])):
+                    return self.send(400, {"error": "原密码错误"})
+                salt = secrets.token_hex(16)
+                c.execute("UPDATE users SET pw_hash=?, salt=? WHERE id=?", (hash_pw(new, salt), salt, uid))
+                c.execute("DELETE FROM tokens WHERE user_id=? AND token<>?", (uid, token))
+            return self.send(200, {"ok": True})
+
+        if r in ("admin/reg", "admin/user/del"):
+            with _lock, db() as c:
+                if not is_admin(c, user_by_token(c, self.headers.get("X-Token"))):
+                    return self.send(403, {"error": "只有管理员可以操作"})
+                if r == "admin/reg":
+                    c.execute("INSERT INTO settings(k,v) VALUES('reg_open',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v",
+                              ("1" if data.get("open") else "0",))
+                    return self.send(200, {"ok": True, "reg_open": bool(data.get("open"))})
+                try:
+                    tid = int(data.get("id"))
+                except (TypeError, ValueError):
+                    return self.send(400, {"error": "账号不对"})
+                if not c.execute("SELECT 1 FROM users WHERE id=?", (tid,)).fetchone():
+                    return self.send(404, {"error": "账号不存在"})
+                if is_admin(c, tid):
+                    return self.send(400, {"error": "管理员账号不能删除"})
+                for t in ("tokens", "saves", "gift_used"):
+                    c.execute(f"DELETE FROM {t} WHERE user_id=?", (tid,))
+                c.execute("DELETE FROM users WHERE id=?", (tid,))
             return self.send(200, {"ok": True})
 
         if r in ("admin/gift", "admin/gift/del"):
