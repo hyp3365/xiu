@@ -228,8 +228,8 @@ CFG.sect.rankTrial = {
  * rank 需要的职务序号，不写 = 所有人可用；keys = 这个池子加哪些属性（hp 气血 atk 攻击 def 防御 dodge 闪避 res 抗性 hit 命中 mana 法力 crit 暴击%）
  * 泡完增加 = GAIN[宗门星级 − 1][池子序号]，每格的数字顺序和这个池子的 keys 一样（人物境界不影响） */
 CFG.sect.pool = {
-  name: "练体池",
-  MINUTES: 30,
+  name: "练体池",   
+  MINUTES: 1,       // 进入练体池时间分钟
   DAILY: 1,
   STAR_MULT: [   // 练体池贡献的星级倍率（只管练体池）
     1,     // 1 星宗门
