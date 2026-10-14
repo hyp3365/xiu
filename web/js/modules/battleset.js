@@ -5,7 +5,7 @@
  *   r       第一 ~ 三回合（每回合第一次出手）：[ "auto" 按出手方式 / "atk" 普通攻击 / "sp:法术id" / "fb:法宝栏序号" ] × 3
  *   mode    出手方式："rot" 法术、法宝轮流 / "sp" 优先法术 / "fb" 优先法宝 / "max" 伤害最高优先 / "cheap" 消耗最低优先 / "list" 按列表顺序
  *   order   列表顺序 [key]（「按列表顺序」用）
- *   lowPct  气血低于百分之几时（0 = 不用）……
+ *   lowPct  生命低于百分之几时（0 = 不用）……
  *   lowKey  ……先用这个法宝 / 法术（例如盾）；可以动用保留的法力
  *   keep    保留法力 %：平时出招后法力不能低于法力上限的这个比例（留给第一回合和低血时用）
  *   off     不使用的法术 / 法宝 [key]
@@ -53,7 +53,7 @@ G.module({
       return `<div class="card"><h3>战斗设置</h3>
         ${["第一回合", "第二回合", "第三回合"].map((t, i) => `<div class="line"><div>${t}${lost(b.r[i])}</div><select onchange="G.bsetRound(${i},this.value)">${opt([["auto", "按出手方式"], ["atk", "普通攻击"], ...actOpts], b.r[i])}</select></div>`).join("")}
         <div class="line"><div>出手方式</div>${sel("mode", [["rot", "法术、法宝轮流"], ["sp", "优先法术"], ["fb", "优先法宝"], ["max", "伤害最高优先"], ["cheap", "消耗最低优先"], ["list", "按列表顺序"]])}</div>
-        <div class="line"><div>气血低于</div>${num("lowPct")}</div>
+        <div class="line"><div>生命低于</div>${num("lowPct")}</div>
         <div class="line"><div>先使用${lost(b.lowKey)}</div>${sel("lowKey", [["", "不使用"], ...acts.filter(a => a.shield).map(a => [a.key, a.name]), ...acts.filter(a => !a.shield).map(a => [a.key, a.name])])}</div>
         <div class="line"><div>保留法力</div>${num("keep")}</div></div>
         <div class="card"><h3>法术、法宝列表</h3>${this.bsetSorted().map((a, i, L) => { const on = !b.off.includes(a.key), k = esc(a.key);
