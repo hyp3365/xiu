@@ -85,8 +85,9 @@ G.module({
     // 肉身突破加的属性合计：第 k 次加 数值 × 成长^(k-1)
     bodyBonus() {
       const n = (this.s.bodyL === undefined ? -1 : this.s.bodyL) + 1, G0 = CFG.body.GAIN || {}, out = { hp: 0, atk: 0, def: 0, mana: 0, speed: 0, hit: 0, dodge: 0, crit: 0, res: 0 };
+      const pg = this.s.poolGain || {}; for (const k in out) out[k] += pg[k] || 0;   // 宗门练体池加的（sect.js）
       if (n <= 0) return out;
-      for (const k in out) { const g = G0[k]; if (!g) continue; const [v, r] = g; out[k] = r === 1 ? v * n : v * (Math.pow(r, n) - 1) / (r - 1); }
+      for (const k in out) { const g = G0[k]; if (!g) continue; const [v, r] = g; out[k] += r === 1 ? v * n : v * (Math.pow(r, n) - 1) / (r - 1); }
       return out;
     },
     bodyView() {
