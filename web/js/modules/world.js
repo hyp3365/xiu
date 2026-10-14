@@ -809,13 +809,15 @@ G.module({
     }
     if (wt === "shop") return tabs + this.shopView();
 
+    if (this.giftPage && this.adminInfo && this.adminInfo.admin) return tabs + this.giftAdminView();
     if (this.adminInfo === undefined) { this.adminInfo = null; API.adminInfo().then(j => { this.adminInfo = j; this.render(); }).catch(() => {}); }
     const A = this.adminInfo, upd = A && A.admin ? `<div class="card"><h3>游戏更新<small>管理员</small></h3>
       <p class="desc">当前版本：${A.version || "未知"}</p>
       <div class="btns"><button class="primary" onclick="G.webUpdate()" ${this.updating ? "disabled" : ""}>${this.updating ? "更新中…" : "从 GitHub 更新"}</button>
       <button onclick="location.reload()">刷新页面</button></div>
-      ${A.log ? `<div class="explore-log" style="white-space:pre-wrap;font-size:11px">${A.log.replace(/</g, "&lt;")}</div>` : ""}</div>` : "";
-    return tabs + upd + `<div class="card"><h3>账号<small>${API.user}</small></h3>
+      ${A.log ? `<div class="explore-log" style="white-space:pre-wrap;font-size:11px">${A.log.replace(/</g, "&lt;")}</div>` : ""}</div>
+      <div class="card"><h3>礼包码<small>管理员</small></h3><div class="btns"><button class="primary" onclick="G.openGiftAdmin(true)">生成礼包码</button></div></div>` : "";
+    return tabs + upd + this.giftRedeemCard() + `<div class="card"><h3>账号<small>${API.user}</small></h3>
       <p class="desc">存档保存在服务器，换手机、关浏览器都不会丢。离线期间修炼、聚灵阵持续进行，不封顶。</p>
       <div class="btns"><button onclick="G.save(true)">立即同步</button><button onclick="G.logout()">退出登录</button>
       <button onclick="G.restart()">删档重来</button></div></div>`;
