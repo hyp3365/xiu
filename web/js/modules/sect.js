@@ -113,7 +113,7 @@ G.module({
       if (!this.realmOK(this.rankReqRealm(i))) return;
       const c = this.rankTrialCost(i);
       if (s.contrib < c) return this.log(`贡献不足，参加考验需要 ${U.fmt(c)}。`, "sys");
-      if (s.hp < this.stats().hp * CFG.battle.TOWER_HP_MIN) return this.log("气血不足三成，先休养片刻。", "sys");
+      if (s.hp < this.stats().hp * CFG.battle.TOWER_HP_MIN) return this.log("生命不足三成，先休养片刻。", "sys");
       s.contrib -= c;
       const res = this.battle(this.makeRankGuard(i));
       let txt;
@@ -184,15 +184,15 @@ G.module({
       if (this.poolUsed() >= P.DAILY) return this.log(`${P.name}今天已用过。`, "sys");
       const c = this.poolCost(i);
       if (s.contrib < c.contrib) return this.log("门派贡献不足。", "sys");
-      if (s.hp <= c.hp) return this.log("气血不足。", "sys");
-      s.contrib -= c.contrib; s.hp -= c.hp;
+      if ((s.bodyExp || 0) < c.hp) return this.log("气血不足。", "sys");   // 消耗肉身气血
+      s.contrib -= c.contrib; s.bodyExp -= c.hp;
       s.pool = { i, end: this.now() + P.MINUTES * 60000, gain: this.poolGainOf(i), day: this.bjDay(), used: this.poolUsed() + 1 };
       this.log(`进入${d.name}，消耗${c.contrib ? `贡献 ${U.fmt(c.contrib)}、` : ""}气血 ${U.fmt(c.hp)}。`, "good"); this.after();
     },
     poolTick() {
       const s = this.s, p = s.pool; if (!p || !p.end || this.now() < p.end) return;
       if (!s.poolGain) s.poolGain = {};
-      const names = { hp: "气血", atk: "攻击", def: "防御", mana: "法力", hit: "命中", dodge: "闪避", crit: "暴击%", res: "抗性" }, txt = [];
+      const names = { hp: "生命", atk: "攻击", def: "防御", mana: "法力", hit: "命中", dodge: "闪避", crit: "暴击%", res: "抗性" }, txt = [];
       for (const k in p.gain || {}) { s.poolGain[k] = (s.poolGain[k] || 0) + p.gain[k]; txt.push(`${names[k] || k} +${U.fmt(p.gain[k])}`); }
       p.end = 0; this.dirty();
       this.log(`${(CFG.sect.pool.list[p.i] || {}).name || CFG.sect.pool.name}修炼完毕，肉身 ${txt.join("、")}。`, "gold");
@@ -422,7 +422,7 @@ G.module({
     challengeTower() {
       const star = this.sectInfo().star, f = this.towerFloor() + 1; if (f > this.towerMax()) return;
       const st = this.stats();
-      if (this.s.hp < st.hp * CFG.battle.TOWER_HP_MIN) return this.log("气血不足三成，先休养片刻。", "sys");
+      if (this.s.hp < st.hp * CFG.battle.TOWER_HP_MIN) return this.log("生命不足三成，先休养片刻。", "sys");
       const m = this.makeTowerGuard(f);
       const res = this.battle(m);
       let txt;
@@ -539,7 +539,7 @@ G.module({
       const P = CFG.sect.pool, p = s.pool, on = this.poolOn(), done = !on && this.poolUsed() >= P.DAILY;
       h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "pool", P.name)}<small>每天 ${P.DAILY} 次 · 每次 ${P.MINUTES} 分钟</small></h3>` + P.list.map((d, i) => {
         const me = on && p.i === i, lock = (d.rank || 0) > s.rank, c = this.poolCost(i), gn = this.poolGainOf(i);
-        const gt = Object.keys(gn).map(k => `${{ hp: "气血", atk: "攻击", def: "防御", mana: "法力", hit: "命中", dodge: "闪避", crit: "暴击%", res: "抗性" }[k] || k} +${U.fmt(gn[k])}`).join(" ");
+        const gt = Object.keys(gn).map(k => `${{ hp: "生命", atk: "攻击", def: "防御", mana: "法力", hit: "命中", dodge: "闪避", crit: "暴击%", res: "抗性" }[k] || k} +${U.fmt(gn[k])}`).join(" ");
         return `<div class="line"><div>${d.name}${d.rank ? `<span class="tag">${DATA.ranks[d.rank].name}专用</span>` : ""}<small>${me ? `剩余 ${U.dur(Math.ceil((p.end - this.now()) / 1000) + 59)} · ` : ""}${gt} · 消耗${c.contrib ? `贡献 ${U.fmt(c.contrib)} ` : ""}气血 ${U.fmt(c.hp)}</small></div>
           <button class="sm ${me ? "on" : ""}" onclick="G.enterPool(${i})" ${on || done || lock ? "disabled" : ""}>${me ? "修炼中" : lock ? "职务不足" : done ? "今日已用" : "进入"}</button></div>`;
       }).join("") + `</div>`;
