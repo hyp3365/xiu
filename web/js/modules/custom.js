@@ -8,7 +8,7 @@
  * ===================================================================== */
 window.ITEMS = window.ITEMS || {};
 DATA.cuTypes = { use: "消耗品", perm: "永久属性", equip: "装备", fabao: "法宝", box: "礼包", misc: "杂物" };
-DATA.cuStatNames = { hp: "气血", atk: "攻击", def: "防御", mana: "法力", hit: "命中", dodge: "闪避", speed: "速度", crit: "暴击%", hpPct: "气血%" };
+DATA.cuStatNames = { hp: "生命", atk: "攻击", def: "防御", mana: "法力", hit: "命中", dodge: "闪避", speed: "速度", crit: "暴击%", hpPct: "生命%" };
 
 G.module({
   id: "custom",
@@ -70,7 +70,7 @@ G.module({
           if (d.contrib) s.contrib += d.contrib;
           if (d.exp) s.exp += d.exp;
         }
-        if (d.hp || d.hpPct) got.push("气血已恢复"); if (d.mana || d.manaPct) got.push("法力已恢复");
+        if (d.hp || d.hpPct) got.push("生命已恢复"); if (d.mana || d.manaPct) got.push("法力已恢复");
         if (d.stone) got.push(`灵石+${U.fmt(d.stone * n)}`); if (d.ling) got.push(`灵气+${U.fmt(d.ling * n)}`);
         if (d.contrib) got.push(`贡献+${U.fmt(d.contrib * n)}`); if (d.exp) got.push(`修为+${U.fmt(d.exp * n)}`);
         this.log(`使用${it.name} ×${n}${got.length ? "，" + got.join("，") : ""}。`, "good");
