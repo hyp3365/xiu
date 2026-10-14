@@ -38,7 +38,7 @@ DATA.caveRooms = [
   { id: "garden",  name: "灵药园",   open: true,  desc: "种植灵草灵药。" },
   { id: "beast",   name: "灵兽室",   open: false, desc: "豢养、培育灵兽。" },
   { id: "formation",name:"洞府阵法", open: false, desc: "布置护府大阵。" },
-  { id: "servant", name: "道童居",   open: false, desc: "招募道童，代为打理洞府。" },
+  { id: "servant", name: "道童居",   open: true,  desc: "招募道童，代为打理洞府。" },
 ];
 DATA.caveRooms.forEach(r => { r.name = DATA.nmPick(CFG.names.cave, r.id, r.name); });   // 名字在 config/names.js 的 cave
 DATA.caveName = id => (DATA.caveRooms.find(r => r.id === id) || {}).name || id;
