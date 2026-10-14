@@ -13,6 +13,10 @@
                       也支持 body 里带 "token"（网页关闭时 sendBeacon 用）
   GET  /api/admin         管理员信息：{admin, version, log}（log = 上次网页更新的输出）
   POST /api/admin/update  管理员：从 GitHub 更新游戏（等于在服务器上运行 sudo xiu-update）
+  GET  /api/admin/gifts     管理员：礼包码列表 {list:[{code, items, uses, used, created}]}
+  POST /api/admin/gift      管理员：生成礼包码 {code?, items, uses} → {code}（code 不填自动生成）
+  POST /api/admin/gift/del  管理员：删除礼包码 {code}
+  POST /api/gift            兑换礼包码 {code} → {items}（每个账号每个码一次，次数用完失效）
                           管理员账号：环境变量 XIU_ADMIN（多个用逗号隔开），没设置就是第 1 个注册的账号
 
 数据存在 SQLite：默认 /var/lib/xiu/xiu.db（环境变量 XIU_DB 可改）
@@ -37,6 +41,7 @@ PORT = int(os.environ.get("XIU_PORT", "18300"))
 MAX_BODY = 2 * 1024 * 1024           # 存档最大 2MB
 TOKEN_DAYS = 90                      # 登录令牌有效期（天）
 USERNAME_RE = re.compile(r"^[\w\u4e00-\u9fff]{2,20}$")  # 2~20 位字母/数字/下划线/中文
+GIFT_RE = re.compile(r"^[A-Za-z0-9_\u4e00-\u9fa5]{2,32}$")
 
 _lock = threading.Lock()
 ADMINS = [x.strip() for x in os.environ.get("XIU_ADMIN", "").split(",") if x.strip()]
@@ -73,6 +78,19 @@ def init_db():
             user_id INTEGER PRIMARY KEY,
             data TEXT,
             updated INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS gifts(
+            code TEXT PRIMARY KEY,
+            items TEXT NOT NULL,
+            uses INTEGER NOT NULL,
+            used INTEGER NOT NULL DEFAULT 0,
+            created INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS gift_used(
+            code TEXT NOT NULL,
+            user_id INTEGER NOT NULL,
+            at INTEGER NOT NULL,
+            PRIMARY KEY(code, user_id)
         );
         """)
 
@@ -159,6 +177,13 @@ class Handler(BaseHTTPRequestHandler):
 
     # ---------- GET ----------
     def do_GET(self):
+        if self.route() == "admin/gifts":
+            with db() as c:
+                if not is_admin(c, user_by_token(c, self.headers.get("X-Token"))):
+                    return self.send(403, {"error": "只有管理员可以查看"})
+                rows = c.execute("SELECT * FROM gifts ORDER BY created DESC").fetchall()
+            return self.send(200, {"list": [{"code": r["code"], "items": json.loads(r["items"]), "uses": r["uses"],
+                                             "used": r["used"], "created": r["created"]} for r in rows]})
         if self.route() == "admin":
             with db() as c:
                 uid = user_by_token(c, self.headers.get("X-Token"))
@@ -223,6 +248,53 @@ class Handler(BaseHTTPRequestHandler):
                           "ON CONFLICT(user_id) DO UPDATE SET data=excluded.data, updated=excluded.updated",
                           (uid, None if save is None else json.dumps(save, ensure_ascii=False, separators=(",", ":")), int(time.time())))
             return self.send(200, {"ok": True})
+
+        if r in ("admin/gift", "admin/gift/del"):
+            with _lock, db() as c:
+                if not is_admin(c, user_by_token(c, self.headers.get("X-Token"))):
+                    return self.send(403, {"error": "只有管理员可以操作"})
+                if r == "admin/gift/del":
+                    code = str(data.get("code", "")).strip()
+                    c.execute("DELETE FROM gifts WHERE code=?", (code,))
+                    c.execute("DELETE FROM gift_used WHERE code=?", (code,))
+                    return self.send(200, {"ok": True})
+                items = data.get("items")
+                if not isinstance(items, list) or not items:
+                    return self.send(400, {"error": "礼包里没有物品"})
+                try:
+                    uses = max(1, int(data.get("uses") or 1))
+                except (TypeError, ValueError):
+                    return self.send(400, {"error": "兑换次数不对"})
+                code = str(data.get("code") or "").strip()
+                if code and not GIFT_RE.match(code):
+                    return self.send(400, {"error": "礼包码需 2~32 位字母、数字、下划线或中文"})
+                if not code:
+                    while True:
+                        code = "".join(secrets.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(8))
+                        if not c.execute("SELECT 1 FROM gifts WHERE code=?", (code,)).fetchone():
+                            break
+                elif c.execute("SELECT 1 FROM gifts WHERE code=?", (code,)).fetchone():
+                    return self.send(409, {"error": "礼包码已存在"})
+                c.execute("INSERT INTO gifts(code,items,uses,used,created) VALUES(?,?,?,0,?)",
+                          (code, json.dumps(items, ensure_ascii=False, separators=(",", ":")), uses, int(time.time())))
+            return self.send(200, {"code": code})
+
+        if r == "gift":
+            code = str(data.get("code", "")).strip()
+            with _lock, db() as c:
+                uid = user_by_token(c, self.headers.get("X-Token"))
+                if not uid:
+                    return self.send(401, {"error": "请重新登录"})
+                row = c.execute("SELECT * FROM gifts WHERE code=?", (code,)).fetchone()
+                if not row:
+                    return self.send(404, {"error": "礼包码不存在"})
+                if c.execute("SELECT 1 FROM gift_used WHERE code=? AND user_id=?", (code, uid)).fetchone():
+                    return self.send(409, {"error": "已经兑换过这个礼包码"})
+                if row["used"] >= row["uses"]:
+                    return self.send(409, {"error": "礼包码兑换次数已用完"})
+                c.execute("UPDATE gifts SET used=used+1 WHERE code=?", (code,))
+                c.execute("INSERT INTO gift_used(code,user_id,at) VALUES(?,?,?)", (code, uid, int(time.time())))
+            return self.send(200, {"items": json.loads(row["items"])})
 
         if r == "admin/update":
             with db() as c:
