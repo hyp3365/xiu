@@ -11,7 +11,9 @@ for (const k in DATA.slots) DATA.slots[k] = DATA.nmPick(CFG.names.slot, k, DATA.
 // 装备栏位（ring0~ring5 都放戒指）
 DATA.equipSlots = ["helmet", "armor", "weapon", "legs", "boots", "pendant", "ring0", "ring1", "ring2", "ring3", "ring4", "ring5"];
 DATA.slotOf = key => key.startsWith("ring") ? "ring" : key; // 栏位 → 部位
-DATA.SLOT_MAX = CFG.equip.SLOT_MAX; // 法宝栏、法术栏最多格数（config/equip.js）
+DATA.SLOT_MAX = CFG.equip.SLOT_MAX;
+DATA.SLOT_EVERY = CFG.equip.SLOT_EVERY || 1;   // 每隔几个大境界开 1 格
+DATA.slotRealm = i => i * DATA.SLOT_EVERY;     // 第 i 格（0 起）开启的大境界 // 法宝栏、法术栏最多格数（config/equip.js）
 
 DATA.quals = DATA.nmArr(CFG.names.quality, ["凡品", "灵品", "宝品", "玄品", "地品", "天品"]);
 DATA.qualMult = CFG.equip.QUAL_MULT;   // 品质倍率（config/equip.js）
