@@ -39,10 +39,9 @@ G.module({
         const srcs = [...DATA.sects, ...DATA.shopSources, ...DATA.towerBooks].sort((x, y) => x.star - y.star);
         const o = DATA.gfSrcById[a.src] || srcs[0];
         const types = o.src === "tower" ? DATA.gongfaTypes.filter(t => t.id === "mijue") : o.src === "shop" ? DATA.gongfaTypes.filter(t => !t.sectOnly) : DATA.gongfaTypes;
-        return [{ k: "src", label: "来源", opts: srcs.map(x => [x.id, srcName(x)]) }, { k: "type", label: "种类", opts: types.map(t => [t.id, t.name]) },
-          { k: "tier", label: "品阶", opts: DATA.tiers.filter(t => !o.tierId || t.id === o.tierId).map(t => [t.id, t.name]) }];
+        return [{ k: "src", label: "来源", opts: srcs.map(x => [x.id, srcName(x)]) }, { k: "type", label: "种类", opts: types.map(t => [t.id, t.name]) }];
       }
-      if (c === "sp") return [{ k: "src", label: "门派", opts: DATA.sects.map(x => [x.id, srcName(x)]) }, { k: "tier", label: "品阶", opts: DATA.tiers.map(t => [t.id, t.name]) }];
+      if (c === "sp") return [{ k: "src", label: "门派", opts: DATA.sects.map(x => [x.id, srcName(x)]) }];
       if (c === "mf") return [{ k: "star", label: "星级", opts: Array.from({ length: DATA.SECT_STARS }, (_, i) => [i + 1, `${i + 1}星`]) },
         { k: "kind", label: "种类", opts: DATA.mifaKinds.map(k => [k.id, k.name]) }];
       if (c === "fabao") return [{ k: "ft", label: "形状", opts: DATA.fabaoTypes.map((t, i) => [i, t.name]) }, { k: "el", label: "属性", opts: DATA.elements.map(e => [e.id, e.name]) },
