@@ -94,14 +94,14 @@ G.module({
       const Le = e.g * 10 + CFG.equip.LAYER_OFFSET, f = Math.pow(DATA.GROW, Le), m = DATA.qualMult[e.q], k = e.q + 1, B = DATA.playerBase;
       const K = DATA.equipK[e.slot] || {}, out = {};
       for (const key in K) {
-        if (key in B) out[key] = B[key] * f * m * K[key];               // 攻击/气血/防御/法力：随境界成长
+        if (key in B) out[key] = B[key] * f * m * K[key];               // 攻击/生命/防御/法力：随境界成长
         else if (key === "hit" || key === "dodge") out[key] = K[key] * k * (e.g + 1); // 命中/闪避：随品质和境界
         else out[key] = K[key] * k;                                      // 百分比、速度：随品质
       }
       return out;
     },
     equipDesc(e) {
-      const n = { atk: "攻击", hp: "气血", def: "防御", mana: "法力", crit: "暴击%", hit: "命中", dodge: "闪避", speed: "速度", hpPct: "气血%" };
+      const n = { atk: "攻击", hp: "生命", def: "防御", mana: "法力", crit: "暴击%", hit: "命中", dodge: "闪避", speed: "速度", hpPct: "生命%" };
       if (e.attrs) {
         let head = "";
         if (e.slot === "fabao") {
