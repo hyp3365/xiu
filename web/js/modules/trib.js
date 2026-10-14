@@ -75,7 +75,7 @@ G.module({
       const pills = names.map(n => ({ n, it: s.bag.find(it => (it.t === "pill" || it.t === "dan") && this.itemName(it) === n) }))
         .filter(p => (this.bagCount()[p.n] || 0) > this.tribPillUsed(p.n));
       if (fb.length) h += `<p class="desc">法宝</p>` + fb.map(e => row(DATA.eqIcon(e), this.itemName({ t: "eq", e }), "法宝", `G.tribPut(${i},'fb','${e.uid}')`)).join("");
-      if (sp.length) h += `<p class="desc">法术</p>` + sp.map(id => { const g = DATA.spellInfo(id, s.gongfa[id]); return row("", `《${g.name}》`, `${g.tier.name}`, `G.tribPut(${i},'sp','${id}')`); }).join("");
+      if (sp.length) h += `<p class="desc">法术</p>` + sp.map(id => { const g = DATA.spellInfo(id, s.gongfa[id]); return row("", `《${g.name}》`, `${g.star}星`, `G.tribPut(${i},'sp','${id}')`); }).join("");
       if (pills.length) h += `<p class="desc">丹药（每格 1 颗）</p>` + pills.map(p => row(this.itemIcon(p.it), p.n, `剩 ${U.fmt((this.bagCount()[p.n] || 0) - this.tribPillUsed(p.n))} 颗可放`, `G.tribPut(${i},'it','${p.n}')`)).join("");
       this.modal(`<h2>第 ${i + 1} 格</h2>${h || `<p class="desc">没有可放入的法宝、法术、丹药。</p>`}
         <div class="btns">${s.tribSlots[i] ? `<button onclick="G.tribPut(${i})">清空这格</button>` : ""}<button onclick="G.closeModal()">关闭</button></div>`);
