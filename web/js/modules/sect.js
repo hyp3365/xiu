@@ -60,7 +60,7 @@ G.module({
     starMul() { const v = (CFG.sect.STAR_MULT || [])[this.sectInfo().star - 1]; return v === undefined ? this.sectInfo().star : v; },
     rankMul(i = this.s.rank) { const v = (CFG.sect.RANK_MULT || [])[i]; return v === undefined ? 1 : v; },
     roomPct(i) { return DATA.rooms[i].pct * this.starMul(); },
-    roomCost(i) { return Math.floor(DATA.rooms[i].cost * this.starMul()); },
+    roomCost(i) { return DATA.rooms[i].cost; },   // v99：写多少就是多少，不乘星级
     roomLocked(i) { return (DATA.rooms[i].rank || 0) > this.s.rank; },
     gfRoomPct(i) { return DATA.gfRooms[i].pct; },   // v97：减少修炼时间 %，不乘星级
     gfRoomCost(i) { return DATA.gfRooms[i].cost; },   // v98：写多少就是多少，不乘星级
