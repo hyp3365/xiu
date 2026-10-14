@@ -170,7 +170,7 @@ G.module({
     freeGfOn() { const f = this.s.freeGf; return !!(this.s.sect && f && this.now() < f.end); },
     freeUsed(f) { return f && f.day === this.bjDay() ? f.used || 0 : 0; },
     /* ---------- 练体池（config/sect.js 的 sect.pool） ---------- */
-    poolCost(i) { const P = CFG.sect.pool, p = P.list[i], sm = (P.STAR_MULT || [])[this.sectInfo().star - 1]; return { contrib: Math.floor((p.contrib || 0) * (sm === undefined ? this.starMul() : sm)), hp: Math.ceil(this.stats().hp * (p.hpPct || 0) / 100) }; },
+    poolCost(i) { const P = CFG.sect.pool, p = P.list[i], sm = (P.STAR_MULT || [])[this.sectInfo().star - 1]; return { contrib: Math.floor((p.contrib || 0) * (sm === undefined ? this.starMul() : sm)), hp: p.hp !== undefined ? p.hp : Math.ceil(this.stats().hp * (p.hpPct || 0) / 100) }; },
     poolGainOf(i) {
       const P = CFG.sect.pool, row = P.GAIN[Math.min(Math.max(0, this.sectInfo().star - 1), P.GAIN.length - 1)] || [], g = row[i] || row[row.length - 1] || [], o = {};
       (P.list[i].keys || P.KEYS || ["hp", "atk", "def"]).forEach((k, j) => { if (g[j]) o[k] = g[j]; });
