@@ -294,7 +294,8 @@ DATA.skillIcon = g => g.kind === "mf" || g.noEl ? DATA.iconImg("mifa") : DATA.ic
 DATA.skillIco = g => `<span class="ico t-${g.tier.id}"><img src="${DATA.skillIcon(g)}" alt="" loading="lazy"><b>${g.tier.name[0]}</b></span>`;
 // 炼制物品（装备 / 戒指 / 法宝）的小图标：按阶换边框
 // 炼制装备 / 法宝按阶（一阶~十阶）加外观：越高阶越亮、光晕越强，高阶有流光（css/style.css 的 .eqt0 ~ .eqt9）
-DATA.eqCls = e => e && e.attrs ? ` eqt eqt${Math.max(0, Math.min(9, e.g || 0))}` : "";
+DATA.eqCls = e => e && e.attrs ? ` eqt eqt${Math.max(0, Math.min(9, e.g || 0))}${e.slot === "fabao" && e.el ? ` fbel fb-${e.el}` : ""}` : "";   // 法宝按金木水火土雷显示颜色
+DATA.fbElCls = e => e && e.slot === "fabao" && e.el ? ` fb-${e.el}` : "";
 // 炼器室列表（宗门、洞府）用：按第 g 阶显示同样的外观
 DATA.eqTierIco = (src, g) => `<span class="ico j${g} eqt eqt${Math.max(0, Math.min(9, g))}"><img src="${src}" alt="" loading="lazy"><b>${g + 1}</b></span>`;
 DATA.eqIco = e => { const src = DATA.eqIcon(e); return src ? `<span class="ico ${e.attrs ? "j" + e.g : "q" + e.q}${DATA.eqCls(e)}"><img src="${src}" alt="" loading="lazy">${e.attrs ? `<b>${e.g + 1}</b>` : ""}</span>` : ""; };
