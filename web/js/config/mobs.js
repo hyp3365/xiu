@@ -1863,8 +1863,8 @@ CFG.mobs.magic = {
   OWN_RES: 1.2,   // 怪物本属性那一系抗性再 × 1.2
   // MANA 法力倍率  RES 抗性倍率
   // spell / fabao：chance 每回合施放几率%   pct 伤害 = 攻击 × pct%   cost 每次耗法力 = 法力上限 × cost
-  normal: { MANA: 1, RES: 0.3, spell: { chance: 35, pct: 120, cost: 0.25 }, fabao: { chance: 35, pct: 150, cost: 0.4 } },   // 普通怪
-  elite:  { MANA: 1, RES: 0.4, spell: { chance: 35, pct: 140, cost: 0.25 }, fabao: { chance: 35, pct: 170, cost: 0.4 } },   // 精英怪
-  boss:   { MANA: 1.5, RES: 0.5, spell: { chance: 40, pct: 160, cost: 0.2 },  fabao: { chance: 40, pct: 200, cost: 0.35 } },  // 首领
-  tower:  { MANA: 2, RES: 0.4, spell: { chance: 40, pct: 140, cost: 0.25 }, fabao: { chance: 40, pct: 170, cost: 0.4 } },   // 试炼塔守关者 / 宗门晋升考官
+  normal: { MANA: 1.5, RES: 0.3, spell: { chance: 35, pct: 120, cost: 0.25 }, fabao: { chance: 35, pct: 150, cost: 0.4 } },   // 普通怪
+  elite:  { MANA: 2, RES: 0.4, spell: { chance: 35, pct: 140, cost: 0.25 }, fabao: { chance: 35, pct: 170, cost: 0.4 } },   // 精英怪
+  boss:   { MANA: 3, RES: 0.5, spell: { chance: 40, pct: 160, cost: 0.2 },  fabao: { chance: 40, pct: 200, cost: 0.35 } },  // 首领
+  tower:  { MANA: 4, RES: 0.4, spell: { chance: 40, pct: 140, cost: 0.25 }, fabao: { chance: 40, pct: 170, cost: 0.4 } },   // 试炼塔守关者 / 宗门晋升考官
 };
