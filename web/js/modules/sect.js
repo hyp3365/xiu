@@ -325,8 +325,11 @@ G.module({
     towerFloor() { this.fixTower(); return this.s.towers[this.sectInfo().star] || 0; },
     towerMax() { return DATA.towerMax(this.sectInfo().star); },
     // 守关者属性 = 人物属性 × MULT × GROW^(层数-1)（config/sect.js 的 sect.tower）
+    // v59：config/mobs.js 的 tower 有这个星级时按三个阶段算（每段从「起」渐变到「止」），没有才用旧算法
     makeTowerGuard(floor) {
       const T = CFG.sect.tower, star = this.sectInfo().star, R = (CFG.sect.REQ_REALM || [])[star - 1] || 0;
+      const tw = DATA.towerStage(star, floor, this.towerMax());
+      if (tw) { const m = {}; for (const k of DATA.REF_KEYS) m[k] = tw[k] * DATA.mobRnd(); m.crit = tw.crit; return this.addMagic(Object.assign(m, { name: `第${floor}层守关者`, boss: false }), "tower"); }
       const m = DATA.refMob(DATA.refStats(R, T.LAYER || 5, T.GF === undefined ? 5 : T.GF), T.MULT, Math.pow(T.GROW, floor - 1));
       return this.addMagic(Object.assign(m, { name: `第${floor}层守关者`, boss: false }), "tower");
     },
