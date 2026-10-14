@@ -34,6 +34,7 @@ systemctl restart xiu-server
 
 # 更新命令
 install -m 755 "$DIR/deploy/xiu-update" /usr/local/bin/xiu-update
+install -m 755 "$DIR/deploy/uninstall.sh" /usr/local/bin/xiu-uninstall
 
 # nginx：优先放进现有的 IP 站点（HTTPS），没有就放到默认站点
 NGX_DIR=$(ls -d /etc/nginx/conf.d/central_vps_users/*/ 2>/dev/null | head -1)
@@ -46,4 +47,4 @@ else
 fi
 nginx -t && systemctl reload nginx
 
-echo "安装完成。以后更新只需运行：sudo xiu-update"
+echo "安装完成。以后更新只需运行：sudo xiu-update；卸载：sudo xiu-uninstall"
