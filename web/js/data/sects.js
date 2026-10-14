@@ -56,9 +56,7 @@ DATA.ranks = _SC.ranks;
 DATA.affairs = _SC.affair.tasks;
 DATA.rooms = _SC.rooms;                 // 修炼室（原练功房）
 DATA.gfRooms = _SC.gfRooms || [];       // v27 练功房：加快功法修炼
-DATA.shopRooms = _SC.shopRooms || { cult: [], gf: [] };
 DATA.treasury = _SC.treasury;
-DATA.TOWER_MAX = _SC.tower.MAX;
 DATA.towerMax = star => ((_SC.trial || {}).FLOORS || [])[star - 1] || _SC.tower.MAX;   // v25：N 星试炼塔层数
 // v26：每层贡献 = trial.floor.contrib[星级-1] × 层数（没设置时用 tower.REWARD）
 DATA.towerReward = (floor, star) => { const c = (((_SC.trial || {}).floor || {}).contrib || [])[star - 1]; return (c === undefined ? _SC.tower.REWARD : c) * floor; }; // 首次通关奖励贡献
