@@ -42,6 +42,8 @@ DATA.elIdx = el => Math.max(0, DATA.elements.findIndex(x => x.id === el));   // 
 DATA.FB_OLD_MAP = [0, 5, 1, 6, 2, 3, 3, 5, 5, 6, 5, 5, 4, 3, 6, 0, 3, 5, 3, 3, 5, 6, 1, 0, 6, 6, 4, 2, 6, 5, 2, 2, 1, 0, 6, 6];
 DATA.FB_OLD_EL = ["jin", "jin", "jin", "jin", "mu", "mu", "mu", "mu", "mu", "mu", "shui", "shui", "shui", "shui", "shui", "shui", "shui", "huo", "huo", "huo", "huo", "huo", "huo", "huo", "tu", "tu", "tu", "tu", "tu", "tu", "lei", "lei", "lei", "lei", "lei", "lei"];
 // 给法宝补上形状的专属属性（颜色同第一条主属性）
+// 法宝名字（config/names.js 的 fabaoName[形状][阶]），没写就用形状名
+DATA.fabaoName = (ft, g, def) => { const L = (CFG.names.fabaoName || {})[ft]; return (L && L[g]) || def || (DATA.fabaoTypes[ft] || {}).name || "法宝"; };
 DATA.fbAddSpecial = e => {
   const T = DATA.fabaoTypes[e.ft] || {}, c = ((e.attrs || []).find(a => a.m === 1) || {}).c || 0;
   e.attrs = e.attrs.filter(a => a.m !== 2);
@@ -49,10 +51,11 @@ DATA.fbAddSpecial = e => {
   e.attrs.splice(e.attrs.filter(a => a.m === 1).length, 0, ...at);
 };
 DATA.fixFabao = e => {
-  if (!e || e.slot !== "fabao" || !e.attrs || e.fv === 2) return;
+  if (!e || e.slot !== "fabao" || !e.attrs) return;
+  if (e.fv === 2) { e.name = DATA.fabaoName(e.ft, e.g); return; }   // 名字跟着 config/names.js 的 fabaoName
   const old = e.ft === undefined ? 0 : e.ft, ft = DATA.FB_OLD_MAP[old] === undefined ? 0 : DATA.FB_OLD_MAP[old];
   if (!e.el || !DATA.elById[e.el]) e.el = DATA.FB_OLD_EL[old] || "jin";
-  e.ft = ft; e.name = DATA.fabaoTypes[ft].name; e.fv = 2;
+  e.ft = ft; e.name = DATA.fabaoName(ft, e.g); e.fv = 2;
   if (DATA.fabaoTypes[ft].shield) e.attrs.forEach(a => { if (a.m && a.k === "pct") a.k = "shPct"; else if (a.m && a.k === "flat") a.k = "shFlat"; });
   DATA.fbAddSpecial(e);
 };
@@ -153,7 +156,7 @@ DATA.rollForged = (slot, g, r, el) => {
     for (const k in T.special || {}) attrs.push(DATA.rollAttr(k, 2, undefined, W));
     const n = U.weighted(F.AFFIX_COUNT) + 1, pool = DATA.fbPool(T);
     for (let i = 0; i < n; i++) attrs.push(DATA.rollAttr(U.pick(pool), 0, U.pick(DATA.elements).id, W));
-    return { slot, g, ft, el: elv, name: T.name, enh: 0, q: DATA.bestQ(attrs), attrs, fv: 2 };
+    return { slot, g, ft, el: elv, name: DATA.fabaoName(ft, g), enh: 0, q: DATA.bestQ(attrs), attrs, fv: 2 };
   }
   if (slot === "ring" && r === undefined) r = Math.floor(Math.random() * DATA.ringNames.length);
   const main = (slot === "ring" ? _FG.ring.main[r] : A.main[slot] || []).slice(0, 2), W = DATA.equipNewW(), attrs = main.map(k => DATA.rollAttr(k, 1, undefined, W));
@@ -168,7 +171,7 @@ DATA.upgradeForged = (prev, g) => {
   const e = JSON.parse(JSON.stringify(prev));
   e.attrs.forEach(a => { if (a.p === undefined) a.p = DATA.attrPos(a); delete a.r; });
   e.g = g;
-  e.name = e.slot === "ring" ? DATA.ringNames[e.r] : e.slot === "fabao" ? DATA.fabaoTypes[e.ft].name : DATA.forgeNames[e.slot][g];
+  e.name = e.slot === "ring" ? DATA.ringNames[e.r] : e.slot === "fabao" ? DATA.fabaoName(e.ft, g) : DATA.forgeNames[e.slot][g];
   return e;
 };
 // 火髓洗练：locks = 锁定的属性序号；没锁的重新随机
@@ -220,7 +223,7 @@ DATA.attrText = (a, e) => {
 };
 // 法宝战斗数值：{ el, pct, flat, mana, ign, ignPct, extra: [{ el, flat, pct }] }
 DATA.fabaoInfo = e => {
-  const F = _FG.fabao, T = DATA.fabaoTypes[e.ft] || {}, o = { name: e.name, el: e.el, ft: e.ft, pct: 0, flat: 0, ign: 0, ignPct: 0, cut: 0, cutPct: 0, extra: [] };
+  const F = _FG.fabao, T = DATA.fabaoTypes[e.ft] || {}, o = { name: DATA.fabaoName(e.ft, e.g, e.name), el: e.el, ft: e.ft, pct: 0, flat: 0, ign: 0, ignPct: 0, cut: 0, cutPct: 0, extra: [] };
   let shPct = 0, shFlat = 0, shHp = 0, red = 0;
   for (const a of e.attrs) {
     const v = DATA.attrVal(a, e.g, e);
