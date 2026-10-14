@@ -219,7 +219,7 @@ G.module({
       const base = kind === "eq" ? DATA.forgeEqTime(g) : kind === "ss" ? DATA.stoneTime(g) : kind === "ring" ? DATA.ringTime(g) : DATA.furnaceTime(kind, g);
       const xf = (kind === "xdan" || kind === "xqi") && this.s.furnaceUse.xqi >= 0;   // 仙炉：装有炼器仙炉时按炼器仙炉缩短
       const ck = this.forgeCraft(kind), tc = (CFG.craftsman[ck].TIME_CUT || [])[this.craftLv(ck) - 1] || 0;   // 炉子% + 炼器师/炼器仙师% + 器火秘法% 相加
-      return Math.ceil(base * (1 - this.mifaCut("qiTime", (xf ? DATA.furnaceBonus("xqi", this.s.furnaceUse.xqi) : DATA.furnaceBonus("qi", this.s.furnaceUse.qi)) + tc) / 100));
+      return Math.ceil(base * (1 - this.mifaCut("qiTime", (xf ? DATA.furnaceBonus("xqi", this.s.furnaceUse.xqi) : DATA.furnaceBonus("qi", this.s.furnaceUse.qi)) + tc + this.servantPct("jin")) / 100));
     },
     // 秘境专用材料：空间石要空间晶核；装备 / 戒指 / 法宝要耀石（config/forge.js 的 YAOSHI）→ [{ k, ft, n }]
     //   法宝用同属性耀石（q.el），装备、戒指任意一种（ft = -1）
@@ -389,7 +389,7 @@ G.module({
 
     /* ---------- 炼丹 ---------- */
     danPer(type, g) { const fk = DATA.danFu(type), ck = DATA.danCraft(type), tc = (CFG.craftsman[ck].TIME_CUT || [])[this.craftLv(ck) - 1] || 0;   // 炉子% + 炼丹仙师% + 丹火秘法% 相加
-      return Math.ceil(DATA.danTime(type, g) * (1 - this.mifaCut("danTime", DATA.furnaceBonus(fk, this.s.furnaceUse[fk]) + tc) / 100)); },
+      return Math.ceil(DATA.danTime(type, g) * (1 - this.mifaCut("danTime", DATA.furnaceBonus(fk, this.s.furnaceUse[fk]) + tc + this.servantPct("huo")) / 100)); },
     setDanTier(g) { this.danTier = g; this.render(); },
     // 丹药分类（config/alchemy.js 的 CATS）：0 = 现有丹方，其余暂时没有丹方
     setDanCat(k, c) { this[k] = c; this.render(); },
