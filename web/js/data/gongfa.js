@@ -5,18 +5,18 @@
  *   心法 → 防御      功诀 → 攻击      真经 → 生命上限
  *   秘诀 → 修炼速度  身法 → 命中      遁术 → 闪避      法诀 → 法力上限
  *   真诀 → 本门派属性的抗性（金木水火土雷之一，v15）
- * 每个门派每类功法分 天、地、玄、黄 四阶，名字如：青阳心法（黄阶）
+ * 每个门派每类功法一本（v93 取消天地玄黄四阶，效果 = 以前四阶相加）
  * 必须学会至少一部秘诀才能修炼。
  *
- * 【法术】每个门派有 金木水火土雷 六系法术，同样分 天地玄黄 四阶。
- *   伤害 = 攻击 × 伤害倍率% + 固定伤害；伤害倍率、法力消耗随 星级 × 阶 × 层数 × 人物境界 增长（config/gongfa.js）
+ * 【法术】每个门派有 金木水火土雷 六系法术，每系一本（按以前黄阶）。
+ *   伤害 = 攻击 × 伤害倍率% + 固定伤害；伤害倍率、法力消耗随 星级 × 层数 × 人物境界 增长（config/gongfa.js）
  *
  * 【宗门秘法】悟道室学习，同星级门派共用，1~10 星每星 9 部（config/wudao.js），id "w星级:mf:种类"
  *
  * 【来源类型】功法内部标记来源：sect 宗门功法（功法殿，贡献）、shop 凡界坊市功法（坊市，灵石）
- *   所有数值 = 基础属性 × 类型倍率 × 星级倍率 × 阶倍率 × 各自 EFFECT（config/gongfa.js）
+ *   所有数值 = 基础属性 × 类型倍率 × 星级倍率 × 阶倍率（功法 = 四阶相加）× 各自 EFFECT（config/gongfa.js）
  *
- * 功法、法术都是 12 层：功法殿首次学习消耗贡献，学会即第 1 层；
+ * 功法、法术都是 12 层：功法殿首次学习消耗贡献，等 LEARN_MIN 分钟后学会第 1 层；
  * 之后在“功法”页修炼升层：需要时间（见 studyMin），修炼期间每 5 秒消耗一次修为；
  * 可排队，队列最多 GF_QUEUE 个。
  * ===================================================================== */
@@ -32,7 +32,7 @@ DATA.tiers.forEach(t => { t.name = DATA.nmPick(_NM.gfTier, t.id, t.name); });
 DATA.tierById = Object.fromEntries(DATA.tiers.map((t, i) => [t.id, Object.assign(t, { idx: i })]));
 // v93：取消天地玄黄四阶。功法、法术只剩一本（内部 id 仍用 huang）：
 //   功法效果 = 以前四阶加起来（TIER_MULT 四个数相加）；法术按以前黄阶
-//   ALL_TIERS 只用来算倍率和转换旧存档；界面、学习列表只用 DATA.tiers（只有黄阶这一项）
+//   ALL_TIERS 只用来算功法倍率；界面、学习列表只用 DATA.tiers（只有黄阶这一项）
 DATA.ALL_TIERS = DATA.tiers;
 DATA.tiers = [DATA.ALL_TIERS[0]];
 
@@ -104,7 +104,6 @@ DATA.STUDY_STEP = _GF.STUDY_STEP;
 DATA.studyMin = _GF.STUDY_MIN;
 
 /* ---------- 凡界坊市功法的「来源」（相当于一个门派，每星 2 个，id f星级_序号） ---------- */
-// v25：改成更有修仙味道的名字（id 不变，旧存档已学的功法跟着改名）
 DATA.SHOP_GF_PREFIX = [["青冥", "云笈"], ["琼华", "栖霞"], ["抱朴", "听松"], ["凌虚", "洞玄"], ["玄真", "星槎"], ["丹霞", "太微"]];
 DATA.shopSources = [];
 DATA.SHOP_GF_PREFIX.forEach((pair, i) => pair.forEach((prefix, n) => {
@@ -116,16 +115,13 @@ DATA.SHOP_GF_PREFIX.forEach((pair, i) => pair.forEach((prefix, n) => {
 /* ---------- v25：试炼塔秘诀的「来源」（每星一个，id t星级，只有秘诀） ---------- */
 DATA.TOWER_GF_PREFIX = ["问心", "登仙", "通玄", "摘星", "揽月", "踏虚", "擎天", "证道", "归真", "登极"];
 DATA.towerSources = DATA.TOWER_GF_PREFIX.map((p0, i) => DATA.nmPick(_NM.towerGf, `t${i + 1}`, p0)).map((prefix, i) => ({ id: `t${i + 1}`, src: "tower", star: i + 1, prefix, name: prefix + DATA.nmPick(_NM, "towerGfSuffix", "塔"), el: DATA.elements[i % 6].id, reqRealm: -1 }));
-// 第 star 星试炼塔秘诀某一阶的功法 id（旧版：每星 4 本，按层给；只用于旧存档转换）
-DATA.towerMijueId = (star, tierId) => `t${star}:mijue:${tierId}`;
 // 新版：试炼塔每 10 层（除去给戒指、戒指升级图纸的那几次）给一本秘诀，每本单独一个来源 t星级_第几本
 //   N 星塔的秘诀本数 = 总层数 ÷ EVERY − 戒指和图纸的次数（RING 写了戒指 = 10 次）
-//   品阶：前 1/4 黄阶、再 1/4 玄阶、再 1/4 地阶、最后 1/4 天阶
 DATA.towerBookCount = star => { const T = (CFG.sect || {}).trial || {}, E = T.EVERY || 10, r = (T.RING || [])[star - 1]; return Math.max(0, Math.floor(DATA.towerMax(star) / E) - (r !== undefined && r >= 0 ? 10 : 0)); };
 DATA.towerBooks = [];
 DATA.towerSources.forEach(src => { const M = DATA.towerBookCount(src.star);
-  for (let k = 1; k <= M; k++) DATA.towerBooks.push({ id: `${src.id}_${k}`, src: "tower", star: src.star, prefix: src.prefix, name: src.name, el: src.el, reqRealm: -1, book: k, tierId: "huang" }); });
-DATA.towerBookId = (star, k) => { const b = DATA.towerBooks.find(x => x.star === star && x.book === k); return b ? `${b.id}:mijue:${b.tierId}` : null; };
+  for (let k = 1; k <= M; k++) DATA.towerBooks.push({ id: `${src.id}_${k}`, src: "tower", star: src.star, prefix: src.prefix, name: src.name, el: src.el, reqRealm: -1, book: k }); });
+DATA.towerBookId = (star, k) => { const b = DATA.towerBooks.find(x => x.star === star && x.book === k); return b ? `${b.id}:mijue:huang` : null; };
 // 所有来源：门派（src = "sect"）+ 坊市 + 试炼塔
 DATA.gfSrcById = Object.assign({}, ...DATA.sects.map(x => ({ [x.id]: x })), ...DATA.shopSources.map(x => ({ [x.id]: x })), ...DATA.towerSources.map(x => ({ [x.id]: x })), ...DATA.towerBooks.map(x => ({ [x.id]: x })));
 DATA.srcType = o => o.src || "sect";
@@ -147,9 +143,6 @@ DATA.lvMul = lv => { const m = (_GF.LV_MULT || [])[lv - 1]; return m === undefin
 // 修炼：每 5 秒消耗修为 = STUDY_RATE × STUDY_STAR[星级-1] × STUDY_TIER[阶]（不乘层数）
 DATA.studyPer = info => { const v = (x, d) => x === undefined ? d : x; if (info.per) return info.per;
   return Math.max(1, Math.floor(v(_GF.STUDY_RATE, 5) * v((_GF.STUDY_STAR || [])[info.star - 1], info.star) * v((_GF.STUDY_TIER || {})[info.tier.id], 1))); };
-// 当前层 → 下一层一共消耗的修为 = 每 5 秒消耗 × 次数（由这一层的修炼时间决定）
-DATA.studySteps = lv => Math.ceil(DATA.studyMin[lv - 1] * 60 / DATA.STUDY_STEP);
-DATA.studyExp = info => DATA.studyPer(info) * DATA.studySteps(info.lv);
 // 学习所需：宗门 = 贡献，坊市 = 灵石
 DATA.gfLearnCost = (o, typeId, tier) => {
   if (DATA.srcType(o) !== "shop") {   // 宗门学习贡献单独设置：learn × LEARN_TYPE × LEARN_STAR × LEARN_TIER × EFFECT_LEARN（不用效果倍率）
@@ -162,8 +155,6 @@ DATA.gfLearnCost = (o, typeId, tier) => {
   const tk = typeId === "spell" ? "huang" : C.PRICE_AS || "tian";   // v93：功法按以前天阶的售价，法术按黄阶
   return Math.floor(v(C.price !== undefined ? C.price : (C.base || {}).price, 0) * v((C.PRICE_TYPE || {})[typeId]) * v((C.PRICE_STAR || [])[o.star - 1]) * v((C.PRICE_TIER || {})[tk]) * v(C.EFFECT_PRICE));
 };
-// 宗门功法学习需要的职务
-DATA.tierRank = () => 0;   // v93：取消职务限制
 
 /* ---------- 功法 ----------
  * id 规则："来源id:类别id:阶id"，例如 "s1_0:mijue:huang"（门派）、"f1_0:mijue:huang"（坊市） */
