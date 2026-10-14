@@ -18,7 +18,7 @@ window.ITEMS = {};
  *
  * type 类型：
  *   "use"    消耗品，点「使用」立即生效，用掉一个。可写：
- *              hp / mana 恢复气血、法力（固定数值）  hpPct / manaPct 恢复上限的百分比
+ *              hp / mana 恢复生命、法力（固定数值）  hpPct / manaPct 恢复上限的百分比
  *              stone 灵石  ling 灵气  contrib 门派贡献  exp 修为
  *   "perm"   永久属性（像属性丹），limit = 最多使用几个（不写 = 不限）。属性见下面「属性」
  *   "equip"  装备，slot 部位：helmet 头盔 / armor 护甲 / weapon 武器 / legs 腿甲 / boots 靴 / pendant 吊坠 / ring 戒指
@@ -28,12 +28,12 @@ window.ITEMS = {};
  *   "misc"   杂物，只能出售（任务物品、收藏品等）
  *
  * 属性（perm / equip / fabao 通用，固定数值）：
- *   hp 气血  atk 攻击  def 防御  mana 法力  hit 命中  dodge 闪避  speed 速度  crit 暴击%
+ *   hp 生命  atk 攻击  def 防御  mana 法力  hit 命中  dodge 闪避  speed 速度  crit 暴击%
  *   res: { jin: 金抗, mu: 木抗, shui: 水抗, huo: 火抗, tu: 土抗, lei: 雷抗 }（只写需要的）
  */
 // 下面 8 个是示例物品（只是定义，没放进坊市/宝库/掉落之前玩家拿不到），可以改、可以删
 ITEMS.list = {
-  "回春丹":   { type: "use",   q: 1, desc: "疗伤圣药，服下立刻恢复三成气血。", hpPct: 30, sell: 20 },
+  "回春丹":   { type: "use",   q: 1, desc: "疗伤圣药，服下立刻恢复三成生命。", hpPct: 30, sell: 20 },
   "回灵丹":   { type: "use",   q: 1, desc: "恢复三成法力。", manaPct: 30, sell: 20 },
   "淬体灵液": { type: "perm",  q: 2, desc: "以灵液淬炼肉身，永久增强体魄。", hp: 50, def: 5, limit: 20, sell: 100 },
   "避火珠":   { type: "perm",  q: 3, desc: "含在口中，烈火不侵。", res: { huo: 20 }, limit: 5, sell: 300 },
