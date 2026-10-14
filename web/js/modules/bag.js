@@ -40,16 +40,21 @@ G.module({
         if (old.fabao) s.fabao.push(old.fabao);
       }
       s.bagCap = Math.max(s.bagCap, DATA.BAG_START);
-      // 法宝 36 种：旧法宝按属性归类
+      // v57：法宝改成 7 种形状（旧的 36 种按名字归类，属性保留）；模具、九曜石取消，按出售价折成灵石
       s.bag.forEach(it => it.t === "eq" && DATA.fixFabao(it.e)); (s.fabao || []).forEach(DATA.fixFabao);
-      // v54：炼宝玄晶 / 淬器玄晶 → 黄品九曜石
-      s.bag.filter(it => it.t === "sm" && (it.k === "jj" || it.k === "qj")).forEach(it => { const n = it.n; s.bag.splice(s.bag.indexOf(it), 1); const j = s.bag.findIndex(x => x.t === "sm" && x.k === "jy" && (x.ft || 0) === 0); if (j >= 0) s.bag[j].n += n; else s.bag.push({ t: "sm", k: "jy", ft: 0, n }); });
-      // 九曜石去掉仙品：旧存档里超出最高品阶的（仙品）→ 最高品阶（天品）；正在探索的收获也一样
-      const jyTop = DATA.jyMax();
-      s.bag.filter(it => it.t === "sm" && it.k === "jy" && (it.ft || 0) > jyTop).forEach(it => { const n = it.n; s.bag.splice(s.bag.indexOf(it), 1); const j = s.bag.findIndex(x => x.t === "sm" && x.k === "jy" && (x.ft || 0) === jyTop); if (j >= 0) s.bag[j].n += n; else s.bag.push({ t: "sm", k: "jy", ft: jyTop, n }); });
-      if (s.explore && s.explore.loot && s.explore.loot.sm) { const L = s.explore.loot.sm; for (const k in L) { const p = DATA.smParse(k); if (p.k === "jy" && (p.ft || 0) > jyTop) { const nk = DATA.smKey("jy", jyTop); L[nk] = (L[nk] || 0) + L[k]; delete L[k]; } } }
-      // 模具分阶：旧模具没有 tier = 一阶
-      s.bag.forEach(it => { if (it.t === "sm" && it.k === "mold" && !it.tier) it.tier = 1; });
+      { const OLD = { jj: 20, qj: 20, jy: [20, 40, 80, 160, 160], mold: 50 }, val = (k, ft, n) => { const v = OLD[k]; return (Array.isArray(v) ? v[Math.min(ft || 0, v.length - 1)] : v) * n; };
+        let pay = 0;
+        s.bag = s.bag.filter(it => { if (it.t === "sm" && it.k in OLD) { pay += val(it.k, it.ft, it.n); return false; } return true; });
+        if (s.explore && s.explore.loot && s.explore.loot.sm) { const L = s.explore.loot.sm; for (const k in L) { const p = DATA.smParse(k); if (p.k in OLD) { pay += val(p.k, p.ft, L[k]); delete L[k]; } } }
+        [s.forgeJob, ...(s.forgeQueue || [])].forEach(q => {
+          if (!q) return;
+          if (q.sm) { q.sm = q.sm.filter(x => { if (x.k in OLD) { pay += val(x.k, x.ft, x.n); return false; } return true; }); }
+          else if (q.kind === "eq" || q.kind === "ring") q.sm = [];   // 旧任务：没记扣了什么，取消时不退专用材料
+          if (q.prev) DATA.fixFabao(q.prev);
+          if (q.slot === "fabao" && !q.fv) { const o = q.ft || 0; q.ft = DATA.FB_OLD_MAP[o] || 0; q.el = q.prev ? q.prev.el : DATA.FB_OLD_EL[o] || "jin"; q.fv = 2; }
+        });
+        if (pay) { s.stone += pay; this.log && this.log(`法宝模具、九曜石已取消，按出售价折成 ${U.fmt(pay)} 灵石。`, "sys"); }
+      }
       // v10：内丹、灵血已删除；旧存档里的清掉
       s.bag = s.bag.filter(it => !(it.t === "mat" && (it.kind === "core" || it.kind === "blood")));
       if (s.explore && s.explore.loot) for (const k in s.explore.loot.mats) if (!/^(herb|ore)\|/.test(k)) delete s.explore.loot.mats[k];
@@ -82,7 +87,8 @@ G.module({
 
     /* ---------- 装备属性 ---------- */
     equipStats(e) {
-      if (e.attrs && e.slot === "fabao") return {};   // v25 炼制法宝：不加属性，战斗中祭出造成属性伤害（world.js battle）
+      // v25 炼制法宝：战斗中祭出；v57 剑 / 刀 / 锤 的专属属性（攻击、命中、暴击）装在法宝栏里直接加到人物属性
+      if (e.attrs && e.slot === "fabao") { const out = {}, K = { sAtk: "atk", sHit: "hit", sCrit: "crit" }; for (const a of e.attrs) if (K[a.k]) out[K[a.k]] = (out[K[a.k]] || 0) + DATA.attrVal(a, e.g, e); return out; }
       if (e.attrs) { const out = {}; for (const a of e.attrs) out[a.k] = (out[a.k] || 0) + DATA.attrVal(a, e.g, e); return out; } // 炼制装备 / 戒指（data/forge.js）
       if (e.cid) { const d = this.cuDef(e.cid); return d ? this.cuStats(d) : {}; } // 自定义装备/法宝：属性见 content/items.js
       const Le = e.g * 10 + CFG.equip.LAYER_OFFSET, f = Math.pow(DATA.GROW, Le), m = DATA.qualMult[e.q], k = e.q + 1, B = DATA.playerBase;
@@ -98,7 +104,13 @@ G.module({
       const n = { atk: "攻击", hp: "气血", def: "防御", mana: "法力", crit: "暴击%", hit: "命中", dodge: "闪避", speed: "速度", hpPct: "气血%" };
       if (e.attrs) {
         let head = "";
-        if (e.slot === "fabao") { const f = DATA.fabaoInfo(e); head = `${DATA.elById[e.el].name}属性法宝 · 每次祭出消耗法力 ${U.fmt(f.mana)}<br>`; }
+        if (e.slot === "fabao") {
+          const f = DATA.fabaoInfo(e);
+          head = `${DATA.elById[e.el].name}属性${e.name} · 每次祭出消耗法力 ${U.fmt(f.mana)}<br>`;
+          if (f.shield) head += `护盾值 ${U.fmt(f.shield.hp)} · 防御 ${U.fmt(f.shield.def)}<br>`;
+          if (f.ding) head += `击中后对方速度 -${U.num(f.ding.speed)}%、命中 -${U.num(f.ding.hit)}%、闪避 -${U.num(f.ding.dodge)}%，持续 ${f.ding.rounds} 回合<br>`;
+          if (f.yin) head += `击中后 ${U.num(f.yin.chance)}% 几率眩晕对方 ${f.yin.rounds} 回合<br>`;
+        }
         return head + e.attrs.map(a => `<span class="ac${a.c}">${DATA.attrText(a, e)}</span>`).join("<br>");
       }
       const st = this.equipStats(e);
@@ -154,7 +166,7 @@ G.module({
       if (it.t === "eq" && it.e.cid) { const d = this.cuDef(it.e.cid); if (d && d.sell !== undefined) return d.sell; }
       if (it.t === "ss") return 0;
       if (it.t === "hx") return CFG.forge.reset.SELL || 0;
-      if (it.t === "sm") { const v = (CFG.mijing.items[it.k] || {}).sell || 0; return Array.isArray(v) ? v[it.k === "mold" ? DATA.moldTier(it.tier) - 1 : it.ft || 0] || 0 : v; }   // 模具按模具阶、九曜石按品阶
+      if (it.t === "sm") { const v = (CFG.mijing.items[it.k] || {}).sell || 0; return Array.isArray(v) ? v[it.ft || 0] || 0 : v; }
       if (it.t === "rbp") return CFG.forge.ring.bpSell[it.g] || 0;
       if (it.t === "eq" && it.e.attrs) return (it.e.slot === "ring" ? CFG.forge.ring.sell : CFG.forge.equip.sell)[it.e.g] || 0;
       if (it.t === "fu" || it.t === "bp") return Math.floor(DATA.blueprintCost(it.kind, it.g) * (it.t === "fu" ? 2 : 1));
@@ -258,8 +270,8 @@ G.module({
     // 第 i 条属性下一次强化的消耗 { fire 火髓, jj 炼宝玄晶, mats 三种矿石 }
     enhCost(e, i) {
       const E = DATA.enhCfg(e), a = e.attrs[i], k = 1 + ((a && a.enh) || 0) * (E.COST_STEP || 0);
-      // 九曜石个数 = SPECIAL[物品阶] × k；品阶按已强化次数（DATA.enhJyGrade：每 JY_STEP 次升一品）
-      return { fire: Math.ceil((E.FIRE[e.g] || 1) * k), jj: Math.ceil(((E.SPECIAL || [])[e.g] || 0) * k), sk: "jy", sf: DATA.enhJyGrade(e, (a && a.enh) || 0),
+      // 耀石个数 = SPECIAL[物品阶] × k；法宝用同属性耀石，装备 / 戒指任意一种（sf = -1）
+      return { fire: Math.ceil((E.FIRE[e.g] || 1) * k), jj: Math.ceil(((E.SPECIAL || [])[e.g] || 0) * k), sk: "ys", sf: this.ysFor(e),
         mats: DATA.parseMats(E.ORES[e.g] || E.ORES[0]).map(m => Object.assign(m, { n: Math.ceil(m.n * k) })) };
     },
     enhHave(c) { return this.fireCount() >= c.fire && this.smCount(c.sk, c.sf) >= c.jj && this.hasMats(c.mats); },
@@ -270,7 +282,7 @@ G.module({
       const e = this._enhObj; if (!e) return;
       const E = DATA.enhCfg(e);
       this.modal(`<img class="item-img${DATA.eqCls(e)}" src="${DATA.eqIcon(e)}" alt=""><h2 class="q${e.q}">强化 · ${this.itemName({ t: "eq", e })}</h2>
-        <p class="desc">${DATA.HX} ${U.fmt(this.fireCount())} · ${[...new Set(e.attrs.filter(a => DATA.attrEnhOK(a, e) && (a.enh || 0) < E.MAX).map(a => DATA.enhJyGrade(e, a.enh || 0)))].sort().map(f => `${DATA.li(DATA.smIcon("jy", f))}${DATA.smName("jy", f)} ${U.fmt(this.smCount("jy", f))}`).join(" · ")} · 每 ${E.JY_STEP || 9} 次强化换高一品九曜石 · 失败只扣材料，不掉强化等级。</p>` +
+        <p class="desc">${DATA.HX} ${U.fmt(this.fireCount())} · ${DATA.li(DATA.smIcon("ys", this.ysFor(e)))}${DATA.smName("ys", this.ysFor(e))} ${U.fmt(this.smCount("ys", this.ysFor(e)))} · 失败只扣材料，不掉强化等级。</p>` +
         e.attrs.map((a, i) => {
           if (!DATA.attrEnhOK(a, e)) return `<div class="line"><div><span class="ac${a.c}">${DATA.attrText(a, e)}</span><small>不能强化</small></div></div>`;
           const n = a.enh || 0, max = n >= E.MAX, c = this.enhCost(e, i), base = DATA.attrBase(a, e.g, e);
@@ -301,17 +313,34 @@ G.module({
       this.s.bag.push({ t: "hx", n }); return true;
     },
     takeFire(n) { const i = this.s.bag.findIndex(x => x.t === "hx"); if (i < 0 || this.s.bag[i].n < n) return false; this.removeAt(i, n); return true; },
-    /* ---------- 秘境专用材料：空间晶核 kj、养神灵露 lu、九曜石 jy（ft = 品阶）、模具 mold（ft = 法宝种类，tier = 模具阶 1~10） ---------- */
-    smFind(k, ft, tier) { return this.s.bag.findIndex(x => x.t === "sm" && x.k === k && (!DATA.SM_GRADED.includes(k) || (x.ft || 0) === (ft || 0)) && (k !== "mold" || DATA.moldTier(x.tier) === DATA.moldTier(tier))); },
-    smCount(k, ft, tier) { const i = this.smFind(k, ft, tier); return i < 0 ? 0 : this.s.bag[i].n; },
-    addSm(k, n, ft, tier) {
-      const i = this.smFind(k, ft, tier);
+    /* ---------- 秘境专用材料：空间晶核 kj、养神灵露 lu、耀石 ys（ft = 属性序号 0~5；-1 = 任意一种） ---------- */
+    ysFor(e) { return e && e.slot === "fabao" ? DATA.elIdx(e.el) : -1; },   // 强化 / 炼制用哪种耀石
+    smFind(k, ft) { return this.s.bag.findIndex(x => x.t === "sm" && x.k === k && (!DATA.SM_GRADED.includes(k) || (x.ft || 0) === (ft || 0))); },
+    smCount(k, ft) {
+      if (k === "ys" && ft < 0) return this.s.bag.reduce((t, x) => t + (x.t === "sm" && x.k === "ys" ? x.n : 0), 0);
+      const i = this.smFind(k, ft); return i < 0 ? 0 : this.s.bag[i].n;
+    },
+    addSm(k, n, ft) {
+      if (k === "ys" && ft < 0) ft = 0;
+      const i = this.smFind(k, ft);
       if (i >= 0) { this.s.bag[i].n += n; return true; }
-      if (this.bagFull()) { if (!this.silent) this.log(`背包已满，${DATA.smName(k, ft, tier)}遗失了。`, "bad"); return false; }
-      const it = { t: "sm", k, n }; if (DATA.SM_GRADED.includes(k)) it.ft = ft || 0; if (k === "mold") it.tier = DATA.moldTier(tier);
+      if (this.bagFull()) { if (!this.silent) this.log(`背包已满，${DATA.smName(k, ft)}遗失了。`, "bad"); return false; }
+      const it = { t: "sm", k, n }; if (DATA.SM_GRADED.includes(k)) it.ft = ft || 0;
       this.s.bag.push(it); return true;
     },
-    takeSm(k, n, ft, tier) { const i = this.smFind(k, ft, tier); if (i < 0 || this.s.bag[i].n < n) return false; this.removeAt(i, n); return true; },
+    // 扣专用材料；返回实际扣了哪些 [{ k, ft, n }]（任意耀石：先扣最多的那种），不够返回 false
+    takeSm(k, n, ft) {
+      if (k === "ys" && ft < 0) {
+        if (this.smCount(k, ft) < n) return false;
+        const out = [];
+        while (n > 0) {
+          const list = this.s.bag.filter(x => x.t === "sm" && x.k === "ys").sort((a, b) => b.n - a.n), x = list[0], m = Math.min(n, x.n), f = x.ft || 0;
+          this.removeAt(this.s.bag.indexOf(x), m); n -= m; out.push({ k, ft: f, n: m });
+        }
+        return out;
+      }
+      const i = this.smFind(k, ft); if (i < 0 || this.s.bag[i].n < n) return false; this.removeAt(i, n); return [{ k, ft, n }];
+    },
     // 找到要洗练 / 强化的那件：b序号 = 背包，fb序号 = 法宝栏，其它 = 装备栏
     resetTarget(src) {
       if (src[0] === "b" && src[1] !== undefined && !isNaN(+src.slice(1))) { const it = this.s.bag[+src.slice(1)]; return it && it.t === "eq" ? it.e : null; }
@@ -457,7 +486,7 @@ G.module({
       else if (it.t === "mat") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.matImg(it.kind, it.g)}" alt="">${it.name}<span class="n">${U.fmt(it.n)}</span></div>`;
       else if (it.t === "fu") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.furnaceIcon(it.kind)}" alt="">${DATA.furnaceName(it.kind, it.g)}${it.n > 1 ? `<span class="n">${it.n}</span>` : ""}</div>`;
       else if (it.t === "bp") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("bp")}" alt="">${DATA.furnaceName(it.kind, it.g)}</div>`;
- else if (it.t === "sm") cells += `<div class="cell q3" onclick="G.openItem(${i})"><img class="mi${it.k === "mold" ? " mold" : ""}" src="${DATA.smIcon(it.k, it.ft)}" alt="">${DATA.smName(it.k, it.ft, it.tier)}<span class="n">${U.fmt(it.n)}</span></div>`;
+ else if (it.t === "sm") cells += `<div class="cell q3" onclick="G.openItem(${i})"><img class="mi" src="${DATA.smIcon(it.k, it.ft)}" alt="">${DATA.smName(it.k, it.ft, it.tier)}<span class="n">${U.fmt(it.n)}</span></div>`;
  else if (it.t === "hx") cells += `<div class="cell q4" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("hx")}" alt="">${DATA.HX}<span class="n">${U.fmt(it.n)}</span></div>`;
       else if (it.t === "rbp") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("bp")}" alt="">${DATA.ringNames[it.r] || "戒指"}图纸${it.n > 1 ? `<span class="n">${it.n}</span>` : ""}</div>`;
  else if (it.t === "ss") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("ss")}" alt="">${DATA.stoneName(it.g)}<span class="n">${it.n}</span></div>`;
