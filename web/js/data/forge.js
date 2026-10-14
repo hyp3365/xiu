@@ -22,7 +22,7 @@ DATA.forgeNames = {
 DATA.NM_DEF.forge = JSON.parse(JSON.stringify(DATA.forgeNames));
 for (const k in DATA.forgeNames) DATA.forgeNames[k] = DATA.nmArr((CFG.names.forge || {})[k], DATA.forgeNames[k]);
 DATA.forgeSlots = Object.keys(DATA.forgeNames);            // 能炼的部位
-DATA.attrNames = { hp: "气血", atk: "攻击", def: "防御", mana: "法力", speed: "速度", hit: "命中", dodge: "闪避", crit: "暴击%" };
+DATA.attrNames = { hp: "生命", atk: "攻击", def: "防御", mana: "法力", speed: "速度", hit: "命中", dodge: "闪避", crit: "暴击%" };
 for (const k in DATA.attrNames) DATA.attrNames[k] = DATA.nmPick(CFG.names.attr, k, DATA.attrNames[k]);
 DATA.COLOR_Q = [0, 1, 3, 4];                                // 颜色 → 品质样式（白 绿 紫 金）
 
