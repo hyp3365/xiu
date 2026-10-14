@@ -784,6 +784,29 @@ G.module({
       if (this.s.gfLearn) return this.log("正在学习其他功法。", "sys");
       this.s.stone -= g.cost; this.startGfLearn(id); this.after();
     },
+    // 仙魔冥神坊市 / 功德司功法：坊市 = 灵石 + 本图贡献，功德司 = 功德
+    learnJieGf(id) {
+      const g = DATA.skillInfo(id), s = this.s;
+      if (!g || (g.src !== "jshop" && g.src !== "gd") || this.hasGongfa(id)) return;
+      if (!this.realmOK(g.sect.reqRealm)) return this.log(`境界不足，需要${DATA.realmLabel(g.sect.reqRealm)}。`, "sys");
+      if (s.gfLearn) return this.log("正在学习其他功法。", "sys");
+      if (g.src === "gd") { if ((s.merit || 0) < g.cost) return this.log("功德不足。", "sys"); s.merit -= g.cost; }
+      else {
+        if (s.stone < g.cost) return this.log("灵石不足。", "sys");
+        if (this.xjGxOf(g.sect.map) < g.gx) return this.log("本图贡献不足。", "sys");
+        s.stone -= g.cost; this.xjGxAdd(g.sect.map, -g.gx);
+      }
+      this.startGfLearn(id); this.after();
+    },
+    jieGfView(kind, a) {
+      const s = this.s, o = DATA.jieGfOf(kind, a); if (!o) return "";
+      const lock = !this.realmOK(o.reqRealm), gd = kind === "gd";
+      const rows = DATA.gongfaTypes.map(ty => { const g = DATA.gongfaInfo(DATA.gongfaId(o.id, ty.id)), has = this.hasGongfa(g.id);
+        const poor = gd ? (s.merit || 0) < g.cost : s.stone < g.cost || this.xjGxOf(a) < g.gx;
+        return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.el.name}</span><span class="tag">${ty.name}</span><small>每层${g.label} +${U.num(g.perLv)} · ${gd ? `${U.fmt(g.cost)} 功德` : `${U.fmt(g.cost)} 灵石 · ${U.fmt(g.gx)} 贡献`} · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>
+          ${lock && !has ? `<button class="sm" disabled>境界不足</button>` : this.gfLearnBtn(g, `G.learnJieGf('${g.id}')`, poor)}</div>`; }).join("");
+      return `<div class="card"><h3>${o.name}<small>${gd ? `功德 ${U.fmt(s.merit || 0)}` : `灵石 ${U.fmt(s.stone)} · 本图贡献 ${U.fmt(this.xjGxOf(a))}`}</small></h3>${rows}</div>`;
+    },
     // 管理员：网页里更新游戏（服务器拉取 GitHub 最新代码，完成后刷新页面）
     async webUpdate() {
       if (this.updating || !confirm("从 GitHub 拉取最新代码并重启存档服务？（会先同步一次存档）")) return;
@@ -887,7 +910,8 @@ G.module({
         if (hs) {
           const back = `<div class="row" style="margin:6px 0"><b>${DATA.maps[sel].name} · ${hn(hs)}</b><button class="sm" onclick="G.setHall(null)">返回</button></div>`;
           const page = hs === "tg" ? this.tgView(sel) : hs === "xj" ? this.xjView(sel)
-            : hs === "lilian" ? bars + status + this.regionsCard(sel) : hs === "lingdi" ? bars + status + this.lingdiView() : `<div class="card"><h3>${hn(hs)}</h3></div>`;
+            : hs === "lilian" ? bars + status + this.regionsCard(sel) : hs === "lingdi" ? bars + status + this.lingdiView()
+            : hs === "shop" || hs === "gd" ? this.jieGfView(hs === "gd" ? "gd" : "jshop", sel) : `<div class="card"><h3>${hn(hs)}</h3></div>`;
           return tabs + back + page;
         }
         const ico = (id, cls) => halls[id] === undefined ? "" : `<button class="${cls || ""}" onclick="G.setHall('${id}')"><img src="img/hall_${id}.png" alt=""><span>${hn(id)}</span></button>`;
