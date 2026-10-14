@@ -94,7 +94,7 @@ G.module({
       const s = this.s, B = CFG.body, sp = this.bodySpeed(), has = this.hasTijue(), max = this.bodyMax(), cap = this.lingCap();
       const need = this.bodyNeed(), c = max ? null : this.bodyCost(), why = this.bodyBlock(), bb = this.bodyBonus();
       const status = !s.bodyAuto ? "未修炼" : !has ? "<b class='q5'>未学肉身秘诀</b>" : this.exBlocksCult() ? "<b class='q5'>历练 / 探索中，无法修炼</b>" : max ? "已达极境" : s.ling < 1 ? "<b class='q5'>灵气耗尽</b>" : "自动修炼中";
-      const names = { hp: "气血", atk: "攻击", def: "防御", mana: "法力", speed: "速度", hit: "命中", dodge: "闪避", crit: "暴击%", res: "各系抗性" };
+      const names = { hp: "生命", atk: "攻击", def: "防御", mana: "法力", speed: "速度", hit: "命中", dodge: "闪避", crit: "暴击%", res: "各系抗性" };
       const bonus = Object.keys(names).filter(k => bb[k]).map(k => `<div><span>${names[k]}</span>+${k === "crit" ? U.num(bb[k]) : U.fmt(bb[k])}</div>`).join("");
       return `<div class="card"><h3>修炼肉身 · ${this.bodyName()}<small>${s.bodyL < 0 ? "" : `第 ${Math.floor(s.bodyL / DATA.LAYERS) + 1} / ${B.names.length} 境`}</small></h3>
         ${has ? "" : `<p class="desc q5">需要先学会一本肉身秘诀（宗门 → 功法殿）。</p>`}
