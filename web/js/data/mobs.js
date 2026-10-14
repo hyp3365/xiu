@@ -64,5 +64,19 @@ DATA.mobJz = a => (DATA.maps[a].mob || {})["界主"] || [0, 0, 1, 0, 1];
   }
 })();
 
+// ---------- 试炼塔守关者（config/mobs.js 的 tower）：三个阶段，每段从「起」到「止」按层数渐变（属性按比例插值） ----------
+DATA.towerStage = (star, floor, max) => {
+  const T = CFG.mobs.tower; if (!T) return null;
+  const st = DATA.mobPick(T, star + "星", star - 1); if (!Array.isArray(st) || !st.length) return null;
+  const P = T.STAGE || [30, 30, 40], sum = P.reduce((a, b) => a + b, 0) || 1;
+  let end = 0, i = 0, from = 0;
+  for (; i < st.length; i++) { from = end; end = i === st.length - 1 ? max : Math.round(max * P.slice(0, i + 1).reduce((a, b) => a + b, 0) / sum); if (floor <= end) break; }
+  i = Math.min(i, st.length - 1);
+  const [a, b] = st[i], n = Math.max(1, end - from), t = Math.max(0, Math.min(1, i === 0 ? (n <= 1 ? 1 : (floor - 1) / (n - 1)) : (floor - from) / n));   // 后两段从上一段的「止」之后开始
+  const crit = T.CRIT !== undefined ? T.CRIT : DATA.mobCrit("考官"), A = DATA.mobStats(a, crit), B = DATA.mobStats(b || a, crit), o = { crit };
+  for (const k of DATA.REF_KEYS) o[k] = A[k] > 0 && B[k] > 0 ? A[k] * Math.pow(B[k] / A[k], t) : A[k] + (B[k] - A[k]) * t;
+  return o;
+};
+
 // ---------- 宗门考官：star 星级（1~10），i 职务序号（1 = 内门弟子 …… 6 = 宗主） ----------
 DATA.mobExam = (star, i) => { const g = DATA.mobPick(CFG.mobs.sect, star + "星", star - 1) || {}; return DATA.mobPick(g, DATA.ranks[i] && DATA.ranks[i].name, i - 1); };
