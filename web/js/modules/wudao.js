@@ -10,8 +10,6 @@ G.module({
   id: "wudao",
 
   api: {
-    // 旧版悟道室（每个门派 7 种百分比秘法）已取消
-    fixMifaV2() { if (this.s.mifa) delete this.s.mifa; },
     // 全部已学秘法的效果合计 { mpBattle, mpIdle, hpBattle, hpIdle, spStudy, gfStudy, expSpeed, bodySpeed, explore }
     mifaBonus() {
       const out = Object.fromEntries(DATA.mifaKinds.map(k => [k.id, 0]));
