@@ -34,7 +34,9 @@ G.module({
     towers: {},       // v25：各星级试炼塔已通关层数 { 星级: 层数 }
     rankPass: -1,     // 已通过考验、可以晋升的职务序号（-1 = 没有）
     freeCult: { day: "", used: 0, left: 0, on: false },   // 免费修炼室：今天用了几次、本次剩余修炼次数
-    freeGf: { day: "", used: 0, end: 0 },                 // 免费练功房：今天用了几次、本次结束时间
+    freeGf: { day: "", used: 0, end: 0 },
+    pool: null,       // 练体池：{ i 池子, end 结束时间, gain 泡完加的属性, day, used }
+    poolGain: {},     // 练体池累计加的肉身属性                 // 免费练功房：今天用了几次、本次结束时间
     cqLv: 0,          // 元婴出窍秘法层数
     cqStudy: null,    // 元婴出窍秘法修炼中 { total, done, at, spent }
     cqDay: "", cqUsed: 0,   // 元婴出窍：今天已用次数
@@ -42,7 +44,7 @@ G.module({
 
   // 每 10 秒：事务堂任务到时间就结算一次，并自动开始下一次（离线也会补算）
   tick() {
-    this.freeRoomDaily();
+    this.freeRoomDaily(); this.poolTick();
     const s = this.s, a = s.affair;
     if (!s.sect || !a || a.task === undefined || a.task < 0) return;
     const t = DATA.affairs[a.task]; if (!t) { a.task = -1; return; }
@@ -167,6 +169,34 @@ G.module({
     freeCultOn() { const f = this.s.freeCult; return !!(this.s.sect && f && f.on && f.left > 0); },
     freeGfOn() { const f = this.s.freeGf; return !!(this.s.sect && f && this.now() < f.end); },
     freeUsed(f) { return f && f.day === this.bjDay() ? f.used || 0 : 0; },
+    /* ---------- 练体池（config/sect.js 的 sect.pool） ---------- */
+    poolCost(i) { const p = CFG.sect.pool.list[i]; return { contrib: Math.floor((p.contrib || 0) * this.starMul()), hp: Math.ceil(this.stats().hp * (p.hpPct || 0) / 100) }; },
+    poolGainOf(i) {
+      const P = CFG.sect.pool, row = P.GAIN[Math.min(this.r(), P.GAIN.length - 1)] || [], g = row[i] || row[row.length - 1] || [], o = {};
+      (P.KEYS || ["hp", "atk", "def"]).forEach((k, j) => { if (g[j]) o[k] = g[j]; });
+      return o;
+    },
+    poolUsed() { const p = this.s.pool; return p && p.day === this.bjDay() ? p.used || 0 : 0; },
+    poolOn() { const p = this.s.pool; return !!(p && p.end > 0); },
+    enterPool(i) {
+      const s = this.s, P = CFG.sect.pool, d = P.list[i]; if (!d || !s.sect || this.poolOn()) return;
+      if ((d.rank || 0) > s.rank) return this.log(`需要职务【${DATA.ranks[d.rank].name}】。`, "sys");
+      if (this.poolUsed() >= P.DAILY) return this.log(`${P.name}今天已用过。`, "sys");
+      const c = this.poolCost(i);
+      if (s.contrib < c.contrib) return this.log("门派贡献不足。", "sys");
+      if (s.hp <= c.hp) return this.log("气血不足。", "sys");
+      s.contrib -= c.contrib; s.hp -= c.hp;
+      s.pool = { i, end: this.now() + P.MINUTES * 60000, gain: this.poolGainOf(i), day: this.bjDay(), used: this.poolUsed() + 1 };
+      this.log(`进入${d.name}，扣除贡献 ${U.fmt(c.contrib)}、气血 ${U.fmt(c.hp)}。`, "good"); this.after();
+    },
+    poolTick() {
+      const s = this.s, p = s.pool; if (!p || !p.end || this.now() < p.end) return;
+      if (!s.poolGain) s.poolGain = {};
+      const names = { hp: "气血", atk: "攻击", def: "防御", mana: "法力", hit: "命中", dodge: "闪避", crit: "暴击%" }, txt = [];
+      for (const k in p.gain || {}) { s.poolGain[k] = (s.poolGain[k] || 0) + p.gain[k]; txt.push(`${names[k] || k} +${U.fmt(p.gain[k])}`); }
+      p.end = 0; this.dirty();
+      this.log(`${(CFG.sect.pool.list[p.i] || {}).name || CFG.sect.pool.name}修炼完毕，肉身 ${txt.join("、")}。`, "gold");
+    },
     // 北京时间 0 点：正在用的免费修炼室恢复满次数、免费练功房恢复满时长（算作当天那一次）
     freeRoomDaily() {
       const s = this.s, day = this.bjDay(), D = 86400000, B = 8 * 3600000, mid = Math.floor((this.now() + B) / D) * D - B;   // 今天北京时间 0 点
@@ -441,7 +471,7 @@ G.module({
 
     // ---------- 已入门 ----------
     const x = this.sectInfo(), tab = this.sectTab || "hall";
-    const TABS = [["hall", "宗门大殿"], ["lib", "功法殿"], ["affair", "事务堂"], ["room", "修炼室"], ["gfroom", "练功房"], ["treasury", "宗门宝库"],
+    const TABS = [["hall", "宗门大殿"], ["lib", "功法殿"], ["affair", "事务堂"], ["room", "修炼室"], ["gfroom", "练功房"], ["pool", "练体池"], ["treasury", "宗门宝库"],
                   ["alchemy", "炼丹房"], ["forge", "炼器室"], ["wudao", "悟道室"], ["tower", "试炼塔"], ["secret", "宗门秘境"]]
       .map(([k, n]) => [k, DATA.nmPick(CFG.names.sectHall, k, n)]);   // 名字在 config/names.js 的 sectHall
     let h = `<div class="card"><h3>${x.name} <span class="tag">${x.star}星</span><span class="tag">${DATA.elById[x.el].name}</span><small>${DATA.ranks[s.rank].name} · 贡献 ${U.fmt(s.contrib)}</small></h3></div>
@@ -505,6 +535,14 @@ G.module({
         return `<div class="line"><div>${r.name}<span class="tag">功法修炼 +${U.num(this.gfRoomPct(i))}%</span>${r.rank ? `<span class="tag">${DATA.ranks[r.rank].name}专用</span>` : ""}<small>每 5 秒消耗 ${U.fmt(this.gfRoomCost(i))} 贡献</small></div>
           <button class="sm ${on ? "on" : ""}" onclick="G.enterGfRoom(${i})" ${lock ? "disabled" : ""}>${on ? "使用中" : lock ? "职务不足" : "进入"}</button></div>`;
       }).join("") + `<p class="desc">只在功法修炼队列有功法在修炼时才消耗；功法修炼时间缩短，消耗的修为不变。</p></div>`;
+    } else if (tab === "pool") {
+      const P = CFG.sect.pool, p = s.pool, on = this.poolOn(), done = !on && this.poolUsed() >= P.DAILY;
+      h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "pool", P.name)}<small>每天 ${P.DAILY} 次 · 每次 ${P.MINUTES} 分钟</small></h3>` + P.list.map((d, i) => {
+        const me = on && p.i === i, lock = (d.rank || 0) > s.rank, c = this.poolCost(i), gn = this.poolGainOf(i);
+        const gt = Object.keys(gn).map(k => `${{ hp: "气血", atk: "攻击", def: "防御", mana: "法力", hit: "命中", dodge: "闪避", crit: "暴击%" }[k] || k} +${U.fmt(gn[k])}`).join(" ");
+        return `<div class="line"><div>${d.name}${d.rank ? `<span class="tag">${DATA.ranks[d.rank].name}专用</span>` : ""}<small>${me ? `剩余 ${U.dur(Math.ceil((p.end - this.now()) / 1000) + 59)} · ` : ""}${gt} · 贡献 ${U.fmt(c.contrib)} · 气血 ${U.fmt(c.hp)}</small></div>
+          <button class="sm ${me ? "on" : ""}" onclick="G.enterPool(${i})" ${on || done || lock ? "disabled" : ""}>${me ? "修炼中" : lock ? "职务不足" : done ? "今日已用" : "进入"}</button></div>`;
+      }).join("") + `</div>`;
     } else if (tab === "treasury") {
       const tt = this.treasuryTab || "pill", maxG = this.treasuryMaxG();
       h += `<div class="sub-tabs">${[["pill", "杂物"], ["herb", DATA.matKinds.herb], ["ore", DATA.matKinds.ore], ["seed", "种子"], ["bp", "图纸"]].map(([k, n]) =>
