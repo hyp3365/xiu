@@ -408,10 +408,22 @@ G.module({
     // 击败怪物的掉落，写进 loot，返回描述文字
     //   mj = 秘境序号（秘境：灵石倍率、掉落按 config/mijing.js）
     //   mk = "ld"：灵地（config/lingdi.js）
+    // CFG.drop.RUN_STONE：w 界、区域层序 L 时每只普通怪的灵石基数（未配置返回 null）
+    runStonePer(w, L) {
+      const E = CFG.drop, R = (E.RUN_STONE || {})[w || "fan"]; if (!R) return null;
+      if (!this._rsL) this._rsL = {};
+      let b = this._rsL[w];
+      if (!b) { b = [Infinity, -Infinity]; DATA.maps.forEach((mp, i) => { if ((mp.w || "fan") !== (w || "fan")) return; for (let r = 0; r < DATA.regionCount; r++) { const l = DATA.region(i, r).L; if (l < b[0]) b[0] = l; if (l > b[1]) b[1] = l; } }); this._rsL[w] = b; }
+      const t = b[1] > b[0] ? Math.max(0, Math.min(1, (L - b[0]) / (b[1] - b[0]))) : 0, X = CFG.explore;
+      const den = 1.75 * (X.MONSTERS + X.ELITES * E.ELITE_STONE + X.BOSS * E.BOSS_STONE);
+      return (R[0] + (R[1] - R[0]) * t) / den;
+    },
     rollMonsterLoot(loot, m, a, mj, mk) {
       const E = CFG.drop, mult = m.boss ? E.BOSS_STONE : m.elite ? E.ELITE_STONE : 1, ev = m.boss ? "boss" : m.elite ? "elite" : "monster";
       const sm = mj !== undefined ? (this.mjDef(mj, mk).stone || 1) : DATA.mapStone(a);
-      const stone = Math.floor(E.STONE_BASE * Math.pow(E.STONE_GROW, m.Lm) * (1 + Math.random() * 1.5) * E.STONE_RATE * mult * sm);
+      const w = mj !== undefined ? (mk === "ld" ? this.mjDef(mj, mk).w : "fan") : DATA.maps[a].w, per = this.runStonePer(w, m.Lm);
+      const raw = (per !== null ? per : E.STONE_BASE * Math.pow(E.STONE_GROW, m.Lm)) * (1 + Math.random() * 1.5) * E.STONE_RATE * mult * sm;
+      const stone = Math.floor(raw + (per !== null ? Math.random() : 0));   // 新公式随机取整，平均值不被向下取整吃掉
       loot.stone += stone;
       const mats = mj !== undefined ? this.rollMj(loot, ev, mj, mk) : this.rollEvent(loot, ev, a);
       return `灵石${U.fmt(stone)}${mats ? "、" + mats : ""}`; // 怪物不掉丹药、装备
