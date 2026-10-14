@@ -13,7 +13,8 @@
  *
  * 【宗门秘法】悟道室学习，同星级门派共用，1~10 星每星 9 部（config/wudao.js），id "w星级:mf:种类"
  *
- * 【来源类型】功法内部标记来源：sect 宗门功法（功法殿，贡献）、shop 凡界坊市功法（坊市，灵石）
+ * 【来源类型】功法内部标记来源：sect 宗门功法（功法殿，贡献）、shop 凡界坊市功法（坊市，灵石）、
+ *   jshop 仙魔冥神坊市功法（灵石 + 本图贡献）、gd 仙魔冥神功德司功法（功德），后两种见 data/jiegf.js
  *   所有数值 = 基础属性 × 类型倍率 × 星级倍率 × 阶倍率（功法 = 四阶相加）× 各自 EFFECT（config/gongfa.js）
  *
  * 功法、法术都是 12 层：功法殿首次学习消耗贡献，等 LEARN_MIN 分钟后学会第 1 层；
@@ -52,9 +53,14 @@ DATA.gongfaTypes = [
 DATA.gongfaTypes.forEach(t => { const n = (_NM.gfType || {})[t.id]; if (n) { t.name = DATA.nmPick(n, 0, t.name); t.suffix = DATA.nmPick(n, 1, t.suffix); } });
 
 /* 功法来源类型（内部标记）：sect 宗门功法、shop 凡界坊市功法；以后加新类型在这里加一行 + config 加一组 */
+// 效果 = 宗门功法 × PCT%（凡界坊市、仙魔冥神坊市、功德司用）
+DATA.gfDerive = P => { const S = _GF.sect, v = x => x === undefined ? 1 : x, k = (P === undefined ? 100 : P) / 100;
+  return Object.assign({}, S, { EFFECT_GONGFA: v(S.EFFECT_GONGFA) * k, EFFECT_SPELL: v(S.EFFECT_SPELL) * k, EFFECT_PCT: v(S.EFFECT_PCT) * k }); };
 DATA.gfSources = {
   sect: { name: "宗门", cfg: () => _GF.sect },
-  shop: { name: "坊市", cfg: () => _GF.shop },
+  shop: { name: "坊市", cfg: () => DATA.gfDerive(_GF.shop.PCT) },
+  jshop: { name: "坊市", cfg: () => DATA.gfDerive((_GF.jshop || {}).PCT) },
+  gd: { name: "功德司", cfg: () => DATA.gfDerive((_GF.gd || {}).PCT) },
   tower: { name: "试炼塔", cfg: () => _GF.tower || _GF.sect },   // v25：试炼塔秘诀
 };
 
@@ -90,6 +96,7 @@ DATA.sectWords = sect => {
 // 功法名：门派前缀 + 随机词 + 类别后缀（每个 类别×阶 用不同的词）
 DATA.gongfaName = (sect, type, tier) => {
   if (sect.book) return `${sect.prefix}${type.suffix}·第${sect.book}卷`;   // 试炼塔秘诀
+  if (sect.plain) return sect.prefix + type.suffix;                       // 仙魔冥神坊市、功德司：地图名 + 后缀
   const w = DATA.sectWords(sect), ti = DATA.gongfaTypes.indexOf(type);
   return sect.prefix + w[(ti * 4 + tier.idx) % w.length] + type.suffix;
 };
@@ -103,8 +110,9 @@ DATA.GF_QUEUE = _GF.QUEUE;
 DATA.STUDY_STEP = _GF.STUDY_STEP;
 DATA.studyMin = _GF.STUDY_MIN;
 
-/* ---------- 凡界坊市功法的「来源」（相当于一个门派，每星 2 个，id f星级_序号） ---------- */
-DATA.SHOP_GF_PREFIX = [["青冥", "云笈"], ["琼华", "栖霞"], ["抱朴", "听松"], ["凌虚", "洞玄"], ["玄真", "星槎"], ["丹霞", "太微"]];
+/* ---------- 凡界坊市功法的「来源」（相当于一个门派，1~5 星，每星 6 个 = 金木水火土雷各一个，id f星级_序号） ---------- */
+DATA.SHOP_GF_PREFIX = [["青冥", "云笈", "丹霞", "太微", "云岫", "松鹤"], ["琼华", "栖霞", "青萍", "鹤鸣", "灵枢", "素问"], ["抱朴", "听松", "霁月", "揽星", "停云", "观澜"],
+  ["凌虚", "洞玄", "归云", "栖梧", "白鹿", "青牛"], ["玄真", "星槎", "紫芝", "玉衡", "天枢", "摇光"]];
 DATA.shopSources = [];
 DATA.SHOP_GF_PREFIX.forEach((pair, i) => pair.forEach((prefix, n) => {
   const star = i + 1;
@@ -147,6 +155,8 @@ DATA.studyPer = info => { const v = (x, d) => x === undefined ? d : x; if (info.
 DATA.gfLearnCost = (o, typeId, tier) => {
   if (DATA.srcType(o) !== "shop") {   // 宗门学习贡献单独设置：learn × LEARN_TYPE × LEARN_STAR × LEARN_TIER × EFFECT_LEARN（不用效果倍率）
     const C = DATA.srcCfg(o), v = (x, d = 1) => x === undefined ? d : x;
+    if (o.src === "jshop" || o.src === "gd") { const J = _GF[o.src] || {}, i = o.star - 6, t = v((J.TYPE || {})[typeId]);   // 仙魔冥神：按星级（6~10 星）
+      return o.src === "gd" ? Math.floor(v((J.MERIT || [])[i], 0) * t) : Math.floor(v((J.STONE || [])[i], 0) * t); }
     const tk = typeId === "spell" ? "huang" : C.LEARN_AS || "di";   // v93：功法按以前地阶的贡献，法术按黄阶
     return Math.floor(v(C.learn, 0) * v((C.LEARN_TYPE || {})[typeId]) * v((C.LEARN_STAR || [])[o.star - 1]) * v((C.LEARN_TIER || {})[tk]) * v(C.EFFECT_LEARN));
   }
@@ -175,14 +185,17 @@ DATA.gongfaInfo = (id, lv = 1) => {
   const sect = DATA.gfSrcById[sectId], type = DATA.gongfaTypes.find(x => x.id === typeId), tier = DATA.tierById[tierId];
   if (!sect || !type || !tier || tierId !== "huang") return null;
   const per = DATA.gfCalc(sect, type.id, tier, type.stat, "EFFECT_GONGFA");
+  const el = DATA.elById[(sect.els || {})[type.id] || sect.el];   // 仙魔冥神坊市、功德司：每本单独的属性
+  const J = sect.src === "jshop" ? _GF.jshop || {} : null;
   return {
-    kind: "gf", id, sect, src: DATA.srcType(sect), star: sect.star, type, tier, lv, el: DATA.elById[sect.el],
-    label: type.stat === "res" ? DATA.elById[sect.el].name + "抗性" : type.label, // 显示用：真诀写成「火抗性」等
+    kind: "gf", id, sect, src: DATA.srcType(sect), star: sect.star, type, tier, lv, el,
+    label: type.stat === "res" ? el.name + "抗性" : type.label, // 显示用：真诀写成「火抗性」等
+    gx: J ? Math.floor(((J.GX || [])[sect.star - 6] || 0) * (((J.TYPE || {})[type.id]) === undefined ? 1 : J.TYPE[type.id])) : 0,   // 仙魔冥神坊市：还要本图贡献
     name: DATA.gongfaName(sect, type, tier),
     value: per * DATA.lvMul(lv),                  // 当前加成（固定数值）
     next: per * DATA.lvMul(lv + 1),               // 下一层的加成
     perLv: per,                                   // 每层加成
-    cost: DATA.gfLearnCost(sect, type.id, tier),  // 首次学习：宗门 = 贡献，坊市 = 灵石
+    cost: DATA.gfLearnCost(sect, type.id, tier),  // 首次学习：宗门 = 贡献，坊市 = 灵石，功德司 = 功德
   };
 };
 
