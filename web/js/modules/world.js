@@ -173,6 +173,7 @@ G.module({
       const ordIdx = key => { const i = (BS.order || []).indexOf(key); return i < 0 ? 999 + jOf(key) : i; };
       const myHit = () => {
         let d;
+        if (meSeal) return hit(st, mE());   // 被镇魂：只能普通攻击
         // 生命低于设定：先用设定的防御法宝 / 法术（可动用保留法力）
         if (BS.lowPct > 0 && BS.lowKey && php < st.hp * BS.lowPct / 100 && (d = cast(jOf(BS.lowKey), true)) !== null) return d;
         // 第一 ~ 三回合：每回合第一次出手按设置
@@ -192,7 +193,29 @@ G.module({
         return d !== null ? d : hit(st, mE());
       };
       let php = s.hp, mhp = m.hp, rounds = 0, dealt = 0, taken = 0;
-      const LX = CFG.wudao.LIANXING || {}, lxMe = this.mifaBonus().lianxing || 0, lxMob = LX.MOB || 0;
+      const W = CFG.wudao, MB = this.mifaBonus(), LX = W.LIANXING || {}, lxMe = MB.lianxing || 0;
+      // 怪物秘法：第一次战斗时随机决定有哪几种（m.mf）
+      if (!m.mf) {
+        const MM = W.MOB_MIFA || {}, T = MM[m.boss ? "boss" : m.elite ? "elite" : "normal"] || {}, pool = (MM.POOL || []).slice(); m.mf = [];
+        if (Math.random() * 100 < (T.CHANCE || 0)) { const N = T.N || [1, 1]; let n = N[0] + Math.floor(Math.random() * (N[1] - N[0] + 1)); while (n-- > 0 && pool.length) m.mf.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]); }
+      }
+      const hasM = k => m.mf.includes(k), lxMob = hasM("lianxing") ? LX.MOB || 0 : 0;
+      // 战斗秘法（config/wudao.js）：御天 保命、破军 无视防御、血煞 低血增伤、镇魂 只能普攻、金蝉 免疫攻击
+      const YT = W.YUTIAN || {}, PJ = W.POJUN || {}, XS = W.XUESHA || {}, ZH = W.ZHENHUN || {}, JC = W.JINCHAN || {};
+      const P = (me) => me ? { yt: MB.yutian || 0, ytT: YT.TIMES || 0, pj: MB.pojun || 0, pjI: MB.pojunIgn || 0, xs: MB.xuesha || 0, zh: MB.zhenhun || 0, zhT: ZH.TIMES || 0, zhR: MB.zhenhunR || 3, jc: MB.jinchan || 0, jcT: JC.TIMES || 0, jcC: MB.jinchanCut || 0 }
+        : { yt: hasM("yutian") ? YT.MOB || 0 : 0, ytT: YT.MOB_TIMES || 0, pj: hasM("pojun") ? PJ.MOB || 0 : 0, pjI: PJ.MOB_IGNORE || 0, xs: hasM("xuesha") ? XS.MOB || 0 : 0,
+          zh: hasM("zhenhun") ? ZH.MOB || 0 : 0, zhT: ZH.TIMES || 0, zhR: ZH.MOB_ROUNDS || 3, jc: hasM("jinchan") ? JC.MOB || 0 : 0, jcT: JC.TIMES || 0, jcC: JC.MOB_CUT || 0 };
+      const pMe = P(true), pMob = P(false), cnt = { me: { yt: 0, zh: 0, jc: 0 }, mob: { yt: 0, zh: 0, jc: 0 } };
+      let meSeal = 0, mobSeal = 0, meJc = 0, mobJc = 0, sealR = { me: 0, mob: 0 };
+      const ch = v => v > 0 && Math.random() * 100 < v;
+      // 出手后的伤害修正：血煞增伤、金蝉自降、对方金蝉免疫；返回修正后的伤害
+      const after = (d, p, hpNow, hpMax, myJc, tgtJc) => {
+        if (!(d > 0) || act.k >= 3) return d;
+        if (p.xs > 0) { const r = hpNow / hpMax; d *= 1 + p.xs / 100 * (r * 100 <= (XS.FULL_AT || 0) ? 1 : Math.max(0, 1 - r)); }
+        if (myJc) d *= 1 - p.jcC / 100;
+        if (tgtJc && act.f !== 1) { d = 0; act.x = (act.x || 0) | 128; }
+        return d;
+      };
       const hp0 = s.hp, mana0 = s.mana, meFirst = st.speed >= m.speed;
       // 怪物出手：先判法术，再判法宝（都按 防御×RES_RATE + 该系抗性 减免），都没有就普通攻击
       let mSp = 0, mFb = 0;
@@ -207,11 +230,25 @@ G.module({
       const log = [], R = Math.round;
       //   v57 多两格：[10] 标记（1 眩晕对方 2 鼎减益 4 护盾破碎）、[11] 护盾抵挡的伤害；方式 3 = 祭起护盾（伤害格 = 护盾值）、4 = 被眩晕
       const rec = (w, d) => log.push([rounds, w, act.k, act.sp === undefined ? -1 : act.sp, act.f, R(d), R(Math.max(0, php)), R(s.mana), R(Math.max(0, mhp)), R(m.mana || 0), act.x || 0, R(act.ab || 0)]);
-      const me = (lx) => { const d = myHit(); if (lx) act.x = (act.x || 0) | 8; mhp -= d; dealt += d; rec(0, act.k === 3 ? shield.hp : d); };
+      const me = (lx) => {
+        const pj = ch(pMe.pj), def0 = m.def; if (pj) m.def = def0 * (1 - pMe.pjI / 100);   // 破军：这一下无视部分防御
+        let d = myHit(); m.def = def0;
+        if (lx) act.x = (act.x || 0) | 8;
+        if (pj && act.k < 3 && act.f !== 1) act.x = (act.x || 0) | 32;
+        d = after(d, pMe, php, st.hp, meJc, mobJc);
+        if (act.k < 3 && act.f !== 1 && !(act.x & 128) && !mobSeal && cnt.me.zh < pMe.zhT && ch(pMe.zh)) { mobSeal = pMe.zhR; sealR.mob = rounds; cnt.me.zh++; act.x = (act.x || 0) | 64; }
+        mhp -= d; dealt += d;
+        if (mhp <= 0 && php > 0 && cnt.mob.yt < pMob.ytT && ch(pMob.yt)) { dealt -= 1 - mhp; mhp = 1; cnt.mob.yt++; act.x = (act.x || 0) | 16; }   // 对方御天保命
+        rec(0, act.k === 3 ? shield.hp : d);
+      };
       const him = (lx) => {
         if (m.stun > 0) { m.stun--; act = { k: 4, f: 0 }; rec(1, 0); return; }   // 被眩晕：这次不能出手
-        let d = mobHit();
+        const pj = ch(pMob.pj), def0 = st.def; if (pj) st.def = def0 * (1 - pMob.pjI / 100);
+        let d = mobSeal ? hit(mE(), st) : mobHit(); st.def = def0;   // 被镇魂：只能普通攻击
         if (lx) act.x = (act.x || 0) | 8;
+        if (pj && act.f !== 1) act.x = (act.x || 0) | 32;
+        d = after(d, pMob, mhp, m.hp, mobJc, meJc);
+        if (act.f !== 1 && !(act.x & 128) && !meSeal && cnt.mob.zh < pMob.zhT && ch(pMob.zh)) { meSeal = pMob.zhR; sealR.me = rounds; cnt.mob.zh++; act.x = (act.x || 0) | 64; }
         if (shield && act.f !== 1 && d > 0) {   // 护盾：先减盾防御，同属性再减 %、点，再减「受到伤害减少」，剩下先扣护盾值
           d = Math.max(0, d - shield.def * BT.DEF_RATE);
           if (act.k && m.el === shield.el) d = Math.max(0, d * (1 - shield.pct / 100) - shield.flat);
@@ -219,21 +256,34 @@ G.module({
           const ab = Math.min(shield.hp, d); shield.hp -= ab; d -= ab; act.ab = ab;
           if (shield.hp <= 0) { shield = null; act.x = (act.x || 0) | 4; }
         }
-        php -= d; taken += d; rec(1, d);
+        php -= d; taken += d;
+        if (php <= 0 && mhp > 0 && cnt.me.yt < pMe.ytT && ch(pMe.yt)) { taken -= 1 - php; php = 1; cnt.me.yt++; act.x = (act.x || 0) | 16; }   // 御天保命
+        rec(1, d);
+      };
+      // 金蝉：每回合开始判定（方式 5 = 发动金蝉秘法）
+      const jcTry = (w) => {
+        const c = w ? cnt.mob : cnt.me, p = w ? pMob : pMe;
+        if ((w ? mobJc : meJc) || c.jc >= p.jcT || !ch(p.jc)) return;
+        c.jc++; if (w) mobJc = JC.ROUNDS || 3; else meJc = JC.ROUNDS || 3;
+        act = { k: 5, f: 0 }; rec(w, 0);
       };
       while (php > 0 && mhp > 0 && rounds < BT.MAX_ROUNDS) {
         rounds++;
+        jcTry(0); jcTry(1);
         // 连星秘法：这回合有几率再出手一次（[10] 标记 8）
         const meT = () => { me(); if (mhp > 0 && php > 0 && Math.random() * 100 < lxMe) me(true); };
         const himT = () => { him(); if (act.k !== 4 && mhp > 0 && php > 0 && Math.random() * 100 < lxMob) him(true); };
         if (st.speed >= mE().speed) { meT(); if (mhp > 0) himT(); }   // 每回合按当前速度定先手（鼎会降低对方速度）
         else { himT(); if (php > 0) meT(); }
         if (m.deb && --m.deb.left <= 0) m.deb = null;
+        if (meJc) meJc--; if (mobJc) mobJc--;
+        if (meSeal && sealR.me !== rounds) meSeal--; else if (meSeal) sealR.me = -1;
+        if (mobSeal && sealR.mob !== rounds) mobSeal--; else if (mobSeal) sealR.mob = -1;
       }
       s.hp = Math.max(1, php);
       // 战斗说明（显示在探索信息里）
       const why = `你出战时生命 ${U.fmt(hp0)}，共造成 ${U.fmt(dealt)} 伤害（对方剩余生命 ${U.fmt(Math.max(0, mhp))}/${U.fmt(m.hp)}），承受 ${U.fmt(taken)} 伤害；对方攻击 ${U.fmt(m.atk)} 防御 ${U.fmt(m.def)}${m.el ? `，${DATA.elById[m.el].name}属性，施法术 ${mSp} 次、法宝 ${mFb} 次` : ""}`;
-      const detail = { name: m.name, el: m.el || "", sp: spNames, first: meFirst ? 0 : 1, log,
+      const detail = { name: m.name, el: m.el || "", sp: spNames, first: meFirst ? 0 : 1, log, mf: m.mf.slice(),
         me: [R(hp0), R(st.hp), R(mana0), R(st.mana)], mob: [R(m.hp), R(m.hp), R(m.maxMana || 0), R(m.maxMana || 0)] };
       return { win: mhp <= 0 && php > 0, lose: php <= 0, rounds, why, detail };
     },
@@ -241,23 +291,25 @@ G.module({
     // 战斗过程每一下的文字（b = battle() 返回的 detail）
     battleRow(b, x) {
       const [r, w, k, sp, f, d, ph, pm, mh, mm, fx, ab] = x, el = b.el ? DATA.elById[b.el].name : "";
-      const who = (w ? b.name : "你") + (fx & 8 ? "发动连星秘法，" : ""), tgt = w ? "你" : b.name;
+      const who = (w ? b.name : "你") + (fx & 8 ? "发动连星秘法，" : "") + (fx & 32 ? "发动破军秘法，" : ""), tgt = w ? "你" : b.name;
       const how = k === 1 ? `施放${w ? `${el}系法术` : `《${b.sp[sp] || "法术"}》`}` : k === 2 ? (w || !b.sp[sp] ? "祭出法宝" : `祭出法宝「${b.sp[sp]}」`)
-        : k === 3 ? `祭起法宝「${b.sp[sp] || "盾"}」` : k === 4 ? "被眩晕" : fx & 8 ? "普通攻击" : "发动普通攻击";
-      let res = k === 3 ? `，护盾值 <b>${U.fmt(d)}</b>` : k === 4 ? "，无法行动" : f === 1 ? `，被${tgt}闪避` : `，${f === 2 ? "暴击！" : ""}对${tgt}造成 <b>${U.fmt(d)}</b> 伤害`;
+        : k === 3 ? `祭起法宝「${b.sp[sp] || "盾"}」` : k === 4 ? "被眩晕" : k === 5 ? "发动金蝉秘法" : fx & 8 ? "普通攻击" : "发动普通攻击";
+      let res = k === 3 ? `，护盾值 <b>${U.fmt(d)}</b>` : k === 4 ? "，无法行动" : k === 5 ? `，${CFG.wudao.JINCHAN && CFG.wudao.JINCHAN.ROUNDS || 3} 回合内免疫攻击` : fx & 128 ? `，被${tgt}的金蝉秘法挡下` : f === 1 ? `，被${tgt}闪避` : `，${f === 2 ? "暴击！" : ""}对${tgt}造成 <b>${U.fmt(d)}</b> 伤害`;
       if (ab) res += `（护盾抵挡 ${U.fmt(ab)}）`;
       if (fx & 4) res += "，护盾破碎";
       if (fx & 2) res += `，${tgt}速度、命中、闪避降低`;
       if (fx & 1) res += `，${tgt}被眩晕`;
+      if (fx & 64) res += `，${tgt}被镇魂，只能普通攻击`;
+      if (fx & 16) res += `，${tgt}发动御天秘法，保留一点生命`;
       return `<p class="${w ? "bad" : "good"}"><b>第${r}回合</b> ${who}${how}${res}<br><small>你 生命 ${U.fmt(ph)}/${U.fmt(b.me[1])} 法力 ${U.fmt(pm)}/${U.fmt(b.me[3])} · ${b.name} 生命 ${U.fmt(mh)}/${U.fmt(b.mob[1])} 法力 ${U.fmt(mm)}/${U.fmt(b.mob[3])}</small></p>`;
     },
     // 战斗总览：先手、开战数值、双方各方式伤害合计
     battleHead(b) {
-      const K = ["普通攻击", "法术", "法宝", "护盾", "被眩晕"], el = b.el ? DATA.elById[b.el].name : "";
+      const K = ["普通攻击", "法术", "法宝", "护盾", "被眩晕", "金蝉秘法"], el = b.el ? DATA.elById[b.el].name : "";
       const sum = (w, k) => b.log.filter(x => x[1] === w && x[2] === k).reduce((t, x) => t + x[5], 0);
       const cnt = (w, k) => b.log.filter(x => x[1] === w && x[2] === k).length;
       const line = w => K.map((n, k) => cnt(w, k) ? `${n} ${cnt(w, k)} 次${k < 3 ? " " + U.fmt(sum(w, k)) : ""}` : "").filter(Boolean).join("，") || "无";
-      return `<p class="desc">${el ? `${b.name}为${el}属性 · ` : ""}${b.first ? `${b.name}先手` : "你先手"}<br>开战：你 生命 ${U.fmt(b.me[0])}/${U.fmt(b.me[1])} 法力 ${U.fmt(b.me[2])}/${U.fmt(b.me[3])} · ${b.name} 生命 ${U.fmt(b.mob[0])} 法力 ${U.fmt(b.mob[2])}<br>
+      return `<p class="desc">${el ? `${b.name}为${el}属性 · ` : ""}${b.first ? `${b.name}先手` : "你先手"}${b.mf && b.mf.length ? `<br>${b.name}秘法：${b.mf.map(k => (DATA.mifaKindById[k] || {}).name || k).join("、")}` : ""}<br>开战：你 生命 ${U.fmt(b.me[0])}/${U.fmt(b.me[1])} 法力 ${U.fmt(b.me[2])}/${U.fmt(b.me[3])} · ${b.name} 生命 ${U.fmt(b.mob[0])} 法力 ${U.fmt(b.mob[2])}<br>
         你造成：${line(0)}<br>${b.name}造成：${line(1)}</p>`;
     },
     // 完整战斗过程弹窗：src = "cur" 本次探索 / "last" 上一次结果，i = 事件序号
