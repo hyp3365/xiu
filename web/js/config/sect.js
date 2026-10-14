@@ -79,6 +79,7 @@ CFG.sect = {
     { name: "天字修炼室", pct: 80, cost: 6 },
     { name: "宗主修炼室", pct: 120, cost: 1, rank: 6 },   // 宗主专用
   ],
+  // 试炼塔守关者：现在按 config/mobs.js 的 tower（三个阶段）算；那边没写的星级才用下面这套
   // 试炼塔守关者：第 n 层守关者属性 = 人物属性（参考）× MULT × GROW^(n-1)
   //   人物属性（参考）= 本门派星级的入门境界（REQ_REALM，凡人按练气）第 LAYER 层 + 全部宗门功法练到 GF 层
   //   层数、首通奖励见下面 CFG.sect.trial
