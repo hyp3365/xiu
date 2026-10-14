@@ -80,6 +80,7 @@ G.module({
     hasGongfa(id) { return !!this.s.gongfa[id]; },
     // 这一层的修炼时间（秒）= STUDY_MIN − 宗门秘法「悟法 / 悟道」减少的秒数，最少 STUDY_MIN_SEC（修炼秘法本身不减少）
     studySec(g) {
+      if (g.noEl) return Math.max(1, ((g.studyMin || [])[g.lv - 1] || 1) * 60);   // 开局功法书：config/start.js 的 STUDY_MIN
       const m = this.mifaBonus(), red = g.kind === "mf" ? 0 : g.kind === "sp" ? m.spStudy : m.gfStudy;
       return Math.max(Math.min(CFG.wudao.STUDY_MIN_SEC || 10, DATA.studyMin[g.lv - 1] * 60), DATA.studyMin[g.lv - 1] * 60 - red);
     },
@@ -94,7 +95,7 @@ G.module({
     // 加入修炼队列
     studyGongfa(id) {
       const s = this.s;
-      if (!s.gongfa[id] || this.plannedLv(id) >= DATA.GONGFA_MAX) return;
+      if (!s.gongfa[id] || this.plannedLv(id) >= ((DATA.skillInfo(id) || {}).max || DATA.GONGFA_MAX)) return;
       if (s.gfQueue.length >= DATA.GF_QUEUE) return this.log(`修炼队列已满（最多 ${DATA.GF_QUEUE} 个）。`, "sys");
       s.gfQueue.push(id);
       if (!s.gfStudy) this.nextStudy();
@@ -105,8 +106,9 @@ G.module({
       const s = this.s;
       while (!s.gfStudy && s.gfQueue.length) {
         const id = s.gfQueue.shift(), lv = s.gongfa[id];
-        if (!lv || lv >= DATA.GONGFA_MAX) continue;
-        const info = DATA.skillInfo(id, lv), total = this.studySec(info) * 1000;
+        const info = DATA.skillInfo(id, lv);
+        if (!lv || !info || lv >= (info.max || DATA.GONGFA_MAX)) continue;
+        const total = this.studySec(info) * 1000;
         s.gfStudy = { id, total, done: 0, at: at || this.now(), per: DATA.studyPer(info), spent: 0, stone: info.stonePer || 0 };   // per：每 5 秒消耗修为；stone：秘法每 5 秒灵石
       }
     },
@@ -152,7 +154,7 @@ G.module({
       html += `<div class="card"><h3>排队中<small>${s.gfQueue.length} / ${DATA.GF_QUEUE}</small></h3>` +
         (s.gfQueue.length ? s.gfQueue.map((id, i) => {
           const q = DATA.skillInfo(id); if (!q) return "";
-          return `<div class="line"><div>${i + 1}. 《${q.name}》<span class="tag">${q.star}星</span><span class="tag">${q.tier.name}</span></div><button class="sm" onclick="G.removeQueue(${i})">移除</button></div>`; }).join("")
+          return `<div class="line"><div>${i + 1}. 《${q.name}》${q.noEl ? "" : `<span class="tag">${q.star}星</span><span class="tag">${q.tier.name}</span>`}</div><button class="sm" onclick="G.removeQueue(${i})">移除</button></div>`; }).join("")
           : `<p class="desc">队列为空。</p>`) + `</div>`;
       return html;
     },
@@ -170,8 +172,8 @@ G.module({
     },
     // 一行：功法或法术，带修炼按钮
     skillLine(g) {
-      const s = this.s, max = g.lv >= DATA.GONGFA_MAX, plan = this.plannedLv(g.id), full = plan >= DATA.GONGFA_MAX;
-      const lg = g.kind === "mf" ? 0 : this.s.lingen[g.el.id] || 0, lgTxt = lg ? `（${g.el.name}灵根 +${U.dec(this.lingenPct(lg, g.kind))}%）` : "";
+      const MX = g.max || DATA.GONGFA_MAX, s = this.s, max = g.lv >= MX, plan = this.plannedLv(g.id), full = plan >= MX;
+      const lg = g.kind === "mf" || g.noEl ? 0 : this.s.lingen[g.el.id] || 0, lgTxt = lg ? `（${g.el.name}灵根 +${U.dec(this.lingenPct(lg, g.kind))}%）` : "";
       // 属性数值颜色：没有灵根加成 = 白色，有加成 = 绿色（数值已含加成）
       const spm = g.kind === "sp" ? this.lingenSpell(g.el.id) : 1;   // 法术固定伤害的灵根倍率（只乘每层那部分，显示含加成后的数值）
       const cv = v => `<b class="${lg ? "gf-up" : "gf-base"}">${v}</b>`;
@@ -182,7 +184,7 @@ G.module({
         ? `伤害 攻击×<b class="gf-base">${U.dec(g.pct) + "%"}</b> + ${cv(U.fmt(g.flat * spm))}${lgTxt}，耗法力 ${U.fmt(g.mana)}${max ? "" : `，下一层 +${cv(U.fmt(g.next * spm))}`}`
         : `${g.label} ${cv("+" + this.gfValue(g, g.value * this.lingenGongfa(g.el.id)))}${lgTxt}${max ? "" : `，下一层 ${cv("+" + this.gfValue(g, g.next * this.lingenGongfa(g.el.id)))}`}`;
       const sec = max ? 0 : this.studySec(g), n = Math.ceil(sec / DATA.STUDY_STEP), per = max ? 0 : DATA.studyPer(g), sp = max ? 0 : g.stonePer || 0;
-      return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span>${g.kind === "mf" ? "" : `<span class="tag">${g.el.name}</span>`}<span class="tag">${g.tier.name}</span><span class="tag">${g.lv}/${DATA.GONGFA_MAX}层</span>
+      return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》${g.noEl ? "" : `<span class="tag">${g.star}星</span>`}${g.kind === "mf" || g.noEl ? "" : `<span class="tag">${g.el.name}</span>`}${g.noEl ? "" : `<span class="tag">${g.tier.name}</span>`}<span class="tag">${g.lv}/${MX}层</span>
         <small>${desc}${max ? "" : `<br>下一层：${U.dur(sec)} · 每5秒 ${U.fmt(per)} 修为${sp ? ` + ${U.fmt(sp)} 灵石` : ""}（共 ${U.fmt(per * n)}${sp ? ` 修为、${U.fmt(sp * n)} 灵石` : ""}）`}${plan > g.lv ? `<br>已排至第 ${plan} 层` : ""}</small></div>
         ${max ? `<button class="sm" disabled>圆满</button>` :
           `<button class="sm" onclick="G.studyGongfa('${g.id}')" ${full || s.gfQueue.length >= DATA.GF_QUEUE ? "disabled" : ""}>${full ? "已排满" : "修炼"}</button>`}</div>`;
@@ -207,7 +209,7 @@ G.module({
       <button class="sm active" onclick="G.setGfSort('star')">按星级 ${P.starUp ? "低→高" : "高→低"}</button>
       <button class="sm ${hide ? "active" : ""}" onclick="G.toggleGfHideMax()">${hide ? "显示满级" : "隐藏满级"}</button></div>`;
 
-    const all = ids.map(id => DATA.skillInfo(id, s.gongfa[id])).filter(Boolean).filter(g => !hide || g.lv < DATA.GONGFA_MAX);
+    const all = ids.map(id => DATA.skillInfo(id, s.gongfa[id])).filter(Boolean).filter(g => !hide || g.lv < (g.max || DATA.GONGFA_MAX));
     const groups = [...DATA.gongfaTypes.map(t => ({ key: t.id, title: t.name, sub: t.label, items: all.filter(g => g.kind === "gf" && g.type.id === t.id) })),
                     { key: "spell", title: "法术", sub: "放入背包法术栏后战斗中施放", items: all.filter(g => g.kind === "sp") },
                     { key: "mifa", title: "秘法", sub: "宗门悟道室学习 · 修炼消耗修为和灵石", items: all.filter(g => g.kind === "mf") }];
