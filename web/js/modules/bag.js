@@ -223,7 +223,7 @@ G.module({
         : `<button onclick="G.sellItem(${i},1)">出售（${U.fmt(this.sellPrice(it))}）</button>`;
       const cq = it.t === "cu" ? ((this.cuDef(it.name) || {}).q || 0) : 0;
       const big = it.t === "mat" ? "" : this.itemIcon(it);
-      let h = (big ? `<img class="item-img${it.t === "eq" ? DATA.eqCls(it.e) : ""}" src="${big}" alt="">` : "") + `<h2 class="q${it.t === "eq" ? it.e.q : cq}">${it.t === "eq" ? this.eqQual(it.e) : ""}${this.itemName(it)}${it.n ? " ×" + it.n : ""}</h2>`;
+      let h = (big ? `<img class="item-img${it.t === "eq" ? DATA.eqCls(it.e) : ""}" src="${big}" alt="">` : "") + `<h2 class="q${it.t === "eq" ? it.e.q : cq}${it.t === "eq" ? DATA.fbElCls(it.e) : ""}">${it.t === "eq" ? this.eqQual(it.e) : ""}${this.itemName(it)}${it.n ? " ×" + it.n : ""}</h2>`;
       if (it.t === "pill") {
         const ok = this.canUsePill(it.g);
         h += `<p>修炼速度 +${Math.round(DATA.pillPct(it.type, it.g))}%，持续 ${DATA.pills[it.type].dur} 次修炼。<br>只有${DATA.realmLabel(it.g)}可服用。
@@ -273,7 +273,7 @@ G.module({
     openEquip(key) {
       const e = key.startsWith("fb") ? this.s.fabao[+key.slice(2)] : this.s.equip[key]; if (!e) return;
       const src = DATA.eqIcon(e);
-      this.modal(`${src ? `<img class="item-img${DATA.eqCls(e)}" src="${src}" alt="">` : ""}<h2 class="q${e.q}">${this.eqQual(e)}${this.itemName({ t: "eq", e })}</h2><p>${DATA.slots[e.slot]} · ${this.equipDesc(e)}</p>
+      this.modal(`${src ? `<img class="item-img${DATA.eqCls(e)}" src="${src}" alt="">` : ""}<h2 class="q${e.q}${DATA.fbElCls(e)}">${this.eqQual(e)}${this.itemName({ t: "eq", e })}</h2><p>${DATA.slots[e.slot]} · ${this.equipDesc(e)}</p>
         <div class="btns"><button onclick="G.unequip('${key}')">卸下</button>${key.startsWith("fb") ? `<button onclick="G.openFabaoSwap(${+key.slice(2)})">更换</button>` : ""}${e.attrs ? `<button onclick="G.openReset('${key}')">洗练</button>` : ""}${this.canEnhance(e) ? `<button onclick="G.openEnhance('${key}')">强化</button>` : ""}<button onclick="G.closeModal()">关闭</button></div>`);
     },
 
@@ -293,7 +293,7 @@ G.module({
     drawEnhance() {
       const e = this._enhObj; if (!e) return;
       const E = DATA.enhCfg(e);
-      this.modal(`<img class="item-img${DATA.eqCls(e)}" src="${DATA.eqIcon(e)}" alt=""><h2 class="q${e.q}">强化 · ${this.itemName({ t: "eq", e })}</h2>
+      this.modal(`<img class="item-img${DATA.eqCls(e)}" src="${DATA.eqIcon(e)}" alt=""><h2 class="q${e.q}${DATA.fbElCls(e)}">强化 · ${this.itemName({ t: "eq", e })}</h2>
         <p class="desc">${DATA.HX} ${U.fmt(this.fireCount())} · ${DATA.li(DATA.smIcon("ys", this.ysFor(e)))}${DATA.smName("ys", this.ysFor(e))} ${U.fmt(this.smCount("ys", this.ysFor(e)))} · 失败只扣材料，不掉强化等级。</p>` +
         e.attrs.map((a, i) => {
           if (!DATA.attrEnhOK(a, e)) return `<div class="line"><div><span class="ac${a.c}">${DATA.attrText(a, e)}</span><small>不能强化</small></div></div>`;
@@ -369,7 +369,7 @@ G.module({
       const e = this._resetObj; if (!e) return;
       const L = this._locks || (this._locks = []), cost = DATA.resetCost(e, L.length);
       const wash = e.slot === "fabao", nm = "洗练";
-      this.modal(`<h2 class="q${e.q}">${DATA.HX}${nm} · ${this.itemName({ t: "eq", e })}</h2>
+      this.modal(`<h2 class="q${e.q}${DATA.fbElCls(e)}">${DATA.HX}${nm} · ${this.itemName({ t: "eq", e })}</h2>
         <p class="desc">点属性锁定 / 解锁，锁定的属性不变。每锁定一条，${DATA.HX}消耗翻一倍。</p>` +
         e.attrs.map((a, i) => `<div class="line"><div><span class="ac${a.c}">${DATA.attrText(a, e)}</span></div>
           <button class="sm ${L.includes(i) ? "active" : ""}" onclick="G.toggleLock(${i})">${L.includes(i) ? "已锁定" : "锁定"}</button></div>`).join("") +
