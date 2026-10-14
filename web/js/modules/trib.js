@@ -6,12 +6,13 @@
  *       → 「开始渡劫」→ 渡劫页（上方劫云，下方人物）
  * 劫云只有攻击，每 HIT_SEC 秒劈一次，人物不还手；撑过 TIME 秒没倒 = 突破成功。
  * 按 G.now() 计时：关掉页面、关掉游戏，劫云照样劈，回来时一次算完。
- * 格子里的法宝 / 法术 / 丹药目前只是带进渡劫，效果之后再加（tribUse 留好了入口）。
+ * 点「开始突破」先倒计时 PRE_SEC 秒，再开始劈；渡劫中点格子使用法宝 / 法术（得护盾）、丹药（回生命法力），数值见 CFG.trib.USE。
  *
  * 存档：
  *   s.tribSlots  [格子]：{ k: "fb", uid } 法宝 / { k: "sp", id } 法术 / { k: "it", name } 丹药；空格 null
  *   s.trib       正在进行（或刚结束还没关）的渡劫：
- *                { v: 2, L 突破后层序, start 开始时间, time 时长秒, sec 已过秒, atk, crit, taken 共承受, hits 被劈次数, log, result }
+ *                { v: 2, L 突破后层序, start 劫雷开始时间（= 点开始 + PRE_SEC 秒）, time 时长秒, sec 已过秒, atk, crit, taken 共承受, hits 被劈次数, log, result,
+ *                  shield 护盾 { hp, def, red, pct, flat, el } | null, cd { 格子序号: 可再用的时间 }, used { 格子序号: true 丹药已用 } }
  * ===================================================================== */
 G.module({
   id: "trib",
@@ -98,7 +99,7 @@ G.module({
       const s = this.s; if (s.trib || !this.canBreak() || !this.needTrib()) return;
       const L = s.L + 1, t = this.makeTrib(L), st = this.stats();
       s.hp = st.hp; s.mana = st.mana;   // 开始时生命法力回满
-      s.trib = { v: 2, L, start: this.now(), time: this.tribTime(L), sec: 0, atk: t.atk, crit: t.crit, taken: 0, hits: 0, log: [], result: "" };
+      s.trib = { v: 2, L, start: this.now() + (CFG.trib.PRE_SEC || 0) * 1000, time: this.tribTime(L), sec: 0, atk: t.atk, crit: t.crit, taken: 0, hits: 0, log: [], result: "", shield: null, cd: {}, used: {} };
       this.log(`劫云压顶，${this.realmName(L)}天劫降临！`, "gold");
       this.tribOpen = true; this.save && this.save(); this.tribRender(true);
     },
@@ -113,9 +114,19 @@ G.module({
         if (nextHit > x.time) { if (this.now() >= x.start + x.time * 1000) { x.sec = x.time; this.endTrib(true); } break; }
         if (this.now() < x.start + nextHit * 1000) break;
         x.sec = nextHit;
-        const [d, c] = this.tribHit(x); s.hp -= d; x.taken += d; x.hits++;
-        hit = { d, c };
-        x.log.unshift(`第${x.sec}秒：劫雷劈中你 ${U.fmt(d)}${c ? "（暴击）" : ""}`);
+        let [d, c] = this.tribHit(x), ab = 0, brk = false;
+        const sh = x.shield;
+        if (sh && sh.hp > 0) {   // 护盾：先减盾防御，雷属性盾再减 %、点，再减「受到伤害减少」，剩下先扣护盾值
+          const BT = CFG.battle;
+          d = Math.max(0, d - (sh.def || 0) * BT.DEF_RATE);
+          if (sh.el === "lei") d = Math.max(0, d * (1 - (sh.pct || 0) / 100) - (sh.flat || 0));
+          d = Math.max(0, d - (sh.red || 0));
+          ab = Math.min(sh.hp, d); sh.hp -= ab; d -= ab;
+          if (sh.hp <= 0) { x.shield = null; brk = true; }
+        }
+        s.hp -= d; x.taken += d; x.hits++;
+        hit = { d, c, ab };
+        x.log.unshift(`第${x.sec}秒：劫雷劈中你 ${U.fmt(d)}${c ? "（暴击）" : ""}${ab ? `（护盾抵挡 ${U.fmt(ab)}）` : ""}${brk ? "，护盾破碎" : ""}`);
         if (x.log.length > 60) x.log.length = 60;
         if (s.hp <= 0) this.endTrib(false);
         else if (x.sec >= x.time) this.endTrib(true);
@@ -168,6 +179,12 @@ G.module({
       const mb = document.getElementById("tj-mpbar"); if (mb) mb.style.width = (st.mana ? Math.max(0, s.mana || 0) / st.mana * 100 : 0) + "%";
       const tb = document.getElementById("tj-timebar"); if (tb) tb.style.width = x.sec / x.time * 100 + "%";
       const lg = document.getElementById("tj-log"); if (lg) lg.innerHTML = x.log.slice(0, 8).map(l => `<p>${l}</p>`).join("");
+      const shv = x.shield && x.shield.hp > 0 ? x.shield.hp : 0;
+      set("tj-sh", U.fmt(shv));
+      const ring = document.getElementById("tj-shield"); if (ring) ring.classList.toggle("on", shv > 0 && !x.result);
+      const pre = Math.ceil((x.start - this.now()) / 1000), cd = document.getElementById("tj-cd");
+      if (cd) { cd.textContent = pre > 0 && !x.result ? pre : ""; cd.classList.toggle("on", pre > 0 && !x.result); }
+      const sl = document.getElementById("tj-run-slots"); if (sl) sl.innerHTML = this.tribRunSlots();
       if (this._tribHit) { this.tribBolt(this._tribHit); this._tribHit = null; }
     },
     // 一道劫雷：分形折线（中点位移）从云眼劈到人物头顶，带多级分叉；外层紫色辉光 + 中层淡紫 + 白色雷芯，劈下后再闪一次
@@ -210,6 +227,7 @@ G.module({
       setTimeout(() => b.remove(), 650);
       st.classList.remove("tj-flash"); void st.offsetWidth; st.classList.add("tj-flash");
       hero.classList.remove("tj-shake"); void hero.offsetWidth; hero.classList.add("tj-shake");
+      const ring = document.getElementById("tj-shield"); if (ring && h.ab) { ring.classList.remove("hit"); void ring.offsetWidth; ring.classList.add("hit"); }
       const n = document.createElement("div"); n.className = "tj-dmg" + (h.c ? " crit" : ""); n.textContent = "-" + U.fmt(h.d) + (h.c ? " 暴击" : "");
       n.style.left = 52 + Math.random() * 20 + "%"; st.appendChild(n); setTimeout(() => n.remove(), 1200);
     },
@@ -222,7 +240,8 @@ G.module({
         <div class="tj-vortex" style="background-image:${cl}"></div>
         <div class="tj-amb"></div>
         <div class="tj-mid">${mid || ""}</div>
-        <div class="tj-hero" id="tj-hero"><div class="tj-aura"></div><img src="img/trib_hero.webp?v=${v}" alt=""></div>
+        <div class="tj-cd" id="tj-cd"></div>
+        <div class="tj-hero" id="tj-hero"><div class="tj-aura"></div><img src="img/trib_hero.webp?v=${v}" alt=""><div class="tj-shield" id="tj-shield"></div></div>
       </div>`;
     },
     tribPrepHtml() {
@@ -240,27 +259,78 @@ G.module({
     },
     tribRunHtml() {
       const s = this.s, x = s.trib, st = this.stats(), end = !!x.result, win = end && /成功/.test(x.result);
-      const cells = (this.s.tribSlots || []).map(c => this.tribFind(c)).filter(Boolean)
-        .map(f => `<div class="tj-slot on sm" onclick="G.tribUse()">${f.img ? `<img src="${f.img}" alt="">` : `<span class="tj-ic">${f.tag.slice(0, 1)}</span>`}<small>${f.name}</small></div>`).join("");
+      const cells = this.tribRunSlots();
       return `<div class="tj-wrap${end ? win ? " win" : " lose" : ""}">
         <div class="tj-head"><button class="sm" onclick="G.closeTrib()">${end ? "离开" : "返回（渡劫继续）"}</button><b>渡劫 · ${this.realmName(x.L)}</b><span></span></div>
         ${this.tribStageHtml(`<div class="tj-timer">${end ? `<b class="tj-res">${win ? "渡劫成功" : "渡劫失败"}</b>` : ""}</div>`, end ? win ? "win" : "dead" : "")}
         <div class="bar tick"><div id="tj-timebar" style="width:${x.sec / x.time * 100}%"></div></div>
         <div class="row small"><span>生命 <b id="tj-hp">${U.fmt(Math.max(0, s.hp))} / ${U.fmt(st.hp)}</b></span><span>共承受 <b id="tj-taken">${U.fmt(x.taken)}</b></span></div>
         <div class="bar hp"><div id="tj-hpbar" style="width:${Math.max(0, s.hp) / st.hp * 100}%"></div></div>
-        <div class="row small"><span>法力 <b id="tj-mp">${U.fmt(Math.max(0, s.mana || 0))} / ${U.fmt(st.mana || 0)}</b></span></div>
+        <div class="row small"><span>法力 <b id="tj-mp">${U.fmt(Math.max(0, s.mana || 0))} / ${U.fmt(st.mana || 0)}</b></span><span>护盾 <b id="tj-sh">${U.fmt(x.shield && x.shield.hp > 0 ? x.shield.hp : 0)}</b></span></div>
         <div class="bar mp"><div id="tj-mpbar" style="width:${st.mana ? Math.max(0, s.mana || 0) / st.mana * 100 : 0}%"></div></div>
         ${end ? `<p class="${win ? "q4" : "q5"}" style="text-align:center"><b>${x.result}</b></p>` : ""}
-        ${cells && !end ? `<div class="tj-slots run">${cells}</div>` : ""}
+        ${cells && !end ? `<div class="tj-slots run" id="tj-run-slots">${cells}</div>` : ""}
         <div class="trib-log" id="tj-log">${x.log.slice(0, 8).map(l => `<p>${l}</p>`).join("") || "<p>乌云压顶，雷光翻涌……</p>"}</div>
         ${end ? `<div class="btns"><button class="primary" style="flex-basis:100%" onclick="G.closeTrib()">离开</button></div>` : ""}
       </div>`;
     },
-    // 渡劫中点格子：法宝、法术、丹药的效果还没做
-    tribUse() {
+    // 渡劫页的格子：显示冷却秒数、丹药已用
+    tribRunSlots() {
+      const x = this.s.trib; if (!x) return "";
+      return (this.s.tribSlots || []).map((c, i) => {
+        const f = this.tribFind(c); if (!f) return "";
+        const used = x.used && x.used[i], left = Math.ceil(((x.cd || {})[i] - this.now()) / 1000);
+        return `<div class="tj-slot on sm${used || left > 0 ? " cd" : ""}" onclick="G.tribUse(${i})">${f.img ? `<img src="${f.img}" alt="">` : `<span class="tj-ic">${f.tag.slice(0, 1)}</span>`}<small>${f.name}</small>${used ? `<b class="tj-cdn">已用</b>` : left > 0 ? `<b class="tj-cdn">${left}</b>` : ""}</div>`;
+      }).join("");
+    },
+    tribToast(msg) {
       const n = $("#toast"); if (!n) return;
-      n.innerHTML = `<p class="sys">渡劫中使用法宝、法术、丹药的效果尚未开放</p>`; n.classList.add("show");
+      n.innerHTML = `<p class="sys">${msg}</p>`; n.classList.add("show");
       clearTimeout(this._toastT); this._toastT = setTimeout(() => n.classList.remove("show"), 2000);
+    },
+    // 渡劫中点格子 i：法宝 / 法术 → 护盾，丹药 → 回生命法力
+    tribUse(i) {
+      const s = this.s, x = s.trib; if (!x || x.result) return;
+      this.advanceTrib(); if (x.result) return this.tribRender(false);
+      const c = s.tribSlots[i], f = this.tribFind(c), U0 = CFG.trib.USE || {}; if (!f) return;
+      if (!x.cd) x.cd = {}; if (!x.used) x.used = {};
+      if (x.used[i]) return this.tribToast("这颗丹药已经用了");
+      if ((x.cd[i] || 0) > this.now()) return this.tribToast(`还要 ${Math.ceil((x.cd[i] - this.now()) / 1000)} 秒才能再用`);
+      const st = this.stats(), addSh = o => {
+        const sh = x.shield && x.shield.hp > 0 ? x.shield : { hp: 0, def: 0, red: 0, pct: 0, flat: 0, el: "" };
+        sh.hp += o.hp; if (o.el) { sh.el = o.el; sh.pct = Math.max(sh.pct, o.pct || 0); sh.flat = Math.max(sh.flat, o.flat || 0); }
+        sh.def = Math.max(sh.def, o.def || 0); sh.red = Math.max(sh.red, o.red || 0); x.shield = sh;
+      };
+      let msg;
+      if (c.k === "fb") {
+        const e = (s.fabao || []).find(e => e && e.uid === c.uid) || ((s.bag.find(it => it.t === "eq" && it.e.uid === c.uid) || {}).e);
+        if (!e || !e.attrs) return this.tribToast("这件法宝无法祭出");
+        const fb = DATA.fabaoInfo(e);
+        if ((s.mana || 0) < fb.mana) return this.tribToast("法力不足");
+        s.mana -= fb.mana;
+        const o = fb.shield ? { hp: fb.shield.hp, def: fb.shield.def, red: fb.shield.red, pct: fb.shield.pct, flat: fb.shield.flat, el: fb.el }
+          : { hp: Math.max(0, st.atk * fb.pct / 100 + fb.flat) * (U0.FB_SHIELD === undefined ? 1 : U0.FB_SHIELD) };
+        addSh(o); x.cd[i] = this.now() + (U0.FB_CD || 0) * 1000;
+        msg = `祭出${fb.name}，护盾 +${U.fmt(o.hp)}`;
+      } else if (c.k === "sp") {
+        const sp = DATA.spellInfo(c.id, s.gongfa[c.id]);
+        if ((s.mana || 0) < sp.mana) return this.tribToast("法力不足");
+        s.mana -= sp.mana;
+        const hp = Math.max(0, st.atk * sp.pct / 100 + sp.flat * this.lingenSpell(sp.el.id)) * (U0.SP_SHIELD === undefined ? 1 : U0.SP_SHIELD);
+        addSh({ hp }); x.cd[i] = this.now() + (U0.SP_CD || 0) * 1000;
+        msg = `施展《${sp.name}》，护盾 +${U.fmt(hp)}`;
+      } else if (c.k === "it") {
+        const bi = s.bag.findIndex(it => (it.t === "pill" || it.t === "dan") && this.itemName(it) === c.name); if (bi < 0) return;
+        const it = s.bag[bi];
+        if (it.t === "dan" && this.danLeft(it.type, it.g) > 0) { const key = it.type + "|" + it.g; s.danEaten[key] = (s.danEaten[key] || 0) + 1; this.dirty(); }
+        this.removeAt(bi, 1);
+        const st2 = this.stats(), hp = st2.hp * (U0.PILL_HP || 0) / 100, mp = (st2.mana || 0) * (U0.PILL_MP || 0) / 100;
+        s.hp = Math.min(st2.hp, s.hp + hp); s.mana = Math.min(st2.mana || 0, (s.mana || 0) + mp);
+        x.used[i] = true;
+        msg = `服下${c.name}，生命 +${U.fmt(hp)}、法力 +${U.fmt(mp)}`;
+      }
+      if (msg) { x.log.unshift(msg); if (x.log.length > 60) x.log.length = 60; }
+      this.save && this.save(); this.tribUpd();
     },
   },
 });
