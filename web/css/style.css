@@ -118,7 +118,7 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24
 .slot-eq img.si{display:block;width:34px;height:34px;margin:0 auto 2px}
 .slot-eq.field-cell,.slot-eq.sv-cell{aspect-ratio:1;min-height:0;padding:4px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;line-height:1.25;cursor:pointer}
 .slot-eq.field-cell img.si{width:56%;height:auto;max-height:56%;object-fit:contain}
-.sv-row{display:grid;grid-template-columns:44px 1fr auto auto auto;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #2e261f}
+.sv-row{display:grid;grid-template-columns:44px 1fr auto auto auto auto;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #2e261f}
 .sv-row img{width:44px;height:44px;border-radius:50%;background:radial-gradient(circle,#3a3027,#1a1511);border:1px solid #4a3d31;object-fit:cover}
 .sv-row>span{text-align:center;font-size:13px}
 .sv-nm small{display:block;color:#9c8d72;font-size:11px}
@@ -127,11 +127,12 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24
 .sv-pick img{width:84px;height:84px;border-radius:50%;background:radial-gradient(circle,#3a3027,#1a1511);border:1px solid #c9a45c}
 .sv-li{display:flex;align-items:center;gap:6px}
 .sv-li img{width:32px;height:32px;border-radius:50%;background:#2a221b}
-.room-grid.sv-jobs{grid-template-columns:repeat(3,1fr);margin:0;position:sticky;bottom:-10px;z-index:3;background:#14110f;padding:8px 0 10px;border-top:1px solid #3a3027}
-#view:has(.sv-jobs){display:flex;flex-direction:column}
+.room-grid.sv-jobs{grid-template-columns:repeat(3,1fr);margin:0;position:sticky;bottom:0;z-index:3;background:#14110f;padding:8px 0 6px;border-top:1px solid #3a3027}
+#view:has(.sv-jobs){display:flex;flex-direction:column;padding-bottom:0}
 #view:has(.sv-jobs)>*{flex-shrink:0}
 #view .room-grid.sv-jobs{margin-top:auto}
 .sv-jobs button small{display:block;color:#9c8d72;font-size:11px}
+.sv-row .sv-el{width:24px;height:24px;margin:0!important;font-size:13px}
 .sv-el{display:flex!important;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;margin:0 auto 4px!important;font-size:15px;font-weight:bold!important;color:#fff!important;background:#3a3027}
 .sv-jin{background:#a88a3a!important}.sv-mu{background:#3f7a3a!important}.sv-shui{background:#2f5d8a!important}.sv-huo{background:#a23e2a!important}.sv-tu{background:#7a5a36!important}
 .ico{position:relative;float:left;width:38px;height:38px;margin:1px 7px 2px 0;border:1px solid #4a3d31;border-radius:7px;background:radial-gradient(circle,#2a231c,#15110d)}
