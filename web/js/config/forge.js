@@ -79,7 +79,7 @@ CFG.forge = {
       17500000,   // 九阶
       45500000,   // 十阶
     ],
-    RAND_MIN: 0.9, RAND_MAX: 1.1,         // 旧算法的随机系数范围（设置了 RANGE 后只用来换算旧存档里的属性位置）
+    RAND_MIN: 0.9, RAND_MAX: 1.1,         // 没设置 RANGE 时的随机系数范围
     // 颜色：name 名字，mult 旧算法数值倍率（设置了 RANGE 后不再使用），weight 出现权重
     //   新得到的装备只在 0 ~ NEW_COLOR_MAX 的颜色里按 weight 随机；装备 / 戒指洗练按全部 4 种颜色的 weight 随机
     colors: [
