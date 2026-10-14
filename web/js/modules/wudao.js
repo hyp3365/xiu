@@ -19,6 +19,8 @@ G.module({
         if (!DATA.isMifa(id)) continue;
         const g = DATA.mifaInfo(id, this.s.gongfa[id]); if (g) out[g.mk.id] += g.value;
       }
+      const LX = CFG.wudao.LIANXING || {};
+      if (LX.MAX !== undefined) out.lianxing = Math.min(LX.MAX, out.lianxing || 0);   // 连星秘法几率上限
       return out;
     },
     learnMifa(kind) {
@@ -41,7 +43,7 @@ G.sectWudaoView = function () {
   return `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "wudao", "悟道室")} · ${x.star}星宗门秘法<small>灵石 ${U.fmt(s.stone)} · 贡献 ${U.fmt(s.contrib)}</small></h3>` +
     DATA.mifaKinds.map(K => {
       const id = DATA.mifaId(x.star, K.id), lv = s.gongfa[id] || 0, g = DATA.mifaInfo(id, Math.max(1, lv));
-      const eff = K.id === "explore" ? `圆满后每步 -${U.num(g.perLv)} 秒` : `每层 ${fmt(K, g.perLv)}`;
+      const eff = K.id === "explore" ? `圆满后每步 -${U.num(g.perLv)} 秒` : K.full ? `圆满后 ${fmt(K, g.perLv)}` : `每层 ${fmt(K, g.perLv)}`;
       return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${x.star}星</span>${lv ? `<span class="tag">${lv}/${DATA.GONGFA_MAX}层</span>` : ""}
         <small>${K.label} · ${eff}${lv ? "" : ` · ${U.fmt(c.stone)} 灵石 + ${U.fmt(c.contrib)} 贡献`}</small></div>
         <button class="sm" onclick="G.learnMifa('${K.id}')" ${lv || s.stone < c.stone || s.contrib < c.contrib ? "disabled" : ""}>${lv ? "已学会" : "学习"}</button></div>`;
