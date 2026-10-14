@@ -64,14 +64,10 @@ G.module({
     xjRangeText(r) { const f = ([lo, hi]) => lo === hi ? U.fmt(lo) : `${U.fmt(lo)}~${U.fmt(hi)}`; return [r.merit ? `功德 ${U.fmt(r.merit)}` : "", r.stone[1] ? `灵石 ${f(r.stone)}` : "", r.hx[1] ? `${DATA.HX} ${f(r.hx)}` : ""].filter(x => x).join("、") || "无"; },
     xjRateText(r) { return [r.merit ? `功德 ${U.fmt(r.merit)}` : "", r.stone ? `灵石 ${U.fmt(r.stone)}` : "", r.hx ? `${DATA.HX} ${U.fmt(r.hx)}` : ""].filter(x => x).join("、") || "无"; },
     xjValid(o) { return o && DATA.maps[o.map] && (o.t !== "xj" || this.xjSeats(o.map)[o.seat] !== undefined); },
-    // 结算俸禄（每 HOUR 秒一次）；顺带把旧存档的 office / gongde 转过来
+    // 结算俸禄（每 HOUR 秒一次）
     xjSettle() {
       const s = this.s, H = (CFG.xingjun.HOUR || 3600) * 1000;
       if (!s.offices) s.offices = {};
-      if (s.gongde) { s.merit = (s.merit || 0) + s.gongde; s.gongde = 0; }
-      // 旧存档的星君名单是从高到低排的：在任星君位翻过来
-      if (!s.xjSeatV) { for (const w in s.offices) { const o = s.offices[w]; if (o && o.t === "xj" && DATA.maps[o.map]) o.seat = this.xjSeats(o.map).length - 1 - o.seat; } s.xjSeatV = 2; }
-      if (s.office) { const o = s.office; if (this.xjValid(o)) s.offices[this.xjW(o.map)] = { t: o.t, map: o.map, seat: o.seat, T: s.officeT || this.now() }; s.office = null; }
       for (const w in s.offices) {
         const o = s.offices[w]; if (!o) continue;
         if (!this.xjValid(o)) { delete s.offices[w]; continue; }
