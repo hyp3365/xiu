@@ -20,7 +20,12 @@ G.module({
         const g = DATA.mifaInfo(id, this.s.gongfa[id]); if (g) out[g.mk.id] += g.value;
       }
       const LX = CFG.wudao.LIANXING || {};
-      if (LX.MAX !== undefined) out.lianxing = Math.min(LX.MAX, out.lianxing || 0);   // 连星秘法几率上限
+      for (const K of DATA.mifaKinds) { const C = K.cfg && CFG.wudao[K.cfg]; if (C) out[K.id] = Math.round(Math.min(C.MAX === undefined ? Infinity : C.MAX, out[K.id] || 0) * 1e6) / 1e6; }   // 战斗秘法几率上限
+      // 破军无视防御 %、金蝉伤害降低 %：按修满的星级相加
+      const PJ = CFG.wudao.POJUN || {}, JC = CFG.wudao.JINCHAN || {}, full = k => { const r = []; for (let st = 1; st <= 10; st++) if ((this.s.gongfa[DATA.mifaId(st, k)] || 0) >= DATA.GONGFA_MAX) r.push(st); return r; };
+      out.pojunIgn = Math.min(PJ.IGNORE_MAX === undefined ? 100 : PJ.IGNORE_MAX, full("pojun").reduce((t, st) => t + ((PJ.IGNORE || [])[st - 1] || 0), 0));
+      const ZH = CFG.wudao.ZHENHUN || {}, zf = full("zhenhun"); out.zhenhunR = zf.length ? ((ZH.ROUNDS || [])[zf[zf.length - 1] - 1] || 3) : 0;
+      out.jinchanCut = Math.max(JC.CUT_MIN || 0, (JC.CUT_START || 0) - full("jinchan").reduce((t, st) => t + ((JC.CUT_STEP || [])[st - 1] || 0), 0));
       return out;
     },
     learnMifa(kind) {
@@ -43,11 +48,11 @@ G.sectWudaoView = function () {
   return `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "wudao", "悟道室")} · ${x.star}星宗门秘法<small>灵石 ${U.fmt(s.stone)} · 贡献 ${U.fmt(s.contrib)}</small></h3>` +
     DATA.mifaKinds.map(K => {
       const id = DATA.mifaId(x.star, K.id), lv = s.gongfa[id] || 0, g = DATA.mifaInfo(id, Math.max(1, lv));
-      const eff = K.id === "explore" ? `圆满后每步 -${U.num(g.perLv)} 秒` : K.full ? `圆满后 ${fmt(K, g.perLv)}` : `每层 ${fmt(K, g.perLv)}`;
+      const eff = K.id === "explore" ? `圆满后每步 -${U.num(g.perLv)} 秒` : K.id === "pojun" ? `圆满后 ${fmt(K, g.perLv)}，无视防御 ${U.num(((CFG.wudao.POJUN || {}).IGNORE || [])[x.star - 1] || 0)}%` : K.full ? `圆满后 ${fmt(K, g.perLv)}` : `每层 ${fmt(K, g.perLv)}`;
       return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${x.star}星</span>${lv ? `<span class="tag">${lv}/${DATA.GONGFA_MAX}层</span>` : ""}
         <small>${K.label} · ${eff}${lv ? "" : ` · ${U.fmt(c.stone)} 灵石 + ${U.fmt(c.contrib)} 贡献`}</small></div>
         <button class="sm" onclick="G.learnMifa('${K.id}')" ${lv || s.stone < c.stone || s.contrib < c.contrib ? "disabled" : ""}>${lv ? "已学会" : "学习"}</button></div>`;
     }).join("") +
     `<p class="desc">同星级门派共用这套秘法。学会后在「功法 → 秘法」里修炼升层（每 5 秒消耗修为和灵石），离开门派也一直有效。</p></div>
-    <div class="card"><h3>秘法总加成</h3><div class="stats">${DATA.mifaKinds.map(K => `<div><span>${K.label}</span>${fmt(K, tot[K.id])}</div>`).join("")}</div></div>`;
+    <div class="card"><h3>秘法总加成</h3><div class="stats">${DATA.mifaKinds.map(K => `<div><span>${K.label}</span>${fmt(K, tot[K.id])}</div>`).join("")}<div><span>破军无视防御</span>${U.num(tot.pojunIgn)}%</div><div><span>金蝉伤害降低</span>${tot.jinchan ? U.num(tot.jinchanCut) + "%" : "-"}</div></div></div>`;
 };
