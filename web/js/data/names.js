@@ -70,7 +70,6 @@ CFG.names = CFG.names || {};
   // 门派：职务、事务、修炼室、练功房
   const SC = CFG.sect || {}, setNames = (list, tbl) => (list || []).forEach((x, i) => { x.name = pick(tbl, i, x.name); });
   setNames(SC.ranks, N.rank); setNames((SC.affair || {}).tasks, N.affair); setNames(SC.rooms, N.room); setNames(SC.gfRooms, N.gfRoom);
-  if (SC.shopRooms) { setNames(SC.shopRooms.cult, (N.shopRoom || {}).cult); setNames(SC.shopRooms.gf, (N.shopRoom || {}).gf); }
   if (SC.freeRoom) SC.freeRoom.name = pick(N.freeRoom, "cult", SC.freeRoom.name);
   if (SC.freeGfRoom) SC.freeGfRoom.name = pick(N.freeRoom, "gf", SC.freeGfRoom.name);
   if (CFG.chuqiao) CFG.chuqiao.NAME = ok(N.chuqiao) ? N.chuqiao : CFG.chuqiao.NAME;
