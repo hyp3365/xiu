@@ -791,9 +791,8 @@ G.module({
       if (!g || g.src !== "shop" || this.hasGongfa(id)) return;
       if (!this.realmOK(g.sect.reqRealm)) return this.log(`需要${DATA.realmLabel(g.sect.reqRealm)}。`, "sys");
       if (this.s.stone < g.cost) return this.log("灵石不足。", "sys");
-      this.s.stone -= g.cost; this.s.gongfa[id] = 1;
-      if (g.kind === "sp") this.autoSlotSpell(id);
-      this.log(`购得《${g.name}》（${g.star}星 ${g.tier.name}），习得第 1 层。`, "gold"); this.after();
+      if (this.s.gfLearn) return this.log("正在学习其他功法。", "sys");
+      this.s.stone -= g.cost; this.startGfLearn(id); this.after();
     },
     // 管理员：网页里更新游戏（服务器拉取 GitHub 最新代码，完成后刷新页面）
     async webUpdate() {
@@ -832,18 +831,17 @@ G.module({
         return tabs + `<div class="card"><h3>${t === "pill" ? "丹药" : "装备"}<small>练气期货品 · 灵石 ${U.fmt(s.stone)}</small></h3>${rows || `<p class="desc">暂无货品。</p>`}</div>`;
       }
       if (t === "gf") {
-        const star = this.shopStar || 1, tier = this.shopTier || "huang", T = DATA.tierById[tier], N = DATA.SHOP_GF_PREFIX.length;
+        const star = this.shopStar || 1, N = DATA.SHOP_GF_PREFIX.length;
         const srcs = DATA.shopSources.filter(o => o.star === star), lock = !this.realmOK(srcs[0] ? srcs[0].reqRealm : 0);
         const line = g => { const has = this.hasGongfa(g.id);
           const desc = g.kind === "sp" ? `${g.el.name}系 · 攻击×${g.pct}% + ${this.spellPerTxt(g)}/层 · 耗法力 ${U.fmt(g.mana)}` : `每层${g.label} +${U.num(g.perLv)}`;
-          return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.kind === "sp" ? "法术" : g.type.name}</span><small>${desc} · ${U.fmt(g.cost)} 灵石</small></div>
-            <button class="sm" onclick="G.buyGongfa('${g.id}')" ${has || lock || s.stone < g.cost ? "disabled" : ""}>${has ? "已学会" : lock ? "境界不足" : "购买"}</button></div>`; };
+          return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.kind === "sp" ? "法术" : g.type.name}</span><small>${desc} · ${U.fmt(g.cost)} 灵石 · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>
+            ${lock && !has ? `<button class="sm" disabled>境界不足</button>` : this.gfLearnBtn(g, `G.buyGongfa('${g.id}')`, s.stone < g.cost, "购买")}</div>`; };
         return tabs + `<div class="room-grid">${Array.from({ length: N }, (_, i) => `<button class="${star === i + 1 ? "active" : ""}" onclick="G.setShopStar(${i + 1})">${i + 1}星</button>`).join("")}</div>
-          <div class="room-grid">${DATA.tiers.map(x => `<button class="${tier === x.id ? "active" : ""}" onclick="G.setShopTier('${x.id}')">${x.name}</button>`).join("")}</div>
-          <p class="desc">凡界坊市功法 ${star}星 · 需${DATA.realmLabel(srcs[0] ? srcs[0].reqRealm : 0)} · 灵石 ${U.fmt(s.stone)} · 买下即学会第 1 层</p>` +
-          srcs.map(o => `<div class="card"><h3>${o.name}<span class="tag">${DATA.elById[o.el].name}</span><small>${T.name}</small></h3>` +
-            DATA.gongfaTypes.filter(ty => !ty.sectOnly).map(ty => line(DATA.gongfaInfo(DATA.gongfaId(o.id, ty.id, tier)))).join("") +
-            line(DATA.spellInfo(DATA.spellId(o.id, o.el, tier))) + `</div>`).join("");
+          <p class="desc">凡界坊市功法 ${star}星 · 需${DATA.realmLabel(srcs[0] ? srcs[0].reqRealm : 0)} · 灵石 ${U.fmt(s.stone)}</p>` +
+          srcs.map(o => `<div class="card"><h3>${o.name}<span class="tag">${DATA.elById[o.el].name}</span></h3>` +
+            DATA.gongfaTypes.filter(ty => !ty.sectOnly).map(ty => line(DATA.gongfaInfo(DATA.gongfaId(o.id, ty.id)))).join("") +
+            line(DATA.spellInfo(DATA.spellId(o.id, o.el))) + `</div>`).join("");
       }
       const names = t === "herb" ? DATA.herbs : DATA.ores, fan = DATA.fanMats();
       return tabs + `<div class="card"><h3>${DATA.matKinds[t]}<small>凡界地图产出 · 灵石 ${U.fmt(s.stone)}</small></h3>
