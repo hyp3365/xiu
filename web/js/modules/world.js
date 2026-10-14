@@ -789,7 +789,7 @@ G.module({
     buyGongfa(id) {
       const g = DATA.skillInfo(id);
       if (!g || g.src !== "shop" || this.hasGongfa(id)) return;
-      if (!this.realmOK(g.sect.reqRealm)) return this.log(`需要${DATA.realmLabel(g.sect.reqRealm)}。`, "sys");
+      if (!this.realmOK(g.sect.reqRealm)) return this.log(`境界不足，需要${DATA.realmLabel(g.sect.reqRealm)}。`, "sys");
       if (this.s.stone < g.cost) return this.log("灵石不足。", "sys");
       if (this.s.gfLearn) return this.log("正在学习其他功法。", "sys");
       this.s.stone -= g.cost; this.startGfLearn(id); this.after();
@@ -836,9 +836,8 @@ G.module({
         const line = g => { const has = this.hasGongfa(g.id);
           const desc = g.kind === "sp" ? `${g.el.name}系 · 攻击×${g.pct}% + ${this.spellPerTxt(g)}/层 · 耗法力 ${U.fmt(g.mana)}` : `每层${g.label} +${U.num(g.perLv)}`;
           return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.kind === "sp" ? "法术" : g.type.name}</span><small>${desc} · ${U.fmt(g.cost)} 灵石 · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>
-            ${lock && !has ? `<button class="sm" disabled>境界不足</button>` : this.gfLearnBtn(g, `G.buyGongfa('${g.id}')`, s.stone < g.cost, "购买")}</div>`; };
-        return tabs + `<div class="room-grid">${Array.from({ length: N }, (_, i) => `<button class="${star === i + 1 ? "active" : ""}" onclick="G.setShopStar(${i + 1})">${i + 1}星</button>`).join("")}</div>
-          <p class="desc">凡界坊市功法 ${star}星 · 灵石 ${U.fmt(s.stone)}</p>` +
+            ${this.gfLearnBtn(g, `G.buyGongfa('${g.id}')`, s.stone < g.cost)}</div>`; };
+        return tabs + `<div class="room-grid">${Array.from({ length: N }, (_, i) => `<button class="${star === i + 1 ? "active" : ""}" onclick="G.setShopStar(${i + 1})">${i + 1}星</button>`).join("")}</div>` +
           srcs.map(o => `<div class="card"><h3>${o.name}<span class="tag">${DATA.elById[o.el].name}</span></h3>` +
             DATA.gongfaTypes.filter(ty => !ty.sectOnly).map(ty => line(DATA.gongfaInfo(DATA.gongfaId(o.id, ty.id)))).join("") +
             line(DATA.spellInfo(DATA.spellId(o.id, o.el))) + `</div>`).join("");
