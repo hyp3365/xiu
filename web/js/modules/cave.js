@@ -30,7 +30,7 @@ G.module({
     caveViews: {},
     arrayFactor() { return DATA.array.factor(this.s.array.lv); },
     // 每 10 秒聚灵量（只由等级决定，开关不影响）
-    gatherAmount() { return DATA.array.gather(this.s.array.lv); },
+    gatherAmount() { return DATA.array.gather(this.s.array.lv) * (1 + (this.servantPct ? this.servantPct("zhen") : 0) / 100); },   // 道童阵法辅助 +%
     lingCap() { const sp = this.speed(); return Math.max(100, sp.gather * DATA.LING_CAP_GATHER + sp.total * DATA.LING_CAP_SPEED); },
     lingPerStone() { return DATA.array.STONE_LING; }, // 固定数值
 
