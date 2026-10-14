@@ -63,7 +63,7 @@ G.module({
     roomCost(i) { return Math.floor(DATA.rooms[i].cost * this.starMul()); },
     roomLocked(i) { return (DATA.rooms[i].rank || 0) > this.s.rank; },
     gfRoomPct(i) { return DATA.gfRooms[i].pct; },   // v97：减少修炼时间 %，不乘星级
-    gfRoomCost(i) { return Math.floor(DATA.gfRooms[i].cost * this.starMul()); },
+    gfRoomCost(i) { return DATA.gfRooms[i].cost; },   // v98：写多少就是多少，不乘星级
     gfRoomLocked(i) { return (DATA.gfRooms[i].rank || 0) > this.s.rank; },
     // 当前练功房（宗门或坊市）：{ name, pct, cost, cur: "contrib"|"stone" } 或 null
     // v97：pct = 减少修炼时间 %；mul = 修炼进度倍率 = 100 ÷ (100 − pct)；坊市练功房已取消
