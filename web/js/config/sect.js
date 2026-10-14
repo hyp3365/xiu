@@ -244,12 +244,12 @@ CFG.sect.pool = {
     35,    // 10 星
   ],
   list: [
-    { name: "免费练体池", contrib: 0,   hp: 15000,  keys: ["hp"] },
-    { name: "下品练体池", contrib: 100,  hp: 12000, keys: ["hp", "def"] },
-    { name: "中品练体池", contrib: 200, hp: 30000, keys: ["hp", "def", "atk"] },
-    { name: "上品练体池", contrib: 300, hp: 50000, keys: ["hp", "def", "atk", "dodge"] },
-    { name: "天品练体池", contrib: 400, hp: 90000, keys: ["hp", "atk", "def", "dodge", "res", "hit"] },
-    { name: "宗主练体池", contrib: 400, hp: 100000, keys: ["hp", "atk", "def", "dodge", "res", "hit"], rank: 6 },   // 宗主专用
+    { name: "免费练体池", contrib: 0,   hp: 5000,  keys: ["hp"] },
+    { name: "下品练体池", contrib: 100,  hp: 10000, keys: ["hp", "def"] },
+    { name: "中品练体池", contrib: 200, hp: 18000, keys: ["hp", "def", "atk"] },
+    { name: "上品练体池", contrib: 300, hp: 30000, keys: ["hp", "def", "atk", "dodge"] },
+    { name: "天品练体池", contrib: 400, hp: 60000, keys: ["hp", "atk", "def", "dodge", "res", "hit"] },
+    { name: "宗主练体池", contrib: 200, hp: 50000, keys: ["hp", "atk", "def", "dodge", "res", "hit"], rank: 6 },   // 宗主专用
   ],
   GAIN: [   // 第 1 组 = 1 星宗门 … 第 10 组 = 10 星；每组 6 行 = 免费 下品 中品 上品 天品 宗主
     [   // 1 星宗门
@@ -258,7 +258,7 @@ CFG.sect.pool = {
       [50, 30, 28],                                // 中品：气血 防御 攻击
       [50, 30, 28, 25],                             // 上品：气血 防御 攻击 闪避
       [60, 35, 35, 28, 19, 26],                       // 天品：气血 攻击 防御 闪避 抗性 命中
-      [60, 35, 35, 28, 19, 36],                      // 宗主：气血 攻击 防御 闪避 抗性 命中
+      [60, 35, 35, 28, 19, 26],                      // 宗主：气血 攻击 防御 闪避 抗性 命中
     ],
     [   // 2 星宗门
       [14],                                     // 免费：气血
