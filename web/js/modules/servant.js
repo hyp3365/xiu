@@ -15,29 +15,17 @@ G.module({
       s.svPick = { star: U.weighted(C.STAR_W) + 1, el: U.pick(Object.keys(C.EL)), av, name: this.svRandName(av) };
       this.log(`道童选拔结束：选出${this.svName(s.svPick)}。`, "good"); this.dirty();
     }
-    this.svFix();
     if (s.svAuto) s.servants.forEach(d => { const c = this.svOwed(d) * this.svSalary(d); if (c > 0 && s.stone >= c) { s.stone -= c; d.paid = this.bjDay(); this.dirty(); } });
     const gone = s.servants.filter(d => this.svOwed(d) > C.SALARY.LEAVE_DAYS);
     if (gone.length) { s.servants = s.servants.filter(d => !gone.includes(d)); gone.forEach(d => this.log(`${this.svName(d)}连续多日未领俸禄，离开了洞府。`, "bad")); this.dirty(); }
   },
   api: {
-    // 旧存档兼容：job:true → 对应差事；补头像、俸禄日期
-    svFix() {
-      const old = { huo: "dan", jin: "qi", shui: "cult", mu: "ling" };
-      (this.s.servants || []).forEach(d => {
-        if (d.job === true) d.job = old[d.el] || null; else if (d.job === false) d.job = null;
-        if (d.av == null) d.av = Math.floor(Math.random() * CFG.servant.AVATARS);
-        if (!d.paid) d.paid = this.bjDay();
-        if (!d.name) d.name = this.svRandName(d.av);
-      });
-    },
     svName(d) { return d.name || `${CFG.servant.EL[d.el] || d.el}·${d.star}星道童`; },
     svRandName(av) { const C = CFG.servant; return U.pick(C.SURNAME) + U.pick((C.AV_FEMALE || []).includes(av) ? C.NAME_F : C.NAME_M); },
     svImg(d) { return `img/sv${(d.av || 0) % CFG.servant.AVATARS}.png?v=2`; },
     svUpCost(d) { const C = CFG.servant; return Math.floor(C.UP_BASE * Math.pow(C.UP_RATE, d.lv - 1) * (C.STAR_COST[d.star - 1] || 1)); },
     svSalary(d) { const S = CFG.servant.SALARY; return Math.floor((S.BASE + S.PER_LV * d.lv) * (S.STAR[d.star - 1] || 1)); },
     svOwed(d) { return Math.max(0, Math.round((Date.parse(this.bjDay()) - Date.parse(d.paid || this.bjDay())) / 864e5)); },
-    svOwedTotal() { return (this.s.servants || []).reduce((t, d) => t + this.svOwed(d) * this.svSalary(d), 0); },
     // 某差事的效果 %（所有派去的道童相加）
     svStage(d) { const C = CFG.servant; return Math.min(C.STAGES, Math.ceil(d.lv / (C.MAX_LV / C.STAGES))); },
     svEff(d, job) { const C = CFG.servant, J = C.JOB[job]; return J ? J.MAX * this.svStage(d) / C.STAGES : 0; },
@@ -113,7 +101,6 @@ G.module({
 /* 洞府 · 道童居 */
 G.caveViews.servant = function () {
   const s = this.s, C = CFG.servant, p = s.svPick, n = s.servants.length;
-  this.svFix();
   const rows = s.servants.map((d, i) => { const o = this.svOwed(d);
     return `<div class="sv-row"><img src="${this.svImg(d)}" alt=""><div class="sv-nm">${this.svName(d)}<small>${d.job ? C.JOB[d.job].name : "空闲"}${o ? ` · <span class="q5">欠俸 ${o} 天</span>` : ""}</small></div><b class="sv-el sv-${d.el}">${C.EL[d.el]}</b><span>资质${d.star}星</span><span>等级${d.lv}级</span><button class="sm" onclick="G.openSv(${i})">管理</button></div>`; }).join("");
   const pickBtn = !p ? `<button class="primary" onclick="G.svStartPick()" ${s.stone < C.PICK_COST || n >= C.MAX ? "disabled" : ""}>选拔道童<small>${n >= C.MAX ? "道童已满" : U.fmt(C.PICK_COST) + " 灵石"}</small></button>`
