@@ -46,6 +46,7 @@ G.module({
       this.s = this.migrate(data);
       this.fixGongfa(); // 旧版功法存档转换
       this.fixMifaV2();
+      this.fixTowerBooks();   // 旧版试炼塔秘诀转换
       this.fixEquip();  // 旧版装备栏转换
       this.s.manual = false;
       this.offline();
