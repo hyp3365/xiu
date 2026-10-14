@@ -2,7 +2,7 @@
  * 数据：功法 & 法术
  * ---------------------------------------------------------------------
  * 【功法】六大类，每类加成一种属性（固定数值，不是百分比）：
- *   心法 → 防御      功诀 → 攻击      真经 → 气血上限
+ *   心法 → 防御      功诀 → 攻击      真经 → 生命上限
  *   秘诀 → 修炼速度  身法 → 命中      遁术 → 闪避      法诀 → 法力上限
  *   真诀 → 本门派属性的抗性（金木水火土雷之一，v15）
  * 每个门派每类功法分 天、地、玄、黄 四阶，名字如：青阳心法（黄阶）
@@ -35,7 +35,7 @@ DATA.tierById = Object.fromEntries(DATA.tiers.map((t, i) => [t.id, Object.assign
 DATA.gongfaTypes = [
   { id: "xinfa",    name: "心法", suffix: "心法", stat: "def",       label: "防御" },
   { id: "gongjue",  name: "功诀", suffix: "诀",   stat: "atk",       label: "攻击" },
-  { id: "zhenjing", name: "真经", suffix: "真经", stat: "hp",        label: "气血上限" },
+  { id: "zhenjing", name: "真经", suffix: "真经", stat: "hp",        label: "生命上限" },
   { id: "mijue",    name: "秘诀", suffix: "秘诀", stat: "cultivate", label: "修炼速度" },
   { id: "shenfa",   name: "身法", suffix: "身法", stat: "hit",       label: "命中" },
   { id: "dunshu",   name: "遁术", suffix: "遁术", stat: "dodge",     label: "闪避" },
@@ -210,8 +210,8 @@ DATA.skillInfo = (id, lv) => DATA.isSpell(id) ? DATA.spellInfo(id, lv) : DATA.is
 DATA.mifaKinds = [
   { id: "mpBattle",  name: "斗灵秘法", label: "战斗法力恢复", unit: "%", sign: "+", el: "shui" },
   { id: "mpIdle",    name: "养灵秘法", label: "平时法力恢复", unit: "%", sign: "+", el: "shui" },
-  { id: "hpBattle",  name: "斗血秘法", label: "战斗气血恢复", unit: "%", sign: "+", el: "mu" },
-  { id: "hpIdle",    name: "养血秘法", label: "平时气血恢复", unit: "%", sign: "+", el: "mu" },
+  { id: "hpBattle",  name: "斗血秘法", label: "战斗生命恢复", unit: "%", sign: "+", el: "mu" },
+  { id: "hpIdle",    name: "养血秘法", label: "平时生命恢复", unit: "%", sign: "+", el: "mu" },
   { id: "spStudy",   name: "悟法秘法", label: "法术修炼时间", unit: "秒", sign: "-", el: "lei" },
   { id: "gfStudy",   name: "悟道秘法", label: "功法修炼时间", unit: "秒", sign: "-", el: "jin" },
   { id: "expSpeed",  name: "聚元秘法", label: "修为修炼速度", unit: "", sign: "+", el: "huo" },
