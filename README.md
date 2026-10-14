@@ -20,6 +20,26 @@ sudo xiu-update
 
 会自动拉取最新代码并重启存档服务。玩家存档在 `/var/lib/xiu/xiu.db`，更新不会丢档。
 
+## 一键卸载
+
+删除全部玩家存档、日志、代码、服务和 nginx 配置，无法恢复：
+
+```bash
+sudo xiu-uninstall
+```
+
+或者（没装 xiu-uninstall 时）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hyp3365/xiu/main/deploy/uninstall.sh | sudo bash
+```
+
+## 日志
+
+- 存档服务日志：`/var/lib/xiu/server.log`（不写系统日志）
+- 网页更新日志：`/var/lib/xiu/update.log`
+- 每次 `xiu-update` 时，超过 1MB 的日志只保留最后 200KB；nginx 不记录游戏的访问日志
+
 ## 目录结构
 
 ```
