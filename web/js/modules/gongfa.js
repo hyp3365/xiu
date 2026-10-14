@@ -186,7 +186,7 @@ G.module({
       const cv = v => `<b class="${lg ? "gf-up" : "gf-base"}">${v}</b>`;
       const mfv = v => `${g.mk.sign}${U.num(v)}${g.mk.unit}`;
       const desc = g.kind === "mf"
-        ? (g.mk.id === "explore" ? `${g.label} ${max ? mfv(g.value) : `圆满后 ${mfv(g.perLv)}`}` : `${g.label} ${mfv(g.value)}${max ? "" : `，下一层 ${mfv(g.next)}`}`)
+        ? (g.mk.id === "explore" || g.mk.full ? `${g.label} ${max ? mfv(g.value) : `圆满后 ${mfv(g.perLv)}`}` : `${g.label} ${mfv(g.value)}${max ? "" : `，下一层 ${mfv(g.next)}`}`)
         : g.kind === "sp"
         ? `伤害 攻击×<b class="gf-base">${U.dec(g.pct) + "%"}</b> + ${cv(U.fmt(g.flat * spm))}${lgTxt}，耗法力 ${U.fmt(g.mana)}${max ? "" : `，下一层 +${cv(U.fmt(g.next * spm))}`}`
         : `${g.label} ${cv("+" + this.gfValue(g, g.value * this.lingenGongfa(g.el.id)))}${lgTxt}${max ? "" : `，下一层 ${cv("+" + this.gfValue(g, g.next * this.lingenGongfa(g.el.id)))}`}`;
