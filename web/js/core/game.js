@@ -65,12 +65,12 @@ const G = {
 
   /* ---------- 存档 ---------- */
   newSave(name) {
-    let s = { v: 5, realmV: 2, name, last: Date.now(), log: [] };   // realmV 2 = 24 境界版
+    let s = { v: 5, name, last: Date.now(), log: [] };
     for (const m of this.modules) if (m.defaults) Object.assign(s, m.defaults());
     s._nm = DATA.nmSnap();   // 新存档记下当前用的名字（config/names.js），以后改名读档时对照
     return s;
   },
-  // 旧存档缺字段时，用模块默认值补上（以后加新功能不会坏档）
+  // 存档缺字段时，用模块默认值补上（以后加新功能不会坏档）
   migrate(s) {
     DATA.nmMigrate(s);   // 存档里的旧名字 → config/names.js 的新名字
     for (const m of this.modules) if (m.defaults) {
