@@ -119,6 +119,9 @@ G.module({
         return d;
       };
       const hit = (A, D) => roll(A, D, Math.max(A.atk * BT.MIN_DMG, A.atk - D.def * BT.DEF_RATE), 0);
+      // v57：鼎 → 对方速度 / 命中 / 闪避降低（m.deb，剩 left 回合）；印 → 对方眩晕（m.stun 回合）；盾 → 护盾（shield，打光为止）
+      const mE = () => m.deb ? Object.assign({}, m, { speed: m.speed * (1 - m.deb.speed / 100), hit: m.hit * (1 - m.deb.hit / 100), dodge: m.dodge * (1 - m.deb.dodge / 100) }) : m;
+      let shield = null;
       // v25：炼制法宝也能祭出（金木水火土雷属性伤害，消耗法力）
       const fabaos = s.fabao.slice(0, this.slotCount()).filter(e => e && e.attrs).map(e => DATA.fabaoInfo(e));
       // 玩家出手：法术、法宝按顺序轮流（法术在前），法力不足的跳过，都放不出就普通攻击
@@ -138,13 +141,21 @@ G.module({
       const myHit = () => {
         for (let k = 0; k < acts.length; k++) {
           const j = (si + k) % acts.length, a = acts[j], cost = a.k === 1 ? a.sp.mana : a.fb.mana;
+          if (a.k === 2 && a.fb.shield && shield) continue;   // 护盾还在：盾不用再祭
           if (s.mana >= cost) {
             si = (j + 1) % acts.length; s.mana -= cost;
-            if (a.k === 1) { const sp = a.sp; return roll(st, m, Math.max(st.atk * BT.MIN_DMG, st.atk * sp.pct / 100 + sp.flat * this.lingenSpell(sp.el.id) - resOf(m, sp.el.id) * BT.DEF_RATE), 1, j); }
-            return roll(st, m, fabaoDmg(a.fb), 2, j);
+            if (a.k === 1) { const sp = a.sp; return roll(st, mE(), Math.max(st.atk * BT.MIN_DMG, st.atk * sp.pct / 100 + sp.flat * this.lingenSpell(sp.el.id) - resOf(m, sp.el.id) * BT.DEF_RATE), 1, j); }
+            const fb = a.fb;
+            if (fb.shield) { shield = Object.assign({ el: fb.el }, fb.shield); act = { k: 3, sp: j, f: 0 }; return 0; }
+            const d = roll(st, mE(), fabaoDmg(fb), 2, j);
+            if (act.f !== 1) {
+              if (fb.ding) { m.deb = { speed: fb.ding.speed, hit: fb.ding.hit, dodge: fb.ding.dodge, left: fb.ding.rounds }; act.x = 2; }
+              if (fb.yin && Math.random() * 100 < fb.yin.chance) { m.stun = Math.max(m.stun || 0, fb.yin.rounds); act.x = (act.x || 0) | 1; }
+            }
+            return d;
           }
         }
-        return hit(st, m);
+        return hit(st, mE());
       };
       let php = s.hp, mhp = m.hp, rounds = 0, dealt = 0, taken = 0;
       const hp0 = s.hp, mana0 = s.mana, meFirst = st.speed >= m.speed;
@@ -154,17 +165,31 @@ G.module({
         const c = m[k], cost = c ? m.maxMana * c.cost : 0;
         if (!c || m.mana < cost || Math.random() * 100 >= c.chance) return -1;
         m.mana -= cost; k === "spell" ? mSp++ : mFb++;
-        return roll(m, st, Math.max(m.atk * BT.MIN_DMG, m.atk * c.pct / 100 - (el ? resOf(st, el) : st.def) * BT.DEF_RATE), k === "spell" ? 1 : 2);
+        return roll(mE(), st, Math.max(m.atk * BT.MIN_DMG, m.atk * c.pct / 100 - (el ? resOf(st, el) : st.def) * BT.DEF_RATE), k === "spell" ? 1 : 2);
       };
-      const mobHit = () => { let d = mCast("spell", m.el); if (d < 0) d = mCast("fabao", m.el); return d < 0 ? hit(m, st) : d; };   // v25：怪物法宝也是属性伤害
+      const mobHit = () => { let d = mCast("spell", m.el); if (d < 0) d = mCast("fabao", m.el); return d < 0 ? hit(mE(), st) : d; };   // v25：怪物法宝也是属性伤害
       // 每一下记一条：[回合, 谁(0 你 / 1 对方), 方式, 法术名序号, 结果, 伤害, 你的气血, 你的法力, 对方气血, 对方法力]
       const log = [], R = Math.round;
-      const rec = (w, d) => log.push([rounds, w, act.k, act.sp === undefined ? -1 : act.sp, act.f, R(d), R(Math.max(0, php)), R(s.mana), R(Math.max(0, mhp)), R(m.mana || 0)]);
-      const me = () => { const d = myHit(); mhp -= d; dealt += d; rec(0, d); }, him = () => { const d = mobHit(); php -= d; taken += d; rec(1, d); };
+      //   v57 多两格：[10] 标记（1 眩晕对方 2 鼎减益 4 护盾破碎）、[11] 护盾抵挡的伤害；方式 3 = 祭起护盾（伤害格 = 护盾值）、4 = 被眩晕
+      const rec = (w, d) => log.push([rounds, w, act.k, act.sp === undefined ? -1 : act.sp, act.f, R(d), R(Math.max(0, php)), R(s.mana), R(Math.max(0, mhp)), R(m.mana || 0), act.x || 0, R(act.ab || 0)]);
+      const me = () => { const d = myHit(); mhp -= d; dealt += d; rec(0, act.k === 3 ? shield.hp : d); };
+      const him = () => {
+        if (m.stun > 0) { m.stun--; act = { k: 4, f: 0 }; rec(1, 0); return; }   // 被眩晕：这次不能出手
+        let d = mobHit();
+        if (shield && act.f !== 1 && d > 0) {   // 护盾：先减盾防御，同属性再减 %、点，再减「受到伤害减少」，剩下先扣护盾值
+          d = Math.max(0, d - shield.def * BT.DEF_RATE);
+          if (act.k && m.el === shield.el) d = Math.max(0, d * (1 - shield.pct / 100) - shield.flat);
+          d = Math.max(0, d - shield.red);
+          const ab = Math.min(shield.hp, d); shield.hp -= ab; d -= ab; act.ab = ab;
+          if (shield.hp <= 0) { shield = null; act.x = (act.x || 0) | 4; }
+        }
+        php -= d; taken += d; rec(1, d);
+      };
       while (php > 0 && mhp > 0 && rounds < BT.MAX_ROUNDS) {
         rounds++;
-        if (meFirst) { me(); if (mhp > 0) him(); }
+        if (st.speed >= mE().speed) { me(); if (mhp > 0) him(); }   // 每回合按当前速度定先手（鼎会降低对方速度）
         else { him(); if (php > 0) me(); }
+        if (m.deb && --m.deb.left <= 0) m.deb = null;
       }
       s.hp = Math.max(1, php);
       // 战斗说明（显示在探索信息里）
@@ -176,18 +201,23 @@ G.module({
 
     // 战斗过程每一下的文字（b = battle() 返回的 detail）
     battleRow(b, x) {
-      const [r, w, k, sp, f, d, ph, pm, mh, mm] = x, el = b.el ? DATA.elById[b.el].name : "";
+      const [r, w, k, sp, f, d, ph, pm, mh, mm, fx, ab] = x, el = b.el ? DATA.elById[b.el].name : "";
       const who = w ? b.name : "你", tgt = w ? "你" : b.name;
-      const how = k === 1 ? `施放${w ? `${el}系法术` : `《${b.sp[sp] || "法术"}》`}` : k === 2 ? (w || !b.sp[sp] ? "祭出法宝" : `祭出法宝「${b.sp[sp]}」`) : "发动普通攻击";
-      const res = f === 1 ? `，被${tgt}闪避` : `，${f === 2 ? "暴击！" : ""}对${tgt}造成 <b>${U.fmt(d)}</b> 伤害`;
+      const how = k === 1 ? `施放${w ? `${el}系法术` : `《${b.sp[sp] || "法术"}》`}` : k === 2 ? (w || !b.sp[sp] ? "祭出法宝" : `祭出法宝「${b.sp[sp]}」`)
+        : k === 3 ? `祭起法宝「${b.sp[sp] || "盾"}」` : k === 4 ? "被眩晕" : "发动普通攻击";
+      let res = k === 3 ? `，护盾值 <b>${U.fmt(d)}</b>` : k === 4 ? "，无法行动" : f === 1 ? `，被${tgt}闪避` : `，${f === 2 ? "暴击！" : ""}对${tgt}造成 <b>${U.fmt(d)}</b> 伤害`;
+      if (ab) res += `（护盾抵挡 ${U.fmt(ab)}）`;
+      if (fx & 4) res += "，护盾破碎";
+      if (fx & 2) res += `，${tgt}速度、命中、闪避降低`;
+      if (fx & 1) res += `，${tgt}被眩晕`;
       return `<p class="${w ? "bad" : "good"}"><b>第${r}回合</b> ${who}${how}${res}<br><small>你 气血 ${U.fmt(ph)}/${U.fmt(b.me[1])} 法力 ${U.fmt(pm)}/${U.fmt(b.me[3])} · ${b.name} 气血 ${U.fmt(mh)}/${U.fmt(b.mob[1])} 法力 ${U.fmt(mm)}/${U.fmt(b.mob[3])}</small></p>`;
     },
     // 战斗总览：先手、开战数值、双方各方式伤害合计
     battleHead(b) {
-      const K = ["普通攻击", "法术", "法宝"], el = b.el ? DATA.elById[b.el].name : "";
+      const K = ["普通攻击", "法术", "法宝", "护盾", "被眩晕"], el = b.el ? DATA.elById[b.el].name : "";
       const sum = (w, k) => b.log.filter(x => x[1] === w && x[2] === k).reduce((t, x) => t + x[5], 0);
       const cnt = (w, k) => b.log.filter(x => x[1] === w && x[2] === k).length;
-      const line = w => K.map((n, k) => cnt(w, k) ? `${n} ${cnt(w, k)} 次 ${U.fmt(sum(w, k))}` : "").filter(Boolean).join("，") || "无";
+      const line = w => K.map((n, k) => cnt(w, k) ? `${n} ${cnt(w, k)} 次${k < 3 ? " " + U.fmt(sum(w, k)) : ""}` : "").filter(Boolean).join("，") || "无";
       return `<p class="desc">${el ? `${b.name}为${el}属性 · ` : ""}${b.first ? `${b.name}先手` : "你先手"}<br>开战：你 气血 ${U.fmt(b.me[0])}/${U.fmt(b.me[1])} 法力 ${U.fmt(b.me[2])}/${U.fmt(b.me[3])} · ${b.name} 气血 ${U.fmt(b.mob[0])} 法力 ${U.fmt(b.mob[2])}<br>
         你造成：${line(0)}<br>${b.name}造成：${line(1)}</p>`;
     },
@@ -314,7 +344,7 @@ G.module({
       loot.pills.forEach(p => { if (this.addPill(p.t, p.g)) parts.push(`${DATA.realms[p.g]}·${DATA.pills[p.t].name}`); else lost++; });
       loot.equips.forEach(e => { if (this.addEquip(e)) parts.push(`<span class="q${e.q}">${DATA.quals[e.q]}${e.name}</span>`); else lost++; });
       for (const name in loot.cu || {}) { if (this.addCustom(name, loot.cu[name])) parts.push(`${name}×${U.fmt(loot.cu[name])}`); else lost++; } // 自定义物品
-      if (loot.hx) { if (this.addFire(loot.hx)) parts.push(`${DATA.HX}×${U.fmt(loot.hx)}`); else lost++; }   // 秘境：火髓、专用材料、模具
+      if (loot.hx) { if (this.addFire(loot.hx)) parts.push(`${DATA.HX}×${U.fmt(loot.hx)}`); else lost++; }   // 秘境：火髓、专用材料
       for (const k in loot.sm || {}) { const p = DATA.smParse(k);
         if (this.addSm(p.k, loot.sm[k], p.ft, p.tier)) parts.push(`${DATA.smName(p.k, p.ft, p.tier)}×${U.fmt(loot.sm[k])}`); else lost++; }
       if (o) o.exLost += lost;
@@ -506,25 +536,21 @@ G.module({
       for (const x of (d.extra || {})[ev] || []) {
         if (Math.random() * 100 >= (x.chance || 0)) continue;
         const nn = x.n || [1, 1], n = U.rand(nn[0], nn[1]); if (n <= 0) continue;
-        const t = this.lootAdd(loot, x.item, n, x.tier); if (t) got.push(t);
+        const t = this.lootAdd(loot, x.item, n); if (t) got.push(t);
       }
       return got.filter(Boolean).join("、");
     },
-    // 按名字把东西记进 loot：火髓 / 专用材料 / 模具 / 药材矿石 / 自定义物品
-    //   模具：名字没写种类（"法宝模具"）每个随机一种法宝；tier = [最低阶, 最高阶] 每个随机一阶（名字里写了阶就用名字的，都没写 = 一阶）
-    lootAdd(loot, name, n, tier) {
+    // 按名字把东西记进 loot：火髓 / 专用材料 / 药材矿石 / 自定义物品
+    //   耀石：名字是「耀石」（没写属性）每个随机一种属性
+    lootAdd(loot, name, n) {
       if (name === DATA.HX) { loot.hx = (loot.hx || 0) + n; return `${DATA.HX}×${n}`; }
       const sm = DATA.smByName(name);
       if (sm) {
         loot.sm = loot.sm || {};
-        if (sm.k !== "mold") { const key = DATA.smKey(sm.k, sm.ft); loot.sm[key] = (loot.sm[key] || 0) + n; return `${DATA.smName(sm.k, sm.ft)}×${n}`; }
+        if (!(sm.k === "ys" && sm.ft === undefined)) { const key = DATA.smKey(sm.k, sm.ft); loot.sm[key] = (loot.sm[key] || 0) + n; return `${DATA.smName(sm.k, sm.ft)}×${n}`; }
         const cnt = {};
-        for (let j = 0; j < n; j++) {
-          const ft = sm.ft === undefined ? Math.floor(Math.random() * DATA.fabaoTypes.length) : sm.ft;
-          const t = sm.tier !== undefined ? sm.tier : Array.isArray(tier) ? U.rand(tier[0], tier[tier.length - 1]) : tier !== undefined ? tier : 1;
-          const key = DATA.smKey("mold", ft, t); loot.sm[key] = (loot.sm[key] || 0) + 1; cnt[key] = (cnt[key] || 0) + 1;
-        }
-        return Object.keys(cnt).map(key => { const p = DATA.smParse(key); return `${DATA.smName("mold", p.ft, p.tier)}×${cnt[key]}`; }).join("、");
+        for (let j = 0; j < n; j++) { const key = DATA.smKey("ys", Math.floor(Math.random() * DATA.elements.length)); loot.sm[key] = (loot.sm[key] || 0) + 1; cnt[key] = (cnt[key] || 0) + 1; }
+        return Object.keys(cnt).map(key => `${DATA.smName("ys", DATA.smParse(key).ft)}×${cnt[key]}`).join("、");
       }
       const m = DATA.matByName[name];
       if (m) { const key = m.kind + "|" + name; (loot.mats[key] = loot.mats[key] || { kind: m.kind, name, g: m.g, n: 0 }).n += n; return `${name}×${n}`; }
