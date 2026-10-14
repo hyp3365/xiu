@@ -224,6 +224,7 @@ DATA.mifaKinds = [
   { id: "qiRate",    name: "器心秘法", label: "炼器成功率", unit: "%", sign: "+", el: "jin" },
   { id: "plantTime", name: "育灵秘法", label: "灵药生长时间", unit: "%", sign: "-", el: "mu" },
   { id: "plantYield",name: "丰灵秘法", label: "灵药收获数量", unit: "%", sign: "+", el: "mu" },
+  { id: "lianxing",  name: "连星秘法", label: "连续出手几率", unit: "%", sign: "+", el: "lei", full: true },   // 圆满才生效（config/wudao.js LIANXING）
 ];
 DATA.mifaKinds.forEach(k => { k.name = DATA.nmPick(_NM.mifa, k.id, k.name); });
 DATA.mifaKindById = Object.fromEntries(DATA.mifaKinds.map(k => [k.id, k]));
@@ -235,9 +236,9 @@ DATA.mifaLearnCost = star => { const W = CFG.wudao, m = (W.STAR_COST || [])[star
 DATA.mifaInfo = (id, lv = 1) => {
   const [w, , kind] = id.split(":"), star = +w.slice(1), K = DATA.mifaKindById[kind], W = CFG.wudao;
   if (!K || !(star >= 1 && star <= 10)) return null;
-  const per = (W.base[kind] || 0) * ((W.STAR_MULT || [])[star - 1] || 1), max = DATA.GONGFA_MAX;
+  const per = kind === "lianxing" ? (((W.LIANXING || {}).STAR || [])[star - 1] || 0) : (W.base[kind] || 0) * ((W.STAR_MULT || [])[star - 1] || 1), max = DATA.GONGFA_MAX;
   // 神行：修到圆满才生效一次（不乘层数）
-  const val = l => kind === "explore" ? (l >= max ? per : 0) : per * DATA.lvMul(l);
+  const val = l => kind === "explore" || K.full ? (l >= max ? per : 0) : per * DATA.lvMul(l);
   return { kind: "mf", id, star, mk: K, tier: DATA.MIFA_TIER, lv, el: DATA.elById[K.el], label: K.label,
     name: `${DATA.MIFA_PREFIX[star - 1] || star + "星"}·${K.name}`, value: val(lv), next: val(lv + 1), perLv: per,
     cost: DATA.mifaLearnCost(star),
