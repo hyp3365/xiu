@@ -1,7 +1,7 @@
 /* =====================================================================
  * 模块：四界官位 —— 界主 / 星君（各界殿君）/ 天将（单人，数值在 config/xingjun.js）
  * ---------------------------------------------------------------------
- * 界主、星君之位由 NPC 镇守；挑战时满血满法力，结束后恢复自己原来的气血法力。
+ * 界主、星君之位由 NPC 镇守；挑战时满血满法力，结束后恢复自己原来的生命法力。
  *   挑战扣本图贡献（失败不退）。星君：单挑胜即就任；天将：扣贡献直接就任；
  *   界主：担任过天将和全部星君后才能挑战，一场连战依次打完该图所有星君再打界主，全胜就任。
  * 每界各能担任一个官位（s.offices[界]）。俸禄每 HOUR 秒结算：功德 s.merit（顶部显示的功德）、灵石、火髓。
@@ -96,7 +96,7 @@ G.module({
       return this.addMagic({ name, Lm: DATA.region(a, 3).L, kind: "boss", boss: true,
         hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), crit: b.crit }, "boss");
     },
-    // 依次挑战 list（[{name, k}]），满血满法力开打，中间不回复；结束恢复原来的气血法力
+    // 依次挑战 list（[{name, k}]），满血满法力开打，中间不回复；结束恢复原来的生命法力
     xjFight(a, list, title, onWin) {
       const s = this.s, w = this.xjW(a);
       if (!this.mapOpen(a)) return;
