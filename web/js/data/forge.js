@@ -33,42 +33,48 @@ DATA.stoneName = g => DATA.JIE[g] + DATA.SS;
 DATA.stoneMats = g => DATA.parseMats(_FG.stone.mats[g]);
 DATA.stoneTime = g => _FG.stone.time[g] * 60000;
 
-// 法宝：每阶 36 种（config/forge.js 的 fabao.types），属性由种类决定，显示如 一阶·火·赤炎鼎
-//   法宝在存档里多一个 ft = 种类序号、enh = 强化次数
+// 法宝：7 种形状（config/forge.js 的 fabao.types：剑 刀 锤 环 盾 鼎 印），属性炼制时自己选，显示如 一阶·火·剑
+//   法宝在存档里：ft = 形状序号、el = 属性、fv = 2（v57 新法宝；没有 fv 的是旧的 36 种，读档时转换）
 DATA.fabaoTypes = _FG.fabao.types;
 DATA.forgeNames.fabao = DATA.JIE.map(() => DATA.slots.fabao);        // 门派炼器室图谱名：一阶·法宝
-// 旧法宝（没有种类）：按属性归到该属性的第一种
-DATA.fixFabao = e => {
-  if (!e || e.slot !== "fabao" || !e.attrs || e.ft !== undefined) return;
-  let ft = DATA.fabaoTypes.findIndex(t => t.el === e.el); if (ft < 0) ft = 0;
-  e.ft = ft; e.el = DATA.fabaoTypes[ft].el; e.name = DATA.fabaoTypes[ft].name;
+DATA.elIdx = el => Math.max(0, DATA.elements.findIndex(x => x.id === el));   // 属性序号（金木水火土雷 = 0~5）
+// v57：旧的 36 种法宝 → 7 种形状（0 剑 1 刀 2 锤 3 环 4 盾 5 鼎 6 印），属性、颜色、强化都保留
+DATA.FB_OLD_MAP = [0, 5, 1, 6, 2, 3, 3, 5, 5, 6, 5, 5, 4, 3, 6, 0, 3, 5, 3, 3, 5, 6, 1, 0, 6, 6, 4, 2, 6, 5, 2, 2, 1, 0, 6, 6];
+DATA.FB_OLD_EL = ["jin", "jin", "jin", "jin", "mu", "mu", "mu", "mu", "mu", "mu", "shui", "shui", "shui", "shui", "shui", "shui", "shui", "huo", "huo", "huo", "huo", "huo", "huo", "huo", "tu", "tu", "tu", "tu", "tu", "tu", "lei", "lei", "lei", "lei", "lei", "lei"];
+// 给法宝补上形状的专属属性（颜色同第一条主属性）
+DATA.fbAddSpecial = e => {
+  const T = DATA.fabaoTypes[e.ft] || {}, c = ((e.attrs || []).find(a => a.m === 1) || {}).c || 0;
+  e.attrs = e.attrs.filter(a => a.m !== 2);
+  const at = Object.keys(T.special || {}).map(k => ({ k, c, p: Math.random(), m: 2 }));
+  e.attrs.splice(e.attrs.filter(a => a.m === 1).length, 0, ...at);
 };
-// 秘境专用材料（config/mijing.js 的 items）：背包里 { t: "sm", k, ft, tier, n }，k = kj 空间晶核 / lu 养神灵露 / jy 九曜石（ft = 品阶序号）/ mold 模具
-//   模具：ft = 法宝种类序号，tier = 模具阶（1 ~ 10，旧存档没有 tier = 1 阶）
-DATA.SM_GRADED = ["mold", "jy"];
-DATA.jyGrade = g => { const T = (CFG.mijing.items.jy || {}).TIER || []; return T[Math.min(g, T.length - 1)] || 0; };
-DATA.jyMax = () => Math.max(0, ((CFG.mijing.items.jy || {}).grades || []).length - 1);   // 九曜石最高品阶序号
-// 强化第 n+1 次（n = 已强化次数）要用的九曜石品阶 = floor(n ÷ JY_STEP)，最高到最后一品（config/forge.js 的 enhance）
-DATA.enhJyGrade = (e, n) => { const E = DATA.enhCfg(e), st = E.JY_STEP || 9; return Math.min(DATA.jyMax(), Math.floor((n || 0) / st)); };
-DATA.moldTier = t => Math.max(1, Math.min(DATA.JIE.length, Math.floor(+t || 1)));   // 模具阶 1 ~ 10（没写 = 1 阶）
-DATA.smName = (k, ft, tier) => k === "jy" ? (((CFG.mijing.items.jy || {}).grades || [])[ft || 0] || "") + CFG.mijing.items.jy.name
-  : k === "mold" ? (ft !== undefined && DATA.fabaoTypes[ft] ? DATA.JIE[DATA.moldTier(tier) - 1] + DATA.fabaoTypes[ft].name : DATA.slots.fabao) + CFG.mijing.items.mold.name
-  : (CFG.mijing.items[k] || {}).name || k;
-// 按名字找专用材料：「黄品九曜石」「法宝模具」（随机种类）「飞剑模具」「三阶飞剑模具」……
+DATA.fixFabao = e => {
+  if (!e || e.slot !== "fabao" || !e.attrs || e.fv === 2) return;
+  const old = e.ft === undefined ? 0 : e.ft, ft = DATA.FB_OLD_MAP[old] === undefined ? 0 : DATA.FB_OLD_MAP[old];
+  if (!e.el || !DATA.elById[e.el]) e.el = DATA.FB_OLD_EL[old] || "jin";
+  e.ft = ft; e.name = DATA.fabaoTypes[ft].name; e.fv = 2;
+  if (DATA.fabaoTypes[ft].shield) e.attrs.forEach(a => { if (a.m && a.k === "pct") a.k = "shPct"; else if (a.m && a.k === "flat") a.k = "shFlat"; });
+  DATA.fbAddSpecial(e);
+};
+// 秘境专用材料（config/mijing.js 的 items）：背包里 { t: "sm", k, ft, n }，k = kj 空间晶核 / lu 养神灵露 / ys 耀石（ft = 属性序号 0~5）
+//   ft = -1 表示「任意一种耀石」（装备、戒指炼制和强化用；扣的时候先扣最多的那种）
+DATA.SM_GRADED = ["ys"];
+DATA.smName = (k, ft) => {
+  const I = CFG.mijing.items;
+  if (k === "ys") return ft >= 0 ? ((I.ys.names || [])[ft] || DATA.elements[ft].name + I.ys.name) : I.ys.name;
+  return (I[k] || {}).name || k;
+};
+// 按名字找专用材料：「耀石」（每个随机一种属性）「火耀石」……
 DATA.smByName = name => {
   const I = CFG.mijing.items;
-  if (I.jy) { const f = (I.jy.grades || []).findIndex(x => x + I.jy.name === name); if (f >= 0) return { k: "jy", ft: f }; }
-  for (const k in I) if (k !== "mold" && k !== "jy" && I[k].name === name) return { k };
-  if (name === DATA.slots.fabao + I.mold.name) return { k: "mold" };          // 随机一种模具
-  let tier, rest = name;
-  const t = DATA.JIE.findIndex(j => name.startsWith(j)); if (t >= 0) { tier = t + 1; rest = name.slice(DATA.JIE[t].length); }
-  const ft = DATA.fabaoTypes.findIndex(x => x.name + I.mold.name === rest);
-  return ft >= 0 ? { k: "mold", ft, tier } : null;
+  if (I.ys) { if (name === I.ys.name) return { k: "ys" }; const f = (I.ys.names || []).indexOf(name); if (f >= 0) return { k: "ys", ft: f }; }
+  for (const k in I) if (k !== "ys" && I[k].name === name) return { k };
+  return null;
 };
-DATA.smIcon = (k, ft) => k === "jy" ? DATA.iconImg("sm_jy" + (ft || 0)) : k === "mold" ? DATA.iconImg("fbt" + (ft || 0)) : DATA.iconImg("sm_" + k);
-// 掉落记账的键：k / k:ft / mold:ft:tier
-DATA.smKey = (k, ft, tier) => k + (ft === undefined ? "" : ":" + ft) + (k === "mold" ? ":" + DATA.moldTier(tier) : "");
-DATA.smParse = key => { const [k, f, t] = key.split(":"); return { k, ft: f === undefined ? undefined : +f, tier: k === "mold" ? DATA.moldTier(t) : undefined }; };
+DATA.smIcon = (k, ft) => k === "ys" ? DATA.iconImg("sm_ys" + Math.max(0, ft || 0)) : DATA.iconImg("sm_" + k);
+// 掉落记账的键：k / k:ft
+DATA.smKey = (k, ft) => k + (ft === undefined ? "" : ":" + ft);
+DATA.smParse = key => { const [k, f] = key.split(":"); return { k, ft: f === undefined ? undefined : +f }; };
 DATA.forgeSlots = Object.keys(DATA.forgeNames);            // 能炼的部位（含法宝）
 DATA.eqSlots6 = DATA.forgeSlots.filter(x => x !== "fabao"); // 头盔 ~ 吊坠
 // v25：戒指 9 种（主属性见 config/forge.js 的 forge.ring.main）
@@ -80,9 +86,10 @@ DATA.ringMats = g => DATA.parseMats(_FG.ring.mats[g]);
 DATA.ringTime = g => _FG.ring.time[g] * 60000;
 DATA.ringBpName = (g, r) => DATA.JIE[g] + (DATA.ringNames[r] || "戒指") + "图纸";   // v26：图纸分戒指种类（r）
 // 法宝属性名（附加属性带一个属性 el）
-DATA.fbAttrNames = { pct: "伤害", flat: "属性伤害", ignRes: "无视抗性", ignResPct: "无视抗性%", elDmg: "追加伤害", elDmgPct: "追加伤害%", manaCut: "法力消耗减少", manaCutPct: "法力消耗减少%" };
+DATA.fbAttrNames = { pct: "伤害", flat: "属性伤害", ignRes: "无视抗性", ignResPct: "无视抗性%", elDmg: "追加伤害", elDmgPct: "追加伤害%", manaCut: "法力消耗减少", manaCutPct: "法力消耗减少%",
+  sAtk: "攻击", sHit: "命中", sCrit: "暴击%", sMana: "本法宝法力消耗减少%", shPct: "受到属性伤害减少%", shFlat: "受到属性伤害减少", shHp: "护盾值", dmgRed: "受到伤害减少" };
 for (const k in DATA.fbAttrNames) DATA.fbAttrNames[k] = DATA.nmPick(CFG.names.fbAttr, k, DATA.fbAttrNames[k]);
-DATA.FB_PCT = ["pct", "ignResPct", "elDmgPct", "manaCutPct"];   // 百分比类
+DATA.FB_PCT = ["pct", "ignResPct", "elDmgPct", "manaCutPct", "shPct"];   // 百分比类
 
 // 颜色 c 在第 g 阶的数值范围 [最小, 最大]（没设置 RANGE 时用旧算法 colors.mult × RAND）
 DATA.colorRange = (c, g) => {
@@ -118,9 +125,10 @@ DATA.attrBase = (a, g, e) => {
     const last = DATA.colorRange(A.colors.length - 1, g)[1] || 1;
     return TOP[a.k][g] * DATA.rangeMult(a, g) / last;
   }
+  if (fb && a.m === 2) { const sp = ((DATA.fabaoTypes[e.ft] || {}).special || {})[a.k] || []; return (sp[g] === undefined ? sp[sp.length - 1] || 0 : sp[g]) * DATA.rangeMult(a, g); }   // v57 专属属性
   if (e && e.slot === "fabao" && e.attrs) {   // 法宝：主属性再 × 种类倍率，属性伤害再 × 强化
     const F = _FG.fabao, grow = DATA.FB_PCT.includes(a.k) ? (F.PCT_GROW[g] || 1) : (F.GROW[g] || 1), T = DATA.fabaoTypes[e.ft] || {};
-    const mul = !a.m ? 1 : a.k === "pct" ? (T.pct || 1) : a.k === "flat" ? (T.flat || 1) : 1;
+    const mul = a.m !== 1 ? 1 : a.k === "pct" ? (T.pct || 1) : a.k === "flat" ? (T.flat || 1) : 1;
     return (F.base[a.k] || 0) * grow * DATA.rangeMult(a, g) * mul;
   }
   const grow = a.k === "crit" ? g + 1 : (A.GROW[g] || 1);
@@ -135,14 +143,17 @@ DATA.fabaoWashW = () => _FG.reset.WASH_WEIGHT || _FG.attr.colors.map(c => c.weig
 // v53：新得到的装备 / 戒指颜色权重，最高 attr.NEW_COLOR_MAX（默认绿）；紫、金只能洗练
 DATA.equipNewW = () => { const mx = _FG.attr.NEW_COLOR_MAX === undefined ? 1 : _FG.attr.NEW_COLOR_MAX; return _FG.attr.colors.map((c, i) => i <= mx ? c.weight : 0); };
 // 随机生成一件装备 / 戒指（r = 戒指种类）/ 法宝
-DATA.rollForged = (slot, g, r) => {
+DATA.fbPool = T => T && T.shield ? [..._FG.fabao.pool, ...(_FG.fabao.SHIELD_POOL || [])] : _FG.fabao.pool;   // 法宝附加属性池（盾多两种）
+DATA.rollForged = (slot, g, r, el) => {
   const A = _FG.attr;
-  if (slot === "fabao") {   // r = 法宝种类序号（不填就随机）
+  if (slot === "fabao") {   // r = 形状序号、el = 属性（不填就随机）
     const F = _FG.fabao, ft = r === undefined ? Math.floor(Math.random() * DATA.fabaoTypes.length) : r, T = DATA.fabaoTypes[ft];
-    const W = DATA.fabaoNewW(), attrs = [DATA.rollAttr("pct", 1, undefined, W), DATA.rollAttr("flat", 1, undefined, W)];
-    const n = U.weighted(F.AFFIX_COUNT) + 1;
-    for (let i = 0; i < n; i++) attrs.push(DATA.rollAttr(U.pick(F.pool), 0, U.pick(DATA.elements).id, W));
-    return { slot, g, ft, el: T.el, name: T.name, enh: 0, q: DATA.bestQ(attrs), attrs };
+    const elv = el && DATA.elById[el] ? el : U.pick(DATA.elements).id;
+    const W = DATA.fabaoNewW(), attrs = (T.shield ? ["shPct", "shFlat"] : ["pct", "flat"]).map(k => DATA.rollAttr(k, 1, undefined, W));
+    for (const k in T.special || {}) attrs.push(DATA.rollAttr(k, 2, undefined, W));
+    const n = U.weighted(F.AFFIX_COUNT) + 1, pool = DATA.fbPool(T);
+    for (let i = 0; i < n; i++) attrs.push(DATA.rollAttr(U.pick(pool), 0, U.pick(DATA.elements).id, W));
+    return { slot, g, ft, el: elv, name: T.name, enh: 0, q: DATA.bestQ(attrs), attrs, fv: 2 };
   }
   if (slot === "ring" && r === undefined) r = Math.floor(Math.random() * DATA.ringNames.length);
   const main = (slot === "ring" ? _FG.ring.main[r] : A.main[slot] || []).slice(0, 2), W = DATA.equipNewW(), attrs = main.map(k => DATA.rollAttr(k, 1, undefined, W));
@@ -178,7 +189,7 @@ DATA.rerollForged = (e, locks) => {
   const enh = e.attrs.filter((a, i) => !a.m && !locks.includes(i)).map(a => a.enh || 0).sort((x, y) => y - x);
   const roll = () => {
     let k;
-    if (fb) k = U.pick(_FG.fabao.pool);
+    if (fb) k = U.pick(DATA.fbPool(DATA.fabaoTypes[e.ft]));
     else { const pool = A.pool.filter(x => !used.includes(x)); if (!pool.length) return null; k = U.pick(pool); used.push(k); }
     const a = DATA.rollAttr(k, 0, fb ? U.pick(DATA.elements).id : undefined, W); if (enh.length && enh[0]) a.enh = enh.shift(); else enh.shift(); return a;
   };
@@ -199,15 +210,18 @@ DATA.attrText = (a, e) => {
   if (e.slot === "fabao") {
     const el = DATA.elById[a.el || e.el] ? DATA.elById[a.el || e.el].name : "";
     const t = { pct: `伤害 攻击×${v}%`, flat: `${el}属性伤害 +${v}`, ignRes: `无视${el}抗性 ${v} 点`, ignResPct: `无视${el}抗性 ${v}%`,
-      elDmg: `追加${el}属性伤害 +${v}`, elDmgPct: `追加${el}属性伤害 攻击×${v}%`, manaCut: `法力消耗 -${v}`, manaCutPct: `法力消耗 -${v}%` }[a.k] || a.k;
+      elDmg: `追加${el}属性伤害 +${v}`, elDmgPct: `追加${el}属性伤害 攻击×${v}%`, manaCut: `法力消耗 -${v}`, manaCutPct: `法力消耗 -${v}%`,
+      sAtk: `攻击 +${v}`, sHit: `命中 +${v}`, sCrit: `暴击 +${v}%`, sMana: `本法宝法力消耗 -${v}%`,
+      shPct: `受到${el}属性伤害 -${v}%`, shFlat: `受到${el}属性伤害 -${v}`, shHp: `护盾值 +${v}`, dmgRed: `受到伤害 -${v}` }[a.k] || a.k;
     const off = (a.k === "ignRes" || a.k === "ignResPct") && a.el !== e.el ? "（与法宝属性不同，不生效）" : "";
-    return `${a.m ? "" : "附加 "}${t}（${col}${a.enh ? `·强化${a.enh}` : ""}）${off}`;
+    return `${a.m === 2 ? "专属 " : a.m ? "" : "附加 "}${t}（${col}${a.enh ? `·强化${a.enh}` : ""}）${off}`;
   }
   return `${a.m ? "" : "附加 "}${DATA.attrNames[a.k]} +${v}（${col}${a.enh ? `·强化${a.enh}` : ""}）`;
 };
 // 法宝战斗数值：{ el, pct, flat, mana, ign, ignPct, extra: [{ el, flat, pct }] }
 DATA.fabaoInfo = e => {
-  const F = _FG.fabao, o = { name: e.name, el: e.el, pct: 0, flat: 0, ign: 0, ignPct: 0, cut: 0, cutPct: 0, extra: [] };
+  const F = _FG.fabao, T = DATA.fabaoTypes[e.ft] || {}, o = { name: e.name, el: e.el, ft: e.ft, pct: 0, flat: 0, ign: 0, ignPct: 0, cut: 0, cutPct: 0, extra: [] };
+  let shPct = 0, shFlat = 0, shHp = 0, red = 0;
   for (const a of e.attrs) {
     const v = DATA.attrVal(a, e.g, e);
     if (a.k === "pct") o.pct += v; else if (a.k === "flat") o.flat += v;
@@ -215,15 +229,20 @@ DATA.fabaoInfo = e => {
     else if (a.k === "ignResPct" && a.el === e.el) o.ignPct += v;
     else if (a.k === "elDmg") o.extra.push({ el: a.el, flat: v, pct: 0 });
     else if (a.k === "elDmgPct") o.extra.push({ el: a.el, flat: 0, pct: v });
-    else if (a.k === "manaCut") o.cut += v; else if (a.k === "manaCutPct") o.cutPct += v;
+    else if (a.k === "manaCut") o.cut += v; else if (a.k === "manaCutPct" || a.k === "sMana") o.cutPct += v;
+    else if (a.k === "shPct") shPct += v; else if (a.k === "shFlat") shFlat += v; else if (a.k === "shHp") shHp += v; else if (a.k === "dmgRed") red += v;
   }
+  const at = (arr, d) => { const x = (arr || [])[e.g]; return x === undefined ? d : x; };
+  if (T.shield) { const S = F.SHIELD || {}; o.shield = { def: at(S.DEF, 0), hp: at(S.HP, 0) + shHp, pct: Math.min(100, shPct), flat: shFlat, red }; }   // 盾
+  if (T.ding) { const D = F.DING || {}; o.ding = { speed: at(D.SPEED, 0), hit: at(D.HIT, 0), dodge: at(D.DODGE, 0), rounds: at(D.ROUNDS, 1) }; }   // 鼎
+  if (T.yin) { const Y = F.YIN || {}; o.yin = { chance: at(Y.CHANCE, 0), rounds: at(Y.ROUNDS, 1) }; }   // 印
   o.ignPct = Math.min(F.CAP.ignResPct || 100, o.ignPct); o.cutPct = Math.min(F.CAP.manaCutPct || 80, o.cutPct);
   // 人物大境界倍率（同法术）
   const R = typeof G !== "undefined" && G.s && !G.s.mortal ? Math.min(Math.floor(G.s.L / DATA.LAYERS), 23) : 0;
   const rv = a => { if (!a) return 1; const x = Array.isArray(a) ? a[R] : a[DATA.realms[R]]; return x === undefined ? 1 : x; };   // 按境界名取倍率
   o.pct *= rv(F.DMG_REALM); o.flat *= rv(F.DMG_REALM);
   // 法力 = MANA[阶] × MANA_COLOR[主属性颜色] × MANA_REALM[境界]；颜色只看主属性（伤害%那条）
-  const main = e.attrs.find(a => a.m && a.k === "pct") || e.attrs.find(a => a.m) || {};
+  const main = e.attrs.find(a => a.m === 1) || {};
   const mc = (F.MANA_COLOR || [])[main.c || 0];
   const m0 = (F.MANA && F.MANA[e.g] !== undefined ? F.MANA[e.g] : (F.base.mana || 0) * (F.GROW[e.g] || 1)) * (mc === undefined ? 1 : mc) * rv(F.MANA_REALM);
   o.mana = Math.max(0, m0 * (1 - o.cutPct / 100) - o.cut);
@@ -235,7 +254,7 @@ DATA.fabaoInfo = e => {
  *   img/mats/herb0.png ……  药材、矿石（按 config/items.js 里的顺序）
  *   img/icons/eq_部位.png  装备、戒指；fb_属性.png 法宝；gf_属性.png 功法；sp_属性.png 法术
  *   img/icons/pill_丹药id.png 修炼丹、dan_类型.png 属性丹、fu_dan / fu_qi.png 炉子、ss.png 空间石
- *   fbt序号.png 36 种法宝、mifa.png 秘法、seed.png 种子、stone.png 灵石、cu_*.png 自定义物品
+ *   fbs形状_属性.png 法宝（7 种形状 × 6 种属性）、sm_ys属性.png 耀石、mifa.png 秘法、seed.png 种子、stone.png 灵石、cu_*.png 自定义物品
  *   hx.png 火髓、bp.png 图纸 */
 DATA.IMG_V = 1;
 DATA.matImg = (kind, g) => `img/mats/${kind}${g}.png?v=${DATA.IMG_V}`;
@@ -254,7 +273,7 @@ DATA.eqIcon = e => {
   if (!e) return "";
   if (e.cid) return DATA.cuIcon((window.ITEMS && ITEMS.list || {})[e.cid]);
   if (e.slot === "fabao") {   // 炼制法宝按种类；自定义 / 旧法宝按名字挑一个属性图
-    if (e.ft !== undefined) return DATA.iconImg("fbt" + e.ft);
+    if (e.ft !== undefined && e.fv === 2) return DATA.iconImg("fbs" + e.ft + "_" + DATA.elIdx(e.el));
     const el = e.el || DATA.elements[[...(e.name || "")].reduce((a, c) => a + c.charCodeAt(0), 0) % 6].id;
     return DATA.iconImg("fb_" + el);
   }
