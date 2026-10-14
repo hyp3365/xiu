@@ -262,7 +262,7 @@ G.module({
       const cells = this.tribRunSlots();
       return `<div class="tj-wrap${end ? win ? " win" : " lose" : ""}">
         <div class="tj-head"><button class="sm" onclick="G.closeTrib()">${end ? "离开" : "返回（渡劫继续）"}</button><b>渡劫 · ${this.realmName(x.L)}</b><span></span></div>
-        ${this.tribStageHtml(`<div class="tj-timer">${end ? `<b class="tj-res">${win ? "渡劫成功" : "渡劫失败"}</b>` : ""}</div>`, end ? win ? "win" : "dead" : "")}
+        ${this.tribStageHtml("", end ? win ? "win" : "dead" : "")}
         <div class="bar tick"><div id="tj-timebar" style="width:${x.sec / x.time * 100}%"></div></div>
         <div class="row small"><span>生命 <b id="tj-hp">${U.fmt(Math.max(0, s.hp))} / ${U.fmt(st.hp)}</b></span><span>共承受 <b id="tj-taken">${U.fmt(x.taken)}</b></span></div>
         <div class="bar hp"><div id="tj-hpbar" style="width:${Math.max(0, s.hp) / st.hp * 100}%"></div></div>
