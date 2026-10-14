@@ -11,7 +11,8 @@ G.module({
   tick() {
     const s = this.s, C = CFG.servant, p = s.svPick;
     if (p && p.end && this.now() >= p.end) {
-      s.svPick = { star: U.weighted(C.STAR_W) + 1, el: U.pick(Object.keys(C.EL)), av: Math.floor(Math.random() * C.AVATARS) };
+      const av = Math.floor(Math.random() * C.AVATARS);
+      s.svPick = { star: U.weighted(C.STAR_W) + 1, el: U.pick(Object.keys(C.EL)), av, name: this.svRandName(av) };
       this.log(`道童选拔结束：选出${this.svName(s.svPick)}。`, "good"); this.dirty();
     }
     this.svFix();
@@ -27,9 +28,11 @@ G.module({
         if (d.job === true) d.job = old[d.el] || null; else if (d.job === false) d.job = null;
         if (d.av == null) d.av = Math.floor(Math.random() * CFG.servant.AVATARS);
         if (!d.paid) d.paid = this.bjDay();
+        if (!d.name) d.name = this.svRandName(d.av);
       });
     },
-    svName(d) { return `${CFG.servant.EL[d.el] || d.el}·${d.star}星道童`; },
+    svName(d) { return d.name || `${CFG.servant.EL[d.el] || d.el}·${d.star}星道童`; },
+    svRandName(av) { const C = CFG.servant; return U.pick(C.SURNAME) + U.pick((C.AV_FEMALE || []).includes(av) ? C.NAME_F : C.NAME_M); },
     svImg(d) { return `img/sv${(d.av || 0) % CFG.servant.AVATARS}.png?v=2`; },
     svUpCost(d) { const C = CFG.servant; return Math.floor(C.UP_BASE * Math.pow(C.UP_RATE, d.lv - 1) * (C.STAR_COST[d.star - 1] || 1)); },
     svSalary(d) { const S = CFG.servant.SALARY; return Math.floor((S.BASE + S.PER_LV * d.lv) * (S.STAR[d.star - 1] || 1)); },
@@ -57,18 +60,19 @@ G.module({
       const s = this.s, p = s.svPick; if (!p || p.end) return;
       if (keep) {
         if (s.servants.length >= CFG.servant.MAX) return this.log("道童已满。", "sys");
-        s.servants.push({ uid: "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), star: p.star, el: p.el, av: p.av || 0, lv: 1, job: null, paid: this.bjDay() });
+        s.servants.push({ uid: "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), star: p.star, el: p.el, av: p.av || 0, name: p.name || this.svRandName(p.av || 0), lv: 1, job: null, paid: this.bjDay() });
         this.log(`收下${this.svName(p)}。`, "good");
       }
       s.svPick = null; this.closeModal(); this.after();
     },
-    svPay() {
-      const s = this.s, c = this.svOwedTotal(); if (!c) return;
+    svPay(i) {
+      const s = this.s, d = s.servants[i]; if (!d) return;
+      const c = this.svOwed(d) * this.svSalary(d); if (!c) return;
       if (s.stone < c) return this.log("灵石不足。", "sys");
-      s.stone -= c; s.servants.forEach(d => d.paid = this.bjDay());
-      this.log(`发放俸禄 ${U.fmt(c)} 灵石。`, "good"); this.after();
+      s.stone -= c; d.paid = this.bjDay();
+      this.log(`给${this.svName(d)}发放俸禄 ${U.fmt(c)} 灵石。`, "good"); this.after(); this.openSv(i);
     },
-    svAutoToggle() { this.s.svAuto = !this.s.svAuto; this.tickAll(false); this.after(); },
+    svAutoToggle(i) { this.s.svAuto = !this.s.svAuto; this.tickAll(false); this.after(); if (i != null) this.openSv(i); },
     svUp(i) {
       const s = this.s, d = s.servants[i]; if (!d || d.lv >= CFG.servant.MAX_LV) return;
       const c = this.svUpCost(d); if (s.stone < c) return this.log("灵石不足。", "sys");
@@ -80,9 +84,10 @@ G.module({
     },
     openSv(i) {
       const d = this.s.servants[i]; if (!d) return this.closeModal();
-      const C = CFG.servant, max = d.lv >= C.MAX_LV, c = this.svUpCost(d), J = C.JOB[d.job], ow = this.svOwed(d);
+      const C = CFG.servant, max = d.lv >= C.MAX_LV, c = this.svUpCost(d), J = C.JOB[d.job], ow = this.svOwed(d), owc = ow * this.svSalary(d), au = this.s.svAuto;
       this.modal(`<h2>${this.svName(d)}</h2><div class="sv-pick"><img src="${this.svImg(d)}" alt=""><div>
         资质 ${d.star} 星 · 五行 ${C.EL[d.el]}<br>等级 ${d.lv} / ${C.MAX_LV} · 第 ${this.svStage(d)} / ${C.STAGES} 阶<br>差事：${J ? `${J.name} ${d.job === "cult" || d.job === "zhen" ? "+" : "−"}${U.num(this.svEff(d, d.job))}%` : "空闲"}<br>每日俸禄 ${U.fmt(this.svSalary(d))} 灵石${ow ? `<br><span class="q5">欠发 ${ow} 天</span>` : ""}</div></div>
+        <div class="btns"><button class="${au ? "on" : ""}" onclick="G.svAutoToggle(${i})">自动发放俸禄：${au ? "开" : "关"}</button><button onclick="G.svPay(${i})" ${owc && this.s.stone >= owc ? "" : "disabled"}>发放俸禄${owc ? `（${U.fmt(owc)} 灵石）` : ""}</button></div>
         <div class="btns"><button class="primary" onclick="G.svUp(${i})" ${max || this.s.stone < c ? "disabled" : ""}>${max ? "已满级" : `升级（${U.fmt(c)} 灵石）`}</button>
         <button onclick="G.svFire(${i})">遣散</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
@@ -107,16 +112,15 @@ G.module({
 
 /* 洞府 · 道童居 */
 G.caveViews.servant = function () {
-  const s = this.s, C = CFG.servant, p = s.svPick, n = s.servants.length, ow = this.svOwedTotal();
+  const s = this.s, C = CFG.servant, p = s.svPick, n = s.servants.length;
   this.svFix();
   const rows = s.servants.map((d, i) => { const o = this.svOwed(d);
-    return `<div class="sv-row"><img src="${this.svImg(d)}" alt=""><div class="sv-nm">${this.svName(d)}<small>${d.job ? C.JOB[d.job].name : "空闲"}${o ? ` · <span class="q5">欠俸 ${o} 天</span>` : ""}</small></div><span>资质${d.star}星</span><span>等级${d.lv}级</span><button class="sm" onclick="G.openSv(${i})">管理</button></div>`; }).join("");
+    return `<div class="sv-row"><img src="${this.svImg(d)}" alt=""><div class="sv-nm">${this.svName(d)}<small>${d.job ? C.JOB[d.job].name : "空闲"}${o ? ` · <span class="q5">欠俸 ${o} 天</span>` : ""}</small></div><b class="sv-el sv-${d.el}">${C.EL[d.el]}</b><span>资质${d.star}星</span><span>等级${d.lv}级</span><button class="sm" onclick="G.openSv(${i})">管理</button></div>`; }).join("");
   const pickBtn = !p ? `<button class="primary" onclick="G.svStartPick()" ${s.stone < C.PICK_COST || n >= C.MAX ? "disabled" : ""}>选拔道童<small>${n >= C.MAX ? "道童已满" : U.fmt(C.PICK_COST) + " 灵石"}</small></button>`
     : p.end ? `<button disabled>选拔道童<small>${U.dur(Math.max(0, (p.end - this.now()) / 1000))}</small></button>`
     : `<button class="primary" onclick="G.svOpenPick()">选拔道童<small>已选出</small></button>`;
   const jobs = Object.keys(C.JOB).map(k => `<button onclick="G.svOpenJob('${k}')">${C.JOB[k].name}<small>${k === "cult" || k === "zhen" ? "+" : "−"}${U.num(this.servantPct(k))}%</small></button>`).join("");
   return `<div class="card"><h3>${DATA.caveName("servant")}<small>道童 ${n} / ${C.MAX}</small></h3>
     ${rows}
-    <div class="btns"><button class="${s.svAuto ? "on" : ""}" onclick="G.svAutoToggle()">自动发放俸禄${s.svAuto ? "：开" : "：关"}</button><button onclick="G.svPay()" ${ow && s.stone >= ow ? "" : "disabled"}>发放俸禄${ow ? `（${U.fmt(ow)} 灵石）` : ""}</button></div>
     </div><div class="room-grid sv-jobs">${pickBtn}${jobs}</div>`;
 };
