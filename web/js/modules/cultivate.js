@@ -104,8 +104,8 @@ G.module({
       for (const t in s.buffs) { const b = s.buffs[t]; if (b && b.left > 0) pill += b.pct; }
       const room = this.freeCultOn() ? this.freeCultPct() : s.room >= 0 && s.sect ? this.roomPct(s.room) : s.shopRoom >= 0 && DATA.shopRooms.cult[s.shopRoom] ? DATA.shopRooms.cult[s.shopRoom].pct : 0;
       // 所有百分比加成相加后再乘：总速度 = 基础 × (1 + (聚灵阵% + 丹药% + 修炼室%) / 100)，避免数值连乘爆炸
-      const arrPct = (arr - 1) * 100;
-      return { base, arr, pill, room, mifa, total: base * (1 + (arrPct + pill + room) / 100),
+      const arrPct = (arr - 1) * 100, mfPct = this.mifaBonus().expSpeedPct || 0;   // 聚元秘法圆满额外 %
+      return { base, arr, pill, room, mifa, mfPct, total: base * (1 + (arrPct + pill + room + mfPct) / 100),
         gather: this.gatherAmount() };                                     // 每 10 秒聚灵（开关不影响）
     },
 
@@ -128,6 +128,7 @@ G.module({
       this.modal(`<h2>修炼加成<small> · ${U.num(sp.total)} 修为 / 10秒</small></h2>
         <div class="line"><div>基础修炼速度<small>境界 ${U.num(st.cultivate)} + 秘诀 ${U.num(this.gongfaBonus().cultivate)} + 秘法 ${U.num(sp.mifa)}</small></div><b>${U.num(sp.base)}</b></div>
         <div class="line"><div>聚灵阵<small>${s.array.lv} 级</small></div><b>+${U.num(arrPct)}%</b></div>
+        <div class="line"><div>聚元秘法圆满</div><b>+${U.num(sp.mfPct)}%</b></div>
         <div class="line"><div>丹药</div><b>+${Math.round(sp.pill)}%</b></div>
         <div class="line"><div>修炼室<small>${this.freeCultOn() ? `${CFG.sect.freeRoom.name}（剩余 ${s.freeCult.left} 次）` : s.room >= 0 && s.sect ? DATA.rooms[s.room].name : s.shopRoom >= 0 && DATA.shopRooms.cult[s.shopRoom] ? "坊市 · " + DATA.shopRooms.cult[s.shopRoom].name : "未使用"}</small></div><b>+${Math.round(sp.room)}%</b></div>
         <h3 style="margin-top:10px">丹药</h3>
