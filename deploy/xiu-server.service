@@ -11,6 +11,9 @@ Environment=XIU_PORT=18300
 ExecStart=/usr/bin/python3 /opt/xiu/server/server.py
 Restart=always
 RestartSec=3
+# 日志只写到数据目录的一个文件（不进系统日志），xiu-update 时超过 1MB 自动只保留最后 200KB
+StandardOutput=append:/var/lib/xiu/server.log
+StandardError=append:/var/lib/xiu/server.log
 
 [Install]
 WantedBy=multi-user.target
