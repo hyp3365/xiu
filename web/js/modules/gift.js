@@ -36,7 +36,7 @@ G.module({
       const srcName = o => `${o.star}星·${o.name}${o.book ? `·第${o.book}卷` : ""}`;
       if (c === "stone" || c === "contrib" || c === "merit") return [N];
       if (c === "gf") {
-        const srcs = [...DATA.sects, ...DATA.shopSources, ...DATA.towerBooks].sort((x, y) => x.star - y.star);
+        const srcs = [...DATA.sects, ...DATA.shopSources, ...DATA.jieGf.jshop, ...DATA.jieGf.gd, ...DATA.towerBooks].sort((x, y) => x.star - y.star);
         const o = DATA.gfSrcById[a.src] || srcs[0];
         const types = o.src === "tower" ? DATA.gongfaTypes.filter(t => t.id === "mijue") : o.src === "shop" ? DATA.gongfaTypes.filter(t => !t.sectOnly) : DATA.gongfaTypes;
         return [{ k: "src", label: "来源", opts: srcs.map(x => [x.id, srcName(x)]) }, { k: "type", label: "种类", opts: types.map(t => [t.id, t.name]) }];
