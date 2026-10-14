@@ -30,7 +30,7 @@ G.module({
       });
     },
     svName(d) { return `${CFG.servant.EL[d.el] || d.el}·${d.star}星道童`; },
-    svImg(d) { return `img/sv${(d.av || 0) % CFG.servant.AVATARS}.png?v=1`; },
+    svImg(d) { return `img/sv${(d.av || 0) % CFG.servant.AVATARS}.png?v=2`; },
     svUpCost(d) { const C = CFG.servant; return Math.floor(C.UP_BASE * Math.pow(C.UP_RATE, d.lv - 1) * (C.STAR_COST[d.star - 1] || 1)); },
     svSalary(d) { const S = CFG.servant.SALARY; return Math.floor((S.BASE + S.PER_LV * d.lv) * (S.STAR[d.star - 1] || 1)); },
     svOwed(d) { return Math.max(0, Math.round((Date.parse(this.bjDay()) - Date.parse(d.paid || this.bjDay())) / 864e5)); },
