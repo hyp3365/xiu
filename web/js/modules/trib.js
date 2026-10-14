@@ -97,7 +97,7 @@ G.module({
     startTrib() {
       const s = this.s; if (s.trib || !this.canBreak() || !this.needTrib()) return;
       const L = s.L + 1, t = this.makeTrib(L), st = this.stats();
-      s.hp = st.hp; s.mana = st.mana;   // 开始时气血法力回满
+      s.hp = st.hp; s.mana = st.mana;   // 开始时生命法力回满
       s.trib = { v: 2, L, start: this.now(), time: this.tribTime(L), sec: 0, atk: t.atk, crit: t.crit, taken: 0, hits: 0, log: [], result: "" };
       this.log(`劫云压顶，${this.realmName(L)}天劫降临！`, "gold");
       this.tribOpen = true; this.save && this.save(); this.tribRender(true);
@@ -160,7 +160,7 @@ G.module({
     tribUpd() {
       const x = this.s.trib; if (!x) return;
       const s = this.s, st = this.stats(), dead = x.result && !/成功/.test(x.result);
-      const hp = dead ? 0 : Math.max(0, s.hp), hpPct = hp / st.hp * 100;   // 被劈倒：结算后气血留 1，画面上先显示 0
+      const hp = dead ? 0 : Math.max(0, s.hp), hpPct = hp / st.hp * 100;   // 被劈倒：结算后生命留 1，画面上先显示 0
       const set = (id, v) => { const n = document.getElementById(id); if (n) n.textContent = v; };
       set("tj-left", x.time - x.sec); set("tj-hp", `${U.fmt(hp)} / ${U.fmt(st.hp)}`); set("tj-taken", U.fmt(x.taken));
       const bar = document.getElementById("tj-hpbar"); if (bar) bar.style.width = hpPct + "%";
@@ -246,7 +246,7 @@ G.module({
         <div class="tj-head"><button class="sm" onclick="G.closeTrib()">${end ? "离开" : "返回（渡劫继续）"}</button><b>渡劫 · ${this.realmName(x.L)}</b><span></span></div>
         ${this.tribStageHtml(`<div class="tj-timer">${end ? `<b class="tj-res">${win ? "渡劫成功" : "渡劫失败"}</b>` : ""}</div>`, end ? win ? "win" : "dead" : "")}
         <div class="bar tick"><div id="tj-timebar" style="width:${x.sec / x.time * 100}%"></div></div>
-        <div class="row small"><span>气血 <b id="tj-hp">${U.fmt(Math.max(0, s.hp))} / ${U.fmt(st.hp)}</b></span><span>共承受 <b id="tj-taken">${U.fmt(x.taken)}</b></span></div>
+        <div class="row small"><span>生命 <b id="tj-hp">${U.fmt(Math.max(0, s.hp))} / ${U.fmt(st.hp)}</b></span><span>共承受 <b id="tj-taken">${U.fmt(x.taken)}</b></span></div>
         <div class="bar hp"><div id="tj-hpbar" style="width:${Math.max(0, s.hp) / st.hp * 100}%"></div></div>
         <div class="row small"><span>法力 <b id="tj-mp">${U.fmt(Math.max(0, s.mana || 0))} / ${U.fmt(st.mana || 0)}</b></span></div>
         <div class="bar mp"><div id="tj-mpbar" style="width:${st.mana ? Math.max(0, s.mana || 0) / st.mana * 100 : 0}%"></div></div>
