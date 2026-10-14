@@ -244,8 +244,8 @@ CFG.sect.pool = {
     35,    // 10 星
   ],
   list: [
-    { name: "免费练体池", contrib: 0,   hpPct: 5,  keys: ["hp"] },
-    { name: "下品练体池", contrib: 50,  hpPct: 10, keys: ["hp", "def"] },
+    { name: "免费练体池", contrib: 0,   hpPct: 0,  keys: ["hp"] },
+    { name: "下品练体池", contrib: 0,  hpPct: 0, keys: ["hp", "def"] },
     { name: "中品练体池", contrib: 100, hpPct: 15, keys: ["hp", "def", "atk"] },
     { name: "上品练体池", contrib: 200, hpPct: 20, keys: ["hp", "def", "atk", "dodge"] },
     { name: "天品练体池", contrib: 400, hpPct: 30, keys: ["hp", "atk", "def", "dodge", "res", "hit"] },
@@ -253,8 +253,8 @@ CFG.sect.pool = {
   ],
   GAIN: [   // 第 1 组 = 1 星宗门 … 第 10 组 = 10 星；每组 6 行 = 免费 下品 中品 上品 天品 宗主
     [   // 1 星宗门
-      [1],                                      // 免费：气血
-      [2, 1],                                   // 下品：气血 防御
+      [100],                                      // 免费：气血
+      [200, 100],                                   // 下品：气血 防御
       [4, 1, 1],                                // 中品：气血 防御 攻击
       [6, 2, 1, 1],                             // 上品：气血 防御 攻击 闪避
       [9, 2, 3, 2, 2, 2],                       // 天品：气血 攻击 防御 闪避 抗性 命中
