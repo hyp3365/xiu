@@ -38,6 +38,11 @@ const API = {
   // 管理员：查看版本 / 从 GitHub 更新游戏
   async adminInfo() { return this.req("admin"); },
   async adminUpdate() { return this.req("admin/update", {}); },
+  // 礼包码：管理员生成 / 列表 / 删除；所有人兑换
+  async giftList() { return this.req("admin/gifts"); },
+  async giftCreate(d) { return this.req("admin/gift", d); },
+  async giftDelete(code) { return this.req("admin/gift/del", { code }); },
+  async giftRedeem(code) { return this.req("gift", { code }); },
 
   // 关闭页面时用 sendBeacon 尽量把最后的进度发出去
   beacon(data) {
