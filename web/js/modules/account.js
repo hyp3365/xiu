@@ -74,7 +74,7 @@ G.module({
         this.s = this.newSave(name);
         this._lockModal = false; this.closeModal();
         this.dirty(); const st = this.stats(); this.s.hp = st.hp; this.s.mana = st.mana;
-        this.log(`${name}，自此踏上仙途。赠你聚气丹三枚。`, "gold");
+        this.log(`${name}，自此踏上仙途。赠你聚气丹三枚、${CFG.start.book ? CFG.start.book.name : "练气诀"}一本。`, "gold");
         this.log("提示：修炼页开启“自动修炼”，聚灵阵会为你聚集灵气；离线也会继续修炼。", "sys");
         this.start();
       };
