@@ -106,7 +106,6 @@ G.module({
     // 按时间推进：每 HIT_SEC 秒劈一次（离线回来一次算完）
     advanceTrib() {
       const s = this.s, x = s.trib; if (!x || x.result) return;
-      if (x.v !== 2) { s.trib = null; return; }   // 旧版雷劫存档：作废
       const HS = CFG.trib.HIT_SEC || 1;
       let hit = null;
       while (!x.result) {
