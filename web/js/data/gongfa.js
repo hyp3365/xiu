@@ -96,7 +96,7 @@ DATA.sectWords = sect => {
 // 功法名：门派前缀 + 随机词 + 类别后缀（每个 类别×阶 用不同的词）
 DATA.gongfaName = (sect, type, tier) => {
   if (sect.book) return `${sect.prefix}${type.suffix}·第${sect.book}卷`;   // 试炼塔秘诀
-  if (sect.plain) return sect.prefix + type.suffix;                       // 仙魔冥神坊市、功德司：地图名 + 后缀
+  if (sect.plain) return sect.prefix + DATA.nmPick(_NM.jieGfSuffix, type.id, type.suffix);   // 仙魔冥神坊市、功德司：地图名 + 后缀（config/names.js 的 jieGfSuffix）
   const w = DATA.sectWords(sect), ti = DATA.gongfaTypes.indexOf(type);
   return sect.prefix + w[(ti * 4 + tier.idx) % w.length] + type.suffix;
 };
