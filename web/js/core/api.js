@@ -43,6 +43,11 @@ const API = {
   async giftCreate(d) { return this.req("admin/gift", d); },
   async giftDelete(code) { return this.req("admin/gift/del", { code }); },
   async giftRedeem(code) { return this.req("gift", { code }); },
+  async changePassword(oldPw, newPw) { return this.req("password", { old: oldPw, new: newPw }); },
+  // 账号管理（管理员）：账号列表 / 开关注册 / 删除账号
+  async userList() { return this.req("admin/users"); },
+  async setRegOpen(open) { return this.req("admin/reg", { open }); },
+  async userDelete(id) { return this.req("admin/user/del", { id }); },
 
   // 关闭页面时用 sendBeacon 尽量把最后的进度发出去
   beacon(data) {
