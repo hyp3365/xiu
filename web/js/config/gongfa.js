@@ -258,7 +258,7 @@ CFG.gongfa.sect = {
  * 需要的境界：和同星级门派一样（config/sect.js 的 REQ_REALM） */
 CFG.gongfa.shop = {
   // 类型倍率（效果）：每类功法 / 法术单独一个
-  TYPE_MULT: { xinfa: 0.8, gongjue: 0.8, zhenjing: 0.8, mijue: 0.8, shenfa: 0.8, dunshu: 0.8, fajue: 0.8, zhenjue: 0.8, spell: 0.8 },
+  TYPE_MULT: { xinfa: 0.88, gongjue: 0.88, zhenjing: 0.88, mijue: 0.88, shenfa: 0.88, dunshu: 0.88, fajue: 0.88, zhenjue: 0.88, spell: 0.88 },
   STAR_MULT: [       // 效果的星级倍率
     1,     // 1 星
     1.3,   // 2 星
