@@ -41,8 +41,8 @@ G.module({
     // 肉身修炼速度（每 10 秒）
     bodySpeed() {
       const s = this.s, base = (CFG.body.BASE_SPEED || 0) * Math.pow(CFG.body.SPEED_GROW || DATA.GROW, s.mortal ? 0 : s.L);
-      const gf = this.gongfaBonus().body || 0, mf = this.mifaBonus().bodySpeed || 0;
-      return { base, gf, mf, total: Math.floor(base + gf + mf) };
+      const M = this.mifaBonus(), gf = this.gongfaBonus().body || 0, mf = M.bodySpeed || 0, pct = M.bodySpeedPct || 0;   // 炼体秘法圆满额外 %
+      return { base, gf, mf, pct, total: Math.floor((base + gf + mf) * (1 + pct / 100)) };
     },
     // 突破到第 T 层的消耗
     bodyCost(T) {
