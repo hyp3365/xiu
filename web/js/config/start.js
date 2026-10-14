@@ -4,7 +4,7 @@
  * 所有数值文件都在 js/config/ 下，一个部分一个文件；改完把 index.html 里的 ?v=数字 加 1。
  *
  * 新建角色（新存档）时拿到的东西。只影响新存档，已有存档不变。
- *   开局气血、法力 = config/player.js 的 base.hp / base.mana（满状态）
+ *   开局生命、法力 = config/player.js 的 base.hp / base.mana（满状态）
  * ===================================================================== */
 window.CFG = window.CFG || {};
 
