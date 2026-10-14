@@ -291,7 +291,7 @@ DATA.furnaceIcon = kind => DATA.iconImg("fu_" + kind);
 DATA.li = src => src ? `<img class="li" src="${src}" alt="" loading="lazy">` : "";
 // 功法 / 法术：按属性选图，按阶（黄玄地天）换边框；秘法统一一张卷轴
 DATA.skillIcon = g => g.kind === "mf" || g.noEl ? DATA.iconImg("mifa") : DATA.iconImg((g.kind === "sp" ? "sp_" : "gf_") + g.el.id);
-DATA.skillIco = g => `<span class="ico t-${g.tier.id}"><img src="${DATA.skillIcon(g)}" alt="" loading="lazy"><b>${g.tier.name[0]}</b></span>`;
+DATA.skillIco = g => `<span class="ico t-${g.tier.id}"><img src="${DATA.skillIcon(g)}" alt="" loading="lazy">${g.kind === "mf" ? `<b>${g.tier.name[0]}</b>` : ""}</span>`;   // v93：功法、法术不再显示阶
 // 炼制物品（装备 / 戒指 / 法宝）的小图标：按阶换边框
 // 炼制装备 / 法宝按阶（一阶~十阶）加外观：越高阶越亮、光晕越强，高阶有流光（css/style.css 的 .eqt0 ~ .eqt9）
 DATA.eqCls = e => e && e.attrs ? ` eqt eqt${Math.max(0, Math.min(9, e.g || 0))}${e.slot === "fabao" && e.el ? ` fbel fb-${e.el}` : ""}` : "";   // 法宝按金木水火土雷显示颜色
