@@ -93,6 +93,7 @@ CFG.names = CFG.names || {};
     const C = CFG.xingjun.worlds[w], n = (N.xingjun || {})[w]; if (!n) continue;
     for (const k of ["JZ", "TJ"]) C[k] = pick(n, k, C[k]);
     if (C.SEAT !== undefined || (ok(n.SEAT) && n.SEAT !== "{seat}")) C.SEAT = pick(n, "SEAT", C.SEAT);
+    if (Array.isArray(n.JZS)) C.JZS = n.JZS.slice();
     if (Array.isArray(C.SEATS) && Array.isArray(n.SEATS)) C.SEATS = C.SEATS.map((g, i) => arr(n.SEATS[i], g));
   }
 
