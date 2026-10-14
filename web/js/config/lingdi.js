@@ -11,7 +11,7 @@
  *   每处灵地每天只能进 DAILY 次（历练、探索都算），先历练通过（走完不战败）才能自动探索。
  *   「一键探索」= 把今天还能进、已历练通过的灵地按顺序依次自动探索一遍。
  *   境界要求见 config/mobs.js 的 lingdi（「普通」的第 1 个数）。
- *   气血低于上限 × config/explore.js 的 STOP 不能进入。
+ *   生命低于上限 × config/explore.js 的 STOP 不能进入。
  * 【走路】一次 TIME 步；每步秒数、每步恢复用凡界的设置（config/explore.js）。事件排法同秘境：
  *   普通怪 MONSTERS + 精英 ELITES + 灵药 HERB_MIN~HERB_MAX + 矿脉 ORE_MIN~ORE_MAX，其余无事发生，打乱后最后 BOSS 步是首领。
  *
