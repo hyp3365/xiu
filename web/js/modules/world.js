@@ -838,7 +838,7 @@ G.module({
           return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.kind === "sp" ? "法术" : g.type.name}</span><small>${desc} · ${U.fmt(g.cost)} 灵石 · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>
             ${lock && !has ? `<button class="sm" disabled>境界不足</button>` : this.gfLearnBtn(g, `G.buyGongfa('${g.id}')`, s.stone < g.cost, "购买")}</div>`; };
         return tabs + `<div class="room-grid">${Array.from({ length: N }, (_, i) => `<button class="${star === i + 1 ? "active" : ""}" onclick="G.setShopStar(${i + 1})">${i + 1}星</button>`).join("")}</div>
-          <p class="desc">凡界坊市功法 ${star}星 · 需${DATA.realmLabel(srcs[0] ? srcs[0].reqRealm : 0)} · 灵石 ${U.fmt(s.stone)}</p>` +
+          <p class="desc">凡界坊市功法 ${star}星 · 灵石 ${U.fmt(s.stone)}</p>` +
           srcs.map(o => `<div class="card"><h3>${o.name}<span class="tag">${DATA.elById[o.el].name}</span></h3>` +
             DATA.gongfaTypes.filter(ty => !ty.sectOnly).map(ty => line(DATA.gongfaInfo(DATA.gongfaId(o.id, ty.id)))).join("") +
             line(DATA.spellInfo(DATA.spellId(o.id, o.el))) + `</div>`).join("");
