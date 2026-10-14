@@ -16,8 +16,6 @@ DATA.realms = DATA.nmArr(CFG.names.realm, DATA.NM_DEF.realm);
 // 显示：序号 → "练气期" / "散仙"（仙人以上不加「期」）；-1 = 凡人
 DATA.REALM_TEXT = { mortal: DATA.nmPick(CFG.names.realmText, "mortal", "凡人"), suffix: DATA.nmPick(CFG.names.realmText, "suffix", "期") };
 DATA.realmLabel = i => i < 0 ? DATA.REALM_TEXT.mortal : DATA.realms[i] + (i <= 10 ? DATA.REALM_TEXT.suffix : "");
-// v21 之前的 18 境界序号 → 现在的序号（旧存档转换用）
-DATA.REALM_V1_MAP = [0, 1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15, 16, 17, 21, 22, 23];
 
 // 每个大境界的层数
 DATA.LAYERS = 10;
@@ -41,7 +39,6 @@ DATA.GROW = _P.GROW;
 DATA.playerBase = _P.base;
 DATA.playerFixed = _P.fixed;
 // 闪避几率 % = (防守方闪避 - 进攻方命中) ÷ 进攻方命中 × 100 ÷ DODGE_DIV，最低 0，最高 DODGE_CAP
-DATA.DODGE_CAP = _P.DODGE_CAP;
 DATA.dodgeChance = (hit, dodge) => Math.min(_P.DODGE_CAP, Math.max(0, (dodge - hit) / Math.max(1, hit) * 100 / _P.DODGE_DIV));
 DATA.CRIT_CAP = _P.CRIT_CAP;
 
