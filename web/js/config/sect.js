@@ -224,7 +224,7 @@ CFG.sect.rankTrial = {
  * 每天北京时间 0 点重置次数 */
 /* ---------- 练体池（宗门，练功房旁边） ----------
  * 每天只能进入一个练体池（DAILY 次），每次 MINUTES 分钟；不加修炼速度，泡完增加永久肉身属性（算进「修炼肉身」的属性加成）
- * 进入时一次性扣：贡献 contrib × 下面练体池自己的 STAR_MULT[宗门星级 − 1]（取整，0 = 不要贡献；不读宗门通用 STAR_MULT）、气血 hpPct% × 气血上限（当前气血不够不能进）
+ * 进入时一次性扣：贡献 contrib × 下面练体池自己的 STAR_MULT[宗门星级 − 1]（取整，0 = 不要贡献；不读宗门通用 STAR_MULT）、气血 hp 点（直接扣这么多，不按百分比；也可写 hpPct = 气血上限的百分比）（当前气血不够不能进）
  * rank 需要的职务序号，不写 = 所有人可用；keys = 这个池子加哪些属性（hp 气血 atk 攻击 def 防御 dodge 闪避 res 抗性 hit 命中 mana 法力 crit 暴击%）
  * 泡完增加 = GAIN[宗门星级 − 1][池子序号]，每格的数字顺序和这个池子的 keys 一样（人物境界不影响） */
 CFG.sect.pool = {
@@ -244,12 +244,12 @@ CFG.sect.pool = {
     35,    // 10 星
   ],
   list: [
-    { name: "免费练体池", contrib: 0,   hpPct: 15000,  keys: ["hp"] },
-    { name: "下品练体池", contrib: 100,  hpPct: 12000, keys: ["hp", "def"] },
-    { name: "中品练体池", contrib: 200, hpPct: 30000, keys: ["hp", "def", "atk"] },
-    { name: "上品练体池", contrib: 300, hpPct: 50000, keys: ["hp", "def", "atk", "dodge"] },
-    { name: "天品练体池", contrib: 400, hpPct: 90000, keys: ["hp", "atk", "def", "dodge", "res", "hit"] },
-    { name: "宗主练体池", contrib: 400, hpPct: 100000, keys: ["hp", "atk", "def", "dodge", "res", "hit"], rank: 6 },   // 宗主专用
+    { name: "免费练体池", contrib: 0,   hp: 15000,  keys: ["hp"] },
+    { name: "下品练体池", contrib: 100,  hp: 12000, keys: ["hp", "def"] },
+    { name: "中品练体池", contrib: 200, hp: 30000, keys: ["hp", "def", "atk"] },
+    { name: "上品练体池", contrib: 300, hp: 50000, keys: ["hp", "def", "atk", "dodge"] },
+    { name: "天品练体池", contrib: 400, hp: 90000, keys: ["hp", "atk", "def", "dodge", "res", "hit"] },
+    { name: "宗主练体池", contrib: 400, hp: 100000, keys: ["hp", "atk", "def", "dodge", "res", "hit"], rank: 6 },   // 宗主专用
   ],
   GAIN: [   // 第 1 组 = 1 星宗门 … 第 10 组 = 10 星；每组 6 行 = 免费 下品 中品 上品 天品 宗主
     [   // 1 星宗门
