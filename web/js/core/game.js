@@ -131,7 +131,7 @@ const G = {
       rows.push(`<b>自动探索</b>`);
       rows.push(`结算 ${o.exRuns} 次，击败 ${f((s.kills || 0) - b.kills)} 只，灵石 +${f(o.exStone)}${it ? "<br>" + it : ""}${o.exLost ? `<br><span class="bad">背包已满，遗失 ${o.exLost} 件</span>` : ""}`);
       if (s.explore && s.explore.step) rows.push(`当前这次已走 ${s.explore.step} 步，收获在走完后结算`);
-      if (!s.explore && o.exRuns) rows.push(`<span class="bad">离线期间自动探索已停止（气血不足或战败）</span>`);
+      if (!s.explore && o.exRuns) rows.push(`<span class="bad">离线期间自动探索已停止（生命不足或战败）</span>`);
     }
     if (o.afN) { rows.push(`<b>事务堂</b>`); rows.push(`完成 ${f(o.afN)} 轮，灵石 +${f(o.afStone)}，贡献 +${f(o.afContrib)}`); }
     const other = dStone - o.exStone - o.afStone;
