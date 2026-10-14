@@ -81,14 +81,18 @@ G.module({
       const x = DATA.sectById[id];
       if (!this.realmOK(x.reqRealm)) return;
       this.fixTower();
-      Object.assign(this.s, { sect: id, contrib: 0, rank: 0, room: -1, rankPass: -1, tower: this.s.towers[x.star] || 0, affair: { task: -1, start: 0, count: 0 } });
+      Object.assign(this.s, { sect: id, rank: 0, room: -1, rankPass: -1, tower: this.s.towers[x.star] || 0, affair: { task: -1, start: 0, count: 0 } });
       this.sectTab = "hall";
       this.log(`你拜入${x.name}（${x.star}星），成为外门弟子。`, "gold"); this.after();
     },
+    leaveCost() { const x = this.sectInfo(); return x ? ((CFG.sect.LEAVE_COST || [])[x.star - 1] || 0) : 0; },   // 叛出门派扣的贡献
     leaveSect() {
-      if (!confirm("叛出门派将清空贡献和职务（已学功法保留），确定？")) return;
-      this.log(`你离开了${this.sectInfo().name}。`, "bad");
-      this.s.sect = null; this.s.room = -1; this.s.affair = { task: -1, start: 0, count: 0 }; this.s.contrib = 0; this.s.rank = 0; this.s.rankPass = -1; this.after();
+      const c = this.leaveCost();
+      if (this.s.contrib < c) return this.log(`贡献不足，叛出门派需要 ${U.fmt(c)}。`, "sys");
+      if (!confirm(`叛出门派将扣除贡献 ${U.fmt(c)}、清空职务（已学功法保留），确定？`)) return;
+      this.log(`你离开了${this.sectInfo().name}，扣除贡献 ${U.fmt(c)}。`, "bad");
+      this.s.contrib -= c;
+      this.s.sect = null; this.s.room = -1; this.s.affair = { task: -1, start: 0, count: 0 }; this.s.rank = 0; this.s.rankPass = -1; this.after();
     },
 
     /* ---------- 宗门大殿 ---------- */
@@ -488,7 +492,7 @@ G.module({
           <div class="line"><div>晋升考验 · ${DATA.ranks[next].name}考官<small>每次消耗 ${U.fmt(this.rankTrialCost(next))} 贡献 · 战斗胜利后才能晋升</small></div>
           <button class="sm ${s.rankPass === next ? "on" : ""}" onclick="G.challengeRank()" ${s.rankPass === next || !this.realmOK(this.rankReqRealm(next)) || s.contrib < this.rankTrialCost(next) ? "disabled" : ""}>${s.rankPass === next ? "已通过" : "考验"}</button></div>`}</div>
         <div class="card"><h3>职务一览</h3>${DATA.ranks.map((r, i) => `<div class="line"><div>${r.name}<small>俸禄 ${U.fmt(Math.floor(r.daily * this.starMul() * this.rankMul(i)))} 灵石 · 晋升 ${U.fmt(this.rankCost(i))} 贡献</small></div>${i === s.rank ? "<b>当前</b>" : i < s.rank ? "<small>已历</small>" : ""}</div>`).join("")}</div>
-        <div class="btns"><button onclick="G.leaveSect()">叛出门派</button></div>`;
+        <div class="btns"><button onclick="G.leaveSect()" ${s.contrib < this.leaveCost() ? "disabled" : ""}>叛出门派（贡献 ${U.fmt(this.leaveCost())}）</button></div>`;
     } else if (tab === "lib") {
       // 功法殿：本星级全部门派的功法、法术；按 阶 和 属性 筛选
       const tier = this.libTier || "huang", el = this.libEl || x.el;
