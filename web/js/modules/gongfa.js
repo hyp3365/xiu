@@ -41,7 +41,7 @@ G.module({
       // v27：练功房（宗门扣贡献 / 坊市扣灵石）：进度 ×(1+pct%)，每步修为同比例多扣，总消耗不变
       let R = this.gfRoomNow();
       if (R && R.cost > 0 && Math.floor(s[R.cur] / Math.max(1, R.cost)) < Math.min(steps, Math.ceil((st.total - st.done) / STEP))) { this.leaveGfRoom(R.cur === "stone" ? "灵石不足" : "门派贡献不足"); R = null; }
-      const mul = R ? 1 + R.pct / 100 : 1, per = st.per * mul;
+      const mul = R ? R.mul : 1, per = st.per * mul;
       // 修为（秘法还要灵石）够几步就走几步
       const sp = (st.stone || 0) * mul;
       const can = Math.min(steps, Math.floor(s.exp / per), sp ? Math.floor(s.stone / sp) : Infinity, Math.ceil((st.total - st.done) / (STEP * mul)));
@@ -177,7 +177,7 @@ G.module({
     },
     // 「修炼队列」页：正在修炼（倒计时、进度、消耗）+ 排队中的
     gfQueueView() {
-      const s = this.s, R = this.gfRoomNow(), mul = R ? 1 + R.pct / 100 : 1;
+      const s = this.s, R = this.gfRoomNow(), mul = R ? R.mul : 1;
       let html = "", acc = 0;   // acc：排到这一部为止还要多久（毫秒，按当前练功房加成估算）
       if (s.gfStudy) {
         const info = DATA.skillInfo(s.gfStudy.id, s.gongfa[s.gfStudy.id]);
@@ -186,7 +186,7 @@ G.module({
         html += `<div class="card"><h3>修炼中 ·《${info ? info.name : st.id}》<small>${info ? `第 ${info.lv} → ${info.lv + 1} 层` : ""}</small></h3>
         <div class="bar tick"><div style="width:${done / st.total * 100}%"></div></div>
         <div class="row small"><span>${st.stalled ? `<b class='q5'>${st.stone ? "修为或灵石" : "修为"}不足，暂停中</b>` : `倒计时 <b>${this.countdown(left)}</b>`}</span><button class="sm" onclick="G.stopStudy()">中断</button></div>
-        <div class="row small"><span>每 5 秒 <b>${U.fmt(st.per)}</b>${st.stone ? ` + ${U.fmt(st.stone)} 灵石` : ""} · 已消耗 <b>${U.fmt(st.spent)}</b> / ${U.fmt(st.per * st.total / (DATA.STUDY_STEP * 1000))}</span><span>${R ? `${R.name} +${U.num(R.pct)}%` : "未进练功房"}</span></div></div>`;
+        <div class="row small"><span>每 5 秒 <b>${U.fmt(st.per)}</b>${st.stone ? ` + ${U.fmt(st.stone)} 灵石` : ""} · 已消耗 <b>${U.fmt(st.spent)}</b> / ${U.fmt(st.per * st.total / (DATA.STUDY_STEP * 1000))}</span><span>${R ? `${R.name} -${U.num(R.pct)}%` : "未进练功房"}</span></div></div>`;
       } else html += `<div class="card"><p class="desc">当前没有在修炼的功法。在各分类里点「修炼」加入队列。</p></div>`;
       const lvPlan = {};
       if (s.gfStudy) lvPlan[s.gfStudy.id] = (s.gongfa[s.gfStudy.id] || 1) + 1;
