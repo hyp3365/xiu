@@ -25,12 +25,12 @@ G.module({
    *   { map 地图序号, reg 区域序号(0东 1西 2南 3北), once 是否历练, start 本次开始时间, step 已走步数, count 已完成次数,
    *     loot 本次收获 { stone, mats: { "herb|名字": {kind,name,g,n} }, pills: [], equips: [] },
    *     ev 本次事件列表（最新在前）, last 上一次结算文字 } */
-  // trainedR：已历练通过的区域（地图序号 × 4 + 区域序号）；trained 为旧版（按地图）
+  // trainedR：已历练通过的区域（地图序号 × 4 + 区域序号）
   // mj：秘境 { found 已发现, trained 已历练通过, day 日期, used { 秘境序号: 今天已进次数 } }；ld：灵地，格式同 mj
-  defaults: () => ({ explore: null, trained: [], trainedR: [], lastRun: null, mj: { found: [], trained: [], day: "", used: {} }, ld: { found: [], trained: [], day: "", used: {} } }),
+  defaults: () => ({ explore: null, trainedR: [], lastRun: null, mj: { found: [], trained: [], day: "", used: {} }, ld: { found: [], trained: [], day: "", used: {} } }),
 
   // 每 10 秒（以及在线时每秒）推进探索
-  tick() { this.fixRegions(); this.advanceExplore(); },
+  tick() { this.advanceExplore(); },
 
   api: {
     setWorldTab(t) { this.worldTab = t; this.render(); },
@@ -59,7 +59,7 @@ G.module({
       return true;
     },
     mapOpen(a) { return this.worldOpen(DATA.maps[a].w || "fan") && this.realmOK(DATA.mapReq(a)) && this.mapUnlocked(a); },
-    // v52：同一界上一张地图（按境界从低到高）北域通关后才开启下一张；已在这张图历练通过过的旧存档照常开启
+    // v52：同一界上一张地图（按境界从低到高）北域通关后才开启下一张
     mapPrev(a) {
       const idx = (DATA.worldMapIdx[DATA.maps[a].w || "fan"] || []).slice().sort((x, y) => DATA.mapReq(x) - DATA.mapReq(y) || x - y), i = idx.indexOf(a);
       return i > 0 ? idx[i - 1] : undefined;
@@ -71,14 +71,6 @@ G.module({
     // v52：东域通关后开启西域，依次类推
     regionOpen(a, r) { return this.mapOpen(a) && (r === 0 || this.isTrained(a, r - 1) || this.isTrained(a, r)); },
 
-    // 旧存档：按地图记录的历练 → 该地图东域已通过
-    fixRegions() {
-      const s = this.s;
-      if (s.regionFix === 1) return;
-      (s.trained || []).forEach(a => { if (!s.trainedR.includes(a * 4)) s.trainedR.push(a * 4); });
-      if (s.explore && s.explore.reg === undefined) s.explore.reg = 0;
-      s.regionFix = 1;
-    },
     regionKey(a, r) { return a * DATA.regionCount + r; },
     isTrained(a, r) { return this.s.trainedR.includes(this.regionKey(a, r)); },
 
@@ -553,7 +545,6 @@ G.module({
       const s = this.s;
       if (!s.explore) return;
       let x = s.explore; const T = this.exCfg(x).TIME;
-      if (x.step === undefined) Object.assign(x, { start: this.now(), step: 0, count: x.count || 0, loot: this.newLoot(), ev: [], last: "" }); // 旧存档
       let changed = false;
       if (!x.ms) x.ms = this.exploreMs();
       while (s.explore && this.now() >= x.start + (x.step + 1) * x.ms) {
@@ -748,7 +739,6 @@ G.module({
      * 药材、矿石：凡界地图会掉的（config/drops.js），售价 = 出售价 × CFG.price.SHOP_MAT */
     setShopTab(t) { this.shopTab = t; this.render(); },
     setShopStar(n) { this.shopStar = n; this.render(); },
-    setShopTier(t) { this.shopTier = t; this.render(); },
     shopList() {
       const g = 0, list = [];   // 只卖练气品质
       const src = ITEMS.shop || [...Object.keys(DATA.pills).map(t => ({ kind: "pill", type: t })), ...Object.keys(DATA.slots).filter(sl => sl !== "fabao").map(sl => ({ kind: "eq", slot: sl, q: 1 }))];
@@ -810,7 +800,7 @@ G.module({
       setTimeout(poll, 3000);
     },
     shopView() {
-      const s = this.s, t = this.shopTab === "room" || this.shopTab === "gfroom" ? "pill" : this.shopTab || "pill";
+      const s = this.s, t = this.shopTab || "pill";
       const tabs = `<div class="sub-tabs">${[["pill", "丹药"], ["eq", "装备"], ["gf", "功法"], ["herb", DATA.matKinds.herb], ["ore", DATA.matKinds.ore]].map(([k, n]) =>
         `<button class="${t === k ? "active" : ""}" onclick="G.setShopTab('${k}')">${n}</button>`).join("")}</div>`;
       if (t === "pill" || t === "eq") {
