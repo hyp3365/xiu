@@ -17,7 +17,7 @@ window.CFG = window.CFG || {};
 CFG.forge = {
   /* ---------- 装备（头盔 护甲 武器 腿甲 靴 吊坠，每阶每部位一种；戒指另见下面 ring） ----------
    * learnCost / learnTime 也用于学习法宝图谱（法宝的炼制时间、矿石也用这里的 time / mats）。
-   * 炼一件需要：mats[阶] 三种矿石 + 九曜石 JIUYAO.equip[阶]（见下）；二阶起还要一件「上一阶的同部位装备」 */
+   * 炼一件需要：mats[阶] 三种矿石 + 任意耀石 YAOSHI.equip[阶]（见下）；二阶起还要一件「上一阶的同部位装备」 */
   equip: {
     learnCost: [100, 300, 800, 2000, 5000, 12000, 30000, 70000, 150000, 300000],  // 学习一件装备图谱消耗的门派贡献：第1个=一阶 …… 第10个=十阶
     learnTime: [5, 10, 20, 40, 60, 120, 240, 480, 720, 1440],                    // 学习时间（分钟）：一阶 ~ 十阶
@@ -116,7 +116,7 @@ CFG.forge = {
 };
 
 /* =====================================================================
- * 属性数值范围、戒指、法宝、九曜石、强化、火髓洗练
+ * 属性数值范围、戒指、法宝、耀石、强化、火髓洗练
  * ===================================================================== */
 
 /* ---------- 属性数值范围（装备、戒指、法宝通用） ----------
@@ -142,7 +142,7 @@ CFG.forge.attr.RANGE = [
  * 数值 = 装备算法（attr.base × attr.GROW[阶] × 颜色范围倍率，附加属性再 × AFFIX_MULT）× MULT
  * 一阶戒指：1、3、5、7 星宗门试炼塔每 10 层奖励（config/sect.js 的 sect.trial）
  * 二阶起：要学会该种该阶戒指图纸（试炼塔奖励），用一枚上一阶同种戒指 + mats[阶] 三种矿石
- *   + 九曜石 JIUYAO.ring[阶]，在洞府炼器室炼制（升阶：颜色不变、数值变大） */
+ *   + 任意耀石 YAOSHI.ring[阶]，在洞府炼器室炼制（升阶：颜色不变、数值变大） */
 CFG.forge.ring = {
   // 9 种戒指的主属性，依次是：破军戒 磐石戒 长生戒 灵犀戒 疾风戒 鹰眼戒 幻影戒 烈阳戒 玄武戒（名字在 js/data/forge.js）
   main: [
@@ -175,33 +175,47 @@ CFG.forge.ring = {
 };
 
 /* ---------- 法宝：在门派炼器室学图谱、洞府炼器室炼制 ----------
- * 学习贡献、学习时间、炼制时间、矿石、出售价都用上面 equip 那组；另需九曜石 JIUYAO.fabao[阶]
- * 模具分 一阶 ~ 十阶（每阶 36 种，名字如「三阶飞剑模具」，秘境 / 灵地首领掉落，见 config/mijing.js、config/lingdi.js）
- * 一阶：学会一阶法宝图谱后，用 MOLD 个同种「一阶模具」+ 矿石炼成该种法宝
- * 二阶起：图谱是升阶图谱，从 N-1 阶升到 N 阶 = 一件上一阶同种法宝 + MOLD_UP 个同种「N 阶模具」+ 矿石（颜色不变、数值变大）
- * 每阶 36 种法宝（下面 types）。属性（金木水火土雷）由种类决定，升阶不变。
- * 颜色：炼制、购买、奖励等任何方式新得到的法宝，每条属性最高只到 NEW_COLOR_MAX（0 白 1 绿）；
- *   更高颜色只能靠火髓「洗练」（颜色权重见下面 reset.WASH_WEIGHT）。
+ * 7 种形状（下面 types）：剑 刀 锤 环 盾 鼎 印；炼制时自己选属性（金木水火土雷）
+ * 一阶：学会一阶法宝图谱后，用 YAOSHI.fabao[阶] 个「对应属性的耀石」+ 三种矿石（equip.mats[阶]）炼成
+ * 二阶起：图谱是升阶图谱 = 一件上一阶同形状同属性的法宝 + 对应属性耀石 + 三种矿石（颜色不变、数值变大）
+ * 学习贡献、学习时间、炼制时间、出售价都用上面 equip 那组
+ * 颜色：新得到的法宝每条属性最高只到 NEW_COLOR_MAX（0 白 1 绿）；更高颜色只能靠火髓「洗练」（颜色权重 reset.WASH_WEIGHT）
  *
- * 主属性（2 条）：伤害百分比 pct（攻击 × pct%）+ 属性伤害 flat（固定点数）
+ * 剑 刀 锤 环 鼎 印（能攻击的法宝）：
+ *   主属性（2 条）：伤害百分比 pct（攻击 × pct%）+ 属性伤害 flat（固定点数）
+ *   专属属性（按形状，types 里的 special，颜色随机，洗练、强化同主属性）：
+ *     剑 sAtk 攻击   刀 sHit 命中 + sAtk 少量攻击   锤 sCrit 暴击%   环 sMana 祭出时本法宝法力消耗减少%
+ *     sAtk sHit sCrit 装在法宝栏里就直接加到人物属性上
+ *   鼎：击中对方后，对方速度、命中、闪避降低 DING 设置的百分比，持续 DING.ROUNDS 回合；再次击中刷新回合数
+ *   印：击中对方后，有 YIN.CHANCE% 几率眩晕对方 YIN.ROUNDS 回合（眩晕中对方不能出手）
+ * 盾（不能攻击，没有攻击、命中）：
+ *   自带防御 SHIELD.DEF[阶]、护盾值 SHIELD.HP[阶]
+ *   主属性（2 条）：shPct 受到该属性伤害减少% + shFlat 受到该属性伤害减少点（属性 = 盾的属性）
+ *   附加属性：其它法宝的附加属性 + 专用 shHp 护盾值增加、dmgRed 受到伤害减少点（随机出现，洗练重随）
+ *   祭出后持续生效，直到护盾值被打光（打光后下次轮到它再祭出）：
+ *     对方每次造成的伤害：先减 盾防御 × battle.DEF_RATE；对方是盾的属性（法术 / 法宝）再 × (1 − shPct%) − shFlat；再 − dmgRed
+ *     剩下的先扣护盾值，护盾值不够的部分扣人物气血
+ *
  * 附加属性（1~5 条，每条随机带一个五行/雷属性）：
  *   ignRes 无视X系抗性（点）   ignResPct 无视X系抗性（%）   —— 只有和法宝同属性才生效
  *   elDmg  追加X系伤害（点）   elDmgPct  追加X系伤害（攻击的%）—— 只按对方X系抗性减免（不算防御）
  *   manaCut 法力消耗减少（点） manaCutPct 法力消耗减少（%）
+ *   盾另外还有 shHp 护盾值、dmgRed 受到伤害减少（点）
  *
- * 一条属性的数值（没强化时）= base[属性] × 阶成长 × 颜色范围倍率（RANGE）× 种类倍率
- *   阶成长：点数类用 GROW[阶]，百分比类（pct ignResPct elDmgPct manaCutPct）用 PCT_GROW[阶]
- *   种类倍率：只有主属性乘，pct 乘 types[种类].pct，flat 乘 types[种类].flat；附加属性不乘
+ * 一条属性的数值（没强化时）= base[属性] × 阶成长 × 颜色范围倍率（RANGE）× 形状倍率
+ *   阶成长：点数类用 GROW[阶]，百分比类（pct ignResPct elDmgPct manaCutPct shPct）用 PCT_GROW[阶]
+ *   形状倍率：只有主属性乘，pct 乘 types[形状].pct，flat 乘 types[形状].flat；附加属性不乘
+ *   专属属性 = types[形状].special[属性][阶] × 颜色范围倍率（白色约 0.9~1.1 倍）
  *   附加属性如果在 fabao.AFFIX_TOP 里单独设置了，就改用 AFFIX_TOP 的算法（见文件最后）
  *   强化后再 × (1 + 强化次数 × enhance.fabao.ADD[属性]%)
- * 同一件法宝里同种附加属性多条相加；ignResPct、manaCutPct 合计不超过 CAP。
+ * 同一件法宝里同种附加属性多条相加；ignResPct、manaCutPct（含环的 sMana）合计不超过 CAP。
  * 战斗中：
  *   伤害%   = 合计 pct  × DMG_REALM[人物大境界]
  *   属性伤害 = 合计 flat × DMG_REALM[人物大境界]
  *   法宝伤害 = 攻击 × 伤害% ÷ 100 + 属性伤害 − 减免后抗性 × DEF_RATE（最低 攻击 × MIN_DMG），再加上各条追加伤害
  *     减免后抗性 = max(0, 对方该系抗性 − 无视抗性点) × (1 − 无视抗性% ÷ 100)；对方该系抗性 = 防御 × RES_RATE + 该系抗性（config/battle.js）
  * 每次祭出消耗法力 = MANA[阶] × MANA_COLOR[主属性颜色] × MANA_REALM[人物大境界] × (1 − manaCutPct合计 ÷ 100) − manaCut合计（最低 0）
- *   颜色只看主属性「伤害%」那条：主属性白色、附加属性金色，也按白色算消耗
+ *   颜色只看第一条主属性：主属性白色、附加属性金色，也按白色算消耗
  *   法力不够就放不出法宝（改用法术或普通攻击） */
 CFG.forge.fabao = {
   // 每次祭出的基础法力消耗（不写 MANA 就按 base.mana × GROW[阶]）
@@ -235,8 +249,10 @@ CFG.forge.fabao = {
   },  // 法力消耗倍率
   // 各属性基础值：pct 伤害% flat 属性伤害 mana 法力消耗（MANA 没写时用）ignRes 无视抗性点 ignResPct 无视抗性%
   //   elDmg 追加伤害点 elDmgPct 追加伤害% manaCut 法力消耗减少点 manaCutPct 法力消耗减少%
-  base: { pct: 100, flat: 8, mana: 0.5, ignRes: 10, ignResPct: 5, elDmg: 4, elDmgPct: 10, manaCut: 0.1, manaCutPct: 5 },
-  // 点数类（flat、mana、ignRes、elDmg、manaCut）的阶成长：一阶 ~ 十阶
+  //   盾：shPct 受到该属性伤害减少% shFlat 受到该属性伤害减少点（主属性）、shHp 护盾值 dmgRed 受到伤害减少点（附加属性）
+  base: { pct: 100, flat: 8, mana: 0.5, ignRes: 10, ignResPct: 5, elDmg: 4, elDmgPct: 10, manaCut: 0.1, manaCutPct: 5,
+          shPct: 10, shFlat: 8, shHp: 40, dmgRed: 2 },
+  // 点数类（flat、mana、ignRes、elDmg、manaCut、shFlat、shHp、dmgRed）的阶成长：一阶 ~ 十阶
   GROW: [
     1.61,       // 一阶
     4.18,       // 二阶
@@ -249,60 +265,52 @@ CFG.forge.fabao = {
     17500000,   // 九阶
     45500000,   // 十阶
   ],
-  // 百分比类（pct、ignResPct、elDmgPct、manaCutPct）的阶成长：一阶 ~ 十阶
+  // 百分比类（pct、ignResPct、elDmgPct、manaCutPct、shPct）的阶成长：一阶 ~ 十阶
   PCT_GROW: [1, 1.2, 1.4, 1.6, 1.8, 2, 2.2, 2.4, 2.6, 2.8],
   pool: ["ignRes", "ignResPct", "elDmg", "elDmgPct", "manaCut", "manaCutPct"],   // 附加属性可能出现的种类（可重复出现）
+  SHIELD_POOL: ["shHp", "dmgRed"],      // 盾另外可能出现的附加属性（和上面 pool 一起随机）
   AFFIX_COUNT: [35, 30, 20, 10, 5],     // 新法宝附加属性条数的权重：第1个=1条 …… 第5个=5条
-  MOLD: 1,                              // 炼一阶法宝要几个同种一阶模具
-  MOLD_UP: 1,                           // 法宝升阶（升到 N 阶）要几个同种 N 阶模具（0 = 升阶不要模具）
   NEW_COLOR_MAX: 1,                     // 新得到的法宝每条属性最高颜色（0 白 1 绿 2 紫 3 金）
   CAP: { ignResPct: 100, manaCutPct: 80 },   // 百分比上限（多条合计）：无视抗性% 最多 100，法力消耗减少% 最多 80
-  // 36 种法宝：name 名字、el 属性（jin 金 mu 木 shui 水 huo 火 tu 土 lei 雷）
-  //   pct / flat：这一种的 伤害% / 属性伤害 倍率（1 = 不变），想让某种法宝更强就改大
-  //   顺序不要改（存档按序号记），改名字、属性、倍率都可以；图片 img/icons/fbt序号.png（序号从 0 开始）
+  // 7 种形状：顺序不要改（存档按序号记），名字在 config/names.js 的 fabao；图片 img/icons/fbs形状序号_属性序号.png
+  //   pct / flat：这一种的 伤害% / 属性伤害 倍率（1 = 不变）；盾不能攻击，不用这两个
+  //   special：专属属性，每个属性一组 一阶 ~ 十阶 数值（颜色白色时约这个数，绿紫金按 RANGE 放大）
   types: [
-    { name: "飞剑",     el: "jin",  pct: 1, flat: 1 },   // 0 金
-    { name: "金钟",     el: "jin",  pct: 1, flat: 1 },   // 1 金
-    { name: "金戟",     el: "jin",  pct: 1, flat: 1 },   // 2 金
-    { name: "翠玉印",   el: "jin",  pct: 1, flat: 1 },   // 3 金
-    { name: "青木杖",   el: "mu",   pct: 1, flat: 1 },   // 4 木
-    { name: "藤心佩",   el: "mu",   pct: 1, flat: 1 },   // 5 木
-    { name: "芭蕉扇",   el: "mu",   pct: 1, flat: 1 },   // 6 木
-    { name: "青灵葫",   el: "mu",   pct: 1, flat: 1 },   // 7 木
-    { name: "青木鼎",   el: "mu",   pct: 1, flat: 1 },   // 8 木
-    { name: "青帝宝典", el: "mu",   pct: 1, flat: 1 },   // 9 木
-    { name: "玄冥鼎",   el: "shui", pct: 1, flat: 1 },   // 10 水
-    { name: "玉净瓶",   el: "shui", pct: 1, flat: 1 },   // 11 水
-    { name: "玄水镜",   el: "shui", pct: 1, flat: 1 },   // 12 水
-    { name: "寒冰珠",   el: "shui", pct: 1, flat: 1 },   // 13 水
-    { name: "水灵幡",   el: "shui", pct: 1, flat: 1 },   // 14 水
-    { name: "冰魄针",   el: "shui", pct: 1, flat: 1 },   // 15 水
-    { name: "沧海螺",   el: "shui", pct: 1, flat: 1 },   // 16 水
-    { name: "赤炎鼎",   el: "huo",  pct: 1, flat: 1 },   // 17 火
-    { name: "火羽扇",   el: "huo",  pct: 1, flat: 1 },   // 18 火
-    { name: "赤焰轮",   el: "huo",  pct: 1, flat: 1 },   // 19 火
-    { name: "火灵葫",   el: "huo",  pct: 1, flat: 1 },   // 20 火
-    { name: "焚天灯",   el: "huo",  pct: 1, flat: 1 },   // 21 火
-    { name: "烈阳弓",   el: "huo",  pct: 1, flat: 1 },   // 22 火
-    { name: "流火箭",   el: "huo",  pct: 1, flat: 1 },   // 23 火
-    { name: "镇山塔",   el: "tu",   pct: 1, flat: 1 },   // 24 土
-    { name: "山岳印",   el: "tu",   pct: 1, flat: 1 },   // 25 土
-    { name: "厚土盾",   el: "tu",   pct: 1, flat: 1 },   // 26 土
-    { name: "撼地锤",   el: "tu",   pct: 1, flat: 1 },   // 27 土
-    { name: "戊土旗",   el: "tu",   pct: 1, flat: 1 },   // 28 土
-    { name: "乾坤袋",   el: "tu",   pct: 1, flat: 1 },   // 29 土
-    { name: "雷鼓",     el: "lei",  pct: 1, flat: 1 },   // 30 雷
-    { name: "雷神锤",   el: "lei",  pct: 1, flat: 1 },   // 31 雷
-    { name: "紫电鞭",   el: "lei",  pct: 1, flat: 1 },   // 32 雷
-    { name: "雷光梭",   el: "lei",  pct: 1, flat: 1 },   // 33 雷
-    { name: "天雷令",   el: "lei",  pct: 1, flat: 1 },   // 34 雷
-    { name: "掌心雷",   el: "lei",  pct: 1, flat: 1 },   // 35 雷
+    { name: "剑", pct: 1, flat: 1,   // 0 剑：额外增加攻击
+      special: { sAtk: [4.83, 12.54, 84.3, 1471, 25680, 172800, 1161000, 7830000, 52500000, 136500000] } },
+    { name: "刀", pct: 1, flat: 1,   // 1 刀：额外增加命中、少量攻击
+      special: { sHit: [3.22, 8.36, 56.2, 981, 17120, 115200, 774000, 5220000, 35000000, 91000000], sAtk: [1.61, 4.18, 28.1, 490, 8560, 57600, 387000, 2610000, 17500000, 45500000] } },
+    { name: "锤", pct: 1, flat: 1,   // 2 锤：额外增加暴击%
+      special: { sCrit: [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5] } },
+    { name: "环", pct: 1, flat: 1,   // 3 环：祭出时本法宝法力消耗减少%
+      special: { sMana: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14] } },
+    { name: "盾", shield: true },     // 4 盾：不能攻击，祭出后护盾持续生效（数值见下面 SHIELD）
+    { name: "鼎", pct: 1, flat: 1, ding: true },   // 5 鼎：击中后降低对方速度、命中、闪避（数值见下面 DING）
+    { name: "印", pct: 1, flat: 1, yin: true },    // 6 印：击中后几率眩晕对方（数值见下面 YIN）
   ],
+  // 盾：自带防御、护盾值（一阶 ~ 十阶）
+  SHIELD: {
+    DEF: [8.05, 20.9, 140, 2452, 42800, 288000, 1935000, 13050000, 87500000, 227500000],   // 盾防御：先从对方伤害里减 DEF × battle.DEF_RATE
+    HP:  [193, 502, 3372, 58844, 1027200, 6912000, 46440000, 313200000, 2100000000, 5460000000],   // 基础护盾值（再加附加属性 shHp）
+  },
+  // 鼎：击中后对方 速度 / 命中 / 闪避 各降低这么多 %，持续 ROUNDS 回合（一阶 ~ 十阶）
+  DING: {
+    SPEED: [10, 12, 14, 16, 18, 20, 22, 24, 26, 28],
+    HIT:   [10, 12, 14, 16, 18, 20, 22, 24, 26, 28],
+    DODGE: [10, 12, 14, 16, 18, 20, 22, 24, 26, 28],
+    ROUNDS: [2, 2, 2, 2, 3, 3, 3, 3, 4, 4],
+  },
+  // 印：击中后 CHANCE% 几率眩晕对方 ROUNDS 回合（一阶 ~ 十阶）
+  YIN: {
+    CHANCE: [10, 11, 12, 13, 14, 15, 16, 17, 18, 20],
+    ROUNDS: [1, 1, 1, 1, 1, 2, 2, 2, 2, 2],
+  },
 };
 
-/* ---------- 九曜石：炼制 装备 / 戒指 / 法宝 每件需要的九曜石 ----------
- * 一阶 ~ 十阶，0 = 不要。九曜石分品阶（黄 玄 地 天），第几阶用哪一品见 config/mijing.js 的 items.jy.TIER（秘境、灵地掉落） */
-CFG.forge.JIUYAO = {
+/* ---------- 耀石：炼制 装备 / 戒指 / 法宝 每件需要的耀石 ----------
+ * 耀石 6 种：金耀石 木耀石 水耀石 火耀石 土耀石 雷耀石（config/mijing.js 的 items.ys，秘境、灵地掉落）
+ * 装备、戒指用任意一种（不够时几种一起凑）；法宝只能用和法宝同属性的。一阶 ~ 十阶，0 = 不要 */
+CFG.forge.YAOSHI = {
   equip: [1, 1, 2, 2, 3, 3, 4, 4, 5, 5],   // 炼制装备（头盔 ~ 吊坠）：一阶 ~ 十阶
   ring:  [1, 1, 2, 2, 3, 3, 4, 4, 5, 5],   // 炼制戒指：一阶 ~ 十阶（一阶不能炼）
   fabao: [1, 1, 2, 2, 3, 3, 4, 4, 5, 5],   // 炼制法宝：一阶 ~ 十阶
@@ -313,9 +321,7 @@ CFG.forge.JIUYAO = {
  *   法宝主属性「伤害%」（pct）不能强化，「属性伤害」（flat）和附加属性可以
  * 这一条第 n+1 次强化的消耗（n = 这一条已强化次数），每样都 × (1 + n × COST_STEP) 后向上取整：
  *   火髓 = FIRE[物品阶] × (1 + n × COST_STEP)
- *   九曜石 = SPECIAL[物品阶] × (1 + n × COST_STEP)
- *     品阶按这一条已强化次数：第 floor(n ÷ JY_STEP) 品（序号见 config/mijing.js 的 items.jy.grades），超过最后一品按最后一品
- *     JY_STEP = 9 时：第 1~9 次 黄品，第 10~18 次 玄品，第 19~27 次 地品，第 28~36 次 天品
+ *   耀石 = SPECIAL[物品阶] × (1 + n × COST_STEP)：装备、戒指用任意一种耀石；法宝用同属性的耀石
  *   三种矿石 = ORES[物品阶] 每种数量 × (1 + n × COST_STEP)
  * 成功率 = 炼器成功率（config/craftsman.js，按炼器师阶和物品阶算，含秘法「器心」）− n × RATE_DROP%（最低 0）
  *   失败：只扣材料，不掉强化等级
@@ -324,12 +330,11 @@ CFG.forge.enhance = {
   // 装备（头盔 ~ 吊坠）、戒指
   equip: {
     MAX: 36,             // 每条属性最多强化次数
-    JY_STEP: 9,          // 每强化 9 次换高一品九曜石（第 1~9 次 黄品，10~18 玄品，19~27 地品，28~36 天品）
     ADD: { hp: 5, atk: 5, def: 5, mana: 5, speed: 5, hit: 5, dodge: 5, crit: 5 },   // 每强化一次 +% ：气血 攻击 防御 法力 速度 命中 闪避 暴击
     COST_STEP: 0.1,      // 每多强化一次，消耗 +10%（× (1 + 已强化次数 × 0.1)）
     RATE_DROP: 0,        // 每多强化一次，成功率 −这么多（百分点，0 = 不降）
     FIRE: [1, 2, 3, 5, 8, 12, 18, 27, 40, 60],   // 每次强化的火髓：一阶 ~ 十阶
-    SPECIAL: [1, 1, 2, 2, 3, 3, 4, 4, 5, 5],      // 每次强化的九曜石：一阶 ~ 十阶（0 = 不要）
+    SPECIAL: [1, 1, 2, 2, 3, 3, 4, 4, 5, 5],      // 每次强化的耀石：一阶 ~ 十阶（0 = 不要）
     // 每次强化的三种矿石，每行一阶
     ORES: [
       [["铁精", 10], ["寒铁", 10], ["赤铜精", 10]],      // 一阶
@@ -347,12 +352,13 @@ CFG.forge.enhance = {
   // 法宝（pct 伤害% 不写 = 不能强化）
   fabao: {
     MAX: 36,             // 每条属性最多强化次数
-    JY_STEP: 9,          // 每强化 9 次换高一品九曜石（第 1~9 次 黄品，10~18 玄品，19~27 地品，28~36 天品）
-    ADD: { flat: 5, ignRes: 5, ignResPct: 5, elDmg: 5, elDmgPct: 5, manaCut: 5, manaCutPct: 5 },   // 每强化一次 +%：属性伤害 无视抗性 无视抗性% 追加伤害 追加伤害% 法力消耗减少 法力消耗减少%
+    ADD: { flat: 5, ignRes: 5, ignResPct: 5, elDmg: 5, elDmgPct: 5, manaCut: 5, manaCutPct: 5,   // 每强化一次 +%：属性伤害 无视抗性 无视抗性% 追加伤害 追加伤害% 法力消耗减少 法力消耗减少%
+           sAtk: 5, sHit: 5, sCrit: 5, sMana: 5,              // 专属：攻击 命中 暴击% 法力消耗减少%（环）
+           shPct: 5, shFlat: 5, shHp: 5, dmgRed: 5 },          // 盾：受到属性伤害减少% / 点、护盾值、受到伤害减少
     COST_STEP: 0.1,      // 每多强化一次，消耗 +10%
     RATE_DROP: 0,        // 每多强化一次，成功率 −这么多（百分点，0 = 不降）
     FIRE: [1, 2, 3, 5, 8, 12, 18, 27, 40, 60],   // 每次强化的火髓：一阶 ~ 十阶
-    SPECIAL: [1, 1, 2, 2, 3, 3, 4, 4, 5, 5],      // 每次强化的九曜石：一阶 ~ 十阶（0 = 不要）
+    SPECIAL: [1, 1, 2, 2, 3, 3, 4, 4, 5, 5],      // 每次强化的耀石：一阶 ~ 十阶（0 = 不要）
     // 每次强化的三种矿石，每行一阶
     ORES: [
       [["铁精", 10], ["寒铁", 10], ["赤铜精", 10]],      // 一阶
@@ -394,7 +400,7 @@ CFG.forge.reset = {
 CFG.forge.attr.AFFIX_TOP = {
   crit: [0.4, 0.8, 1.2, 1.6, 2, 2.4, 2.8, 3.2, 3.6, 4],   // 装备 / 戒指附加暴击%：一阶 ~ 十阶 金色最高值
 };
-// 法宝附加属性同理（可用 ignRes ignResPct elDmg elDmgPct manaCut manaCutPct）
+// 法宝附加属性同理（可用 ignRes ignResPct elDmg elDmgPct manaCut manaCutPct shHp dmgRed）
 CFG.forge.fabao.AFFIX_TOP = {
   elDmgPct: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],              // 法宝附加「追加属性伤害%」：一阶 ~ 十阶 金色最高值
 };
