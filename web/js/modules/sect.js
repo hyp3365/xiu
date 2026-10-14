@@ -172,7 +172,7 @@ G.module({
     /* ---------- 练体池（config/sect.js 的 sect.pool） ---------- */
     poolCost(i) { const p = CFG.sect.pool.list[i]; return { contrib: Math.floor((p.contrib || 0) * this.starMul()), hp: Math.ceil(this.stats().hp * (p.hpPct || 0) / 100) }; },
     poolGainOf(i) {
-      const P = CFG.sect.pool, row = P.GAIN[Math.min(this.r(), P.GAIN.length - 1)] || [], g = row[i] || row[row.length - 1] || [], o = {};
+      const P = CFG.sect.pool, row = P.GAIN[Math.min(Math.max(0, this.sectInfo().star - 1), P.GAIN.length - 1)] || [], g = row[i] || row[row.length - 1] || [], o = {};
       (P.KEYS || ["hp", "atk", "def"]).forEach((k, j) => { if (g[j]) o[k] = g[j]; });
       return o;
     },
