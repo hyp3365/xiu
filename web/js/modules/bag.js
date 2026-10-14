@@ -83,7 +83,7 @@ G.module({
       const sub = it => it.t === "pill" || it.t === "dan" ? it.type : it.t === "eq" ? it.e.slot : it.kind || "";
       this.s.bag.sort((a, b) => order(a) - order(b) || grade(a) - grade(b) || (sub(a) < sub(b) ? -1 : sub(a) > sub(b) ? 1 : 0));
     },
-    slotCount() { return Math.min(DATA.SLOT_MAX, this.r() + 1); },
+    slotCount() { return Math.min(DATA.SLOT_MAX, Math.floor(this.r() / DATA.SLOT_EVERY) + 1); },
 
     /* ---------- 装备属性 ---------- */
     equipStats(e) {
@@ -392,7 +392,7 @@ G.module({
     equipItem(i) {
       const s = this.s, it = s.bag[i], e = it.e;
       if (e.slot === "fabao") {
-        if (s.fabao.length >= this.slotCount()) return this.log("法宝栏已满（每个大境界开启一格）。", "sys");
+        if (s.fabao.length >= this.slotCount()) return this.log("法宝栏已满。", "sys");
         s.bag.splice(i, 1); s.fabao.push(e);
       } else {
         // 戒指放第一个空戒指位，都满了替换第一个
@@ -466,13 +466,13 @@ G.module({
       top = `<div class="card"><h3>装备</h3><div class="equip bagslots">${DATA.equipSlots.map(k => cell(k, DATA.slots[DATA.slotOf(k)], s.equip[k])).join("")}</div></div>`;
     } else if (tab === "fb") {
       let h = "";
-      for (let i = 0; i < DATA.SLOT_MAX; i++) h += i < n ? cell("fb" + i, "法宝", s.fabao[i]) : `<div class="slot-eq lock"><b>法宝</b><span class="nm">${DATA.realmLabel(i)}开启</span></div>`;
+      for (let i = 0; i < DATA.SLOT_MAX; i++) h += i < n || s.fabao[i] ? cell("fb" + i, "法宝", s.fabao[i]) : `<div class="slot-eq lock"><b>法宝</b><span class="nm">${DATA.realmLabel(DATA.slotRealm(i))}开启</span></div>`;
       top = `<div class="card"><h3>法宝<small>已开启 ${n} / ${DATA.SLOT_MAX} 格</small></h3><div class="equip bagslots">${h}</div></div>`;
     } else {
       let h = "";
       for (let i = 0; i < DATA.SLOT_MAX; i++) {
         const id = s.spellSlots[i];
-        if (i >= n) h += `<div class="slot-eq lock"><b>法术</b><span class="nm">${DATA.realmLabel(i)}开启</span></div>`;
+        if (i >= n && !id) h += `<div class="slot-eq lock"><b>法术</b><span class="nm">${DATA.realmLabel(DATA.slotRealm(i))}开启</span></div>`;
         else if (id) { const g = DATA.spellInfo(id, s.gongfa[id]); h += `<div class="slot-eq q${g.tier.idx + 1}" onclick="G.openSpellSlot(${i})"><img class="si" src="${DATA.skillIcon(g)}" alt=""><span class="nm">${g.name}</span></div>`; }
         else h += `<div class="slot-eq" onclick="G.openSpellPick()"><b>法术</b></div>`;
       }
