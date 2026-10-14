@@ -18,7 +18,6 @@ G.module({
 
   defaults: () => ({
     auto: false,      // 自动修炼开关
-    manual: false,    // 正在进行“修炼一次”
     buffs: {},        // 丹药效果 { juqi: {pct, left} }，left = 剩余修炼次数
     autoPill: { juqi: false, juling: false, peiyuan: false }, // 自动服丹开关
     lackWarned: false,
@@ -29,7 +28,7 @@ G.module({
     const s = this.s;
     if (s.trib) this.advanceTrib(); // 渡劫（离线也会算完）
     if (!this.isCultivating()) return;
-    if (!this.hasMijue() || this.exBlocksCult()) { s.manual = false; return; } // 未学秘诀 / 探索中（出窍除外）：不能修炼
+    if (!this.hasMijue() || this.exBlocksCult()) return; // 未学秘诀 / 探索中（出窍除外）：不能修炼
 
     // 1. 自动服丹：效果用完就吃背包里能吃的最高品质
     for (const t in DATA.pills) {
@@ -47,10 +46,6 @@ G.module({
       const c = this.roomCost(s.room);
       if (s.contrib >= c) s.contrib -= c;
       else { s.room = -1; this.dirty(); this.log("门派贡献不足，已离开修炼室。", "bad"); }
-    } else if (s.shopRoom >= 0 && DATA.shopRooms.cult[s.shopRoom]) {   // v27：坊市修炼室扣灵石
-      const c = DATA.shopRooms.cult[s.shopRoom].cost;
-      if (s.stone >= c) s.stone -= c;
-      else { s.shopRoom = -1; this.dirty(); this.log("灵石不足，已离开坊市修炼室。", "bad"); }
     }
 
     // 3. 灵气不足且开了自动补充：用灵石补
@@ -65,7 +60,6 @@ G.module({
     const gain = Math.min(Math.floor(s.ling), sp);
     if (gain <= 0) {           // 没有灵气，本次修炼不生效
       if (!s.lackWarned) { this.log("灵气耗尽，无法修炼。请开启聚灵阵或用灵石补充灵气。", "bad"); s.lackWarned = true; }
-      s.manual = false;
       return;
     }
     s.ling -= gain; s.exp += gain;
@@ -78,11 +72,10 @@ G.module({
       const b = s.buffs[t];
       if (b.left > 0 && --b.left === 0) { this.dirty(); this.log(`${DATA.pills[t].name}药力耗尽。`, "sys"); }
     }
-    s.manual = false;
   },
 
   api: {
-    isCultivating() { return this.s.auto || this.s.manual; },
+    isCultivating() { return this.s.auto; },
     // 有灵气（或开了自动补充且有灵石）才能修炼
     // 探索、历练中不能修炼；元婴出窍探索时可以继续修炼
     exBlocksCult() { return !!(this.s.explore && !this.s.explore.cq); },
@@ -102,7 +95,7 @@ G.module({
       const arr = this.arrayFactor();                     // 聚灵阵常开
       let pill = 0;
       for (const t in s.buffs) { const b = s.buffs[t]; if (b && b.left > 0) pill += b.pct; }
-      const room = this.freeCultOn() ? this.freeCultPct() : s.room >= 0 && s.sect ? this.roomPct(s.room) : s.shopRoom >= 0 && DATA.shopRooms.cult[s.shopRoom] ? DATA.shopRooms.cult[s.shopRoom].pct : 0;
+      const room = this.freeCultOn() ? this.freeCultPct() : s.room >= 0 && s.sect ? this.roomPct(s.room) : 0;
       // 所有百分比加成相加后再乘：总速度 = 基础 × (1 + (聚灵阵% + 丹药% + 修炼室%) / 100)，避免数值连乘爆炸
       const arrPct = (arr - 1) * 100, mfPct = this.mifaBonus().expSpeedPct || 0, svPct = this.servantPct("cult");   // 聚元秘法圆满额外 %、道童辅助修炼 %
       return { base, arr, pill, room, mifa, mfPct, svPct, total: base * (1 + (arrPct + pill + room + mfPct + svPct) / 100),
@@ -115,11 +108,6 @@ G.module({
       this.log(this.s.auto ? "开启自动修炼。" : "停止自动修炼。", "sys");
       this.after();
     },
-    cultivateOnce() {
-      if (this.isCultivating()) return;
-      if (!this.canCultivate()) return this.log(this.cultivateBlock() + "。", "bad");
-      this.s.manual = true; this._lastTick = Date.now(); this.render();
-    },
     // 修炼肉身界面（modules/body.js）
     openBody(on) { this.cultView = on ? "body" : ""; this.render(); },
     // 修炼加成（弹窗）：修炼速度构成 + 丹药
@@ -131,7 +119,7 @@ G.module({
         <div class="line"><div>聚元秘法圆满</div><b>+${U.num(sp.mfPct)}%</b></div>
         <div class="line"><div>道童辅助修炼</div><b>+${U.num(sp.svPct)}%</b></div>
         <div class="line"><div>丹药</div><b>+${Math.round(sp.pill)}%</b></div>
-        <div class="line"><div>修炼室<small>${this.freeCultOn() ? `${CFG.sect.freeRoom.name}（剩余 ${s.freeCult.left} 次）` : s.room >= 0 && s.sect ? DATA.rooms[s.room].name : s.shopRoom >= 0 && DATA.shopRooms.cult[s.shopRoom] ? "坊市 · " + DATA.shopRooms.cult[s.shopRoom].name : "未使用"}</small></div><b>+${Math.round(sp.room)}%</b></div>
+        <div class="line"><div>修炼室<small>${this.freeCultOn() ? `${CFG.sect.freeRoom.name}（剩余 ${s.freeCult.left} 次）` : s.room >= 0 && s.sect ? DATA.rooms[s.room].name : "未使用"}</small></div><b>+${Math.round(sp.room)}%</b></div>
         <h3 style="margin-top:10px">丹药</h3>
         ${Object.keys(DATA.pills).map(t => {
           const b = s.buffs[t], on = b && b.left > 0, i = this.bestPillIndex(t);
