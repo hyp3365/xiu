@@ -236,7 +236,7 @@ DATA.mifaLearnCost = star => { const W = CFG.wudao, m = (W.STAR_COST || [])[star
 DATA.mifaInfo = (id, lv = 1) => {
   const [w, , kind] = id.split(":"), star = +w.slice(1), K = DATA.mifaKindById[kind], W = CFG.wudao;
   if (!K || !(star >= 1 && star <= 10)) return null;
-  const per = kind === "lianxing" ? (((W.LIANXING || {}).STAR || [])[star - 1] || 0) : (W.base[kind] || 0) * ((W.STAR_MULT || [])[star - 1] || 1), max = DATA.GONGFA_MAX;
+  const per = kind === "lianxing" ? (((W.LIANXING || {}).STAR || [])[star - 1] || 0) : kind === "explore" && W.SHENXING ? (W.SHENXING[star - 1] || 0) : (W.base[kind] || 0) * ((W.STAR_MULT || [])[star - 1] || 1), max = DATA.GONGFA_MAX;
   // 神行：修到圆满才生效一次（不乘层数）
   const val = l => kind === "explore" || K.full ? (l >= max ? per : 0) : per * DATA.lvMul(l);
   return { kind: "mf", id, star, mk: K, tier: DATA.MIFA_TIER, lv, el: DATA.elById[K.el], label: K.label,
