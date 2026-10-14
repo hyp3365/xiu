@@ -50,19 +50,19 @@ CFG.forge = {
    *   附加属性如果在 AFFIX_TOP 里单独设置了，就改用 AFFIX_TOP 的算法（见文件最后）
    * 强化后再 × (1 + 强化次数 × enhance.equip.ADD[属性]%) */
   attr: {
-    // 各部位的 2 条主属性（hp 气血 atk 攻击 def 防御 mana 法力 speed 速度 hit 命中 dodge 闪避 crit 暴击%）
+    // 各部位的 2 条主属性（hp 生命 atk 攻击 def 防御 mana 法力 speed 速度 hit 命中 dodge 闪避 crit 暴击%）
     main: {
-      helmet:  ["hp", "def"],      // 头盔：气血、防御
-      armor:   ["hp", "def"],      // 护甲：气血、防御
+      helmet:  ["hp", "def"],      // 头盔：生命、防御
+      armor:   ["hp", "def"],      // 护甲：生命、防御
       weapon:  ["atk", "crit"],    // 武器：攻击、暴击%
-      legs:    ["hp", "dodge"],    // 腿甲：气血、闪避
+      legs:    ["hp", "dodge"],    // 腿甲：生命、闪避
       boots:   ["speed", "dodge"], // 靴：速度、闪避
       pendant: ["mana", "hit"],    // 吊坠：法力、命中
     },
     // 每种属性的基础值（一阶、倍率 1 时的数值）
-    base: { hp: 40, atk: 6, def: 5, mana: 3, speed: 2, hit: 3, dodge: 3, crit: 1 },   // 气血 攻击 防御 法力 速度 命中 闪避 暴击%
+    base: { hp: 40, atk: 6, def: 5, mana: 3, speed: 2, hit: 3, dodge: 3, crit: 1 },   // 生命 攻击 防御 法力 速度 命中 闪避 暴击%
     // 附加属性可能出现的种类
-    pool: ["hp", "atk", "def", "mana", "speed", "hit", "dodge", "crit"],   // 气血 攻击 防御 法力 速度 命中 闪避 暴击%
+    pool: ["hp", "atk", "def", "mana", "speed", "hit", "dodge", "crit"],   // 生命 攻击 防御 法力 速度 命中 闪避 暴击%
     AFFIX_MULT: 0.4,                      // 附加属性倍率：附加属性 = 主属性算法 × 0.4
     AFFIX_COUNT: [35, 30, 20, 10, 5],     // 新装备附加属性条数的权重：第1个=1条 第2个=2条 …… 第5个=5条（洗练的条数见 reset）
     NEW_COLOR_MAX: 1,                     // 购买、掉落、奖励、炼制得到的新装备 / 戒指，每条属性最高颜色（0 白 1 绿 2 紫 3 金）；更高颜色只能洗练得到
@@ -147,8 +147,8 @@ CFG.forge.ring = {
   // 9 种戒指的主属性，依次是：破军戒 磐石戒 长生戒 灵犀戒 疾风戒 鹰眼戒 幻影戒 烈阳戒 玄武戒（名字在 js/data/forge.js）
   main: [
     ["atk", "crit"],      // 破军戒：攻击、暴击%
-    ["def", "hp"],        // 磐石戒：防御、气血
-    ["hp", "mana"],       // 长生戒：气血、法力
+    ["def", "hp"],        // 磐石戒：防御、生命
+    ["hp", "mana"],       // 长生戒：生命、法力
     ["mana", "hit"],      // 灵犀戒：法力、命中
     ["speed", "dodge"],   // 疾风戒：速度、闪避
     ["hit", "crit"],      // 鹰眼戒：命中、暴击%
@@ -194,7 +194,7 @@ CFG.forge.ring = {
  *   附加属性：其它法宝的附加属性 + 专用 shHp 护盾值增加、dmgRed 受到伤害减少点（随机出现，洗练重随）
  *   祭出后持续生效，直到护盾值被打光（打光后下次轮到它再祭出）：
  *     对方每次造成的伤害：先减 盾防御 × battle.DEF_RATE；对方是盾的属性（法术 / 法宝）再 × (1 − shPct%) − shFlat；再 − dmgRed
- *     剩下的先扣护盾值，护盾值不够的部分扣人物气血
+ *     剩下的先扣护盾值，护盾值不够的部分扣人物生命
  *
  * 附加属性（1~5 条，每条随机带一个五行/雷属性）：
  *   ignRes 无视X系抗性（点）   ignResPct 无视X系抗性（%）   —— 只有和法宝同属性才生效
@@ -330,7 +330,7 @@ CFG.forge.enhance = {
   // 装备（头盔 ~ 吊坠）、戒指
   equip: {
     MAX: 36,             // 每条属性最多强化次数
-    ADD: { hp: 5, atk: 5, def: 5, mana: 5, speed: 5, hit: 5, dodge: 5, crit: 5 },   // 每强化一次 +% ：气血 攻击 防御 法力 速度 命中 闪避 暴击
+    ADD: { hp: 5, atk: 5, def: 5, mana: 5, speed: 5, hit: 5, dodge: 5, crit: 5 },   // 每强化一次 +% ：生命 攻击 防御 法力 速度 命中 闪避 暴击
     COST_STEP: 0.1,      // 每多强化一次，消耗 +10%（× (1 + 已强化次数 × 0.1)）
     RATE_DROP: 0,        // 每多强化一次，成功率 −这么多（百分点，0 = 不降）
     FIRE: [1, 2, 3, 5, 8, 12, 18, 27, 40, 60],   // 每次强化的火髓：一阶 ~ 十阶
