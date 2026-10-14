@@ -127,7 +127,7 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24
 .sv-pick img{width:84px;height:84px;border-radius:50%;background:radial-gradient(circle,#3a3027,#1a1511);border:1px solid #c9a45c}
 .sv-li{display:flex;align-items:center;gap:6px}
 .sv-li img{width:32px;height:32px;border-radius:50%;background:#2a221b}
-.room-grid.sv-jobs{grid-template-columns:repeat(3,1fr);margin:10px 0 0}
+.room-grid.sv-jobs{grid-template-columns:repeat(3,1fr);margin:0;position:sticky;bottom:-10px;z-index:3;background:#14110f;padding:8px 0 10px;border-top:1px solid #3a3027}
 .sv-jobs button small{display:block;color:#9c8d72;font-size:11px}
 .sv-el{display:flex!important;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;margin:0 auto 4px!important;font-size:15px;font-weight:bold!important;color:#fff!important;background:#3a3027}
 .sv-jin{background:#a88a3a!important}.sv-mu{background:#3f7a3a!important}.sv-shui{background:#2f5d8a!important}.sv-huo{background:#a23e2a!important}.sv-tu{background:#7a5a36!important}
