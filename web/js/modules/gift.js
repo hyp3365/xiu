@@ -89,7 +89,7 @@ G.module({
           case "gf": { const g = DATA.gongfaInfo(DATA.gongfaId(it.src, it.type, it.tier)); return `功法《${g.name}》`; }
           case "sp": { const o = DATA.sectById[it.src]; return `法术《${DATA.spellInfo(DATA.spellId(it.src, o.el, it.tier)).name}》`; }
           case "mf": return `秘法《${DATA.mifaInfo(DATA.mifaId(it.star, it.kind)).name}》`;
-          case "fabao": return `${DATA.JIE[it.g]}·${DATA.elById[it.el].name}·${DATA.fabaoTypes[it.ft].name}${n}`;
+          case "fabao": return `${DATA.JIE[it.g]}·${DATA.elById[it.el].name}·${DATA.fabaoName(it.ft, it.g)}${n}`;
           case "eq": { const [sl, r] = String(it.slot).split(":"); return (sl === "ring" ? DATA.ringName(+r, it.g) : DATA.forgeEqName(sl, it.g)) + n; }
           case "herb": case "ore": return DATA.matName(it.c, it.g) + n;
           case "tc": return it.name + n;
@@ -180,7 +180,7 @@ G.module({
           <div class="btns"><button onclick="G.gdAdd()">加入礼包</button></div></div>
         <div class="card"><h3>礼包物品<small>${d.list.length} 件</small></h3>${items || ""}
           <div class="row small"><span>兑换次数</span><input type="number" min="1" value="${d.uses}" oninput="G.gdUses(this.value)" style="width:8em"></div>
-          <div class="row small"><span>礼包码</span><input id="gift-new-code" placeholder="不填自动生成" maxlength="32" value="${esc(d.code || "")}" oninput="G.gd.code=this.value" style="width:12em"></div>
+          <div class="row small"><span>礼包码</span><input id="gift-new-code" placeholder="不填自动生成 16 位" maxlength="32" value="${esc(d.code || "")}" oninput="G.gd.code=this.value" style="width:12em"></div>
           <div class="btns"><button class="primary" onclick="G.gdCreate()" ${d.list.length ? "" : "disabled"}>生成礼包码</button></div></div>
         <div class="card"><h3>已有礼包码</h3>${list}</div>`;
     },
