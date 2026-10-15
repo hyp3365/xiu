@@ -30,7 +30,8 @@ G.module({
     caveViews: {},
     arrayFactor() { return DATA.array.factor(this.s.array.lv); },
     // 每 10 秒聚灵量（只由等级决定，开关不影响）
-    gatherAmount() { return DATA.array.gather(this.s.array.lv) * (1 + (this.servantPct ? this.servantPct("zhen") : 0) / 100); },   // 道童阵法辅助 +%
+    gatherAmount() { return DATA.array.gather(this.s.array.lv) + this.gatherServant(); },
+    gatherServant() { return DATA.array.gather(this.s.array.lv) * (this.servantPct ? this.servantPct("zhen") : 0) / 100; },   // 道童阵法辅助 +%
     lingCap() { const sp = this.speed(); return Math.max(100, sp.gather * DATA.LING_CAP_GATHER + sp.total * DATA.LING_CAP_SPEED); },
     lingPerStone() { return DATA.array.STONE_LING; }, // 固定数值
 
@@ -44,6 +45,14 @@ G.module({
       this.s.stone -= stones;
       this.s.ling = Math.min(cap, this.s.ling + stones * rate);
       this.log(`消耗 ${U.fmt(stones)} 灵石，补充灵气 ${U.fmt(stones * rate)}。`, "good");
+      this.after();
+    },
+    // 灵气换灵石：每 LING_STONE 灵气换 1 灵石，全部兑换
+    lingToStone() {
+      const per = DATA.array.LING_STONE, n = Math.floor(this.s.ling / per);
+      if (n <= 0) return this.log(`灵气不足 ${U.fmt(per)}。`, "sys");
+      this.s.ling -= n * per; this.s.stone += n;
+      this.log(`消耗灵气 ${U.fmt(n * per)}，换得 ${U.fmt(n)} 灵石。`, "good");
       this.after();
     },
     toggleRefill() { this.s.array.autoRefill = !this.s.array.autoRefill; this.after(); },
@@ -79,7 +88,7 @@ G.module({
       <div class="bar tick"><div id="gather-bar" style="width:${this.tickPct()}%"></div></div>
       <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>
       <div class="bar ling"><div style="width:${Math.min(100, s.ling / cap * 100)}%"></div></div>
-      <div class="line"><div>每 10 秒聚灵</div><b>+${U.num(this.gatherAmount())}</b></div>
+      <div class="line"><div>每 10 秒聚灵</div><b>+${U.num(this.gatherAmount())}${this.gatherServant() > 0 ? `<small>道童 +${U.num(this.gatherServant())}</small>` : ""}</b></div>
       <div class="line"><div>修炼速度加成</div><b>+${U.num((f - 1) * 100)}%</b></div>
       <div class="line"><div>下一级<small>加成 +${U.num((DATA.array.factor(a.lv + 1) - 1) * 100)}%，聚灵 +${U.num(DATA.array.gather(a.lv + 1))}</small></div><b>${max ? "满级" : U.fmt(DATA.array.cost(a.lv)) + " 灵石"}</b></div>
       <div class="btns">
@@ -87,6 +96,8 @@ G.module({
         <button onclick="G.upgradeArray(10)" ${max ? "disabled" : ""}>连升10级</button>
         <button onclick="G.upgradeArray(${DATA.array.MAX})" ${max ? "disabled" : ""}>灵石全部升级</button>
       </div></div>
+      <div class="card"><h3>灵气换灵石<small>${U.fmt(DATA.array.LING_STONE)} 灵气 = 1 灵石</small></h3>
+      <div class="btns"><button onclick="G.lingToStone()">全部兑换</button></div></div>
       <div class="card"><h3>补充灵气<small>1 灵石 = ${U.fmt(this.lingPerStone())} 灵气</small></h3>
       <div class="btns"><button onclick="G.buyLing(100)">用 100 灵石</button><button onclick="G.buyLing('fill')">补满</button>
       <button class="${a.autoRefill ? "on" : ""}" style="flex-basis:100%" onclick="G.toggleRefill()">灵气不足时自动用灵石补充：${a.autoRefill ? "开" : "关"}</button></div></div>`;
