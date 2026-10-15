@@ -134,11 +134,14 @@ DATA.TOWER_GF_PREFIX = ["问心", "登仙", "通玄", "摘星", "揽月", "踏�
 DATA.towerSources = DATA.TOWER_GF_PREFIX.map((p0, i) => DATA.nmPick(_NM.towerGf, `t${i + 1}`, p0)).map((prefix, i) => ({ id: `t${i + 1}`, src: "tower", star: i + 1, prefix, name: prefix + DATA.nmPick(_NM, "towerGfSuffix", "塔"), el: DATA.elements[i % 6].id, reqRealm: -1 }));
 // 新版：试炼塔每 10 层（除去给戒指、戒指升级图纸的那几次）给一本秘诀，每本单独一个来源 t星级_第几本
 //   N 星塔的秘诀本数 = 总层数 ÷ EVERY − 戒指和图纸的次数（RING 写了戒指 = 10 次）
-DATA.towerBookCount = star => { const T = (CFG.sect || {}).trial || {}, E = T.EVERY || 10, r = (T.RING || [])[star - 1]; return Math.max(0, Math.floor(DATA.towerMax(star) / E) - (r !== undefined && r >= 0 ? 10 : 0)); };
+// 每座塔每种（修炼秘诀 / 肉身秘诀）几本：最多 trial.BOOKS，额外奖励次数不够时少给
+DATA.towerBookCount = star => { const T = (CFG.sect || {}).trial || {}, E = T.EVERY || 10, r = (T.RING || [])[star - 1];
+  return Math.min(T.BOOKS === undefined ? 5 : T.BOOKS, Math.floor(Math.max(0, Math.floor(DATA.towerMax(star) / E) - (r !== undefined && r >= 0 ? 10 : 0)) / 2)); };
+DATA.TOWER_TYPES = ["mijue", "tijue"];   // 试炼塔给的秘诀种类
 DATA.towerBooks = [];
 DATA.towerSources.forEach(src => { const M = DATA.towerBookCount(src.star);
   for (let k = 1; k <= M; k++) DATA.towerBooks.push({ id: `${src.id}_${k}`, src: "tower", star: src.star, prefix: src.prefix, name: src.name, el: src.el, reqRealm: -1, book: k }); });
-DATA.towerBookId = (star, k) => { const b = DATA.towerBooks.find(x => x.star === star && x.book === k); return b ? `${b.id}:mijue:huang` : null; };
+DATA.towerBookId = (star, k, t = "mijue") => { const b = DATA.towerBooks.find(x => x.star === star && x.book === k); return b ? `${b.id}:${t}:huang` : null; };
 /* ---------- v106：天外天功法、法术的「来源」（11、12 星，每星 6 个 = 金木水火土雷各一个，id tw星级_序号；暂未开放获取） ---------- */
 DATA.TW_GF_PREFIX = [["太初", "太始", "太素", "太易", "元始", "灵宝"], ["无极", "无量", "无上", "无始", "无终", "无相"]];
 DATA.twSources = [];
