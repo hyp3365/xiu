@@ -13,11 +13,7 @@ DATA.MOB_KEYS = ["hp", "atk", "def", "speed", "hit", "dodge", "mana", "res"];
 // 遇到时的随机倍率
 DATA.mobRnd = () => { const R = CFG.mobs.RAND || [1, 1]; return R[0] + Math.random() * (R[1] - R[0]); };
 // 肉身突破 n 次的合计加成（同 modules/body.js bodyBonus）
-DATA.mobBody = n => {
-  const G = CFG.body.GAIN || {}, o = {};
-  for (const k of DATA.MOB_KEYS) { const g = G[k]; o[k] = !g || n <= 0 ? 0 : g[1] === 1 ? g[0] * n : g[0] * (Math.pow(g[1], n) - 1) / (g[1] - 1); }
-  return o;
-};
+DATA.mobBody = n => { const o = {}; for (const k of DATA.MOB_KEYS) o[k] = DATA.bodyStat(n, k); return o; };
 // [进入境界, 境界, 层, 功法星级, 功法来源, 功法层, 倍率] → 怪物基础属性；crit = 暴击%
 DATA.mobStats = (t, crit) => {
   t = t || [0, 0, 1, 0, 1, 0, 1];
