@@ -35,7 +35,7 @@ DATA.caveRooms = [
   { id: "array",   name: "聚灵阵",   open: true,  desc: "聚集天地灵气，供修炼使用。" },
   { id: "alchemy", name: "炼丹房",   open: true,  desc: "以灵药炼制丹药。" },
   { id: "forge",   name: "炼器室",   open: true,  desc: "锻造法器、法宝。" },
-  { id: "talisman",name: "画符室",   open: false, desc: "绘制各类符箓。" },
+  { id: "lingen",  name: "灵根",     open: true,  desc: "提升对应属性的法术伤害、功法效果。" },
   { id: "garden",  name: "灵药园",   open: true,  desc: "种植灵草灵药。" },
   { id: "beast",   name: "灵兽室",   open: false, desc: "豢养、培育灵兽。" },
   { id: "formation",name:"洞府阵法", open: false, desc: "布置护府大阵。" },
