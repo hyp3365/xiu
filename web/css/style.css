@@ -24,7 +24,7 @@ body{color:#e8dcc4;font-family:"Songti SC","Noto Serif SC","Source Han Serif SC"
 #log .good{color:#9fd3c7}#log .bad{color:#e07a5f}#log .gold{color:#e9c46a}#log .sys{color:#8c7e66}
 #tabs{flex:none;display:flex;background:#1b1713;border-top:1px solid #3a3027}
 /* 最顶部、底部导航下面的修仙背景图条 */
-.bar-img{flex:none;height:42px;background:#14110f center/cover no-repeat}
+.bar-img{flex:none;height:34px;background:#14110f center/cover no-repeat}
 .bar-top{background-image:url(../img/ui/bar_top.webp?v=1)}
 .bar-bot{background-image:url(../img/ui/bar_bot.webp?v=1);margin-bottom:env(safe-area-inset-bottom)}
 #tabs button{flex:1;background:none;border:none;border-radius:0;color:#9c8d72;padding:6px 0 7px;font-size:12px;display:flex;flex-direction:column;align-items:center}
