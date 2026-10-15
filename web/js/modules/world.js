@@ -124,11 +124,11 @@ G.module({
       // 法宝伤害：主伤害（攻击×% + 属性伤害）按「防御×RES_RATE + 该系抗性 − 无视」减免；追加伤害只按对方该系抗性减免
       const fabaoDmg = fb => {
         const resMain = Math.max(0, resOf(m, fb.el) - fb.ign) * (1 - fb.ignPct / 100);
-        let d = Math.max(st.atk * BT.MIN_DMG, st.atk * fb.pct / 100 + fb.flat - resMain * BT.DEF_RATE);
+        let d = Math.max(st.atk * BT.MIN_DMG, fb.atk * fb.pct / 100 + fb.flat - resMain * BT.DEF_RATE);   // 法宝攻击（按法宝阶）
         for (const x of fb.extra) {
           let r = (m.res || {})[x.el] || 0;
           if (x.el === fb.el) r = Math.max(0, r - fb.ign) * (1 - fb.ignPct / 100);
-          d += Math.max(0, x.flat + st.atk * x.pct / 100 - r * BT.DEF_RATE);
+          d += Math.max(0, x.flat + fb.atk * x.pct / 100 - r * BT.DEF_RATE);
         }
         return d;
       };
