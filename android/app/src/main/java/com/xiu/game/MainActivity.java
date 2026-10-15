@@ -5,6 +5,7 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.Window;
+import android.view.WindowManager;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
@@ -26,6 +27,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         Window w = getWindow();
+        w.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);   // 全屏：不显示手机顶部状态栏
         w.setStatusBarColor(BG);
         w.setNavigationBarColor(BG);
         w.getDecorView().setBackgroundColor(BG);
