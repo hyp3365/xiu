@@ -65,9 +65,10 @@ G.module({
         if (e.slot === "fabao") {
           const f = DATA.fabaoInfo(e);
           head = `${DATA.elById[e.el].name}属性${e.name} · 每次祭出消耗法力 ${U.fmt(f.mana)}<br>`;
-          if (!f.shield) head += `攻击 ${U.fmt(f.atk)}<br>`;
-          if (f.shield) head += `护盾值 ${U.fmt(f.shield.hp)} · 防御 ${U.fmt(f.shield.def)}<br>`;
-          if (f.ding) head += `击中后对方速度 -${U.num(f.ding.speed)}%、命中 -${U.num(f.ding.hit)}%、闪避 -${U.num(f.ding.dodge)}%，持续 ${f.ding.rounds} 回合<br>`;
+          // 合计（攻击 / 护盾 / 鼎）单独一块，和下面的属性条隔开
+          let sum = f.shield ? `护盾值 ${U.fmt(f.shield.hp)} · 防御 ${U.fmt(f.shield.def)}` : `攻击 ${U.fmt(f.atk)}`;
+          if (f.ding) sum += `<br>击中后对方速度 -${U.num(f.ding.speed)}%、命中 -${U.num(f.ding.hit)}%、闪避 -${U.num(f.ding.dodge)}%，持续 ${f.ding.rounds} 回合`;
+          head += `<span class="fb-sum">${sum}</span>`;
         }
         return head + e.attrs.map(a => `<span class="ac${a.c}">${DATA.attrText(a, e)}</span>`).join("<br>");
       }
