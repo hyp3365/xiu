@@ -336,11 +336,13 @@ G.module({
       const b = e.b, last = b.log[b.log.length - 1], win = last ? last[8] <= 0 && last[6] > 0 : false;
       this.playBattle(b, "战斗过程", win ? "胜利" : "失败", win, [], true);
     },
-    // 怪物图：探索 / 星君按地图（img/mob/m地图序号.webp），试炼塔、晋升考验按名字固定挑一张
+    // 怪物图：img/mob/地图序号_怪物序号.webp（DATA.maps[a].monsters 的序号）；北域首领 / 秘境怪等用 img/mob/m地图序号.webp
+    //   「精英·X」「东域·X王」按 X 找图；试炼塔、晋升考验没有地图，按名字固定挑一张地图首领图
     battleMobImg(b) {
-      let a = b.a;
+      let a = b.a, f;
       if (!(a >= 0 && a < DATA.maps.length)) { let h = 0; for (const ch of b.name || "") h = (h * 31 + ch.charCodeAt(0)) >>> 0; a = h % DATA.maps.length; }
-      return `img/mob/m${a}.webp?v=${DATA.IMG_V}`;
+      else { const nm = String(b.name || "").replace(/^精英·/, "").replace(/^.域·(.+)王$/, "$1"), i = (DATA.maps[a].monsters || []).indexOf(nm); if (i >= 0) f = `${a}_${i}`; }
+      return { src: `img/mob/${f || "m" + a}.webp?v=${DATA.IMG_V}`, alt: `img/mob/m${a}.webp?v=${DATA.IMG_V}` };
     },
     // 战斗过程画面：每 ACT_SEC 秒播放一次出手；结果已经结算好，这里只是播放
     //   现场战斗（试炼塔等）SKIP_SEC 秒后可跳过，replay（看详情）随时可跳过
@@ -350,7 +352,7 @@ G.module({
       if (this._bp) this.battleDone(this._bp);
       const bp = this._bp = { b, title, txt, win, logs: logs || [[txt, win ? "gold" : "bad"]], acts: b.log.slice(), shown: 0, t0: Date.now(), done: false, replay: !!replay, hp: [b.me[0], b.mob[0]] };
       this._lockModal = true;
-      const v = DATA.IMG_V;
+      const v = DATA.IMG_V, mi = this.battleMobImg(b);
       this.modal(`<div class="btv">
         <div class="btv-title">${title}</div>
         <div class="btv-stage" style="background-image:url(img/bt_bg.webp?v=${v})">
@@ -358,11 +360,10 @@ G.module({
           <div class="btv-zhan">战</div>
           <div class="btv-hp r"><div class="btv-bar"><i id="bt-hp1"></i></div><span id="bt-hpt1"></span></div>
           <div class="btv-u l" id="bt-u0"><img src="img/bt_hero.webp?v=${v}" alt=""><div class="btv-nm">${this.s.name || "你"}</div></div>
-          <div class="btv-u r" id="bt-u1"><img src="${this.battleMobImg(b)}" alt=""><div class="btv-nm">${b.name}</div></div>
+          <div class="btv-u r" id="bt-u1"><img src="${mi.src}" onerror="this.onerror=null;this.src='${mi.alt}'" alt=""><div class="btv-nm">${b.name}</div></div>
           <div class="btv-fx" id="bt-fx"></div>
         </div>
         <div class="btv-log" id="bt-log"><p class="bt-gray"><span class="bt-m">${b.name}</span>上阵${b.el ? `（${DATA.elById[b.el].name}属性）` : ""}，${b.first ? `<span class="bt-m">${b.name}</span>先手` : `<span class="bt-p">你</span>先手`}。</p></div>
-        <div id="bt-end"></div>
         <div class="btns" id="bt-btn"></div></div>`);
       this.btHp();
       const step = () => {
@@ -423,8 +424,7 @@ G.module({
       while (bp.shown < bp.acts.length) this.btAct(bp.acts[bp.shown++], false);
       const last = bp.acts[bp.acts.length - 1]; if (last) bp.hp = [last[6], last[8]];
       bp.done = true; this.btHp(); this.battleDone(bp);
-      const end = $("#bt-end"); if (end) end.innerHTML = `<p class="bt-res ${bp.win ? "win" : "lose"}">${bp.txt}</p>${this.battleHead(bp.b)}`;
-      const log = $("#bt-log"); if (log) log.scrollTop = 1e9;
+      const log = $("#bt-log"); if (log) { log.insertAdjacentHTML("beforeend", `<p class="bt-res ${bp.win ? "win" : "lose"}">${bp.txt}</p>${this.battleHead(bp.b)}`); log.scrollTop = 1e9; }
       this.btBtn();
     },
     // 播放完：这时才在信息栏提示胜负（只提示一次）
