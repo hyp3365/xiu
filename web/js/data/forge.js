@@ -69,11 +69,16 @@ DATA.ringName = (r, g) => DATA.JIE[g] + "·" + DATA.ringNames[r];
 DATA.ringMats = g => DATA.parseMats(_FG.ring.mats[g]);
 DATA.ringTime = g => _FG.ring.time[g] * 60000;
 DATA.ringBpName = (g, r) => DATA.JIE[g] + (DATA.ringNames[r] || "戒指") + "图纸";   // v26：图纸分戒指种类（r）
-// 法宝属性名（附加属性带一个属性 el）
-DATA.fbAttrNames = { pct: "伤害", flat: "属性伤害", ignRes: "无视抗性", ignResPct: "无视抗性%", elDmg: "追加伤害", elDmgPct: "追加伤害%", manaCut: "法力消耗减少", manaCutPct: "法力消耗减少%",
-  sAtk: "攻击", sHit: "命中", sCrit: "暴击%", sMana: "本法宝法力消耗减少%", shPct: "受到属性伤害减少%", shFlat: "受到属性伤害减少", shHp: "护盾值", dmgRed: "受到伤害减少" };
+// 法宝属性名（额外伤害 elDmg 带一个属性 el）
+DATA.fbAttrNames = { pct: "伤害", elDmg: "额外伤害", ignRes: "无视抗性", manaCut: "法力消耗减少%",
+  sAtk: "攻击", dSAtk: "攻击", sHit: "命中", sCrit: "暴击%", sCritDmg: "暴击伤害%", sMana: "本法宝法力消耗减少%", sDing: "降低属性", sYin: "眩晕几率%",
+  shHpMain: "护盾值", shDef: "防御", shHp: "增加护盾值", dmgRed: "受到伤害减少%" };
 for (const k in DATA.fbAttrNames) DATA.fbAttrNames[k] = DATA.nmPick(CFG.names.fbAttr, k, DATA.fbAttrNames[k]);
-DATA.FB_PCT = ["pct", "ignResPct", "elDmgPct", "manaCutPct", "shPct"];   // 百分比类
+// v108 法宝一条属性的比例 %：按颜色在 [最小, 最大] 里，位置 p（0~1），保留一位小数
+DATA.fbRange = k => { const F = _FG.fabao; return (F.MAIN || {})[k] || (F.AFFIX || {})[k] || (F.SPECIAL || {})[k]; };
+DATA.fbPct = a => { const R = DATA.fbRange(a.k), r = R && (R[a.c] || R[R.length - 1]); return r ? Math.round((r[0] + (r[1] - r[0]) * (a.p || 0)) * 10) / 10 : 0; };
+// 比例 × 哪个参考属性（不写 = 本身就是 %）
+DATA.FB_REF_OF = { shHpMain: "hp", shHp: "hp", ignRes: "res", sAtk: "atk", dSAtk: "atk", sHit: "hit" };
 
 // 颜色 c 在第 g 阶的数值范围 [最小, 最大]（没设置 RANGE 时用旧算法 colors.mult × RAND）
 DATA.colorRange = (c, g) => {
@@ -93,23 +98,17 @@ DATA.attrVal = (a, g, e) => { return DATA.attrBase(a, g, e) * (a.enh ? DATA.enhM
 // 一条属性没强化时的数值
 DATA.attrBase = (a, g, e) => {
   const A = _FG.attr, fb = e && e.slot === "fabao" && e.attrs;
-  // v26：附加属性单独设置了「每阶金色最高值」（AFFIX_TOP）
-  const TOP = !a.m && (fb ? _FG.fabao.AFFIX_TOP : A.AFFIX_TOP);
+  // v26：附加属性单独设置了「每阶金色最高值」（AFFIX_TOP，装备 / 戒指）
+  const TOP = !a.m && !fb && A.AFFIX_TOP;
   if (TOP && TOP[a.k] && TOP[a.k][g] !== undefined) {
     const last = DATA.colorRange(A.colors.length - 1, g)[1] || 1;
     return TOP[a.k][g] * DATA.rangeMult(a, g) / last;
   }
-  if (fb && a.m === 2) {   // 专属属性：一个数 = 参考属性 × %，一组 = 每阶固定数值
-    const sp = ((DATA.fabaoTypes[e.ft] || {}).special || {})[a.k] || [];
-    if (typeof sp === "number") return DATA.fbRef(g)[_FG.fabao.REF_STAT[a.k]] * sp / 100 * DATA.rangeMult(a, g);
-    return (sp[g] === undefined ? sp[sp.length - 1] || 0 : sp[g]) * DATA.rangeMult(a, g);
-  }   // v57 专属属性
-  if (e && e.slot === "fabao" && e.attrs) {   // 法宝：主属性再 × 种类倍率，属性伤害再 × 强化
-    const F = _FG.fabao, T = DATA.fabaoTypes[e.ft] || {};
-    const mul = a.m !== 1 ? 1 : a.k === "pct" ? (T.pct || 1) : a.k === "flat" ? (T.flat || 1) : 1;
-    const v = DATA.FB_PCT.includes(a.k) ? (F.base[a.k] || 0) * (F.PCT_GROW[g] || 1)                    // 百分比类
-      : DATA.fbRef(g)[(F.REF_STAT || {})[a.k]] * ((F.REF_PCT || {})[a.k] || 0) / 100 || 0;          // 点数类 = 参考属性 × %
-    return v * DATA.rangeMult(a, g) * mul;
+  if (fb) {   // v108 法宝：比例 %（按颜色随机）；FB_REF_OF 里的 = 参考属性 × %，盾防御 = 参考防御 × ATK_MULT × %；鼎 = 回合数
+    if (a.k === "sDing") return (_FG.fabao.DING_ROUNDS || [])[a.c] || 1;
+    const v = DATA.fbPct(a), ref = DATA.fbRef(g);
+    if (a.k === "shDef") return ref.def * (_FG.fabao.ATK_MULT || 1) * v / 100;
+    return DATA.FB_REF_OF[a.k] ? ref[DATA.FB_REF_OF[a.k]] * v / 100 : v;
   }
   const grow = a.k === "crit" ? g + 1 : (A.GROW[g] || 1);
   return (A.base[a.k] || 0) * grow * DATA.rangeMult(a, g) * (a.m ? 1 : A.AFFIX_MULT) * (e && e.slot === "ring" ? (_FG.ring.MULT || 1) : 1);
@@ -122,17 +121,19 @@ DATA.fabaoNewW = () => { const mx = _FG.fabao.NEW_COLOR_MAX === undefined ? 1 : 
 DATA.fabaoWashW = () => _FG.reset.WASH_WEIGHT || _FG.attr.colors.map(c => c.weight);
 // v53：新得到的装备 / 戒指颜色权重，最高 attr.NEW_COLOR_MAX（默认绿）；紫、金只能洗练
 DATA.equipNewW = () => { const mx = _FG.attr.NEW_COLOR_MAX === undefined ? 1 : _FG.attr.NEW_COLOR_MAX; return _FG.attr.colors.map((c, i) => i <= mx ? c.weight : 0); };
+// 法宝附加属性：只有额外伤害带属性（金木水火土雷随机）
+DATA.fbAffix = (k, W) => DATA.rollAttr(k, 0, k === "elDmg" ? U.pick(DATA.elements).id : undefined, W);
 // 随机生成一件装备 / 戒指（r = 戒指种类）/ 法宝
-DATA.fbPool = T => T && T.shield ? [..._FG.fabao.pool, ...(_FG.fabao.SHIELD_POOL || [])] : _FG.fabao.pool;   // 法宝附加属性池（盾多两种）
+DATA.fbPool = T => T && T.shield ? _FG.fabao.SHIELD_POOL : _FG.fabao.pool;   // 法宝附加属性池（盾单独一组）
 DATA.rollForged = (slot, g, r, el) => {
   const A = _FG.attr;
   if (slot === "fabao") {   // r = 形状序号、el = 属性（不填就随机）
     const F = _FG.fabao, ft = r === undefined ? Math.floor(Math.random() * DATA.fabaoTypes.length) : r, T = DATA.fabaoTypes[ft];
     const elv = el && DATA.elById[el] ? el : U.pick(DATA.elements).id;
-    const W = DATA.fabaoNewW(), attrs = (T.shield ? ["shPct", "shFlat"] : ["pct", "flat"]).map(k => DATA.rollAttr(k, 1, undefined, W));
-    for (const k in T.special || {}) attrs.push(DATA.rollAttr(k, 2, undefined, W));
+    const W = DATA.fabaoNewW(), attrs = (T.shield ? ["shHpMain", "shDef"] : ["pct"]).map(k => DATA.rollAttr(k, 1, undefined, W));
+    for (const k of T.special || []) attrs.push(DATA.rollAttr(k, 2, undefined, W));
     const n = U.weighted(F.AFFIX_COUNT) + 1, pool = DATA.fbPool(T);
-    for (let i = 0; i < n; i++) attrs.push(DATA.rollAttr(U.pick(pool), 0, U.pick(DATA.elements).id, W));
+    for (let i = 0; i < n; i++) attrs.push(DATA.fbAffix(U.pick(pool), W));
     return { slot, g, ft, el: elv, name: DATA.fabaoName(ft, g), enh: 0, q: DATA.bestQ(attrs), attrs, fv: 2 };
   }
   if (slot === "ring" && r === undefined) r = Math.floor(Math.random() * DATA.ringNames.length);
@@ -170,7 +171,7 @@ DATA.rerollForged = (e, locks) => {
     let k;
     if (fb) k = U.pick(DATA.fbPool(DATA.fabaoTypes[e.ft]));
     else { const pool = A.pool.filter(x => !used.includes(x)); if (!pool.length) return null; k = U.pick(pool); used.push(k); }
-    const a = DATA.rollAttr(k, 0, fb ? U.pick(DATA.elements).id : undefined, W); if (enh.length && enh[0]) a.enh = enh.shift(); else enh.shift(); return a;
+    const a = fb ? DATA.fbAffix(k, W) : DATA.rollAttr(k, 0, undefined, W); if (enh.length && enh[0]) a.enh = enh.shift(); else enh.shift(); return a;
   };
   let made = 0;
   const out = [];
@@ -187,48 +188,46 @@ DATA.rerollForged = (e, locks) => {
 DATA.attrText = (a, e) => {
   const v = U.num(DATA.attrVal(a, e.g, e)), col = (_FG.attr.colors[a.c] || {}).name || "";
   if (e.slot === "fabao") {
-    const el = DATA.elById[a.el || e.el] ? DATA.elById[a.el || e.el].name : "";
-    const t = { pct: `伤害 攻击×${v}%`, flat: `${el}属性伤害 +${v}`, ignRes: `无视${el}抗性 ${v} 点`, ignResPct: `无视${el}抗性 ${v}%`,
-      elDmg: `追加${el}属性伤害 +${v}`, elDmgPct: `追加${el}属性伤害 攻击×${v}%`, manaCut: `法力消耗 -${v}`, manaCutPct: `法力消耗 -${v}%`,
-      sAtk: `攻击 +${v}`, sHit: `命中 +${v}`, sCrit: `暴击 +${v}%`, sMana: `本法宝法力消耗 -${v}%`,
-      shPct: `受到${el}属性伤害 -${v}%`, shFlat: `受到${el}属性伤害 -${v}`, shHp: `护盾值 +${v}`, dmgRed: `受到伤害 -${v}` }[a.k] || a.k;
-    const off = (a.k === "ignRes" || a.k === "ignResPct") && a.el !== e.el ? "（与法宝属性不同，不生效）" : "";
-    return `${a.m === 2 ? "专属 " : a.m ? "" : "附加 "}${t}（${col}${a.enh ? `·强化${a.enh}` : ""}）${off}`;
+    const el = DATA.elById[a.el] ? DATA.elById[a.el].name : "", p = Math.round(DATA.attrVal(a, e.g, e) * 10) / 10, F = _FG.fabao;   // % 类保留一位小数
+    const t = { pct: `伤害 攻击×${p}%`, elDmg: `额外${el}属性伤害 攻击×${p}%`, ignRes: `无视抗性 ${v}`, manaCut: `法力消耗 -${p}%`,
+      sAtk: `攻击 +${v}`, dSAtk: `攻击 +${v}`, sHit: `命中 +${v}`, sCrit: `暴击 +${p}%`, sCritDmg: `暴击伤害 ${p}%`, sMana: `本法宝法力消耗 -${p}%`,
+      sDing: `击中后降低对方属性 ${v} 回合`, sYin: `眩晕几率 ${p}%（${(F.YIN_ROUNDS || [])[a.c] || 1} 回合）`,
+      shHpMain: `护盾值 ${v}`, shDef: `防御 ${v}`, shHp: `护盾值 +${v}`, dmgRed: `受到伤害 -${p}%` }[a.k] || DATA.fbAttrNames[a.k] || a.k;
+    return `${a.m === 2 ? "专属 " : a.m ? "" : "附加 "}${t}（${col}${a.enh ? `·强化${a.enh}` : ""}）`;
   }
   return `${a.m ? "" : "附加 "}${DATA.attrNames[a.k]} +${v}（${col}${a.enh ? `·强化${a.enh}` : ""}）`;
 };
 // v107 法宝第 g 阶的参考属性：config/forge.js 的 fabao.REF[阶] 那个境界的人物属性（修为突破 + 肉身突破，不算功法），含 manaBr
 DATA._fbRef = {};
 DATA.fbRef = g => DATA._fbRef[g] || (DATA._fbRef[g] = (() => { const r = (_FG.fabao.REF || [])[g] || [2 * g + 1, 10]; return DATA.mobStats([0, r[0], r[1], 0, 1, 0, 1]); })());
-// 法宝战斗数值：{ el, atk, pct, flat, mana, ign, ignPct, extra: [{ el, flat, pct }] }
+// 法宝战斗数值：{ el, atk, pct, mana, ign, cutPct, extra: [{ el, pct }], crit（锤暴击伤害%）, shield, ding, yin }
 DATA.fabaoInfo = e => {
-  const F = _FG.fabao, T = DATA.fabaoTypes[e.ft] || {}, o = { name: DATA.fabaoName(e.ft, e.g, e.name), el: e.el, ft: e.ft, pct: 0, flat: 0, ign: 0, ignPct: 0, cut: 0, cutPct: 0, extra: [] };
-  let shPct = 0, shFlat = 0, shHp = 0, red = 0;
+  const F = _FG.fabao, T = DATA.fabaoTypes[e.ft] || {}, ref = DATA.fbRef(e.g);
+  const o = { name: DATA.fabaoName(e.ft, e.g, e.name), el: e.el, ft: e.ft, atk: ref.atk * (F.ATK_MULT || 1), pct: 0, ign: 0, cutPct: 0, extra: [] };
+  let shHp = 0, shDef = 0, red = 0, ding = 0, yin = 0, yinC = 0;
   for (const a of e.attrs) {
     const v = DATA.attrVal(a, e.g, e);
-    if (a.k === "pct") o.pct += v; else if (a.k === "flat") o.flat += v;
-    else if (a.k === "ignRes" && a.el === e.el) o.ign += v;
-    else if (a.k === "ignResPct" && a.el === e.el) o.ignPct += v;
-    else if (a.k === "elDmg") o.extra.push({ el: a.el, flat: v, pct: 0 });
-    else if (a.k === "elDmgPct") o.extra.push({ el: a.el, flat: 0, pct: v });
-    else if (a.k === "manaCut") o.cut += v; else if (a.k === "manaCutPct" || a.k === "sMana") o.cutPct += v;
-    else if (a.k === "shPct") shPct += v; else if (a.k === "shFlat") shFlat += v; else if (a.k === "shHp") shHp += v; else if (a.k === "dmgRed") red += v;
+    if (a.k === "pct") o.pct += v; else if (a.k === "ignRes") o.ign += v;
+    else if (a.k === "elDmg") o.extra.push({ el: a.el, pct: v });
+    else if (a.k === "manaCut" || a.k === "sMana") o.cutPct += v;
+    else if (a.k === "sCritDmg") o.crit = (o.crit || 0) + v;
+    else if (a.k === "shHpMain" || a.k === "shHp") shHp += v; else if (a.k === "shDef") shDef += v; else if (a.k === "dmgRed") red += v;
+    else if (a.k === "sDing") ding = Math.max(ding, v);
+    else if (a.k === "sYin") { yin += v; yinC = Math.max(yinC, a.c); }
   }
-  const at = (arr, d) => { const x = (arr || [])[e.g]; return x === undefined ? d : x; };
-  const ref = DATA.fbRef(e.g), pr = (x, k) => typeof x === "number" ? ref[k] * x / 100 : at(x, 0);   // 一个数 = 参考属性 × %
-  o.atk = ref.atk * (F.ATK_MULT || 1);   // 法宝攻击
-  if (T.shield) { const S = F.SHIELD || {}; o.shield = { def: pr(S.DEF, "def"), hp: pr(S.HP, "hp") + shHp, pct: Math.min(100, shPct), flat: shFlat, red }; }   // 盾
-  if (T.ding) { const D = F.DING || {}; o.ding = { speed: at(D.SPEED, 0), hit: at(D.HIT, 0), dodge: at(D.DODGE, 0), rounds: at(D.ROUNDS, 1) }; }   // 鼎
-  if (T.yin) { const Y = F.YIN || {}; o.yin = { chance: at(Y.CHANCE, 0), rounds: at(Y.ROUNDS, 1) }; }   // 印
-  o.ignPct = Math.min(F.CAP.ignResPct || 100, o.ignPct); o.cutPct = Math.min(F.CAP.manaCutPct || 80, o.cutPct);
+  const CAP = F.CAP || {}, at = (arr, d) => { const x = (arr || [])[e.g]; return x === undefined ? d : x; };
+  o.pct *= T.mul === undefined ? 1 : T.mul;   // 形状倍率（不显示）
+  if (T.shield) o.shield = { def: shDef, hp: shHp, red: Math.min(CAP.dmgRed === undefined ? 100 : CAP.dmgRed, red) };   // 盾
+  if (T.ding) { const D = F.DING || {}; o.ding = { speed: at(D.SPEED, 0), hit: at(D.HIT, 0), dodge: at(D.DODGE, 0), rounds: ding || 1 }; }   // 鼎
+  if (T.yin) o.yin = { chance: yin, rounds: (F.YIN_ROUNDS || [])[yinC] || 1 };   // 印
+  o.cutPct = Math.min(CAP.manaCut === undefined ? 80 : CAP.manaCut, o.cutPct);
   // 人物大境界倍率（同法术）
   const R = typeof G !== "undefined" && G.s && !G.s.mortal ? Math.min(Math.floor(G.s.L / DATA.LAYERS), 23) : 0;
   const rv = a => { if (!a) return 1; const x = Array.isArray(a) ? a[R] : a[DATA.realms[R]]; return x === undefined ? 1 : x; };   // 按境界名取倍率
-  o.pct *= rv(F.DMG_REALM); o.flat *= rv(F.DMG_REALM);
+  o.pct *= rv(F.DMG_REALM);
   // 法力 = 该阶对应境界的修为突破法力 × MANA_PCT[主属性颜色]%；颜色只看第一条主属性
   const main = e.attrs.find(a => a.m === 1) || {};
-  const m0 = ref.manaBr * ((F.MANA_PCT || [])[main.c || 0] || 0) / 100;
-  o.mana = Math.max(0, m0 * (1 - o.cutPct / 100) - o.cut);
+  o.mana = Math.max(0, ref.manaBr * ((F.MANA_PCT || [])[main.c || 0] || 0) / 100 * (1 - o.cutPct / 100));
   return o;
 };
 
