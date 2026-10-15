@@ -18,6 +18,7 @@ G.module({
   defaults: () => ({
     ling: CFG.start.ling,                                     // 当前灵气
     array: { lv: 0, on: true, autoRefill: false }, // 聚灵阵（初始 0 级）
+    lzSlot: Array(CFG.lingzhu.SLOTS).fill(null),     // 聚灵阵灵珠格：{ ft 属性序号, v 聚灵 }，null = 空
   }),
 
   // 每 10 秒聚集灵气
@@ -30,8 +31,9 @@ G.module({
     caveViews: {},
     arrayFactor() { return DATA.array.factor(this.s.array.lv); },
     // 每 10 秒聚灵量（只由等级决定，开关不影响）
-    gatherAmount() { return DATA.array.gather(this.s.array.lv) + this.gatherServant(); },
-    gatherServant() { return DATA.array.gather(this.s.array.lv) * (this.servantPct ? this.servantPct("zhen") : 0) / 100; },   // 道童阵法辅助 +%
+    gatherAmount() { return DATA.array.gather(this.s.array.lv) + this.gatherServant() + this.gatherLz(); },
+    gatherServant() { return this.servantPct ? this.servantPct("zhen") : 0; },   // 道童阵法辅助 +固定聚灵
+    gatherLz() { return (this.s.lzSlot || []).reduce((t, z) => t + (z ? z.v : 0), 0); },   // 灵珠格聚灵
     lingCap() { const sp = this.speed(); return Math.max(100, sp.gather * DATA.LING_CAP_GATHER + sp.total * DATA.LING_CAP_SPEED); },
     lingPerStone() { return DATA.array.STONE_LING; }, // 固定数值
 
@@ -47,13 +49,41 @@ G.module({
       this.log(`消耗 ${U.fmt(stones)} 灵石，补充灵气 ${U.fmt(stones * rate)}。`, "good");
       this.after();
     },
-    // 灵气换灵石：每 LING_STONE 灵气换 1 灵石，全部兑换
-    lingToStone() {
-      const per = DATA.array.LING_STONE, n = Math.floor(this.s.ling / per);
+    // 灵气换灵石：每 LING_STONE 灵气换 1 灵石；want = 换几个灵石（不填 = 全部兑换）
+    lingToStone(want) {
+      const per = DATA.array.LING_STONE, n = Math.min(want || Infinity, Math.floor(this.s.ling / per));
       if (n <= 0) return this.log(`灵气不足 ${U.fmt(per)}。`, "sys");
       this.s.ling -= n * per; this.s.stone += n;
       this.log(`消耗灵气 ${U.fmt(n * per)}，换得 ${U.fmt(n)} 灵石。`, "good");
       this.after();
+    },
+    /* ---------- 灵珠格：点空格放入背包里的灵珠，点灵珠强化 ---------- */
+    lzOpen(i) {
+      const C = CFG.lingzhu, z = this.s.lzSlot[i];
+      if (z) {
+        const have = this.smCount("lj", z.ft), per = C.ENH_JING;
+        return this.modal(`<h2>${DATA.li(DATA.smIcon("lz", z.ft), "lz-glow")}${DATA.smName("lz", z.ft)}<small> 聚灵 +${U.fmt(z.v)}</small></h2>
+          <p>强化一次：${DATA.smName("lj", z.ft)} ×${per}，聚灵 +${U.fmt(C.ENH)}（拥有 ${U.fmt(have)}）</p>
+          <div class="btns"><button class="primary" onclick="G.lzEnh(${i},1)" ${have >= per ? "" : "disabled"}>强化</button>
+          <button onclick="G.lzEnh(${i},10)" ${have >= per * 10 ? "" : "disabled"}>强化10次</button>
+          <button onclick="G.lzEnh(${i},Infinity)" ${have >= per ? "" : "disabled"}>全部强化</button><button onclick="G.closeModal()">关闭</button></div>`);
+      }
+      const own = C.NAMES.map((_, ft) => [ft, this.smCount("lz", ft)]).filter(x => x[1] > 0);
+      this.modal(`<h2>灵珠格</h2>${own.length ? own.map(([ft, n]) => `<div class="line"><div>${DATA.li(DATA.smIcon("lz", ft), "lz-glow")}${DATA.smName("lz", ft)}<small>拥有 ${n} · 聚灵 +${U.fmt(C.BASE)}</small></div>
+        <button class="sm primary" onclick="G.lzPut(${i},${ft})">放入</button></div>`).join("") : "<p>背包里没有灵珠。</p>"}
+        <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+    },
+    lzPut(i, ft) {
+      const s = this.s; if (s.lzSlot[i] || !this.takeSm("lz", 1, ft)) return;
+      s.lzSlot[i] = { ft, v: CFG.lingzhu.BASE };
+      this.log(`${DATA.smName("lz", ft)}放入聚灵阵，聚灵 +${U.fmt(CFG.lingzhu.BASE)}。`, "good"); this.after(); this.lzOpen(i);
+    },
+    lzEnh(i, times) {
+      const C = CFG.lingzhu, z = this.s.lzSlot[i]; if (!z) return;
+      const n = Math.min(times, Math.floor(this.smCount("lj", z.ft) / C.ENH_JING));
+      if (n <= 0 || !this.takeSm("lj", n * C.ENH_JING, z.ft)) return this.log(`${DATA.smName("lj", z.ft)}不足。`, "sys");
+      z.v += n * C.ENH;
+      this.log(`${DATA.smName("lz", z.ft)}强化 ${n} 次，聚灵 +${U.fmt(n * C.ENH)}。`, "good"); this.after(); this.lzOpen(i);
     },
     toggleRefill() { this.s.array.autoRefill = !this.s.array.autoRefill; this.after(); },
 
@@ -88,18 +118,19 @@ G.module({
       <div class="bar tick"><div id="gather-bar" style="width:${this.tickPct()}%"></div></div>
       <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>
       <div class="bar ling"><div style="width:${Math.min(100, s.ling / cap * 100)}%"></div></div>
-      <div class="line"><div>每 10 秒聚灵</div><b>+${U.num(this.gatherAmount())}${this.gatherServant() > 0 ? `<small>道童 +${U.num(this.gatherServant())}</small>` : ""}</b></div>
+      <div class="line"><div>每 10 秒聚灵</div><b>+${U.num(this.gatherAmount())}${this.gatherServant() > 0 ? `<small>道童 +${U.num(this.gatherServant())}</small>` : ""}${this.gatherLz() > 0 ? `<small>灵珠 +${U.num(this.gatherLz())}</small>` : ""}</b></div>
       <div class="line"><div>修炼速度加成</div><b>+${U.num((f - 1) * 100)}%</b></div>
       <div class="line"><div>下一级<small>加成 +${U.num((DATA.array.factor(a.lv + 1) - 1) * 100)}%，聚灵 +${U.num(DATA.array.gather(a.lv + 1))}</small></div><b>${max ? "满级" : U.fmt(DATA.array.cost(a.lv)) + " 灵石"}</b></div>
       <div class="btns">
         <button class="primary" onclick="G.upgradeArray(1)" ${max ? "disabled" : ""}>升级</button>
         <button onclick="G.upgradeArray(10)" ${max ? "disabled" : ""}>连升10级</button>
-        <button onclick="G.upgradeArray(${DATA.array.MAX})" ${max ? "disabled" : ""}>灵石全部升级</button>
       </div></div>
       <div class="card"><h3>灵气换灵石<small>${U.fmt(DATA.array.LING_STONE)} 灵气 = 1 灵石</small></h3>
-      <div class="btns"><button onclick="G.lingToStone()">全部兑换</button></div></div>
+      <div class="btns"><button onclick="G.lingToStone(1)">换1灵石</button><button onclick="G.lingToStone(100)">换100灵石</button><button onclick="G.lingToStone(10000)">换1万灵石</button><button onclick="G.lingToStone()">全部兑换</button></div></div>
       <div class="card"><h3>补充灵气<small>1 灵石 = ${U.fmt(this.lingPerStone())} 灵气</small></h3>
       <div class="btns"><button onclick="G.buyLing(100)">用 100 灵石</button><button onclick="G.buyLing('fill')">补满</button>
-      <button class="${a.autoRefill ? "on" : ""}" style="flex-basis:100%" onclick="G.toggleRefill()">灵气不足时自动用灵石补充：${a.autoRefill ? "开" : "关"}</button></div></div>`;
+      <button class="${a.autoRefill ? "on" : ""}" style="flex-basis:100%" onclick="G.toggleRefill()">灵气不足时自动用灵石补充：${a.autoRefill ? "开" : "关"}</button></div></div>
+      <div class="card"><h3>灵珠<small>聚灵 +${U.fmt(this.gatherLz())}</small></h3><div class="lz-grid">${s.lzSlot.map((z, i) => `<button class="lz-cell${z ? " has" : ""}" onclick="G.lzOpen(${i})">${z
+        ? `<img class="lz-glow" src="${DATA.smIcon("lz", z.ft)}" alt=""><small>${DATA.smName("lz", z.ft)}</small><small>+${U.fmt(z.v)}</small>` : "<small>空</small>"}</button>`).join("")}</div></div>`;
   },
 });
