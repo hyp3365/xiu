@@ -136,7 +136,7 @@ G.module({
         if (a.k === 2 && a.fb.shield && shield) return null;   // 护盾还在：盾不用再祭
         if (s.mana < cost || (!res && s.mana - cost < keepMp)) return null;
         s.mana -= cost;
-        if (a.k === 1) { const sp = a.sp; return roll(st, mE(), Math.max(st.atk * BT.MIN_DMG, st.atk * sp.pct / 100 + sp.flat * this.lingenSpell(sp.el.id) - resOf(m, sp.el.id) * BT.DEF_RATE), 1, j); }
+        if (a.k === 1) { const sp = a.sp; return roll(st, mE(), Math.max(st.atk * BT.MIN_DMG, sp.atk * sp.pct / 100 * sp.mul * this.lingenSpell(sp.el.id) - resOf(m, sp.el.id) * BT.DEF_RATE), 1, j); }
         const fb = a.fb;
         if (fb.shield) { shield = Object.assign({ el: fb.el }, fb.shield); act = { k: 3, sp: j, f: 0 }; return 0; }
         let d = roll(st, mE(), fabaoDmg(fb), 2, j);
@@ -147,7 +147,7 @@ G.module({
         }
         return d;
       };
-      const est = a => a.k === 1 ? Math.max(st.atk * BT.MIN_DMG, st.atk * a.sp.pct / 100 + a.sp.flat * this.lingenSpell(a.sp.el.id) - resOf(m, a.sp.el.id) * BT.DEF_RATE) : a.fb.shield ? -1 : fabaoDmg(a.fb);
+      const est = a => a.k === 1 ? Math.max(st.atk * BT.MIN_DMG, a.sp.atk * a.sp.pct / 100 * a.sp.mul * this.lingenSpell(a.sp.el.id) - resOf(m, a.sp.el.id) * BT.DEF_RATE) : a.fb.shield ? -1 : fabaoDmg(a.fb);
       const costOf = a => a.k === 1 ? a.sp.mana : a.fb.mana;
       const jOf = key => acts.findIndex(a => a.key === key);
       const useJ = acts.map((a, j) => j).filter(j => !off.includes(acts[j].key));
@@ -839,7 +839,7 @@ G.module({
         const star = this.shopStar || 1, N = DATA.SHOP_GF_PREFIX.length;
         const srcs = DATA.shopSources.filter(o => o.star === star), lock = !this.realmOK(srcs[0] ? srcs[0].reqRealm : 0);
         const line = g => { const has = this.hasGongfa(g.id);
-          const desc = g.kind === "sp" ? `${g.el.name}系 · 攻击×${g.pct}% + ${this.spellPerTxt(g)}/层 · 耗法力 ${U.fmt(g.mana)}` : `每层${g.label} +${U.num(g.perLv)}`;
+          const desc = g.kind === "sp" ? `${g.el.name}系 · ${this.spellDmgTxt(g)} · 耗法力 ${U.fmt(g.mana)}` : `每层${g.label} +${U.num(g.perLv)}`;
           return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.kind === "sp" ? "法术" : g.type.name}</span><small>${desc} · ${U.fmt(g.cost)} 灵石 · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>
             ${lock && !has ? `<button class="sm" disabled>境界不足</button>` : this.gfLearnBtn(g, `G.buyGongfa('${g.id}')`, s.stone < g.cost)}</div>`; };
         return tabs + `<div class="room-grid">${Array.from({ length: N }, (_, i) => `<button class="${star === i + 1 ? "active" : ""}" onclick="G.setShopStar(${i + 1})">${i + 1}星</button>`).join("")}</div>` +
