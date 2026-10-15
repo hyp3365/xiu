@@ -80,7 +80,7 @@ G.module({
       const v = x => x * DATA.mobRnd();   // × 随机浮动
       const name = kind === "boss" ? DATA.regionBoss(a, r) : (kind === "elite" ? "精英·" : "") + U.pick(map.monsters);
       return this.addMagic({ name, Lm: R.L, kind, boss: kind === "boss", elite: kind === "elite",
-        hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), mana: v(b.mana), res: v(b.res), crit: b.crit }, kind);
+        hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), mana: v(b.mana), res: v(b.res), manaBr: b.manaBr, crit: b.crit }, kind);
     },
 
     // 给怪物加 属性 / 六系抗性 / 法术 / 法宝（config/mobs.js 的 mobs.magic）
@@ -213,7 +213,7 @@ G.module({
       // 怪物出手：先判法术，再判法宝（都按 防御×RES_RATE + 该系抗性 减免），都没有就普通攻击
       let mSp = 0, mFb = 0;
       const mCast = (k, el) => {
-        const c = m[k], cost = c ? m.maxMana * c.cost : 0;
+        const c = m[k], P = c && c.mana || [0, 1], cost = c ? (m.manaBr || 0) * P[0] * (P[1] === undefined ? 1 : P[1]) : 0;   // 耗法力 = 修为突破法力 × 比例 × 倍率
         if (!c || m.mana < cost || Math.random() * 100 >= c.chance) return -1;
         m.mana -= cost; k === "spell" ? mSp++ : mFb++;
         return roll(mE(), st, Math.max(m.atk * BT.MIN_DMG, m.atk * c.pct / 100 - (el ? resOf(st, el) : st.def) * BT.DEF_RATE), k === "spell" ? 1 : 2);
@@ -622,7 +622,7 @@ G.module({
       const d = this.mjDef(i, k), b = d[kind], v = x => x * DATA.mobRnd();
       const name = kind === "boss" ? d.bossName : (kind === "elite" ? "精英·" : "") + U.pick(d.monsters);
       return this.addMagic({ name, Lm: d.L, kind, boss: kind === "boss", elite: kind === "elite",
-        hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), mana: v(b.mana), res: v(b.res), crit: b.crit }, kind);
+        hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), mana: v(b.mana), res: v(b.res), manaBr: b.manaBr, crit: b.crit }, kind);
     },
     // 秘境 / 灵地掉落 = 借用地图的药材矿石表（种数个数按 CFG.dropRule.mijing / lingdi，× 自己的 mat）+ extra 额外掉落
     //   秘境借用 drops 那张凡界地图；灵地借用发现地图（这一界的药材矿石表）
