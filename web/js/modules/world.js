@@ -139,7 +139,7 @@ G.module({
         if (a.k === 1) { const sp = a.sp; return roll(st, mE(), Math.max(st.atk * BT.MIN_DMG, sp.atk * sp.pct / 100 * sp.mul * this.lingenSpell(sp.el.id) - resOf(m, sp.el.id) * BT.DEF_RATE), 1, j); }
         const fb = a.fb;
         if (fb.shield) { shield = Object.assign({ el: fb.el }, fb.shield); act = { k: 3, sp: j, f: 0 }; return 0; }
-        let d = roll(st, mE(), fabaoDmg(fb), 2, j);
+        let d = roll(fb.hit || fb.critAdd ? Object.assign({}, st, { hit: st.hit + (fb.hit || 0), crit: st.crit + (fb.critAdd || 0) }) : st, mE(), fabaoDmg(fb), 2, j);   // 刀 / 锤专属：本次攻击额外命中、暴击
         if (act.f === 2 && fb.crit) d *= fb.crit / 100;   // 锤：暴击伤害 %
         if (act.f !== 1) {
           if (fb.ding) { m.deb = { speed: fb.ding.speed, hit: fb.ding.hit, dodge: fb.ding.dodge, left: fb.ding.rounds }; act.x = 2; }
