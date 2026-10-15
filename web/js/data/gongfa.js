@@ -216,7 +216,7 @@ DATA.gongfaInfo = (id, lv = 1) => {
  * id 规则："来源id:sp:系id:阶id"，例如 "s1_0:sp:huo:huang" */
 DATA.spellId = (sectId, elId) => `${sectId}:sp:${elId}:huang`;   // v93：只有一阶
 DATA.isSpell = id => id.split(":")[1] === "sp";
-DATA.spellInfo = (id, lv = 1) => {
+DATA.spellInfo = (id, lv = 1, gfAtk) => {
   const [sectId, , elId, tierId] = id.split(":");
   const sect = DATA.gfSrcById[sectId], el = DATA.elements.find(x => x.id === elId), tier = DATA.tierById[tierId];
   if (!sect || !el || !tier || tierId !== "huang") return null;
@@ -225,8 +225,8 @@ DATA.spellInfo = (id, lv = 1) => {
   return {
     kind: "sp", id, sect, src: DATA.srcType(sect), star: sect.star, el, tier, lv,
     name: DATA.spellName(sect, el, tier),
-    // v108 法术攻击 = 该星级对应境界的攻击（修为 + 肉身）× SPELL_ATK_MULT；伤害 = 法术攻击 × pct% × mul（mul = SPELL_MUL × 来源倍率，不显示）
-    atk: DATA.spellRef(sect.star).atk * v(_GF.SPELL_ATK_MULT), pct: lp(lv), next: lp(lv + 1), mul: v(_GF.SPELL_MUL) * tm * v(C.EFFECT_PCT),
+    // 法术攻击 = 该星级对应境界的攻击（修为 + 肉身）− 初始攻击 + 功法攻击（gfAtk 不写 = 自己的）；伤害 = 法术攻击 × pct% × mul（mul = SPELL_MUL × 来源倍率，不显示）
+    atk: DATA.spellRef(sect.star).atk - DATA.playerBase.atk + DATA.gfAtkOf(gfAtk), pct: lp(lv), next: lp(lv + 1), mul: v(_GF.SPELL_MUL) * tm * v(C.EFFECT_PCT),
     // 法力消耗 = 该星级对应境界的修为突破法力（REF）× MANA_PCT% × 灵根倍率（灵根倍率 = 1 + 该系灵根等级 × MANA_LINGEN）
     mana: Math.max(1, Math.round(DATA.spellManaBase(sect.star) * v(_GF.MANA_PCT, 0) / 100
       * (1 + (typeof G !== "undefined" && G.s && G.s.lingen ? G.s.lingen[el.id] || 0 : 0) * v(_GF.MANA_LINGEN, 0)))),
@@ -235,6 +235,8 @@ DATA.spellInfo = (id, lv = 1) => {
 };
 
 // 通用：功法、法术或秘法
+// 使用者的功法攻击（法宝、法术攻击用）：不写 = 玩家自己已学功法的攻击（含灵根加成）
+DATA.gfAtkOf = a => a !== undefined ? a : typeof G !== "undefined" && G.s && G.gongfaBonus ? G.gongfaBonus().atk : 0;
 // 法术第 star 星对应境界（config/gongfa.js 的 REF）的人物属性：修为突破 + 肉身突破（不算功法），含 manaBr
 DATA._spRef = {};
 DATA.spellRef = star => DATA._spRef[star] || (DATA._spRef[star] = (() => { const r = (_GF.REF || [])[star - 1] || [2 * star - 1, 10]; return DATA.mobStats([0, r[0], r[1], 0, 1, 0, 1]); })());
