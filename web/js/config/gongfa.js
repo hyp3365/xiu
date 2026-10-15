@@ -84,7 +84,7 @@ CFG.gongfa = {
   STUDY_TIER: { huang: 1 },   // 修炼消耗倍率（只有一阶）
 
   // 每个门派（及坊市、功德司）每类功法几本：没写 = 1 本。第 2、3 本名字不同，效果有 ±RAND 的随机
-  BOOKS: { xinfa: 3, gongjue: 3, zhenjing: 3, fajue: 3, tijue: 3, mijue: 1 },
+  BOOKS: { xinfa: 3, gongjue: 3, zhenjing: 3, fajue: 3, tijue: 3, mijue: 3 },
 
   // ---------- 基础数值（秘诀、肉身秘诀用；防御 / 攻击 / 生命等战斗属性改用 sect.TOTAL） ----------
   base: {
