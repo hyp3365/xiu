@@ -52,8 +52,13 @@ DATA.gongfaTypes = [
 ];
 
 DATA.gongfaTypes.forEach(t => { const n = (_NM.gfType || {})[t.id]; if (n) { t.name = DATA.nmPick(n, 0, t.name); t.suffix = DATA.nmPick(n, 1, t.suffix); } });
-// v121：每类功法几本（config/gongfa.js 的 BOOKS）；第 2、3 本是新类别 id「xinfa2」「xinfa3」，放最后（不影响原有功法的名字），倍率、价格按原类别
-DATA.gongfaTypes.slice().forEach(t => { for (let b = 2; b <= ((_GF.BOOKS || {})[t.id] || 1); b++) DATA.gongfaTypes.push(Object.assign({}, t, { id: t.id + b, base: t.id, book: b })); });
+// v121：宗门每类功法几本（config/gongfa.js 的 BOOKS，只有宗门有）；第 2、3 本是新类别 id「xinfa2」「xinfa3」，排在同类后面，倍率、价格按原类别
+//   ni = 原来的序号（起名用，不影响原有功法的名字）
+DATA.gongfaTypes = DATA.gongfaTypes.flatMap((t, i) => { t.ni = i; const r = [t];
+  for (let b = 2; b <= ((_GF.BOOKS || {})[t.id] || 1); b++) r.push(Object.assign({}, t, { id: t.id + b, base: t.id, book: b }));
+  return r; });
+// 某来源有哪些功法类别：宗门全部；其他来源没有第 2、3 本
+DATA.gfTypesOf = src => DATA.gongfaTypes.filter(t => (src || "sect") === "sect" || !t.base);
 DATA.gfTypeKey = id => { const t = DATA.gongfaTypes.find(x => x.id === id); return t && t.base || id; };   // 倍率、价格表用的类别 id
 
 /* 功法来源类型（内部标记）：sect 宗门功法、shop 凡界坊市功法；以后加新类型在这里加一行 + config 加一组 */
@@ -101,9 +106,9 @@ DATA.sectWords = sect => {
 // 功法名：门派前缀 + 随机词 + 类别后缀（每个 类别×阶 用不同的词）
 DATA.gongfaName = (sect, type, tier) => {
   if (sect.book) return `${sect.prefix}${type.suffix}·第${sect.book}卷`;   // 试炼塔秘诀
-  if (sect.plain) return sect.prefix + DATA.nmPick(_NM.jieGfSuffix, type.base || type.id, type.suffix) + (type.book ? DATA.nmPick(_NM.gfBook, type.book - 1, ["", "·贰", "·叁", "·肆", "·伍"][type.book - 1] || "·" + type.book) : "");   // 仙魔冥神坊市、功德司：地图名 + 后缀（config/names.js 的 jieGfSuffix）
-  const w = DATA.sectWords(sect), bt = type.base ? DATA.gongfaTypes.find(x => x.id === type.base) : type, ti = DATA.gongfaTypes.indexOf(bt);
-  return sect.prefix + w[(ti * 4 + (type.book ? type.book - 1 : tier.idx)) % w.length] + type.suffix;   // 第 2、3 本用同类别后面的词
+  if (sect.plain) return sect.prefix + DATA.nmPick(_NM.jieGfSuffix, type.id, type.suffix);   // 仙魔冥神坊市、功德司：地图名 + 后缀（config/names.js 的 jieGfSuffix）
+  const w = DATA.sectWords(sect);
+  return sect.prefix + w[(type.ni * 4 + (type.book ? type.book - 1 : tier.idx)) % w.length] + type.suffix;   // 第 2、3 本用同类别后面的词
 };
 // 法术名：门派前缀 + 随机词 + 阶后缀（用本属性的词）
 DATA.spellName = (sect, el, tier) => {
@@ -213,7 +218,7 @@ DATA.gongfaInfo = (id, lv = 1) => {
   if (id === DATA.START_GF) return DATA.startGfInfo(lv);
   const [sectId, typeId, tierId] = id.split(":");
   const sect = DATA.gfSrcById[sectId], type = DATA.gongfaTypes.find(x => x.id === typeId), tier = DATA.tierById[tierId];
-  if (!sect || !type || !tier || tierId !== "huang") return null;
+  if (!sect || !type || !tier || tierId !== "huang" || (type.base && (sect.src || "sect") !== "sect")) return null;
   const per = DATA.gfCalc(sect, type.id, tier, type.stat, "EFFECT_GONGFA");
   const el = DATA.elById[(sect.els || {})[type.id] || sect.el];   // 仙魔冥神坊市、功德司：每本单独的属性
   const J = sect.src === "jshop" ? _GF.jshop || {} : null;
