@@ -78,7 +78,7 @@ for (const k in DATA.fbAttrNames) DATA.fbAttrNames[k] = DATA.nmPick(CFG.names.fb
 DATA.fbRange = k => { const F = _FG.fabao; return (F.MAIN || {})[k] || (F.AFFIX || {})[k] || (F.SPECIAL || {})[k]; };
 DATA.fbPct = a => { const R = DATA.fbRange(a.k), r = R && (R[a.c] || R[R.length - 1]); return r ? Math.round((r[0] + (r[1] - r[0]) * (a.p || 0)) * 10) / 10 : 0; };
 // 比例 × 哪个参考属性（不写 = 本身就是 %）
-DATA.FB_REF_OF = { shHpMain: "hp", shHp: "hp", ignRes: "res", sAtk: "atk", dSAtk: "atk", sHit: "hit" };
+DATA.FB_REF_OF = { shHpMain: "hp", shHp: "hp", sAtk: "atk", dSAtk: "atk", sHit: "hit" };
 
 // 颜色 c 在第 g 阶的数值范围 [最小, 最大]（没设置 RANGE 时用旧算法 colors.mult × RAND）
 DATA.colorRange = (c, g) => {
@@ -121,8 +121,8 @@ DATA.fabaoNewW = () => { const mx = _FG.fabao.NEW_COLOR_MAX === undefined ? 1 : 
 DATA.fabaoWashW = () => _FG.reset.WASH_WEIGHT || _FG.attr.colors.map(c => c.weight);
 // v53：新得到的装备 / 戒指颜色权重，最高 attr.NEW_COLOR_MAX（默认绿）；紫、金只能洗练
 DATA.equipNewW = () => { const mx = _FG.attr.NEW_COLOR_MAX === undefined ? 1 : _FG.attr.NEW_COLOR_MAX; return _FG.attr.colors.map((c, i) => i <= mx ? c.weight : 0); };
-// 法宝附加属性：只有额外伤害带属性（金木水火土雷随机）
-DATA.fbAffix = (k, W) => DATA.rollAttr(k, 0, k === "elDmg" ? U.pick(DATA.elements).id : undefined, W);
+// 法宝附加属性：附加伤害、无视抗性带属性（金木水火土雷随机，和法宝属性一样才生效）
+DATA.fbAffix = (k, W) => DATA.rollAttr(k, 0, k === "elDmg" || k === "ignRes" ? U.pick(DATA.elements).id : undefined, W);
 // 随机生成一件装备 / 戒指（r = 戒指种类）/ 法宝
 DATA.fbPool = T => T && T.shield ? _FG.fabao.SHIELD_POOL : _FG.fabao.pool;   // 法宝附加属性池（盾单独一组）
 DATA.rollForged = (slot, g, r, el) => {
@@ -189,7 +189,7 @@ DATA.attrText = (a, e) => {
   const v = U.num(DATA.attrVal(a, e.g, e)), col = (_FG.attr.colors[a.c] || {}).name || "";
   if (e.slot === "fabao") {
     const el = DATA.elById[a.el] ? DATA.elById[a.el].name : "", p = Math.round(DATA.attrVal(a, e.g, e) * 10) / 10, F = _FG.fabao;   // % 类保留一位小数
-    const t = { pct: `伤害 攻击×${p}%`, elDmg: `${el}属性伤害 ${p}%`, ignRes: `无视抗性 ${v}`, manaCut: `法力消耗 -${p}%`,
+    const t = { pct: `伤害 攻击×${p}%`, elDmg: `${el}属性伤害 ${p}%`, ignRes: `攻击时无视${el}抗 ${p}%`, manaCut: `法力消耗 -${p}%`,
       sAtk: `法宝攻击时额外增加攻击 +${v}`, dSAtk: `法宝攻击时额外增加攻击 +${v}`, sHit: `法宝攻击时额外增加命中 +${v}`, sCrit: `法宝攻击时额外增加暴击 +${p}%`, sCritDmg: `暴击伤害 ${p}%`, sMana: `本法宝法力消耗 -${p}%`,
       sDing: `击中后降低对方属性 ${v} 回合`, sYin: `眩晕几率 ${p}%（${(F.YIN_ROUNDS || [])[a.c] || 1} 回合）`,
       shHpMain: `护盾值 ${v}`, shDef: `防御 ${v}`, shHp: `护盾值 +${v}`, dmgRed: `受到伤害 -${p}%` }[a.k] || DATA.fbAttrNames[a.k] || a.k;
@@ -208,8 +208,8 @@ DATA.fabaoInfo = (e, own) => {
   let shHp = 0, shDef = 0, red = 0, ding = 0, yin = 0, yinC = 0;
   for (const a of e.attrs) {
     const v = DATA.attrVal(a, e.g, e);
-    if (a.k === "pct") o.pct += v; else if (a.k === "ignRes") o.ign += v;
-    else if (a.k === "elDmg") o.extra.push({ el: a.el, pct: v });
+    if (a.k === "pct") o.pct += v; else if (a.k === "ignRes") { if (a.el === e.el) o.ign += v; }   // 无视抗性、附加伤害：属性和法宝一样才生效
+    else if (a.k === "elDmg") { if (a.el === e.el) o.extra.push({ el: a.el, pct: v }); }
     else if (a.k === "manaCut" || a.k === "sMana") o.cutPct += v;
     else if (a.k === "sAtk" || a.k === "dSAtk") o.atk += v;   // 专属：只在这件法宝攻击时生效
     else if (a.k === "sHit") o.hit = (o.hit || 0) + v;
@@ -225,6 +225,7 @@ DATA.fabaoInfo = (e, own) => {
   if (T.ding) { const D = F.DING || {}; o.ding = { speed: at(D.SPEED, 0), hit: at(D.HIT, 0), dodge: at(D.DODGE, 0), rounds: ding || 1 }; }   // 鼎
   if (T.yin) o.yin = { chance: yin, rounds: (F.YIN_ROUNDS || [])[yinC] || 1 };   // 印
   o.cutPct = Math.min(CAP.manaCut === undefined ? 80 : CAP.manaCut, o.cutPct);
+  o.ign = ref.res * Math.min(CAP.ignRes === undefined ? 100 : CAP.ignRes, o.ign) / 100;   // 无视抗性 = 参考抗性 × %
   // 人物大境界倍率（同法术）
   const R = typeof G !== "undefined" && G.s && !G.s.mortal ? Math.min(Math.floor(G.s.L / DATA.LAYERS), 23) : 0;
   const rv = a => { if (!a) return 1; const x = Array.isArray(a) ? a[R] : a[DATA.realms[R]]; return x === undefined ? 1 : x; };   // 按境界名取倍率
