@@ -1,8 +1,8 @@
 /* =====================================================================
  * 参考人物属性
  * ---------------------------------------------------------------------
- * DATA.refStats(境界, 层, 功法层数) = 人物在该境界第几层（1~10）的属性（含升级成长）
- *   + 能学的全部宗门功法（1 星 …… 该境界能进的最高星，所有门派 × 所有类别 × 天地玄黄四阶）都练到「功法层数」
+ * DATA.refStats(境界, 层, 功法层数, 星级, 来源) = 人物在该境界第几层（1~10）的属性（含升级成长）
+ *   + 1 ~ 星级 的全部功法（来源 1 宗门 / 2 +凡界坊市 / 3 +仙魔冥神坊市 / 4 +功德司，所有类别）都练到「功法层数」
  *   不算丹药、肉身、灵根、装备；功法层数 0 = 不算功法
  * 用到的地方：试炼塔 config/sect.js 的 sect.tower、雷劫 config/trib.js 的 trib；
  *   怪物（地图、秘境、灵地、天将星君界主、宗门考官）另见 js/data/mobs.js（数值 config/mobs.js）
@@ -10,17 +10,21 @@
 DATA.REF_KEYS = ["hp", "atk", "def", "speed", "hit", "dodge", "mana", "res"];   // res：每系抗性（RES_BASE 成长 + 全部真诀）
 DATA._ref = {};
 DATA.refStar = realm => (CFG.sect.REQ_REALM || []).filter(x => x <= realm).length;   // 该境界能进的最高星级
-DATA.refStats = (realm, layer, gf) => {
+// v105：star = 算 1 ~ star 星的功法（不写 = 该境界能进的最高星）；src = 算哪些来源（1 宗门 2 +凡界坊市 3 +仙魔冥神坊市 4 +功德司，不写 = 1）
+DATA.refSrcList = src => [DATA.sects, src >= 2 ? DATA.shopSources : [], src >= 3 ? (DATA.jieGf || {}).jshop || [] : [], src >= 4 ? (DATA.jieGf || {}).gd || [] : []].flat();
+DATA.refStats = (realm, layer, gf, star, src) => {
   realm = Math.max(0, Math.min(DATA.realms.length - 1, realm)); layer = Math.max(1, Math.min(DATA.LAYERS, layer));
-  const key = realm + ":" + layer + ":" + gf;
+  const ms = star > 0 ? star : DATA.refStar(realm), sr = src > 0 ? src : 1;
+  const key = realm + ":" + layer + ":" + gf + ":" + ms + ":" + sr;
   if (DATA._ref[key]) return DATA._ref[key];
   const B = DATA.playerBase, f = Math.pow(DATA.GROW, realm * DATA.LAYERS + layer - 1), o = {};
   for (const k of DATA.REF_KEYS) o[k] = (k === "res" ? CFG.player.RES_BASE || 0 : B[k]) * f;
+  o.manaBr = B.mana * f;   // 只算修为突破的法力（怪物法术 / 法宝耗法力用）
   if (gf > 0) {
-    const ms = DATA.refStar(realm);
-    for (const sc of DATA.sects) {
+    for (const sc of DATA.refSrcList(sr)) {
       if (sc.star > ms) continue;
       for (const t of DATA.gongfaTypes) for (const ti of DATA.tiers) {
+        if (sc.src === "shop" && t.sectOnly) continue;
         const g = DATA.gongfaInfo(DATA.gongfaId(sc.id, t.id, ti.id), gf);
         if (g && o[t.stat] !== undefined) o[t.stat] += g.value;
       }
@@ -32,6 +36,6 @@ DATA.refStats = (realm, layer, gf) => {
 DATA.refMob = (st, M = {}, k = 1) => {
   const o = {};
   for (const x of DATA.REF_KEYS) o[x] = st[x] * (M[x] === undefined ? 1 : M[x]) * k;
-  o.crit = M.crit === undefined ? 5 : M.crit;
+  o.manaBr = st.manaBr; o.crit = M.crit === undefined ? 5 : M.crit;
   return o;
 };
