@@ -56,7 +56,7 @@ DATA.gongfaTypes.forEach(t => { const n = (_NM.gfType || {})[t.id]; if (n) { t.n
 /* 功法来源类型（内部标记）：sect 宗门功法、shop 凡界坊市功法；以后加新类型在这里加一行 + config 加一组 */
 // 效果 = 宗门功法 × PCT%（凡界坊市、仙魔冥神坊市、功德司用）
 DATA.gfDerive = P => { const S = _GF.sect, v = x => x === undefined ? 1 : x, k = (P === undefined ? 100 : P) / 100;
-  return Object.assign({}, S, { EFFECT_GONGFA: v(S.EFFECT_GONGFA) * k, EFFECT_SPELL: v(S.EFFECT_SPELL) * k, EFFECT_PCT: v(S.EFFECT_PCT) * k }); };
+  return Object.assign({}, S, { EFFECT_GONGFA: v(S.EFFECT_GONGFA) * k, EFFECT_PCT: v(S.EFFECT_PCT) * k }); };
 DATA.gfSources = {
   sect: { name: "宗门", cfg: () => _GF.sect },
   shop: { name: "坊市", cfg: () => DATA.gfDerive(_GF.shop.PCT) },
@@ -216,21 +216,18 @@ DATA.gongfaInfo = (id, lv = 1) => {
  * id 规则："来源id:sp:系id:阶id"，例如 "s1_0:sp:huo:huang" */
 DATA.spellId = (sectId, elId) => `${sectId}:sp:${elId}:huang`;   // v93：只有一阶
 DATA.isSpell = id => id.split(":")[1] === "sp";
-DATA.spellInfo = (id, lv = 1, realm) => {
+DATA.spellInfo = (id, lv = 1) => {
   const [sectId, , elId, tierId] = id.split(":");
   const sect = DATA.gfSrcById[sectId], el = DATA.elements.find(x => x.id === elId), tier = DATA.tierById[tierId];
   if (!sect || !el || !tier || tierId !== "huang") return null;
-  const per = DATA.gfCalc(sect, "spell", tier, "spell", "EFFECT_SPELL"); // 每层固定伤害
   const C = DATA.srcCfg(sect), v = (x, d = 1) => x === undefined ? d : x, tm = v((C.TYPE_MULT || {}).spell);
-  const R = realm !== undefined ? realm : (typeof G !== "undefined" && G.s && !G.s.mortal ? Math.floor(G.s.L / DATA.LAYERS) : 0);
-  const ri = Math.min(R, 23), last = a => a && a.length ? v(a[ri], a[a.length - 1]) : 1;
+  const LP = _GF.SPELL_LV_PCT || [100], lp = n => v(LP[n - 1], LP[LP.length - 1]);
   return {
     kind: "sp", id, sect, src: DATA.srcType(sect), star: sect.star, el, tier, lv,
     name: DATA.spellName(sect, el, tier),
-    // 伤害倍率% = SPELL_PCT × 星级 × 阶 × 层数 × 境界（× 来源倍率）
-    pct: Math.round(v(_GF.SPELL_PCT, 100) * v((_GF.SPELL_STAR || [])[sect.star - 1]) * v((_GF.SPELL_TIER || {})[tier.id]) * lv * last(_GF.SPELL_REALM) * tm * v(C.EFFECT_PCT)),
-    flat: per * DATA.lvMul(lv), next: per * DATA.lvMul(lv + 1), perLv: per,         // 固定伤害
-    // 法力消耗 = 该星级对应境界的修为突破法力（MANA_REF）× MANA_PCT% × 灵根倍率（灵根倍率 = 1 + 该系灵根等级 × MANA_LINGEN）
+    // v108 法术攻击 = 该星级对应境界的攻击（修为 + 肉身）× SPELL_ATK_MULT；伤害 = 法术攻击 × pct% × mul（mul = SPELL_MUL × 来源倍率，不显示）
+    atk: DATA.spellRef(sect.star).atk * v(_GF.SPELL_ATK_MULT), pct: lp(lv), next: lp(lv + 1), mul: v(_GF.SPELL_MUL) * tm * v(C.EFFECT_PCT),
+    // 法力消耗 = 该星级对应境界的修为突破法力（REF）× MANA_PCT% × 灵根倍率（灵根倍率 = 1 + 该系灵根等级 × MANA_LINGEN）
     mana: Math.max(1, Math.round(DATA.spellManaBase(sect.star) * v(_GF.MANA_PCT, 0) / 100
       * (1 + (typeof G !== "undefined" && G.s && G.s.lingen ? G.s.lingen[el.id] || 0 : 0) * v(_GF.MANA_LINGEN, 0)))),
     cost: DATA.gfLearnCost(sect, "spell", tier),
@@ -238,8 +235,11 @@ DATA.spellInfo = (id, lv = 1, realm) => {
 };
 
 // 通用：功法、法术或秘法
-// 法术法力消耗的基数：该星级对应境界的修为突破法力（config/gongfa.js 的 MANA_REF）
-DATA.spellManaBase = star => { const r = (_GF.MANA_REF || [])[star - 1] || [2 * star - 1, 10]; return DATA.brMana(r[0], r[1]); };
+// 法术第 star 星对应境界（config/gongfa.js 的 REF）的人物属性：修为突破 + 肉身突破（不算功法），含 manaBr
+DATA._spRef = {};
+DATA.spellRef = star => DATA._spRef[star] || (DATA._spRef[star] = (() => { const r = (_GF.REF || [])[star - 1] || [2 * star - 1, 10]; return DATA.mobStats([0, r[0], r[1], 0, 1, 0, 1]); })());
+// 法术法力消耗的基数：该星级对应境界的修为突破法力
+DATA.spellManaBase = star => DATA.spellRef(star).manaBr;
 DATA.skillInfo = (id, lv) => DATA.isSpell(id) ? DATA.spellInfo(id, lv) : DATA.isMifa(id) ? DATA.mifaInfo(id, lv) : DATA.gongfaInfo(id, lv);
 
 /* ---------- 宗门秘法 ----------
