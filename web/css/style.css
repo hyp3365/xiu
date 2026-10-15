@@ -105,6 +105,7 @@ button.sel i{font-style:normal;color:#c9a45c;font-size:12px}
 .explore-log .good{color:#9fd3c7}.explore-log .bad{color:#e07a5f}.explore-log .gold{color:#e9c46a}
 
 /* v21 装备属性颜色：白 绿 紫 金 */
+.fb-sum{display:block;margin:6px 0 8px;padding:6px 8px;border-radius:6px;background:rgba(242,201,76,.12);border:1px solid rgba(242,201,76,.35);color:#f2e3b3}
 .ac0{color:#e8dcc4}.ac1{color:#7ddc7d}.ac2{color:#c58bff}.ac3{color:#f2c94c}
 button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24 功法排序按钮选中 */
 /* v26：药材、矿石图片；背包分类、出售页 */
