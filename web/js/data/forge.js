@@ -99,11 +99,17 @@ DATA.attrBase = (a, g, e) => {
     const last = DATA.colorRange(A.colors.length - 1, g)[1] || 1;
     return TOP[a.k][g] * DATA.rangeMult(a, g) / last;
   }
-  if (fb && a.m === 2) { const sp = ((DATA.fabaoTypes[e.ft] || {}).special || {})[a.k] || []; return (sp[g] === undefined ? sp[sp.length - 1] || 0 : sp[g]) * DATA.rangeMult(a, g); }   // v57 专属属性
+  if (fb && a.m === 2) {   // 专属属性：一个数 = 参考属性 × %，一组 = 每阶固定数值
+    const sp = ((DATA.fabaoTypes[e.ft] || {}).special || {})[a.k] || [];
+    if (typeof sp === "number") return DATA.fbRef(g)[_FG.fabao.REF_STAT[a.k]] * sp / 100 * DATA.rangeMult(a, g);
+    return (sp[g] === undefined ? sp[sp.length - 1] || 0 : sp[g]) * DATA.rangeMult(a, g);
+  }   // v57 专属属性
   if (e && e.slot === "fabao" && e.attrs) {   // 法宝：主属性再 × 种类倍率，属性伤害再 × 强化
-    const F = _FG.fabao, grow = DATA.FB_PCT.includes(a.k) ? (F.PCT_GROW[g] || 1) : (F.GROW[g] || 1), T = DATA.fabaoTypes[e.ft] || {};
+    const F = _FG.fabao, T = DATA.fabaoTypes[e.ft] || {};
     const mul = a.m !== 1 ? 1 : a.k === "pct" ? (T.pct || 1) : a.k === "flat" ? (T.flat || 1) : 1;
-    return (F.base[a.k] || 0) * grow * DATA.rangeMult(a, g) * mul;
+    const v = DATA.FB_PCT.includes(a.k) ? (F.base[a.k] || 0) * (F.PCT_GROW[g] || 1)                    // 百分比类
+      : DATA.fbRef(g)[(F.REF_STAT || {})[a.k]] * ((F.REF_PCT || {})[a.k] || 0) / 100 || 0;          // 点数类 = 参考属性 × %
+    return v * DATA.rangeMult(a, g) * mul;
   }
   const grow = a.k === "crit" ? g + 1 : (A.GROW[g] || 1);
   return (A.base[a.k] || 0) * grow * DATA.rangeMult(a, g) * (a.m ? 1 : A.AFFIX_MULT) * (e && e.slot === "ring" ? (_FG.ring.MULT || 1) : 1);
@@ -191,7 +197,10 @@ DATA.attrText = (a, e) => {
   }
   return `${a.m ? "" : "附加 "}${DATA.attrNames[a.k]} +${v}（${col}${a.enh ? `·强化${a.enh}` : ""}）`;
 };
-// 法宝战斗数值：{ el, pct, flat, mana, ign, ignPct, extra: [{ el, flat, pct }] }
+// v107 法宝第 g 阶的参考属性：config/forge.js 的 fabao.REF[阶] 那个境界的人物属性（修为突破 + 肉身突破，不算功法），含 manaBr
+DATA._fbRef = {};
+DATA.fbRef = g => DATA._fbRef[g] || (DATA._fbRef[g] = (() => { const r = (_FG.fabao.REF || [])[g] || [2 * g + 1, 10]; return DATA.mobStats([0, r[0], r[1], 0, 1, 0, 1]); })());
+// 法宝战斗数值：{ el, atk, pct, flat, mana, ign, ignPct, extra: [{ el, flat, pct }] }
 DATA.fabaoInfo = e => {
   const F = _FG.fabao, T = DATA.fabaoTypes[e.ft] || {}, o = { name: DATA.fabaoName(e.ft, e.g, e.name), el: e.el, ft: e.ft, pct: 0, flat: 0, ign: 0, ignPct: 0, cut: 0, cutPct: 0, extra: [] };
   let shPct = 0, shFlat = 0, shHp = 0, red = 0;
@@ -206,7 +215,9 @@ DATA.fabaoInfo = e => {
     else if (a.k === "shPct") shPct += v; else if (a.k === "shFlat") shFlat += v; else if (a.k === "shHp") shHp += v; else if (a.k === "dmgRed") red += v;
   }
   const at = (arr, d) => { const x = (arr || [])[e.g]; return x === undefined ? d : x; };
-  if (T.shield) { const S = F.SHIELD || {}; o.shield = { def: at(S.DEF, 0), hp: at(S.HP, 0) + shHp, pct: Math.min(100, shPct), flat: shFlat, red }; }   // 盾
+  const ref = DATA.fbRef(e.g), pr = (x, k) => typeof x === "number" ? ref[k] * x / 100 : at(x, 0);   // 一个数 = 参考属性 × %
+  o.atk = ref.atk * (F.ATK_MULT || 1);   // 法宝攻击
+  if (T.shield) { const S = F.SHIELD || {}; o.shield = { def: pr(S.DEF, "def"), hp: pr(S.HP, "hp") + shHp, pct: Math.min(100, shPct), flat: shFlat, red }; }   // 盾
   if (T.ding) { const D = F.DING || {}; o.ding = { speed: at(D.SPEED, 0), hit: at(D.HIT, 0), dodge: at(D.DODGE, 0), rounds: at(D.ROUNDS, 1) }; }   // 鼎
   if (T.yin) { const Y = F.YIN || {}; o.yin = { chance: at(Y.CHANCE, 0), rounds: at(Y.ROUNDS, 1) }; }   // 印
   o.ignPct = Math.min(F.CAP.ignResPct || 100, o.ignPct); o.cutPct = Math.min(F.CAP.manaCutPct || 80, o.cutPct);
@@ -215,8 +226,8 @@ DATA.fabaoInfo = e => {
   const rv = a => { if (!a) return 1; const x = Array.isArray(a) ? a[R] : a[DATA.realms[R]]; return x === undefined ? 1 : x; };   // 按境界名取倍率
   o.pct *= rv(F.DMG_REALM); o.flat *= rv(F.DMG_REALM);
   // 法力 = 该阶对应境界的修为突破法力 × MANA_PCT[主属性颜色]%；颜色只看第一条主属性
-  const main = e.attrs.find(a => a.m === 1) || {}, ref = (F.MANA_REF || [])[e.g] || [2 * e.g + 1, 10];
-  const m0 = DATA.brMana(ref[0], ref[1]) * ((F.MANA_PCT || [])[main.c || 0] || 0) / 100;
+  const main = e.attrs.find(a => a.m === 1) || {};
+  const m0 = ref.manaBr * ((F.MANA_PCT || [])[main.c || 0] || 0) / 100;
   o.mana = Math.max(0, m0 * (1 - o.cutPct / 100) - o.cut);
   return o;
 };
