@@ -239,7 +239,7 @@ DATA.spellInfo = (id, lv = 1, own) => {
 //   own = { br: 修为 + 肉身攻击, gf: 功法攻击 }，不写 = 玩家自己的
 DATA.ownAtk = () => {
   if (typeof G === "undefined" || !G.s || !G.gongfaBonus) return { br: 0, gf: 0 };
-  return { br: DATA.playerBase.atk * Math.pow(DATA.GROW, G.s.L) + ((G.bodyBonus ? G.bodyBonus() : {}).atk || 0), gf: G.gongfaBonus().atk };
+  return { br: DATA.realmStat(G.s.mortal ? -1 : G.s.L, "atk") + ((G.bodyBonus ? G.bodyBonus() : {}).atk || 0), gf: G.gongfaBonus().atk };
 };
 DATA.capAtk = (cap, own) => { const o = own || DATA.ownAtk(); return Math.min(o.br, cap) + o.gf; };
 // 法术第 star 星对应境界（config/gongfa.js 的 REF）的人物属性：修为突破 + 肉身突破（不算功法），含 manaBr
