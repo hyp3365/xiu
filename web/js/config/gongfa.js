@@ -137,11 +137,11 @@ CFG.gongfa = {
  * 学习部分：首次学习消耗贡献 = learn × LEARN_TYPE[类别] × LEARN_STAR[门派星级-1] × LEARN_TIER[阶] × EFFECT_LEARN（取整）
  *           学会即第 1 层；不受效果倍率影响
  * 类别 id：xinfa 心法  gongjue 功诀  zhenjing 真经  mijue 秘诀  shenfa 身法  dunshu 遁术
- *          fajue 法诀  zhenjue 真诀  tijue 肉身秘诀  ningshen 凝神术  spell 法术 */
+ *          fajue 法诀  zhenjue 真诀  tijue 肉身秘诀  spell 法术 */
 CFG.gongfa.sect = {
   // ---- 效果（只影响功法效果、法术伤害和法力消耗，不影响学习消耗）----
   // 类型倍率：每类功法 / 法术单独一个
-  TYPE_MULT: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1, tijue: 1, ningshen: 1 },
+  TYPE_MULT: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1, tijue: 1 },
   STAR_MULT: [       // 效果的门派星级倍率
     1,     // 1 星门派
     1.3,   // 2 星
@@ -185,7 +185,7 @@ CFG.gongfa.sect = {
   // ---- 学习消耗（贡献，不受上面的倍率影响）----
   learn: 100,        // 学习贡献的基础值
   // 学习贡献的类别倍率
-  LEARN_TYPE: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1, tijue: 1.1, ningshen: 1 },
+  LEARN_TYPE: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1, tijue: 1.1 },
   LEARN_STAR: [      // 学习贡献的门派星级倍率
     0.5,     // 1 星门派
     5,     // 2 星
@@ -217,7 +217,7 @@ CFG.gongfa.shop = {
   // ---- 售价（灵石，不受上面的倍率影响）----
   price: 500,        // 售价的基础值
   // 售价的类别倍率
-  PRICE_TYPE: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1, ningshen: 1 },
+  PRICE_TYPE: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1 },
   PRICE_STAR: [      // 售价的星级倍率
     1,     // 1 星
     30,    // 2 星
