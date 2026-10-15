@@ -65,6 +65,7 @@ G.module({
         if (e.slot === "fabao") {
           const f = DATA.fabaoInfo(e);
           head = `${DATA.elById[e.el].name}属性${e.name} · 每次祭出消耗法力 ${U.fmt(f.mana)}<br>`;
+          if (!f.shield) head += `法宝攻击 ${U.fmt(f.atk)}<br>`;
           if (f.shield) head += `护盾值 ${U.fmt(f.shield.hp)} · 防御 ${U.fmt(f.shield.def)}<br>`;
           if (f.ding) head += `击中后对方速度 -${U.num(f.ding.speed)}%、命中 -${U.num(f.ding.hit)}%、闪避 -${U.num(f.ding.dodge)}%，持续 ${f.ding.rounds} 回合<br>`;
           if (f.yin) head += `击中后 ${U.num(f.yin.chance)}% 几率眩晕对方 ${f.yin.rounds} 回合<br>`;
