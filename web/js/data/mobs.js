@@ -9,7 +9,7 @@
  *   天将 / 星君 / 界主、宗门考官用 DATA.mobTj / mobXj / mobJz / mobExam 现取
  * ===================================================================== */
 DATA.MOB_KIND = { normal: "普通", elite: "精英", boss: "首领" };
-DATA.MOB_KEYS = ["hp", "atk", "def", "speed", "hit", "dodge"];
+DATA.MOB_KEYS = ["hp", "atk", "def", "speed", "hit", "dodge", "mana"];
 // 遇到时的随机倍率
 DATA.mobRnd = () => { const R = CFG.mobs.RAND || [1, 1]; return R[0] + Math.random() * (R[1] - R[0]); };
 // 肉身突破 n 次的合计加成（同 modules/body.js bodyBonus）
