@@ -63,6 +63,7 @@ DATA.gfSources = {
   jshop: { name: "坊市", cfg: () => DATA.gfDerive((_GF.jshop || {}).PCT) },
   gd: { name: "功德司", cfg: () => DATA.gfDerive((_GF.gd || {}).PCT) },
   tower: { name: "试炼塔", cfg: () => _GF.tower || _GF.sect },   // v25：试炼塔秘诀
+  tianwai: { name: "天外天", cfg: () => DATA.gfDerive((_GF.tianwai || {}).PCT) },   // v106：天外天 11、12 星（暂未开放获取）
 };
 
 for (const k in DATA.gfSources) DATA.gfSources[k].name = DATA.nmPick(_NM.gfSource, k, DATA.gfSources[k].name);
@@ -131,8 +132,16 @@ DATA.towerBooks = [];
 DATA.towerSources.forEach(src => { const M = DATA.towerBookCount(src.star);
   for (let k = 1; k <= M; k++) DATA.towerBooks.push({ id: `${src.id}_${k}`, src: "tower", star: src.star, prefix: src.prefix, name: src.name, el: src.el, reqRealm: -1, book: k }); });
 DATA.towerBookId = (star, k) => { const b = DATA.towerBooks.find(x => x.star === star && x.book === k); return b ? `${b.id}:mijue:huang` : null; };
-// 所有来源：门派（src = "sect"）+ 坊市 + 试炼塔
-DATA.gfSrcById = Object.assign({}, ...DATA.sects.map(x => ({ [x.id]: x })), ...DATA.shopSources.map(x => ({ [x.id]: x })), ...DATA.towerSources.map(x => ({ [x.id]: x })), ...DATA.towerBooks.map(x => ({ [x.id]: x })));
+/* ---------- v106：天外天功法、法术的「来源」（11、12 星，每星 6 个 = 金木水火土雷各一个，id tw星级_序号；暂未开放获取） ---------- */
+DATA.TW_GF_PREFIX = [["太初", "太始", "太素", "太易", "元始", "灵宝"], ["无极", "无量", "无上", "无始", "无终", "无相"]];
+DATA.twSources = [];
+DATA.TW_GF_PREFIX.forEach((list, i) => list.forEach((prefix, n) => {
+  const star = 11 + i, id = `tw${star}_${n}`; prefix = DATA.nmPick(_NM.twGf, id, prefix);
+  DATA.twSources.push({ id, src: "tianwai", star, prefix, name: prefix + DATA.nmPick(_NM, "shopGfSuffix", "传承"), el: DATA.elements[n].id,
+    reqRealm: ((_GF.tianwai || {}).REQ || [20, 22])[i] });
+}));
+// 所有来源：门派（src = "sect"）+ 坊市 + 试炼塔 + 天外天
+DATA.gfSrcById = Object.assign({}, ...DATA.sects.map(x => ({ [x.id]: x })), ...DATA.shopSources.map(x => ({ [x.id]: x })), ...DATA.twSources.map(x => ({ [x.id]: x })), ...DATA.towerSources.map(x => ({ [x.id]: x })), ...DATA.towerBooks.map(x => ({ [x.id]: x })));
 DATA.srcType = o => o.src || "sect";
 DATA.srcCfg = o => DATA.gfSources[DATA.srcType(o)].cfg();
 
@@ -221,15 +230,16 @@ DATA.spellInfo = (id, lv = 1, realm) => {
     // 伤害倍率% = SPELL_PCT × 星级 × 阶 × 层数 × 境界（× 来源倍率）
     pct: Math.round(v(_GF.SPELL_PCT, 100) * v((_GF.SPELL_STAR || [])[sect.star - 1]) * v((_GF.SPELL_TIER || {})[tier.id]) * lv * last(_GF.SPELL_REALM) * tm * v(C.EFFECT_PCT)),
     flat: per * DATA.lvMul(lv), next: per * DATA.lvMul(lv + 1), perLv: per,         // 固定伤害
-    // 法力消耗 = SPELL_MANA × 阶 × 星级 × 层数倍率 × 境界 × 灵根倍率（灵根倍率 = 1 + 该系灵根等级 × MANA_LINGEN）
-    mana: Math.max(1, Math.round(v(_GF.SPELL_MANA, 1) * v((_GF.MANA_TIER || {})[tier.id]) * v((_GF.MANA_STAR || [])[sect.star - 1])
-      * (_GF.MANA_LV && _GF.MANA_LV.length ? v(_GF.MANA_LV[lv - 1], _GF.MANA_LV[_GF.MANA_LV.length - 1]) : lv) * last(_GF.MANA_REALM)
+    // 法力消耗 = 该星级对应境界的修为突破法力（MANA_REF）× MANA_PCT% × 灵根倍率（灵根倍率 = 1 + 该系灵根等级 × MANA_LINGEN）
+    mana: Math.max(1, Math.round(DATA.spellManaBase(sect.star) * v(_GF.MANA_PCT, 0) / 100
       * (1 + (typeof G !== "undefined" && G.s && G.s.lingen ? G.s.lingen[el.id] || 0 : 0) * v(_GF.MANA_LINGEN, 0)))),
     cost: DATA.gfLearnCost(sect, "spell", tier),
   };
 };
 
 // 通用：功法、法术或秘法
+// 法术法力消耗的基数：该星级对应境界的修为突破法力（config/gongfa.js 的 MANA_REF）
+DATA.spellManaBase = star => { const r = (_GF.MANA_REF || [])[star - 1] || [2 * star - 1, 10]; return DATA.brMana(r[0], r[1]); };
 DATA.skillInfo = (id, lv) => DATA.isSpell(id) ? DATA.spellInfo(id, lv) : DATA.isMifa(id) ? DATA.mifaInfo(id, lv) : DATA.gongfaInfo(id, lv);
 
 /* ---------- 宗门秘法 ----------
