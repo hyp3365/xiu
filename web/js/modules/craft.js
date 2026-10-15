@@ -156,8 +156,8 @@ G.module({
         if (!s.blueprints[k]) s.blueprints[k] = [];
         if (!s.furnaces[k]) s.furnaces[k] = [];
         if (s.furnaceUse[k] === undefined) s.furnaceUse[k] = -1;
-        s.blueprints[k] = s.blueprints[k].filter(g => g >= 0 && g < DATA.JIE.length);
-        s.furnaces[k] = s.furnaces[k].filter(g => g >= 0 && g < DATA.JIE.length);
+        s.blueprints[k] = s.blueprints[k].filter(g => g >= 0 && g < DATA.DAN_JIE_N);
+        s.furnaces[k] = s.furnaces[k].filter(g => g >= 0 && g < DATA.DAN_JIE_N);
       }
       if (s.alchJob && !DATA.recipes[s.alchJob.type]) s.alchJob = null;
       s.alchQueue = s.alchQueue.filter(q => DATA.recipes[q.type]);
@@ -272,7 +272,7 @@ G.module({
       if (DATA.FURNACE_KINDS.includes(kind)) { if (!s.blueprints[kind].includes(g)) return this.log("尚未学会该图纸。", "sys"); }
       else {
         if (kind === "ring" ? !this.ringKnown(job.r, g) : !s.forgeKnown.includes(this.forgeKey(kind, g, slot))) return this.log(kind === "ring" ? "尚未学会这张戒指图纸（试炼塔奖励）。" : "尚未学会，去门派炼器室学习。", "sys");
-        if (s.furnaceUse.qi < g) return this.log(`需要使用${DATA.JIE[g]}及以上炼器炉。`, "sys");
+        if (s.furnaceUse.qi < Math.min(g, DATA.DAN_JIE_N - 1)) return this.log(`需要使用${DATA.JIE[Math.min(g, DATA.DAN_JIE_N - 1)]}及以上炼器炉。`, "sys");
       }
       if (s.forgeJob && q.length >= CFG.furnace.QUEUE) return this.log(`队列已满（最多 ${CFG.furnace.QUEUE} 个）。`, "sys");
       const sm = this.jobSm(job);
@@ -476,7 +476,7 @@ G.caveViews.alchemy = function () {
   }
   const list = Object.keys(DATA.recipes).filter(t => DATA.danCat(t) === cat && s.recipes.includes(t + "|" + tier));
   h += `<div class="card"><h3>炼丹<small>${fu >= 0 ? `可炼一阶~${DATA.JIE[fu]}` : `需要${DATA.furnaceKinds[fk]}`} · 已学丹方 ${s.recipes.length}</small></h3>
-    <div class="room-grid five">${DATA.JIE.map((n, g) => `<button class="${tier === g ? "active" : ""}" onclick="G.setDanTier(${g})">${n}</button>`).join("")}</div>` +
+    <div class="room-grid five">${DATA.JIE.slice(0, DATA.DAN_JIE_N).map((n, g) => `<button class="${tier === g ? "active" : ""}" onclick="G.setDanTier(${g})">${n}</button>`).join("")}</div>` +
     (list.length ? list.map(t => {
       const rec = DATA.danRecipe(t, tier), ok = fu >= tier && this.hasMats(rec) && !(a && s.alchQueue.length >= CFG.alchemy.QUEUE);
       const eaten = DATA.isSpeedRecipe(t) ? "" : ` · 已服 ${DATA.danLimit(t, tier) - this.danLeft(t, tier)}/${DATA.danLimit(t, tier)}`;
@@ -511,7 +511,7 @@ G.caveViews.forge = function () {
       <small>${this.matsText(mats)} · ${U.dur(this.forgePer(k, g) / 1000)} · 成功率 ${this.ratePct(this.craftRate(this.forgeCraft(k), g))}</small></div>${btn(this.hasMats(mats), `G.craftFurnace('${k}',${g})`)}</div>`;
   }
   // 装备（门派炼器室学会）
-  const tierOK = qi >= g;
+  const tierOK = qi >= Math.min(g, DATA.DAN_JIE_N - 1);   // 十阶炼器炉可以炼十一、十二阶
   for (const sl of DATA.forgeSlots) if (s.forgeKnown.includes(this.forgeKey("eq", g, sl))) {
     const mats = DATA.forgeEqMats(g);
     if (sl === "fabao") {   // 法宝：7 种形状，点「选择」挑属性和形状
@@ -562,7 +562,7 @@ G.sectForgeView = function () {
     return `<div class="line"><div>${kind === "eq" ? DATA.eqTierIco(img, g) : DATA.li(img)}${name}<span class="tag">${tag}</span><small>${desc}<br>${U.fmt(c)} 贡献 · 学习 ${U.dur(C.learnTime[g] * 60)}</small></div>
       <button class="sm" onclick="G.learnForge('${kind}',${g}${sl ? `,'${sl}'` : ""})" ${has || lock || st || s.contrib < c ? "disabled" : ""}>${has ? "已学会" : lock ? `${g + 1}星宗门可学习` : "学习"}</button></div>`;
   };
-  h += `<div class="room-grid five">${DATA.JIE.map((n, i) => `<button class="${g === i ? "active" : ""}" onclick="G.setForgeLibTier(${i})">${n}</button>`).join("")}</div>
+  h += `<div class="room-grid five">${DATA.JIE.slice(0, DATA.DAN_JIE_N).map((n, i) => `<button class="${g === i ? "active" : ""}" onclick="G.setForgeLibTier(${i})">${n}</button>`).join("")}</div>
     <div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "forge", "炼器室")} · 图谱</h3>` +
     DATA.forgeSlots.map(sl => line("eq", sl, DATA.forgeEqName(sl, g), DATA.slots[sl],
       (sl === "fabao" ? (g ? `升阶图谱：把${DATA.JIE[g - 1]}法宝升为${DATA.JIE[g]}（${DATA.fabaoTypes.length} 种通用，颜色不变）` : `炼制图谱：用耀石炼成一阶法宝（${DATA.fabaoTypes.map(t => t.name).join(" ")}，属性自选）`) : `主属性 ${CFG.forge.attr.main[sl].map(k => DATA.attrNames[k]).join("、")} + 1~5 条附加属性`) + (g ? ` · 需上一阶${DATA.slots[sl]}` : ""))).join("") +
@@ -578,7 +578,7 @@ G.sectAlchemyView = function () {
     h += `<div class="card"><h3>参悟中<small>《${DATA.danName(t, +g)}》</small></h3><p class="desc">剩余 ${U.dur(Math.max(0, st.end - Date.now()) / 1000 + 59)}</p></div>`; }
   h += this.danCatBar("danLibCat");
   const cat = this.danLibCat || 0, catName = (CFG.alchemy.CATS || [])[cat] || "", types = Object.keys(DATA.recipes).filter(t => DATA.danCat(t) === cat);
-  h += `<div class="room-grid five">${DATA.JIE.map((n, g) => `<button class="${tier === g ? "active" : ""}" onclick="G.setDanLibTier(${g})">${n}</button>`).join("")}</div>
+  h += `<div class="room-grid five">${DATA.JIE.slice(0, DATA.DAN_JIE_N).map((n, g) => `<button class="${tier === g ? "active" : ""}" onclick="G.setDanLibTier(${g})">${n}</button>`).join("")}</div>
     <div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "alchemy", "炼丹房")} · ${catName}丹方</h3>` +
     types.map(t => {
       const key = t + "|" + tier, has = s.recipes.includes(key), c = DATA.danLearnCost(t, tier), need = DATA.danStar(t, tier), lock = need > star;
