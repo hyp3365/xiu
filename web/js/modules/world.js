@@ -793,6 +793,19 @@ G.module({
       }
       this.startGfLearn(id); this.after();
     },
+    // 功德司上古丹：本界第 i 张图卖 i 阶（config/alchemy.js 的 SHANGGU）
+    sgDanList(a) {
+      const S = CFG.alchemy.SHANGGU || {}, w = DATA.maps[a].w, cat = (S.WORLD_CAT || {})[w], g = (DATA.worldMapIdx[w] || []).indexOf(a);
+      if (!cat || g < 0) return [];
+      return Object.keys(DATA.dans).filter(t => DATA.danCat(t) === cat && CFG.alchemy.recipes[t].val[g] !== undefined).map(type => ({ type, g, cost: (S.MERIT || [])[g] || 0 }));
+    },
+    buySgDan(a, type, n) {
+      const s = this.s, o = DATA.jieGfOf("gd", a), d = this.sgDanList(a).find(x => x.type === type); if (!o || !d) return;
+      if (!this.realmOK(o.reqRealm)) return this.log(`境界不足，需要${DATA.realmLabel(o.reqRealm)}。`, "sys");
+      n = Math.min(n, Math.floor((s.merit || 0) / d.cost)); if (n <= 0) return this.log("功德不足。", "sys");
+      if (!this.addDan(type, d.g, n, 1)) return;
+      s.merit -= d.cost * n; this.log(`购得${DATA.danName(type, d.g, 1)} ×${n}。`, "good"); this.after();
+    },
     jieGfView(kind, a) {
       const s = this.s, o = DATA.jieGfOf(kind, a); if (!o) return "";
       const lock = !this.realmOK(o.reqRealm), gd = kind === "gd";
@@ -800,7 +813,10 @@ G.module({
         const poor = gd ? (s.merit || 0) < g.cost : s.stone < g.cost || this.xjGxOf(a) < g.gx;
         return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.el.name}</span><span class="tag">${ty.name}</span><small>每层${g.label} +${U.num(g.perLv)} · ${gd ? `${U.fmt(g.cost)} 功德` : `${U.fmt(g.cost)} 灵石 · ${U.fmt(g.gx)} 贡献`} · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>
           ${lock && !has ? `<button class="sm" disabled>境界不足</button>` : this.gfLearnBtn(g, `G.learnJieGf('${g.id}')`, poor)}</div>`; }).join("");
-      return `<div class="card"><h3>${o.name}<small>${gd ? `功德 ${U.fmt(s.merit || 0)}` : `灵石 ${U.fmt(s.stone)} · 本图贡献 ${U.fmt(this.xjGxOf(a))}`}</small></h3>${rows}</div>`;
+      const dans = gd ? this.sgDanList(a).map(d => { const r = DATA.dans[d.type], poor = (s.merit || 0) < d.cost;
+        return `<div class="line"><div><img class="mi" src="${DATA.danIcon(d.type)}" alt="">${DATA.danName(d.type, d.g, 1)}<small>永久${r.label} +${U.num(DATA.danVal(d.type, d.g))} · 已服 ${DATA.danLimit(d.type, d.g) - this.danLeft(d.type, d.g)} / ${DATA.danLimit(d.type, d.g)} · ${U.fmt(d.cost)} 功德</small></div>
+          ${lock ? `<button class="sm" disabled>境界不足</button>` : `<div class="sg-btns"><button class="sm" onclick="G.buySgDan(${a},'${d.type}',1)" ${poor ? "disabled" : ""}>购买</button><button class="sm" onclick="G.buySgDan(${a},'${d.type}',10)" ${poor ? "disabled" : ""}>×10</button></div>`}</div>`; }).join("") : "";
+      return `<div class="card"><h3>${o.name}<small>${gd ? `功德 ${U.fmt(s.merit || 0)}` : `灵石 ${U.fmt(s.stone)} · 本图贡献 ${U.fmt(this.xjGxOf(a))}`}</small></h3>${rows}</div>${dans ? `<div class="card"><h3>上古丹</h3>${dans}</div>` : ""}`;
     },
     // 管理员：网页里更新游戏（服务器拉取 GitHub 最新代码，完成后刷新页面）
     async webUpdate() {
