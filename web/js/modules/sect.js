@@ -542,7 +542,7 @@ G.module({
           return `<div class="line"><div>${DATA.li(DATA.matImg("herb", g))}${n}种子<small>${U.fmt(c)} 贡献 · ${U.dur(DATA.growTime(g) / 1000)}成熟</small></div>
             <button class="sm" onclick="G.exchangeSeed(${g})" ${has || lock || s.contrib < c ? "disabled" : ""}>${has ? "已拥有" : lock ? `${lock}星宗门可兑换` : "兑换"}</button></div>`; }).join("") + `</div>`;
       } else if (tt === "bp") {
-        h += DATA.FURNACE_KINDS.map(k => `<div class="card"><h3>${DATA.furnaces[k].name}图纸<small>放进背包后点「学习」</small></h3>` + DATA.JIE.map((jn, g) => {
+        h += DATA.FURNACE_KINDS.map(k => `<div class="card"><h3>${DATA.furnaces[k].name}图纸<small>放进背包后点「学习」</small></h3>` + DATA.JIE.slice(0, DATA.DAN_JIE_N).map((jn, g) => {
           const c = DATA.blueprintCost(k, g), has = s.blueprints[k].includes(g) || s.bag.some(it => it.t === "bp" && it.kind === k && it.g === g), need = DATA.blueprintStar(k, g), lock = need > x.star;
           return `<div class="line"><div>${DATA.li(DATA.iconImg("bp"))}${DATA.furnaceName(k, g)}图纸<small>${U.fmt(c)} 贡献</small></div>
             <button class="sm" onclick="G.exchangeBlueprint('${k}',${g})" ${has || lock || s.contrib < c ? "disabled" : ""}>${has ? (s.blueprints[k].includes(g) ? "已学会" : "在背包") : lock ? `${need}星宗门可兑换` : "兑换"}</button></div>`; }).join("") + `</div>`).join("");
