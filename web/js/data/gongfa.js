@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------
  * 【功法】六大类，每类加成一种属性（固定数值，不是百分比）：
  *   心法 → 防御      功诀 → 攻击      真经 → 生命上限
- *   秘诀 → 修炼速度  身法 → 命中      遁术 → 闪避      法诀 → 法力上限
+ *   秘诀 → 修炼速度  身法 → 速度      凝神术 → 命中    遁术 → 闪避      法诀 → 法力上限
  *   真诀 → 本门派属性的抗性（金木水火土雷之一，v15）
  * 每个门派每类功法一本（v93 取消天地玄黄四阶，效果 = 以前四阶相加）
  * 必须学会至少一部秘诀才能修炼。
@@ -43,11 +43,12 @@ DATA.gongfaTypes = [
   { id: "gongjue",  name: "功诀", suffix: "诀",   stat: "atk",       label: "攻击" },
   { id: "zhenjing", name: "真经", suffix: "真经", stat: "hp",        label: "生命上限" },
   { id: "mijue",    name: "秘诀", suffix: "秘诀", stat: "cultivate", label: "修炼速度" },
-  { id: "shenfa",   name: "身法", suffix: "身法", stat: "hit",       label: "命中" },
+  { id: "shenfa",   name: "身法", suffix: "身法", stat: "speed",     label: "速度" },
   { id: "dunshu",   name: "遁术", suffix: "遁术", stat: "dodge",     label: "闪避" },
   { id: "fajue",    name: "法诀", suffix: "法诀", stat: "mana",      label: "法力上限" },
   { id: "zhenjue",  name: "真诀", suffix: "真诀", stat: "res",       label: "抗性" }, // 抗性属性 = 来源属性
   { id: "tijue",    name: "肉身秘诀", suffix: "炼体诀", stat: "body", label: "肉身修炼速度", sectOnly: true }, // 修炼肉身的前提；只在宗门功法殿学习
+  { id: "ningshen", name: "凝神术", suffix: "凝神术", stat: "hit",   label: "命中" },   // v104：加命中（放最后，不影响其他功法的名字）
 ];
 
 DATA.gongfaTypes.forEach(t => { const n = (_NM.gfType || {})[t.id]; if (n) { t.name = DATA.nmPick(n, 0, t.name); t.suffix = DATA.nmPick(n, 1, t.suffix); } });
@@ -138,10 +139,13 @@ DATA.srcCfg = o => DATA.gfSources[DATA.srcType(o)].cfg();
 /* 通用算法：基础数值 × 类型倍率 × 星级倍率 × 阶倍率 × EFFECT
  *   基础数值：所有来源共用 CFG.gongfa.base；学习价格另算（gfLearnCost）
  *   o 来源、typeId 类别 id（法术 = "spell"）、key = base 里的项、eff = EFFECT 名 */
+// v104：这些属性的功法星级倍率用 STAT_STAR（秘诀、肉身秘诀、法术仍用 STAR_MULT）
+DATA.GF_STAT_KEYS = ["hp", "atk", "def", "speed", "hit", "dodge", "mana", "res"];
 DATA.gfBase = (C, key) => { const B = _GF.base || {}; return B[key] !== undefined ? B[key] : C[key] !== undefined ? C[key] : (C.base || {})[key] || 0; };
 DATA.gfCalc = (o, typeId, tier, key, eff) => {
   const C = DATA.srcCfg(o), b = DATA.gfBase(C, key);
-  const TM = C.TIER_MULT || {}, tm = (C.TYPE_MULT || {})[typeId], sm = (C.STAR_MULT || [])[o.star - 1], e = C[eff];
+  const TM = C.TIER_MULT || {}, tm = (C.TYPE_MULT || {})[typeId], e = C[eff];
+  const sm = (C.STAT_STAR && DATA.GF_STAT_KEYS.includes(key) ? C.STAT_STAR : C.STAR_MULT || [])[o.star - 1];   // v104：加战斗属性的功法用 STAT_STAR
   const tr = typeId === "spell" ? TM[tier.id] : DATA.ALL_TIERS.reduce((t, x) => t + (TM[x.id] === undefined ? 1 : TM[x.id]), 0);   // 功法 = 四阶倍率相加
   return b * (tm === undefined ? 1 : tm) * (sm === undefined ? 1 : sm) * (tr === undefined ? 1 : tr) * (e === undefined ? 1 : e);
 };
