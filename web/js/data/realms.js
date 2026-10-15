@@ -30,11 +30,29 @@ for (const k of ["DMG_REALM"]) {
 
 /* 以下数值都来自 js/config/ 下的数值文件（数值设置文件），这里只做计算 */
 const _R = CFG.realm, _P = CFG.player;
-// 每层需要的修为：练气一层→二层 FIRST_EXP，之后每层 × EXP_RATE
-DATA.needExp = L => _R.FIRST_EXP * Math.pow(_R.EXP_RATE, L);
-DATA.MORTAL_EXP = _R.MORTAL_EXP; // 凡人 → 练气一层
+// 境界突破表（config/realm.js）：一行一个境界，没写的境界沿用上面最近一行；T = 要突破到的总层序（0 = 第一境界一层）
+DATA.brRow = (rows, r) => { let o = null; for (const x of rows || []) if (x[0] <= r && (!o || x[0] >= o[0])) o = x; return o; };
+// 突破到第 T 层需要的修为 / 气血 = 该境界一层需要 + 每层增加 × 层(0~9)
+DATA.brNeed = (rows, T) => { const x = DATA.brRow(rows, Math.floor(Math.max(0, T) / DATA.LAYERS)); return x ? x[1] + (x[2] || 0) * (Math.max(0, T) % DATA.LAYERS) : 0; };
+DATA.needExp = L => DATA.brNeed(_R.EXP, L + 1);   // 第 L 层 → 第 L+1 层
+DATA.MORTAL_EXP = DATA.brNeed(_R.EXP, 0);          // 凡人 → 练气一层
+// 突破 n 层（第 0 ~ n-1 层）增加的属性合计（缓存）
+DATA._brSum = {};
+DATA.brSum = (rows, n, tag) => {
+  const c = DATA._brSum[tag] || (DATA._brSum[tag] = [{}]);
+  for (let T = c.length - 1; T < n; T++) {
+    const o = Object.assign({}, c[T]), g = (DATA.brRow(rows, Math.floor(T / DATA.LAYERS)) || [0, {}])[1] || {};
+    for (const k in g) o[k] = (o[k] || 0) + (+g[k] || 0);
+    c[T + 1] = o;
+  }
+  return c[Math.max(0, n)] || {};
+};
+// 修为突破属性：凡人基础（player.base / RES_BASE）+ 突破到第 L 层的合计；L < 0 = 凡人
+DATA.realmStat = (L, k) => (k === "res" ? _P.RES_BASE || 0 : _P.base[k] || 0) + (DATA.brSum(_R.GAIN, L < 0 ? 0 : L + 1, "xw")[k] || 0);
+// 肉身突破属性：突破 n 层的合计
+DATA.bodyStat = (n, k) => DATA.brSum(_R.BODY_GAIN, n, "rs")[k] || 0;
 
-// 人物属性（base 随境界 × GROW；fixed 不随境界）
+// 人物属性：base = 凡人基础（再加修为突破合计，见 DATA.realmStat）；fixed 不随境界；GROW 只给装备属性用
 DATA.GROW = _P.GROW;
 DATA.playerBase = _P.base;
 DATA.playerFixed = _P.fixed;
