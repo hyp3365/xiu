@@ -336,7 +336,8 @@ body.nologin #app, body.nologin #toast { display: none; }
 .btv-hp span{position:absolute;inset:0;text-align:center;font-size:12px;line-height:16px;color:#3b2f22;font-weight:bold;text-shadow:0 0 3px #fff}
 .btv-zhan{position:absolute;left:50%;top:2%;transform:translateX(-50%);width:44px;height:44px;border-radius:50%;background:radial-gradient(#b3261e,#6d140f);color:#fff;font-size:22px;font-weight:bold;line-height:44px;text-align:center;box-shadow:0 0 10px #6d140f}
 .btv-u{position:absolute;bottom:4%;height:66%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
-.btv-u.l{left:6%;width:32%}.btv-u.r{right:6%;width:35%}
+.btv-u.l{left:4%;width:36%}.btv-u.r{right:7%;width:30%}
+.btv-u.r img{max-height:62%}
 .btv-u img{max-height:72%;max-width:100%;object-fit:contain;filter:drop-shadow(0 4px 6px #0006)}
 .btv-nm{margin-top:2px;padding:1px 12px;background:linear-gradient(#fbf3dc,#e7d3a5);border:1px solid #b89a63;border-radius:10px;color:#8a2b1c;font-size:13px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .btv-fx{position:absolute;inset:0;pointer-events:none}
