@@ -52,6 +52,9 @@ DATA.gongfaTypes = [
 ];
 
 DATA.gongfaTypes.forEach(t => { const n = (_NM.gfType || {})[t.id]; if (n) { t.name = DATA.nmPick(n, 0, t.name); t.suffix = DATA.nmPick(n, 1, t.suffix); } });
+// v121：每类功法几本（config/gongfa.js 的 BOOKS）；第 2、3 本是新类别 id「xinfa2」「xinfa3」，放最后（不影响原有功法的名字），倍率、价格按原类别
+DATA.gongfaTypes.slice().forEach(t => { for (let b = 2; b <= ((_GF.BOOKS || {})[t.id] || 1); b++) DATA.gongfaTypes.push(Object.assign({}, t, { id: t.id + b, base: t.id, book: b })); });
+DATA.gfTypeKey = id => { const t = DATA.gongfaTypes.find(x => x.id === id); return t && t.base || id; };   // 倍率、价格表用的类别 id
 
 /* 功法来源类型（内部标记）：sect 宗门功法、shop 凡界坊市功法；以后加新类型在这里加一行 + config 加一组 */
 // 效果 = 宗门功法 × PCT%（凡界坊市、仙魔冥神坊市、功德司用）
@@ -98,9 +101,9 @@ DATA.sectWords = sect => {
 // 功法名：门派前缀 + 随机词 + 类别后缀（每个 类别×阶 用不同的词）
 DATA.gongfaName = (sect, type, tier) => {
   if (sect.book) return `${sect.prefix}${type.suffix}·第${sect.book}卷`;   // 试炼塔秘诀
-  if (sect.plain) return sect.prefix + DATA.nmPick(_NM.jieGfSuffix, type.id, type.suffix);   // 仙魔冥神坊市、功德司：地图名 + 后缀（config/names.js 的 jieGfSuffix）
-  const w = DATA.sectWords(sect), ti = DATA.gongfaTypes.indexOf(type);
-  return sect.prefix + w[(ti * 4 + tier.idx) % w.length] + type.suffix;
+  if (sect.plain) return sect.prefix + DATA.nmPick(_NM.jieGfSuffix, type.base || type.id, type.suffix) + (type.book ? DATA.nmPick(_NM.gfBook, type.book - 1, ["", "·贰", "·叁", "·肆", "·伍"][type.book - 1] || "·" + type.book) : "");   // 仙魔冥神坊市、功德司：地图名 + 后缀（config/names.js 的 jieGfSuffix）
+  const w = DATA.sectWords(sect), bt = type.base ? DATA.gongfaTypes.find(x => x.id === type.base) : type, ti = DATA.gongfaTypes.indexOf(bt);
+  return sect.prefix + w[(ti * 4 + (type.book ? type.book - 1 : tier.idx)) % w.length] + type.suffix;   // 第 2、3 本用同类别后面的词
 };
 // 法术名：门派前缀 + 随机词 + 阶后缀（用本属性的词）
 DATA.spellName = (sect, el, tier) => {
@@ -151,9 +154,23 @@ DATA.srcCfg = o => DATA.gfSources[DATA.srcType(o)].cfg();
 // v104：这些属性的功法星级倍率用 STAT_STAR（秘诀、肉身秘诀、法术仍用 STAR_MULT）
 DATA.GF_STAT_KEYS = ["hp", "atk", "def", "speed", "hit", "dodge", "mana", "res"];
 DATA.gfBase = (C, key) => { const B = _GF.base || {}; return B[key] !== undefined ? B[key] : C[key] !== undefined ? C[key] : (C.base || {})[key] || 0; };
+// v121：战斗属性每单位（sect.TOTAL ÷ 1~10 星全部宗门功法练满的 STAT_STAR 合计）
+DATA._gfUnit = {};
+DATA.gfUnit = key => {
+  if (DATA._gfUnit[key] !== undefined) return DATA._gfUnit[key];
+  const S = _GF.sect, nT = DATA.gongfaTypes.filter(t => t.stat === key).length;
+  let d = 0; for (let st = 1; st <= 10; st++) d += (S.STAT_STAR[st - 1] || 0) * DATA.sects.filter(x => x.star === st).length;
+  return DATA._gfUnit[key] = d && nT ? ((S.TOTAL || {})[key] || 0) / (d * nT * DATA.lvMul(_GF.MAX)) : 0;
+};
+// 每本功法固定的随机倍率 1 ± RAND
+DATA.gfRand = id => { const R = _GF.sect.RAND || 0; let h = 2166136261; for (const c of id) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0; return 1 + R * ((h % 20001) / 10000 - 1); };
 DATA.gfCalc = (o, typeId, tier, key, eff) => {
   const C = DATA.srcCfg(o), b = DATA.gfBase(C, key);
-  const TM = C.TIER_MULT || {}, tm = (C.TYPE_MULT || {})[typeId], e = C[eff];
+  const TM = C.TIER_MULT || {}, tm = (C.TYPE_MULT || {})[DATA.gfTypeKey(typeId)], e = C[eff];
+  if (C.TOTAL && DATA.GF_STAT_KEYS.includes(key) && typeId !== "spell") {   // v121：战斗属性按 TOTAL 分配
+    const ek = e === undefined ? 1 : e / (_GF.sect[eff] === undefined ? 1 : _GF.sect[eff]);   // 坊市 / 功德司 = 宗门 × PCT%
+    return DATA.gfUnit(key) * (C.STAT_STAR[o.star - 1] || 0) * (tm === undefined ? 1 : tm) * ek * DATA.gfRand(o.id + ":" + typeId);
+  }
   const sm = (C.STAT_STAR && DATA.GF_STAT_KEYS.includes(key) ? C.STAT_STAR : C.STAR_MULT || [])[o.star - 1];   // v104：加战斗属性的功法用 STAT_STAR
   const tr = typeId === "spell" ? TM[tier.id] : DATA.ALL_TIERS.reduce((t, x) => t + (TM[x.id] === undefined ? 1 : TM[x.id]), 0);   // 功法 = 四阶倍率相加
   return b * (tm === undefined ? 1 : tm) * (sm === undefined ? 1 : sm) * (tr === undefined ? 1 : tr) * (e === undefined ? 1 : e);
@@ -168,15 +185,15 @@ DATA.studyPer = info => { const v = (x, d) => x === undefined ? d : x; if (info.
 DATA.gfLearnCost = (o, typeId, tier) => {
   if (DATA.srcType(o) !== "shop") {   // 宗门学习贡献单独设置：learn × LEARN_TYPE × LEARN_STAR × LEARN_TIER × EFFECT_LEARN（不用效果倍率）
     const C = DATA.srcCfg(o), v = (x, d = 1) => x === undefined ? d : x;
-    if (o.src === "jshop" || o.src === "gd") { const J = _GF[o.src] || {}, i = o.star - 6, t = v((J.TYPE || {})[typeId]);   // 仙魔冥神：按星级（6~10 星）
+    if (o.src === "jshop" || o.src === "gd") { const J = _GF[o.src] || {}, i = o.star - 6, t = v((J.TYPE || {})[DATA.gfTypeKey(typeId)]);   // 仙魔冥神：按星级（6~10 星）
       return o.src === "gd" ? Math.floor(v((J.MERIT || [])[i], 0) * t) : Math.floor(v((J.STONE || [])[i], 0) * t); }
     const tk = typeId === "spell" ? "huang" : C.LEARN_AS || "di";   // v93：功法按以前地阶的贡献，法术按黄阶
-    return Math.floor(v(C.learn, 0) * v((C.LEARN_TYPE || {})[typeId]) * v((C.LEARN_STAR || [])[o.star - 1]) * v((C.LEARN_TIER || {})[tk]) * v(C.EFFECT_LEARN));
+    return Math.floor(v(C.learn, 0) * v((C.LEARN_TYPE || {})[DATA.gfTypeKey(typeId)]) * v((C.LEARN_STAR || [])[o.star - 1]) * v((C.LEARN_TIER || {})[tk]) * v(C.EFFECT_LEARN));
   }
   // 坊市售价单独设置：base.price × PRICE_TYPE × PRICE_STAR × PRICE_TIER × EFFECT_PRICE
   const C = _GF.shop, v = (x, d = 1) => x === undefined ? d : x;
   const tk = typeId === "spell" ? "huang" : C.PRICE_AS || "tian";   // v93：功法按以前天阶的售价，法术按黄阶
-  return Math.floor(v(C.price !== undefined ? C.price : (C.base || {}).price, 0) * v((C.PRICE_TYPE || {})[typeId]) * v((C.PRICE_STAR || [])[o.star - 1]) * v((C.PRICE_TIER || {})[tk]) * v(C.EFFECT_PRICE));
+  return Math.floor(v(C.price !== undefined ? C.price : (C.base || {}).price, 0) * v((C.PRICE_TYPE || {})[DATA.gfTypeKey(typeId)]) * v((C.PRICE_STAR || [])[o.star - 1]) * v((C.PRICE_TIER || {})[tk]) * v(C.EFFECT_PRICE));
 };
 
 /* ---------- 功法 ----------
@@ -203,7 +220,7 @@ DATA.gongfaInfo = (id, lv = 1) => {
   return {
     kind: "gf", id, sect, src: DATA.srcType(sect), star: sect.star, type, tier, lv, el,
     label: type.stat === "res" ? el.name + "抗性" : type.label, // 显示用：真诀写成「火抗性」等
-    gx: J ? Math.floor(((J.GX || [])[sect.star - 6] || 0) * (((J.TYPE || {})[type.id]) === undefined ? 1 : J.TYPE[type.id])) : 0,   // 仙魔冥神坊市：还要本图贡献
+    gx: J ? Math.floor(((J.GX || [])[sect.star - 6] || 0) * (((J.TYPE || {})[DATA.gfTypeKey(type.id)]) === undefined ? 1 : J.TYPE[DATA.gfTypeKey(type.id)])) : 0,   // 仙魔冥神坊市：还要本图贡献
     name: DATA.gongfaName(sect, type, tier),
     value: per * DATA.lvMul(lv),                  // 当前加成（固定数值）
     next: per * DATA.lvMul(lv + 1),               // 下一层的加成
