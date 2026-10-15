@@ -9,14 +9,14 @@
  * ===================================================================== */
 const _FG = CFG.forge;
 
-// 每阶每部位一种装备（一阶 ~ 十阶）
+// 每阶每部位一种装备（一阶 ~ 十二阶）
 DATA.forgeNames = {
-  helmet:  ["青铜盔", "玄铁盔", "赤炎冠", "寒玉冠", "紫金冠", "星辰冠", "太虚冠", "混元冠", "鸿蒙冠", "道源冠"],
-  armor:   ["青铜甲", "玄铁甲", "赤炎袍", "寒玉衣", "紫金甲", "星辰战衣", "太虚道袍", "混元宝甲", "鸿蒙仙衣", "道源圣衣"],
-  weapon:  ["青铜剑", "玄铁剑", "赤炎刀", "寒玉剑", "紫金锏", "星辰剑", "太虚剑", "混元戟", "鸿蒙剑", "道源剑"],
-  legs:    ["青铜护腿", "玄铁护腿", "赤炎护膝", "寒玉腿甲", "紫金腿甲", "星辰护腿", "太虚护腿", "混元腿甲", "鸿蒙护腿", "道源护腿"],
-  boots:   ["青铜靴", "玄铁靴", "赤炎靴", "寒玉靴", "紫金靴", "星辰靴", "太虚靴", "混元靴", "鸿蒙靴", "道源靴"],
-  pendant: ["青铜坠", "玄铁坠", "赤炎佩", "寒玉佩", "紫金坠", "星辰佩", "太虚佩", "混元坠", "鸿蒙佩", "道源佩"],
+  helmet:  ["青铜盔", "玄铁盔", "赤炎冠", "寒玉冠", "紫金冠", "星辰冠", "太虚冠", "混元冠", "鸿蒙冠", "道源冠", "太初冠", "无极冠"],
+  armor:   ["青铜甲", "玄铁甲", "赤炎袍", "寒玉衣", "紫金甲", "星辰战衣", "太虚道袍", "混元宝甲", "鸿蒙仙衣", "道源圣衣", "太初神甲", "无极圣袍"],
+  weapon:  ["青铜剑", "玄铁剑", "赤炎刀", "寒玉剑", "紫金锏", "星辰剑", "太虚剑", "混元戟", "鸿蒙剑", "道源剑", "太初剑", "无极剑"],
+  legs:    ["青铜护腿", "玄铁护腿", "赤炎护膝", "寒玉腿甲", "紫金腿甲", "星辰护腿", "太虚护腿", "混元腿甲", "鸿蒙护腿", "道源护腿", "太初腿甲", "无极护腿"],
+  boots:   ["青铜靴", "玄铁靴", "赤炎靴", "寒玉靴", "紫金靴", "星辰靴", "太虚靴", "混元靴", "鸿蒙靴", "道源靴", "太初靴", "无极靴"],
+  pendant: ["青铜坠", "玄铁坠", "赤炎佩", "寒玉佩", "紫金坠", "星辰佩", "太虚佩", "混元坠", "鸿蒙佩", "道源佩", "太初佩", "无极佩"],
 };
 // 名字在 config/names.js 的 forge（上面是原名，读档对照用）
 DATA.NM_DEF.forge = JSON.parse(JSON.stringify(DATA.forgeNames));
@@ -214,10 +214,9 @@ DATA.fabaoInfo = e => {
   const R = typeof G !== "undefined" && G.s && !G.s.mortal ? Math.min(Math.floor(G.s.L / DATA.LAYERS), 23) : 0;
   const rv = a => { if (!a) return 1; const x = Array.isArray(a) ? a[R] : a[DATA.realms[R]]; return x === undefined ? 1 : x; };   // 按境界名取倍率
   o.pct *= rv(F.DMG_REALM); o.flat *= rv(F.DMG_REALM);
-  // 法力 = MANA[阶] × MANA_COLOR[主属性颜色] × MANA_REALM[境界]；颜色只看主属性（伤害%那条）
-  const main = e.attrs.find(a => a.m === 1) || {};
-  const mc = (F.MANA_COLOR || [])[main.c || 0];
-  const m0 = (F.MANA && F.MANA[e.g] !== undefined ? F.MANA[e.g] : (F.base.mana || 0) * (F.GROW[e.g] || 1)) * (mc === undefined ? 1 : mc) * rv(F.MANA_REALM);
+  // 法力 = 该阶对应境界的修为突破法力 × MANA_PCT[主属性颜色]%；颜色只看第一条主属性
+  const main = e.attrs.find(a => a.m === 1) || {}, ref = (F.MANA_REF || [])[e.g] || [2 * e.g + 1, 10];
+  const m0 = DATA.brMana(ref[0], ref[1]) * ((F.MANA_PCT || [])[main.c || 0] || 0) / 100;
   o.mana = Math.max(0, m0 * (1 - o.cutPct / 100) - o.cut);
   return o;
 };
@@ -264,7 +263,7 @@ DATA.skillIcon = g => g.kind === "mf" || g.noEl ? DATA.iconImg("mifa") : DATA.ic
 DATA.skillIco = g => `<span class="ico t-${g.tier.id}"><img src="${DATA.skillIcon(g)}" alt="" loading="lazy">${g.kind === "mf" ? `<b>${g.tier.name[0]}</b>` : ""}</span>`;   // v93：功法、法术不再显示阶
 // 炼制物品（装备 / 戒指 / 法宝）的小图标：按阶换边框
 // 炼制装备 / 法宝按阶（一阶~十阶）加外观：越高阶越亮、光晕越强，高阶有流光（css/style.css 的 .eqt0 ~ .eqt9）
-DATA.eqCls = e => e && e.attrs ? ` eqt eqt${Math.max(0, Math.min(9, e.g || 0))}${e.slot === "fabao" && e.el ? ` fbel fb-${e.el}` : ""}` : "";   // 法宝按金木水火土雷显示颜色
+DATA.eqCls = e => e && e.attrs ? ` eqt eqt${Math.max(0, Math.min(11, e.g || 0))}${e.slot === "fabao" && e.el ? ` fbel fb-${e.el}` : ""}` : "";   // 法宝按金木水火土雷显示颜色
 DATA.fbElCls = e => e && e.slot === "fabao" && e.el ? ` fb-${e.el}` : "";
 // 炼器室列表（宗门、洞府）用：按第 g 阶显示同样的外观
-DATA.eqTierIco = (src, g) => `<span class="ico j${g} eqt eqt${Math.max(0, Math.min(9, g))}"><img src="${src}" alt="" loading="lazy"><b>${g + 1}</b></span>`;
+DATA.eqTierIco = (src, g) => `<span class="ico j${g} eqt eqt${Math.max(0, Math.min(11, g))}"><img src="${src}" alt="" loading="lazy"><b>${g + 1}</b></span>`;
