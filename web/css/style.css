@@ -23,6 +23,8 @@ body{color:#e8dcc4;font-family:"Songti SC","Noto Serif SC","Source Han Serif SC"
 #log p{margin:1px 0;color:#c9bb9f}
 #log .good{color:#9fd3c7}#log .bad{color:#e07a5f}#log .gold{color:#e9c46a}#log .sys{color:#8c7e66}
 #tabs{flex:none;display:flex;background:#1b1713;border-top:1px solid #3a3027;padding-bottom:env(safe-area-inset-bottom)}
+/* 安装版（APK）：底部导航往上抬，避开手机底部手势条 */
+.apk #tabs{padding-bottom:calc(14px + env(safe-area-inset-bottom))}
 #tabs button{flex:1;background:none;border:none;border-radius:0;color:#9c8d72;padding:6px 0 7px;font-size:12px;display:flex;flex-direction:column;align-items:center}
 #tabs button i{font-style:normal;font-size:17px;line-height:1.2}
 #tabs button.active{color:#e9c46a;background:#241e18}
