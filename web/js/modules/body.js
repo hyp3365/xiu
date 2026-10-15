@@ -37,7 +37,7 @@ G.module({
     // 肉身境界名：凡体 / 淬皮一层
     bodyName(L) { if (L === undefined) L = this.s.bodyL; return L < 0 ? "凡体" : CFG.body.names[Math.floor(L / DATA.LAYERS)] + DATA.layerNames[L % DATA.LAYERS]; },
     // 升到第 T 层（= bodyL + 1）需要的肉身修为
-    bodyNeed(T) { const B = CFG.body; if (T === undefined) T = this.s.bodyL + 1; return T <= 0 ? B.FIRST_EXP : B.NEED_BASE * Math.pow(B.NEED_RATE, T - 1); },
+    bodyNeed(T) { if (T === undefined) T = this.s.bodyL + 1; return DATA.brNeed(CFG.realm.BODY_EXP, T); },   // config/realm.js 的 BODY_EXP
     // 肉身修炼速度（每 10 秒）
     bodySpeed() {
       const s = this.s, base = (CFG.body.BASE_SPEED || 0) * Math.pow(CFG.body.SPEED_GROW || DATA.GROW, s.mortal ? 0 : s.L);
@@ -82,12 +82,10 @@ G.module({
       this.after();
     },
     toggleBodyAuto() { this.s.bodyAuto = !this.s.bodyAuto; this.log(this.s.bodyAuto ? "开启自动修炼肉身。" : "停止自动修炼肉身。", "sys"); this.after(); },
-    // 肉身突破加的属性合计：第 k 次加 数值 × 成长^(k-1)
+    // 肉身突破加的属性合计（config/realm.js 的 BODY_GAIN，每层固定值）+ 宗门练体池
     bodyBonus() {
-      const n = (this.s.bodyL === undefined ? -1 : this.s.bodyL) + 1, G0 = CFG.body.GAIN || {}, out = { hp: 0, atk: 0, def: 0, mana: 0, speed: 0, hit: 0, dodge: 0, crit: 0, res: 0 };
-      const pg = this.s.poolGain || {}; for (const k in out) out[k] += pg[k] || 0;   // 宗门练体池加的（sect.js）
-      if (n <= 0) return out;
-      for (const k in out) { const g = G0[k]; if (!g) continue; const [v, r] = g; out[k] += r === 1 ? v * n : v * (Math.pow(r, n) - 1) / (r - 1); }
+      const n = (this.s.bodyL === undefined ? -1 : this.s.bodyL) + 1, out = { hp: 0, atk: 0, def: 0, mana: 0, speed: 0, hit: 0, dodge: 0, crit: 0, res: 0 };
+      const pg = this.s.poolGain || {}; for (const k in out) out[k] += (pg[k] || 0) + DATA.bodyStat(n, k);   // 宗门练体池加的（sect.js）
       return out;
     },
     bodyView() {
