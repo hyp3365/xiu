@@ -6,6 +6,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.view.Window;
 import android.view.WindowManager;
+import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
@@ -55,6 +56,7 @@ public class MainActivity extends Activity {
                 return r != null ? r : super.shouldInterceptRequest(v, req);
             }
         });
+        web.setWebChromeClient(new WebChromeClient());   // 让网页的确认框 / 提示框（confirm、alert）能弹出来
         setContentView(web);
         if (b != null) web.restoreState(b);
         else web.loadUrl(serverUrl());
