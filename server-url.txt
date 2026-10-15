@@ -1,1 +1,1 @@
-http://服务器IP/xiuxian/
+https://56.69.168.157/xiuxian/
