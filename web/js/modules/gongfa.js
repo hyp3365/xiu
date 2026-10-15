@@ -160,7 +160,7 @@ G.module({
         html += `<div class="card"><h3>修炼中 ·《${info ? info.name : st.id}》<small>${info ? `第 ${info.lv} → ${info.lv + 1} 层` : ""}</small></h3>
         <div class="bar tick"><div style="width:${done / st.total * 100}%"></div></div>
         <div class="row small"><span>${st.stalled ? `<b class='q5'>${st.stone ? "修为或灵石" : "修为"}不足，暂停中</b>` : `倒计时 <b>${this.countdown(left)}</b>`}</span><button class="sm" onclick="G.stopStudy()">中断</button></div>
-        <div class="row small"><span>每 5 秒 <b>${U.fmt(st.per)}</b>${st.stone ? ` + ${U.fmt(st.stone)} 灵石` : ""} · 已消耗 <b>${U.fmt(st.spent)}</b> / ${U.fmt(st.per * st.total / (DATA.STUDY_STEP * 1000))}</span><span>${R ? `${R.name} -${U.num(R.pct)}%` : "未进练功房"}</span></div></div>`;
+        <div class="row small"><span>每 5 秒消耗 <b>${U.fmt(st.per)}</b> 修为${st.stone ? ` + ${U.fmt(st.stone)} 灵石` : ""} · 已消耗 <b>${U.fmt(st.spent)}</b> / ${U.fmt(st.per * st.total / (DATA.STUDY_STEP * 1000))}</span><span>${R ? `${R.name} -${U.num(R.pct)}%` : "未进练功房"}</span></div></div>`;
       } else html += `<div class="card"><p class="desc">当前没有在修炼的功法。在各分类里点「修炼」加入队列。</p></div>`;
       const lvPlan = {};
       if (s.gfStudy) lvPlan[s.gfStudy.id] = (s.gongfa[s.gfStudy.id] || 1) + 1;
