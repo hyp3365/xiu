@@ -20,8 +20,8 @@ DATA.realmLabel = i => i < 0 ? DATA.REALM_TEXT.mortal : DATA.realms[i] + (i <= 1
 // 每个大境界的层数
 DATA.LAYERS = 10;
 DATA.layerNames = DATA.nmArr(CFG.names.layer, ["一层", "二层", "三层", "四层", "五层", "六层", "七层", "八层", "九层", "十层"]);
-// 法宝的境界倍率（config/forge.js 的 DMG_REALM / MANA_REALM）按境界名写：境界改名后把键换成新名
-for (const k of ["DMG_REALM", "MANA_REALM"]) {
+// 法宝的境界倍率（config/forge.js 的 DMG_REALM）按境界名写：境界改名后把键换成新名
+for (const k of ["DMG_REALM"]) {
   const o = ((CFG.forge || {}).fabao || {})[k];
   if (!o || Array.isArray(o)) continue;
   const ent = Object.keys(o).map(n => { const i = DATA.NM_DEF.realm.indexOf(n); return [i >= 0 ? DATA.realms[i] : n, o[n]]; });
