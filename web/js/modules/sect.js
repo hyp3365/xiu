@@ -361,18 +361,24 @@ G.module({
       }
       return { kind: "mijue" };
     },
-    towerBonusText(b) { return !b ? "" : b.kind === "ring" ? DATA.ringName(b.r, 0) : b.kind === "rbp" ? DATA.ringBpName(b.g, b.r) : "试炼塔秘诀一本"; },
-    // 试炼塔秘诀：每次给下一本（习得第 1 层，之后在「功法」页修炼升层）；本数给完后给灵石
+    towerNextBook(star) {   // 下一本没给的秘诀 id（修炼秘诀、肉身秘诀轮流），给完 = null
+      const M = DATA.towerBookCount(star);
+      for (let k = 1; k <= M; k++) for (const t of DATA.TOWER_TYPES) { const id = DATA.towerBookId(star, k, t); if (id && !this.s.gongfa[id]) return id; }
+      return null;
+    },
+    towerBonusText(b) { return !b ? "" : b.kind === "ring" ? DATA.ringName(b.r, 0) : b.kind === "rbp" ? DATA.ringBpName(b.g, b.r)
+      : this.towerNextBook(this.sectInfo().star) ? "试炼塔秘诀一本" : `${DATA.HX} / 耀石 / 功德 随机一种`; },
+    // 试炼塔秘诀：每次给下一本（习得第 1 层，之后在「功法」页修炼升层）；给完后 火髓 / 耀石 / 功德 随机一种（config/sect.js 的 trial.EXTRA）
     giveTowerMijue(star) {
-      const s = this.s, M = DATA.towerBookCount(star);
-      for (let k = 1; k <= M; k++) {
-        const id = DATA.towerBookId(star, k); if (!id || s.gongfa[id]) continue;
-        s.gongfa[id] = 1; this.dirty();
-        const info = DATA.gongfaInfo(id, 1);
-        return `《${info.name}》习得第 1 层`;
-      }
-      const n = Math.floor((CFG.sect.trial.MIJUE_DONE_STONE || 0) * this.starMul()); s.stone += n;
-      return `灵石 ${U.fmt(n)}（试炼塔秘诀已圆满）`;
+      const s = this.s, id = this.towerNextBook(star);
+      if (id) { s.gongfa[id] = 1; this.dirty(); return `《${DATA.gongfaInfo(id, 1).name}》习得第 1 层`; }
+      const X = CFG.sect.trial.EXTRA || {}, kinds = ["fire", "ys", "merit"].filter(k => X[k]), k = kinds[U.rand(0, kinds.length - 1)];
+      if (!k) return "";
+      const r = X[k][star - 1] || X[k][X[k].length - 1], n = U.rand(r[0], r[1]);
+      if (k === "merit") { s.merit = (s.merit || 0) + n; return `功德 +${U.fmt(n)}`; }
+      if (k === "fire") return this.addFire(n) ? `${DATA.HX} ×${U.fmt(n)}` : "（背包已满）";
+      const ft = U.rand(0, 5), name = DATA.smName("ys", ft);
+      return this.addSm("ys", n, ft) ? `${name} ×${U.fmt(n)}` : "（背包已满）";
     },
     // 首通第 f 层的奖励，返回文字
     towerReward(f) {
