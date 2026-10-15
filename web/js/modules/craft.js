@@ -468,7 +468,7 @@ G.caveViews.alchemy = function () {
     const aLeft = Math.max(0, a.next - Date.now()) + Math.max(0, a.n - a.done - 1) * a.per; let aAcc = aLeft;   // 这一炉剩余 / 排到队列第几炉为止的总时间（毫秒）
     h += `<div class="card"><h3>丹炉中<small>${DATA.danName(a.type, a.g)} ${a.done} / ${a.n}</small></h3>
       <p class="desc">成丹 ${a.ok || 0}${a.extra ? `（额外 +${a.extra}）` : ""} · 失败 ${a.fail || 0} · 当前成功率 ${this.ratePct(this.craftRate(DATA.danCraft(a.type), a.g))}</p>
-      <div class="line"><div>下一枚出炉<small>${U.dur(Math.max(0, a.next - Date.now()) / 1000 + 59)} · 每枚 ${U.dur(a.per / 1000)} · 这一炉约 ${U.dur(aLeft / 1000 + 59)} 后炼完</small></div>
+      <div class="line"><div class="pg">${this.pgFill(Math.max(0, a.next - Date.now()), a.per)}<span>下一枚出炉<small>${U.dur(Math.max(0, a.next - Date.now()) / 1000 + 59)} · 每枚 ${U.dur(a.per / 1000)} · 这一炉约 ${U.dur(aLeft / 1000 + 59)} 后炼完</small></span></div>
       <button class="sm" onclick="G.stopAlch()">停炉</button></div>` +
       s.alchQueue.map((q, i) => { const ms = this.danPer(q.type, q.g) * q.n; aAcc += ms;
         return `<div class="line"><div>队列 ${i + 1}：${DATA.danName(q.type, q.g)} ×${q.n}<small>需 ${U.dur(ms / 1000)} · 约 ${U.dur(aAcc / 1000 + 59)} 后完成</small></div><button class="sm" onclick="G.cancelAlchQ(${i})">取消</button></div>`; }).join("") +
@@ -496,7 +496,7 @@ G.caveViews.forge = function () {
   let h = this.craftsmanCard("qi") + this.furnaceCard("qi") + (xian ? this.craftsmanCard("xqi") + this.furnaceCard("xqi") : "");
   let fAcc = j ? Math.max(0, j.end - Date.now()) : 0;   // 排到队列第几个为止的总时间（毫秒）
   if (j) h += `<div class="card"><h3>炼制中<small>${this.jobName(j)}</small></h3>
-    <div class="line"><div>剩余 ${U.dur(Math.max(0, j.end - Date.now()) / 1000 + 59)}</div><button class="sm" onclick="G.stopForge()">停止</button></div>` +
+    <div class="line"><div class="pg">${this.pgFill(Math.max(0, j.end - Date.now()), this.forgePer(j.kind, j.g))}<span>剩余 ${U.dur(Math.max(0, j.end - Date.now()) / 1000 + 59)}</span></div><button class="sm" onclick="G.stopForge()">停止</button></div>` +
     s.forgeQueue.map((q, i) => { const ms = this.forgePer(q.kind, q.g); fAcc += ms;
       return `<div class="line"><div>队列 ${i + 1}：${this.jobName(q)}<small>需 ${U.dur(ms / 1000)} · 约 ${U.dur(fAcc / 1000 + 59)} 后完成</small></div>
       <button class="sm" onclick="G.cancelForgeQ(${i})">取消</button></div>`; }).join("") +
@@ -555,7 +555,8 @@ G.caveViews.forge = function () {
 G.sectForgeView = function () {
   const s = this.s, star = this.sectInfo().star, g = this.forgeLibTier || 0, st = s.forgeStudy, lock = g >= star;
   let h = "";
-  if (st) h += `<div class="card"><h3>学习中<small>${this.forgeKeyName(st.key)}</small></h3><p class="desc">剩余 ${U.dur(Math.max(0, st.end - Date.now()) / 1000 + 59)}</p></div>`;
+  if (st) { const sg = +st.key.split(":").pop(), sC = st.key.startsWith("eq:") ? CFG.forge.equip : CFG.forge.stone;
+    h += `<div class="card"><h3>学习中<small>${this.forgeKeyName(st.key)}</small></h3><p class="desc pg">${this.pgFill(Math.max(0, st.end - Date.now()), sC.learnTime[sg] * 60000)}<span>剩余 ${U.dur(Math.max(0, st.end - Date.now()) / 1000 + 59)}</span></p></div>`; }
   const line = (kind, sl, name, tag, desc) => {
     const key = this.forgeKey(kind, g, sl), has = s.forgeKnown.includes(key), C = kind === "eq" ? CFG.forge.equip : CFG.forge.stone, c = C.learnCost[g];
     const img = kind === "ss" ? DATA.iconImg("ss") : DATA.iconImg(sl === "fabao" ? "fbs0_0" : "eq_" + sl);
@@ -575,7 +576,7 @@ G.sectAlchemyView = function () {
   const s = this.s, star = this.sectInfo().star, tier = this.danLibTier || 0, st = s.danStudy;
   let h = "";
   if (st) { const [t, g] = st.key.split("|");
-    h += `<div class="card"><h3>参悟中<small>《${DATA.danName(t, +g)}》</small></h3><p class="desc">剩余 ${U.dur(Math.max(0, st.end - Date.now()) / 1000 + 59)}</p></div>`; }
+    h += `<div class="card"><h3>参悟中<small>《${DATA.danName(t, +g)}》</small></h3><p class="desc pg">${this.pgFill(Math.max(0, st.end - Date.now()), DATA.danLearnTime(t, +g))}<span>剩余 ${U.dur(Math.max(0, st.end - Date.now()) / 1000 + 59)}</span></p></div>`; }
   h += this.danCatBar("danLibCat");
   const cat = this.danLibCat || 0, catName = (CFG.alchemy.CATS || [])[cat] || "", types = Object.keys(DATA.recipes).filter(t => DATA.danCat(t) === cat);
   h += `<div class="room-grid five">${DATA.JIE.slice(0, DATA.DAN_JIE_N).map((n, g) => `<button class="${tier === g ? "active" : ""}" onclick="G.setDanLibTier(${g})">${n}</button>`).join("")}</div>
