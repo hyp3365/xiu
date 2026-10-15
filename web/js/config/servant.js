@@ -39,7 +39,7 @@ CFG.servant = {
     qi:   { name: "辅助炼器", els: ["jin"], MAX: 25 },                            // 炼器时间最多 −25%
     cult: { name: "辅助修炼", els: ["shui"], MAX: 150 },                          // 修为、肉身修炼速度最多 +150%
     ling: { name: "灵田种植", els: ["mu"], MAX: 25 },                             // 灵药生长时间最多 −25%
-    zhen: { name: "阵法辅助", els: ["jin", "mu", "shui", "huo", "tu"], MAX: 100 },// 聚灵阵聚集灵气 +%（每个道童最多 100%）
+    zhen: { name: "阵法辅助", els: ["jin", "mu", "shui", "huo", "tu"], MAX: 20 }, // 聚灵阵聚集灵气 +%（每个道童最多 20%，5 个满级共 +100%）
   },
   SALARY: {
     BASE: 500,         // 每天基础俸禄灵石
