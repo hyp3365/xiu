@@ -69,7 +69,7 @@ DATA.gfSources = {
   shop: { name: "坊市", cfg: () => DATA.gfDerive(_GF.shop.PCT) },
   jshop: { name: "坊市", cfg: () => DATA.gfDerive((_GF.jshop || {}).PCT) },
   gd: { name: "功德司", cfg: () => DATA.gfDerive((_GF.gd || {}).PCT) },
-  tower: { name: "试炼塔", cfg: () => _GF.tower || _GF.sect },   // v25：试炼塔秘诀
+  tower: { name: "试炼塔", cfg: () => Object.assign(DATA.gfDerive((_GF.tower || {}).PCT), { learn: 0 }) },   // 试炼塔秘诀：宗门同星级 × PCT%
   tianwai: { name: "天外天", cfg: () => DATA.gfDerive((_GF.tianwai || {}).PCT) },   // v106：天外天 11、12 星（暂未开放获取）
 };
 
@@ -171,7 +171,7 @@ DATA.gfRand = id => { const R = _GF.sect.RAND || 0; let h = 2166136261; for (con
 DATA.gfCalc = (o, typeId, tier, key, eff) => {
   const C = DATA.srcCfg(o), b = DATA.gfBase(C, key);
   const TM = C.TIER_MULT || {}, tm = (C.TYPE_MULT || {})[DATA.gfTypeKey(typeId)], e = C[eff];
-  if (C.TOTAL && DATA.GF_STAT_KEYS.includes(key) && typeId !== "spell") {   // v121：战斗属性按 TOTAL 分配
+  if (C.TOTAL && C.TOTAL[key] !== undefined && typeId !== "spell") {   // v121：按 TOTAL 分配（v125 起秘诀、肉身秘诀也是）
     const ek = e === undefined ? 1 : e / (_GF.sect[eff] === undefined ? 1 : _GF.sect[eff]);   // 坊市 / 功德司 = 宗门 × PCT%
     return DATA.gfUnit(key) * (C.STAT_STAR[o.star - 1] || 0) * (tm === undefined ? 1 : tm) * ek * DATA.gfRand(o.id + ":" + typeId);
   }
