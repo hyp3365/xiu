@@ -809,7 +809,7 @@ G.module({
     jieGfView(kind, a) {
       const s = this.s, o = DATA.jieGfOf(kind, a); if (!o) return "";
       const lock = !this.realmOK(o.reqRealm), gd = kind === "gd";
-      const rows = DATA.gongfaTypes.map(ty => { const g = DATA.gongfaInfo(DATA.gongfaId(o.id, ty.id)), has = this.hasGongfa(g.id);
+      const rows = DATA.gfTypesOf(o.src).map(ty => { const g = DATA.gongfaInfo(DATA.gongfaId(o.id, ty.id)), has = this.hasGongfa(g.id);
         const poor = gd ? (s.merit || 0) < g.cost : s.stone < g.cost || this.xjGxOf(a) < g.gx;
         return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.el.name}</span><span class="tag">${ty.name}</span><small>每层${g.label} +${U.num(g.perLv)} · ${gd ? `${U.fmt(g.cost)} 功德` : `${U.fmt(g.cost)} 灵石 · ${U.fmt(g.gx)} 贡献`} · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>
           ${lock && !has ? `<button class="sm" disabled>境界不足</button>` : this.gfLearnBtn(g, `G.learnJieGf('${g.id}')`, poor)}</div>`; }).join("");
@@ -860,7 +860,7 @@ G.module({
             ${lock && !has ? `<button class="sm" disabled>境界不足</button>` : this.gfLearnBtn(g, `G.buyGongfa('${g.id}')`, s.stone < g.cost)}</div>`; };
         return tabs + `<div class="room-grid">${Array.from({ length: N }, (_, i) => `<button class="${star === i + 1 ? "active" : ""}" onclick="G.setShopStar(${i + 1})">${i + 1}星</button>`).join("")}</div>` +
           srcs.map(o => `<div class="card"><h3>${o.name}<span class="tag">${DATA.elById[o.el].name}</span></h3>` +
-            DATA.gongfaTypes.filter(ty => !ty.sectOnly).map(ty => line(DATA.gongfaInfo(DATA.gongfaId(o.id, ty.id)))).join("") +
+            DATA.gfTypesOf("shop").filter(ty => !ty.sectOnly).map(ty => line(DATA.gongfaInfo(DATA.gongfaId(o.id, ty.id)))).join("") +
             line(DATA.spellInfo(DATA.spellId(o.id, o.el))) + `</div>`).join("");
       }
       const names = t === "herb" ? DATA.herbs : DATA.ores, fan = DATA.fanMats();
