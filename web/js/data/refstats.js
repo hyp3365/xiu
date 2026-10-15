@@ -7,10 +7,10 @@
  * 用到的地方：试炼塔 config/sect.js 的 sect.tower、雷劫 config/trib.js 的 trib；
  *   怪物（地图、秘境、灵地、天将星君界主、宗门考官）另见 js/data/mobs.js（数值 config/mobs.js）
  * ===================================================================== */
-DATA.REF_KEYS = ["hp", "atk", "def", "speed", "hit", "dodge", "mana", "res"];   // res：每系抗性（RES_BASE 成长 + 全部真诀）
+DATA.REF_KEYS = ["hp", "atk", "def", "speed", "hit", "dodge", "mana", "res"];   // res：每系抗性（RES_BASE + 修为突破 + 全部真诀）
 DATA._ref = {};
-// 修为突破到 境界 第 层 的总法力（人物基础法力 × 成长^总层序；不算功法、肉身、装备）：法宝、法术耗法力用
-DATA.brMana = (realm, layer) => DATA.playerBase.mana * Math.pow(DATA.GROW, realm * DATA.LAYERS + layer - 1);
+// 修为突破到 境界 第 层 的总法力（凡人基础 + 修为突破合计；不算功法、肉身、装备）：法宝、法术耗法力用
+DATA.brMana = (realm, layer) => DATA.realmStat(realm * DATA.LAYERS + layer - 1, "mana");
 DATA.refStar = realm => (CFG.sect.REQ_REALM || []).filter(x => x <= realm).length;   // 该境界能进的最高星级
 // v105：star = 算 1 ~ star 星的功法（不写 = 该境界能进的最高星）；src = 算哪些来源（1 宗门 2 +凡界坊市 3 +仙魔冥神坊市 4 +功德司，不写 = 1）
 DATA.refSrcList = src => [DATA.sects, src >= 2 ? DATA.shopSources : [], src >= 3 ? (DATA.jieGf || {}).jshop || [] : [], src >= 4 ? (DATA.jieGf || {}).gd || [] : []].flat();
@@ -19,9 +19,9 @@ DATA.refStats = (realm, layer, gf, star, src) => {
   const ms = star > 0 ? star : DATA.refStar(realm), sr = src > 0 ? src : 1;
   const key = realm + ":" + layer + ":" + gf + ":" + ms + ":" + sr;
   if (DATA._ref[key]) return DATA._ref[key];
-  const B = DATA.playerBase, f = Math.pow(DATA.GROW, realm * DATA.LAYERS + layer - 1), o = {};
-  for (const k of DATA.REF_KEYS) o[k] = (k === "res" ? CFG.player.RES_BASE || 0 : B[k]) * f;
-  o.manaBr = B.mana * f;   // 只算修为突破的法力（怪物法术 / 法宝耗法力用）
+  const L = realm * DATA.LAYERS + layer - 1, o = {};
+  for (const k of DATA.REF_KEYS) o[k] = DATA.realmStat(L, k);   // 修为突破属性（config/realm.js 的 GAIN）
+  o.manaBr = o.mana;   // 只算修为突破的法力（怪物法术 / 法宝耗法力用）
   if (gf > 0) {
     for (const sc of DATA.refSrcList(sr)) {
       if (sc.star > ms) continue;
