@@ -14,6 +14,8 @@
  *   tc {name, n}                        四界特产
  *   dan {item: "p:类型" 修炼丹 | "d:丹方", g, n}
  *   bp {item: "f:炉子" | "r:戒指序号", g, n}   图纸
+ *   lj / lz {ft, n}                     灵晶 / 灵珠（ft = 金木水火土 0~4）
+ *   hx {n}                              火髓
  * ===================================================================== */
 G.module({
   id: "gift",
@@ -21,7 +23,8 @@ G.module({
   api: {
     giftCats() {
       return [["stone", "灵石"], ["contrib", "贡献"], ["merit", "功德"], ["gf", "功法"], ["sp", "法术"], ["mf", "秘法"], ["fabao", "法宝"], ["eq", "装备"],
-        ["herb", DATA.matKinds.herb], ["ore", DATA.matKinds.ore], ["tc", "特产"], ["dan", "丹药"], ["bp", "图纸"]];
+        ["herb", DATA.matKinds.herb], ["ore", DATA.matKinds.ore], ["tc", "特产"], ["dan", "丹药"], ["bp", "图纸"],
+        ["lj", DATA.smName("lj")], ["lz", DATA.smName("lz")], ["hx", DATA.HX]];
     },
     giftSpecial() { return (CFG.matsOther || {}).SPECIAL || this.giftSpecialList(); },
     giftSpecialList() {
@@ -34,7 +37,8 @@ G.module({
     giftFields(c, a) {
       const N = { k: "n", label: "数量", num: true }, jie = this.giftJie();
       const srcName = o => `${o.star}星·${o.name}${o.book ? `·第${o.book}卷` : ""}`;
-      if (c === "stone" || c === "contrib" || c === "merit") return [N];
+      if (c === "stone" || c === "contrib" || c === "merit" || c === "hx") return [N];
+      if (c === "lj" || c === "lz") return [{ k: "ft", label: "名称", opts: CFG.mijing.items[c].names.map((n, i) => [i, n]) }, N];
       if (c === "gf") {
         const srcs = [...DATA.sects, ...DATA.shopSources, ...DATA.jieGf.jshop, ...DATA.jieGf.gd, ...DATA.towerBooks, ...DATA.twSources].sort((x, y) => x.star - y.star);
         const o = DATA.gfSrcById[a.src] || srcs[0];
@@ -92,6 +96,8 @@ G.module({
           case "eq": { const [sl, r] = String(it.slot).split(":"); return (sl === "ring" ? DATA.ringName(+r, it.g) : DATA.forgeEqName(sl, it.g)) + n; }
           case "herb": case "ore": return DATA.matName(it.c, it.g) + n;
           case "tc": return it.name + n;
+          case "lj": case "lz": return DATA.smName(it.c, it.ft) + n;
+          case "hx": return DATA.HX + n;
           case "dan": { const [k, t] = it.item.split(":"); return (k === "p" ? `${DATA.realms[it.g]}·${DATA.pills[t].name}` : DATA.danName(t, it.g)) + n; }
           case "bp": { const [k, t] = it.item.split(":"); return (k === "f" ? DATA.furnaceName(t, it.g) + "图纸" : DATA.ringBpName(it.g, +t)) + n; }
         }
@@ -114,6 +120,8 @@ G.module({
         case "fabao": return rep(() => this.addEquip(DATA.rollForged("fabao", it.g, it.ft, it.el)));
         case "eq": { const [sl, r] = String(it.slot).split(":"); return rep(() => this.addEquip(DATA.rollForged(sl, it.g, sl === "ring" ? +r : undefined))); }
         case "herb": case "ore": return this.addMat(it.c, DATA.matName(it.c, it.g), it.g, n);
+        case "lj": case "lz": return this.addSm(it.c, n, it.ft);
+        case "hx": return this.addFire(n);
         case "tc": { const m = DATA.matByName[it.name]; return !!m && this.addMat(m.kind, it.name, m.g, n); }
         case "dan": { const [k, t] = it.item.split(":"); return k === "p" ? this.addPill(t, it.g, n) : this.addDan(t, it.g, n); }
         case "bp": { const [k, t] = it.item.split(":");
