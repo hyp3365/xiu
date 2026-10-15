@@ -313,7 +313,7 @@ G.module({
         const sp = DATA.spellInfo(c.id, s.gongfa[c.id]);
         if ((s.mana || 0) < sp.mana) return this.tribToast("法力不足");
         s.mana -= sp.mana;
-        const hp = Math.max(0, st.atk * sp.pct / 100 + sp.flat * this.lingenSpell(sp.el.id)) * (U0.SP_SHIELD === undefined ? 1 : U0.SP_SHIELD);
+        const hp = Math.max(0, sp.atk * sp.pct / 100 * sp.mul * this.lingenSpell(sp.el.id)) * (U0.SP_SHIELD === undefined ? 1 : U0.SP_SHIELD);
         addSh({ hp }); x.cd[i] = this.now() + (U0.SP_CD || 0) * 1000;
         msg = `施展《${sp.name}》，护盾 +${U.fmt(hp)}`;
       } else if (c.k === "it") {
