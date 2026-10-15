@@ -200,11 +200,11 @@ DATA.attrText = (a, e) => {
 // v107 法宝第 g 阶的参考属性：config/forge.js 的 fabao.REF[阶] 那个境界的人物属性（修为突破 + 肉身突破，不算功法），含 manaBr
 DATA._fbRef = {};
 DATA.fbRef = g => DATA._fbRef[g] || (DATA._fbRef[g] = (() => { const r = (_FG.fabao.REF || [])[g] || [2 * g + 1, 10]; return DATA.mobStats([0, r[0], r[1], 0, 1, 0, 1]); })());
-// 法宝攻击 = 参考攻击 − 初始攻击 + 功法攻击（gfAtk 不写 = 玩家自己的）
+// 法宝攻击 = 自己修为 + 肉身攻击（不超过参考攻击）+ 功法攻击（own 不写 = 玩家自己的，见 data/gongfa.js 的 DATA.capAtk）
 // 法宝战斗数值：{ el, atk, pct, mana, ign, cutPct, extra: [{ el, pct }], crit（锤暴击伤害%）, shield, ding, yin }
-DATA.fabaoInfo = (e, gfAtk) => {
+DATA.fabaoInfo = (e, own) => {
   const F = _FG.fabao, T = DATA.fabaoTypes[e.ft] || {}, ref = DATA.fbRef(e.g);
-  const o = { name: DATA.fabaoName(e.ft, e.g, e.name), el: e.el, ft: e.ft, atk: ref.atk - DATA.playerBase.atk + DATA.gfAtkOf(gfAtk), pct: 0, ign: 0, cutPct: 0, extra: [] };
+  const o = { name: DATA.fabaoName(e.ft, e.g, e.name), el: e.el, ft: e.ft, atk: DATA.capAtk(ref.atk, own), pct: 0, ign: 0, cutPct: 0, extra: [] };
   let shHp = 0, shDef = 0, red = 0, ding = 0, yin = 0, yinC = 0;
   for (const a of e.attrs) {
     const v = DATA.attrVal(a, e.g, e);
