@@ -9,7 +9,7 @@
   POST /api/register  {"username","password"}   注册，返回 {"token"}
   POST /api/login     {"username","password"}   登录，返回 {"token"}
   GET  /api/save      Header X-Token             读取存档，返回 {"data", "updated"}
-  POST /api/save      Header X-Token {"data"}    保存存档（data 为 null 表示删档）
+  POST /api/save      Header X-Token X-Sess {"data"}  保存存档（data 为 null 表示删档）；X-Sess 不是最后进入游戏的会话号 → 409
                       也支持 body 里带 "token"（网页关闭时 sendBeacon 用）
   GET  /api/admin         管理员信息：{admin, version, log}（log = 上次网页更新的输出）
   POST /api/admin/update  管理员：从 GitHub 更新游戏（等于在服务器上运行 sudo xiu-update）
@@ -95,6 +95,10 @@ def init_db():
             user_id INTEGER NOT NULL,
             at INTEGER NOT NULL,
             PRIMARY KEY(code, user_id)
+        );
+        CREATE TABLE IF NOT EXISTS sessions(
+            user_id INTEGER PRIMARY KEY,
+            sid TEXT NOT NULL
         );
         CREATE TABLE IF NOT EXISTS settings(
             k TEXT PRIMARY KEY,
@@ -228,9 +232,12 @@ class Handler(BaseHTTPRequestHandler):
             if not uid:
                 return self.send(401, {"error": "请重新登录"})
             row = c.execute("SELECT data, updated FROM saves WHERE user_id=?", (uid,)).fetchone()
+            # 每次进入游戏发一个新的会话号；之前进入的设备（旧会话号）不能再上传存档，避免旧进度覆盖新进度
+            sid = secrets.token_hex(8)
+            c.execute("INSERT INTO sessions(user_id,sid) VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET sid=excluded.sid", (uid, sid))
         if not row or row["data"] is None:
-            return self.send(200, {"data": None})
-        return self.send_raw(200, '{"data":%s,"updated":%d}' % (row["data"], row["updated"]))
+            return self.send(200, {"data": None, "sid": sid})
+        return self.send_raw(200, '{"data":%s,"updated":%d,"sid":"%s"}' % (row["data"], row["updated"], sid))
 
     # ---------- POST ----------
     def do_POST(self):
@@ -270,6 +277,9 @@ class Handler(BaseHTTPRequestHandler):
                 uid = user_by_token(c, token)
                 if not uid:
                     return self.send(401, {"error": "请重新登录"})
+                cur = c.execute("SELECT sid FROM sessions WHERE user_id=?", (uid,)).fetchone()
+                if cur and cur["sid"] != (self.headers.get("X-Sess") or data.get("sid")):
+                    return self.send(409, {"error": "账号已在其他设备进入游戏"})
                 save = data.get("data")
                 c.execute("INSERT INTO saves(user_id,data,updated) VALUES(?,?,?) "
                           "ON CONFLICT(user_id) DO UPDATE SET data=excluded.data, updated=excluded.updated",
