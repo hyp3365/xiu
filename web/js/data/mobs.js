@@ -1,6 +1,6 @@
 /* =====================================================================
  * 怪物属性生成（数值在 config/mobs.js）
- * 每个怪物 5 个数 [进入境界, 境界, 层, 功法层, 倍率]：
+ * 每个怪物 7 个数 [进入境界, 境界, 层, 功法星级, 功法来源, 功法层, 倍率]：
  *   怪物基础属性 = (修为突破属性 + 肉身突破属性 + 宗门功法属性) × 倍率
  *   遇到时 × 随机(RAND[0] ~ RAND[1])；暴击 = CRIT
  * 生成后写进：
@@ -18,12 +18,13 @@ DATA.mobBody = n => {
   for (const k of DATA.MOB_KEYS) { const g = G[k]; o[k] = !g || n <= 0 ? 0 : g[1] === 1 ? g[0] * n : g[0] * (Math.pow(g[1], n) - 1) / (g[1] - 1); }
   return o;
 };
-// [进入境界, 境界, 层, 功法层, 倍率] → 怪物基础属性；crit = 暴击%
+// [进入境界, 境界, 层, 功法星级, 功法来源, 功法层, 倍率] → 怪物基础属性；crit = 暴击%
 DATA.mobStats = (t, crit) => {
-  t = t || [0, 0, 1, 0, 1];
+  t = t || [0, 0, 1, 0, 1, 0, 1];
   const realm = Math.max(0, Math.min(DATA.realms.length - 1, t[1])), layer = Math.max(1, Math.min(DATA.LAYERS, t[2]));
-  const st = DATA.refStats(realm, layer, t[3] || 0), bd = DATA.mobBody(realm * DATA.LAYERS + layer), k = t[4] === undefined ? 1 : t[4], o = {};
+  const st = DATA.refStats(realm, layer, t[5] || 0, t[3] || 0, t[4] || 1), bd = DATA.mobBody(realm * DATA.LAYERS + layer), k = t[6] === undefined ? 1 : t[6], o = {};
   for (const x of DATA.MOB_KEYS) o[x] = (st[x] + bd[x]) * k;
+  o.manaBr = st.manaBr;   // 修为突破的法力（法术 / 法宝耗法力用，不乘倍率）
   o.crit = crit || 0;
   return o;
 };
@@ -48,9 +49,9 @@ DATA.mobGroup = g => { const o = {}; for (const k in DATA.MOB_KIND) o[k] = DATA.
     m.mob = c;   // 天将 / 星君 / 界主
   }
 })();
-DATA.mobTj = a => (DATA.maps[a].mob || {})["天将"] || [0, 0, 1, 0, 1];
-DATA.mobXj = (a, i) => { const l = (DATA.maps[a].mob || {})["星君"] || []; return l[i] || l[l.length - 1] || [0, 0, 1, 0, 1]; };
-DATA.mobJz = a => (DATA.maps[a].mob || {})["界主"] || [0, 0, 1, 0, 1];
+DATA.mobTj = a => (DATA.maps[a].mob || {})["天将"] || [0, 0, 1, 0, 1, 0, 1];
+DATA.mobXj = (a, i) => { const l = (DATA.maps[a].mob || {})["星君"] || []; return l[i] || l[l.length - 1] || [0, 0, 1, 0, 1, 0, 1]; };
+DATA.mobJz = a => (DATA.maps[a].mob || {})["界主"] || [0, 0, 1, 0, 1, 0, 1];
 
 // ---------- 秘境 / 灵地 ----------
 (() => {
@@ -74,7 +75,7 @@ DATA.towerStage = (star, floor, max) => {
   i = Math.min(i, st.length - 1);
   const [a, b] = st[i], n = Math.max(1, end - from), t = Math.max(0, Math.min(1, i === 0 ? (n <= 1 ? 1 : (floor - 1) / (n - 1)) : (floor - from) / n));   // 后两段从上一段的「止」之后开始
   const crit = T.CRIT !== undefined ? T.CRIT : DATA.mobCrit("考官"), A = DATA.mobStats(a, crit), B = DATA.mobStats(b || a, crit), o = { crit };
-  for (const k of DATA.REF_KEYS) o[k] = A[k] > 0 && B[k] > 0 ? A[k] * Math.pow(B[k] / A[k], t) : A[k] + (B[k] - A[k]) * t;
+  for (const k of [...DATA.REF_KEYS, "manaBr"]) o[k] = A[k] > 0 && B[k] > 0 ? A[k] * Math.pow(B[k] / A[k], t) : A[k] + (B[k] - A[k]) * t;
   return o;
 };
 
