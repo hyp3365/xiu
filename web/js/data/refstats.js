@@ -7,7 +7,7 @@
  * 用到的地方：试炼塔 config/sect.js 的 sect.tower、雷劫 config/trib.js 的 trib；
  *   怪物（地图、秘境、灵地、天将星君界主、宗门考官）另见 js/data/mobs.js（数值 config/mobs.js）
  * ===================================================================== */
-DATA.REF_KEYS = ["hp", "atk", "def", "speed", "hit", "dodge", "mana"];
+DATA.REF_KEYS = ["hp", "atk", "def", "speed", "hit", "dodge", "mana", "res"];   // res：每系抗性（RES_BASE 成长 + 全部真诀）
 DATA._ref = {};
 DATA.refStar = realm => (CFG.sect.REQ_REALM || []).filter(x => x <= realm).length;   // 该境界能进的最高星级
 DATA.refStats = (realm, layer, gf) => {
@@ -15,7 +15,7 @@ DATA.refStats = (realm, layer, gf) => {
   const key = realm + ":" + layer + ":" + gf;
   if (DATA._ref[key]) return DATA._ref[key];
   const B = DATA.playerBase, f = Math.pow(DATA.GROW, realm * DATA.LAYERS + layer - 1), o = {};
-  for (const k of DATA.REF_KEYS) o[k] = B[k] * f;
+  for (const k of DATA.REF_KEYS) o[k] = (k === "res" ? CFG.player.RES_BASE || 0 : B[k]) * f;
   if (gf > 0) {
     const ms = DATA.refStar(realm);
     for (const sc of DATA.sects) {
