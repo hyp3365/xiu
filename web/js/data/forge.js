@@ -189,8 +189,8 @@ DATA.attrText = (a, e) => {
   const v = U.num(DATA.attrVal(a, e.g, e)), col = (_FG.attr.colors[a.c] || {}).name || "";
   if (e.slot === "fabao") {
     const el = DATA.elById[a.el] ? DATA.elById[a.el].name : "", p = Math.round(DATA.attrVal(a, e.g, e) * 10) / 10, F = _FG.fabao;   // % 类保留一位小数
-    const t = { pct: `伤害 攻击×${p}%`, elDmg: `额外${el}属性伤害 攻击×${p}%`, ignRes: `无视抗性 ${v}`, manaCut: `法力消耗 -${p}%`,
-      sAtk: `攻击 +${v}`, dSAtk: `攻击 +${v}`, sHit: `命中 +${v}`, sCrit: `暴击 +${p}%`, sCritDmg: `暴击伤害 ${p}%`, sMana: `本法宝法力消耗 -${p}%`,
+    const t = { pct: `伤害 实际攻击×${p}%`, elDmg: `额外${el}属性伤害 实际攻击×${p}%`, ignRes: `无视抗性 ${v}`, manaCut: `法力消耗 -${p}%`,
+      sAtk: `法宝攻击时额外增加攻击 +${v}`, dSAtk: `法宝攻击时额外增加攻击 +${v}`, sHit: `法宝攻击时额外增加命中 +${v}`, sCrit: `法宝攻击时额外增加暴击 +${p}%`, sCritDmg: `暴击伤害 ${p}%`, sMana: `本法宝法力消耗 -${p}%`,
       sDing: `击中后降低对方属性 ${v} 回合`, sYin: `眩晕几率 ${p}%（${(F.YIN_ROUNDS || [])[a.c] || 1} 回合）`,
       shHpMain: `护盾值 ${v}`, shDef: `防御 ${v}`, shHp: `护盾值 +${v}`, dmgRed: `受到伤害 -${p}%` }[a.k] || DATA.fbAttrNames[a.k] || a.k;
     return `${a.m === 2 ? "专属 " : a.m ? "" : "附加 "}${t}（${col}${a.enh ? `·强化${a.enh}` : ""}）`;
@@ -201,7 +201,7 @@ DATA.attrText = (a, e) => {
 DATA._fbRef = {};
 DATA.fbRef = g => DATA._fbRef[g] || (DATA._fbRef[g] = (() => { const r = (_FG.fabao.REF || [])[g] || [2 * g + 1, 10]; return DATA.mobStats([0, r[0], r[1], 0, 1, 0, 1]); })());
 // 法宝攻击 = 自己修为 + 肉身攻击（不超过参考攻击）+ 功法攻击（own 不写 = 玩家自己的，见 data/gongfa.js 的 DATA.capAtk）
-// 法宝战斗数值：{ el, atk, pct, mana, ign, cutPct, extra: [{ el, pct }], crit（锤暴击伤害%）, shield, ding, yin }
+// 法宝战斗数值（atk 已含剑 / 刀的专属攻击；hit、critAdd = 刀 / 锤攻击时额外命中、暴击%）：{ el, atk, pct, mana, ign, cutPct, extra: [{ el, pct }], crit（锤暴击伤害%）, shield, ding, yin }
 DATA.fabaoInfo = (e, own) => {
   const F = _FG.fabao, T = DATA.fabaoTypes[e.ft] || {}, ref = DATA.fbRef(e.g);
   const o = { name: DATA.fabaoName(e.ft, e.g, e.name), el: e.el, ft: e.ft, atk: DATA.capAtk(ref.atk, own), pct: 0, ign: 0, cutPct: 0, extra: [] };
@@ -211,6 +211,9 @@ DATA.fabaoInfo = (e, own) => {
     if (a.k === "pct") o.pct += v; else if (a.k === "ignRes") o.ign += v;
     else if (a.k === "elDmg") o.extra.push({ el: a.el, pct: v });
     else if (a.k === "manaCut" || a.k === "sMana") o.cutPct += v;
+    else if (a.k === "sAtk" || a.k === "dSAtk") o.atk += v;   // 专属：只在这件法宝攻击时生效
+    else if (a.k === "sHit") o.hit = (o.hit || 0) + v;
+    else if (a.k === "sCrit") o.critAdd = (o.critAdd || 0) + v;
     else if (a.k === "sCritDmg") o.crit = (o.crit || 0) + v;
     else if (a.k === "shHpMain" || a.k === "shHp") shHp += v; else if (a.k === "shDef") shDef += v; else if (a.k === "dmgRed") red += v;
     else if (a.k === "sDing") ding = Math.max(ding, v);
