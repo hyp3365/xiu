@@ -46,7 +46,34 @@ G.module({
               ${lock ? `<button class="sm" disabled>需${DATA.realmLabel(DATA.mapReq(sel))}</button>` : !unl || !this.regionOpen(sel, r) ? `<button class="sm" disabled>未开启</button>` : `<div><button class="sm ${x && x.once ? "on" : ""}" onclick="G.toggleExplore(${sel},${r},true)" ${s.explore && s.explore.cq ? "disabled" : ""}>${x && x.once ? "停止" : "历练"}</button>
               <button class="sm ${x && !x.once && !x.cq ? "on" : ""}" onclick="G.toggleExplore(${sel},${r})" ${ok && !(s.explore && s.explore.cq) ? "" : "disabled"}>${x && !x.once && !x.cq ? "停止" : "探索"}</button>
               <button class="sm ${x && x.cq ? "on" : ""}" onclick="G.openChuqiao(${sel},${r})" ${x && x.cq || ok && s.cqLv && !(s.explore && s.explore.cq) ? "" : "disabled"}>${x && x.cq ? "停止" : "出窍"}</button></div>`}</div>`;
-          }).join("") + `<p class="desc">历练、探索期间无法修炼；生命低于三成停止。</p></div>`;
+          }).join("") + (map.w === "fan" ? this.kuangLine(sel) : "") + `<p class="desc">历练、探索期间无法修炼；生命低于三成停止。</p></div>`;
+    },
+    /* ---------- 凡界灵矿（config/explore.js 的 KUANG）：不用历练，不遇怪，只挖灵石；探索中 x.kuang = 1、x.reg = -1 ---------- */
+    kuangName(a) { return (CFG.explore.KUANG.NAME || "{map}灵矿").replace("{map}", DATA.maps[a].name); },
+    kuangLine(a) {
+      const s = this.s, K = CFG.explore.KUANG, x = s.explore && s.explore.kuang && s.explore.map === a ? s.explore : null, cq = s.explore && s.explore.cq;
+      return `<div class="line"><div>${this.kuangName(a)}<small>${K.DESC}</small></div>
+        ${!this.realmOK(DATA.mapReq(a)) ? `<button class="sm" disabled>需${DATA.realmLabel(DATA.mapReq(a))}</button>` : !this.mapOpen(a) ? `<button class="sm" disabled>未开启</button>` : `<div><button class="sm ${x && !x.cq ? "on" : ""}" onclick="G.toggleKuang(${a})" ${cq ? "disabled" : ""}>${x && !x.cq ? "停止" : "探索"}</button>
+        <button class="sm ${x && x.cq ? "on" : ""}" onclick="G.openChuqiao(${a},-1)" ${x && x.cq || s.cqLv && !cq ? "" : "disabled"}>${x && x.cq ? "停止" : "出窍"}</button></div>`}</div>`;
+    },
+    kuangPlan() { return "k".repeat(CFG.explore.KUANG.TIME); },
+    // 每步灵石 = 当前地图北域一次探索平均灵石 ÷ TIME × 随机(0.5 ~ 1.5)（随机取整）
+    kuangStone(a) {
+      const E = CFG.drop, X = CFG.explore, L = DATA.region(a, DATA.regionCount - 1).L, per = this.runStonePer(DATA.maps[a].w || "fan", L);
+      const run = (per !== null ? per : E.STONE_BASE * Math.pow(E.STONE_GROW, L)) * 1.75 * (X.MONSTERS + (X.ELITES || 0) * E.ELITE_STONE + X.BOSS * E.BOSS_STONE) * E.STONE_RATE * DATA.mapStone(a);
+      return Math.floor(run / X.KUANG.TIME * (0.5 + Math.random()) + Math.random());
+    },
+    toggleKuang(a) {
+      const s = this.s;
+      if (s.explore && s.explore.kuang && !s.explore.cq && s.explore.map === a) { this.stopExplore("停止挖矿"); return this.after(); }
+      if (this.cqBusy()) return;
+      if (!this.mapOpen(a)) return;
+      if (s.explore) this.stopExplore("更换");
+      s.explore = { map: a, reg: -1, kuang: 1, once: false, start: this.now(), step: 0, count: 0, loot: this.newLoot(), ev: [], last: "", plan: this.kuangPlan(), ms: this.exploreMs() };
+      s.lastRun = null;
+      this.exploreOpen = true;
+      this.log(`开始在${this.kuangName(a)}挖矿（期间无法修炼）。`, "sys");
+      this.after();
     },
     setWorld(id) { if (this.worldId !== id) { this.mapSel = undefined; this.hallSel = null; } this.worldId = id; this.render(); },
     // v45：这一界开放没有（config/worldmaps.js 的 open）
@@ -468,10 +495,10 @@ G.module({
       if (!s.cqLv) return this.log(`需先在宗门宝库兑换${C.NAME}。`, "sys");
       if (this.cqLeftToday() <= 0) return this.log("今天的出窍次数已用完。", "sys");
       if (!this.realmOK(C.REALM)) return this.log(`出窍需要${DATA.realmLabel(C.REALM)}。`, "sys");
-      if (!this.isTrained(a, r)) return this.log("需先在此区域历练通过，才能出窍探索。", "sys");
-      if (!this.regionOpen(a, r)) return;
+      if (r >= 0 && !this.isTrained(a, r)) return this.log("需先在此区域历练通过，才能出窍探索。", "sys");
+      if (r < 0 ? !this.mapOpen(a) : !this.regionOpen(a, r)) return;
       const max = this.cqLeftToday();
-      this.modal(`<h2>元婴出窍 · ${DATA.regionName(a, r)}</h2>
+      this.modal(`<h2>元婴出窍 · ${r < 0 ? this.kuangName(a) : DATA.regionName(a, r)}</h2>
         <p>${C.NAME}第 ${s.cqLv} 层，今天还能出窍探索 ${max} 次；出窍期间可以继续修炼。开始时先扣次数，中途停止只扣已完成和正在进行的，剩下的返还。</p>
         <div class="line"><div>出窍次数<small>1 ~ ${max}</small></div><input id="cq-n" type="number" min="1" max="${max}" value="${max}" style="width:110px"></div>
         <div class="btns"><button class="primary" onclick="G.startChuqiao(${a},${r})">出窍</button><button onclick="G.closeModal()">取消</button></div>`);
@@ -481,12 +508,13 @@ G.module({
       if (n < 1) return;
       this.closeModal();
       if (s.explore) this.stopExplore("更换");
-      if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("生命不足三成，先休养片刻（每 10 秒恢复 1%）。", "sys");
+      if (r >= 0 && s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("生命不足三成，先休养片刻（每 10 秒恢复 1%）。", "sys");
       this.cqUse(n);   // 开始先扣次数，停止时返还没走的（stopExplore）
-      s.explore = { map: a, reg: r, once: false, cq: n, start: this.now(), step: 0, count: 0, loot: this.newLoot(), ev: [], last: "", plan: this.makePlan(), ms: this.exploreMs() };
+      s.explore = { map: a, reg: r, once: false, cq: n, start: this.now(), step: 0, count: 0, loot: this.newLoot(), ev: [], last: "", plan: r < 0 ? this.kuangPlan() : this.makePlan(), ms: this.exploreMs() };
+      if (r < 0) s.explore.kuang = 1;   // 灵矿
       s.lastRun = null;
       this.exploreOpen = true;
-      this.log(`元婴出窍，前往${DATA.regionName(a, r)}探索 ${n} 次（期间可以继续修炼）。`, "sys");
+      this.log(`元婴出窍，前往${r < 0 ? this.kuangName(a) : DATA.regionName(a, r)}探索 ${n} 次（期间可以继续修炼）。`, "sys");
       this.after();
     },
     // 停止：本次已获得的东西也结算
@@ -502,15 +530,16 @@ G.module({
     // 走一步：随机事件
     exploreStep() {
       const x = this.s.explore, a = x.map, r = x.reg || 0, mj = x.mj, mk = x.mk;
-      if (!x.plan) x.plan = this.makePlan(this.exCfg(x));
-      const type = { n: "nothing", m: "monster", e: "elite", b: "boss", h: "herb", o: "ore" }[x.plan[x.step]] || "nothing";
+      if (!x.plan) x.plan = this.exPlan(x);
+      const type = { n: "nothing", m: "monster", e: "elite", b: "boss", h: "herb", o: "ore", k: "kuang" }[x.plan[x.step]] || "nothing";
       x.step++;
       // 每走一步恢复生命、法力（HEAL_STEP + 宗门秘法「斗血 / 斗灵」）；战斗回合中不恢复
       const st = this.stats(), H = this.regenStep();
       this.s.hp = Math.min(st.hp, this.s.hp + st.hp * H.hp / 100); this.s.mana = Math.min(st.mana, this.s.mana + st.mana * H.mana / 100);
       let t = "", c = "", bd = null;
       const roll = ev => mj !== undefined ? this.rollMj(x.loot, ev, mj, mk) : this.rollEvent(x.loot, ev, a);
-      if (type === "herb") { t = `发现灵药，采得 ${roll("herbEvent") || "无"}`; c = "good"; }
+      if (type === "kuang") { const g = this.kuangStone(a); x.loot.stone += g; t = `挖掘灵石矿，获得灵石 ${U.fmt(g)}`; c = "good"; }
+      else if (type === "herb") { t = `发现灵药，采得 ${roll("herbEvent") || "无"}`; c = "good"; }
       else if (type === "ore") { t = `发现矿脉，挖得 ${roll("oreEvent") || "无"}`; c = "good"; }
       else if (type === "monster" || type === "elite" || type === "boss") {
         const kind = type === "monster" ? "normal" : type, m = mj !== undefined ? this.makeMjMob(mj, kind, mk) : this.makeMob(a, r, kind);
@@ -557,7 +586,7 @@ G.module({
           // 保存这一次的全部事件，结束后也能查看（含失败那一步）
           s.lastRun = { title: `${this.exName(x)} · ${x.last}`, ev: x.ev.slice(), bad: lost };
           if (x.mj !== undefined) { if (!this.mjFinish(x, lost)) break; x = s.explore; continue; }   // 秘境：每处只走一次，一键探索接着走下一处
-          if (!lost) this.mjDiscover(x.map);   // 地图走完一次：有几率发现秘境（凡界）/ 灵地（四界）
+          if (!lost && !x.kuang) this.mjDiscover(x.map);   // 地图走完一次：有几率发现秘境（凡界）/ 灵地（四界）
           if (x.once) { // 历练只走一次；走完且未战败 = 通过，解锁该区域自动探索
             const key = this.regionKey(x.map, x.reg || 0);
             if (!lost && DATA.maps[x.map].w !== "fan" && this.xjGxAdd) { const g = CFG.xingjun.CONTRIB_RUN || 0; if (g) { this.xjGxAdd(x.map, g); this.log(`${DATA.maps[x.map].name}贡献 +${g}`, "gold"); } }   // 四界地图：完成一次历练得本图贡献（config/xingjun.js）
@@ -575,15 +604,16 @@ G.module({
             s.lastRun.title += "；生命不足三成，自动探索停止";
             s.explore = null; break;
           }
-          x.start = x.start + (x.step + (lost ? 1 : 0)) * x.ms; x.ms = this.exploreMs(); x.step = 0; x.loot = this.newLoot(); x.ev = []; x.plan = this.makePlan(this.exCfg(x));
+          x.start = x.start + (x.step + (lost ? 1 : 0)) * x.ms; x.ms = this.exploreMs(); x.step = 0; x.loot = this.newLoot(); x.ev = []; x.plan = this.exPlan(x);
           s.lastRun = null; // 开始新一次：不保留上一次的记录
         }
       }
       if (changed) this.dirty();
     },
     /* ---------- 秘境（config/mijing.js）、灵地（config/lingdi.js）：共用一套，k = "mj" 秘境（默认）/ "ld" 灵地 ---------- */
-    exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
-    exName(x) { return x.mj !== undefined ? this.mjLabel(x.mk) + "·" + this.mjDef(x.mj, x.mk).name : DATA.regionName(x.map, x.reg || 0); },
+    exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : x && x.kuang ? CFG.explore.KUANG : CFG.explore; },
+    exPlan(x) { return x.kuang ? this.kuangPlan() : this.makePlan(this.exCfg(x)); },
+    exName(x) { return x.mj !== undefined ? this.mjLabel(x.mk) + "·" + this.mjDef(x.mj, x.mk).name : x.kuang ? this.kuangName(x.map) : DATA.regionName(x.map, x.reg || 0); },
     mjCfg(k) { return k === "ld" ? CFG.lingdi : CFG.mijing; },
     mjLabel(k) { return k === "ld" ? DATA.nmPick(CFG.names.mjLabel, "ld", "灵地") : DATA.nmPick(CFG.names.mjLabel, "mj", "秘境"); },   // 名字在 config/names.js 的 mjLabel
     mjDef(i, k) { return this.mjCfg(k).list[i]; },
