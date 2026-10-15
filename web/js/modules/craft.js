@@ -327,8 +327,8 @@ G.module({
 
     /* ---------- 门派炼器室：学习装备图谱 / 空间石 ---------- */
     // 戒指图纸 key：v26 起 ring:种类:阶（v25 的 ring:阶 = 该阶所有种类）
-    forgeKey(kind, g, slot) { return kind === "eq" ? `eq:${slot}:${g}` : kind === "ring" ? (slot === undefined ? `ring:${g}` : `ring:${slot}:${g}`) : `ss:${g}`; },
-    forgeKeyName(key) { const p = key.split(":"), k = p[0]; return k === "eq" ? DATA.forgeEqName(p[1], +p[2]) + "图谱" : k === "ring" ? (p.length > 2 ? DATA.ringBpName(+p[2], +p[1]) : DATA.ringBpName(+p[1])) : DATA.stoneName(+p[1]) + "炼法"; },
+    forgeKey(kind, g, slot) { return kind === "lz" ? `lz:${slot}` : kind === "eq" ? `eq:${slot}:${g}` : kind === "ring" ? (slot === undefined ? `ring:${g}` : `ring:${slot}:${g}`) : `ss:${g}`; },
+    forgeKeyName(key) { const p = key.split(":"), k = p[0]; return k === "lz" ? DATA.smName("lz", +p[1]) + "图纸" : k === "eq" ? DATA.forgeEqName(p[1], +p[2]) + "图谱" : k === "ring" ? (p.length > 2 ? DATA.ringBpName(+p[2], +p[1]) : DATA.ringBpName(+p[1])) : DATA.stoneName(+p[1]) + "炼法"; },
     ringKnown(r, g) { const K = this.s.forgeKnown; return K.includes(`ring:${r}:${g}`) || K.includes(`ring:${g}`); },
     // v25：使用戒指图纸（试炼塔奖励）→ 学会该阶 9 种戒指的炼法
     learnRingBp(i) {
@@ -339,14 +339,26 @@ G.module({
       this.log(`学会${DATA.ringBpName(it.g, it.r)}，可在洞府炼器室把${DATA.JIE[it.g - 1]}${DATA.ringNames[it.r] || "戒指"}升为${DATA.JIE[it.g]}。`, "gold"); this.closeModal(); this.after();
     },
     setForgeLibTier(g) { this.forgeLibTier = g; this.render(); },
+    // 学习花费 { c 贡献, min 分钟 }（灵珠图纸不分阶，见 config/array.js 的 CFG.lingzhu）
+    forgeLearnOf(kind, g) { if (kind === "lz") return { c: CFG.lingzhu.LEARN_COST, min: CFG.lingzhu.LEARN_TIME }; const C = kind === "eq" ? CFG.forge.equip : CFG.forge.stone; return { c: C.learnCost[g], min: C.learnTime[g] }; },
     learnForge(kind, g, slot) {
-      const s = this.s, key = this.forgeKey(kind, g, slot), C = kind === "eq" ? CFG.forge.equip : CFG.forge.stone, c = C.learnCost[g];
+      const s = this.s, key = this.forgeKey(kind, g, slot), L = this.forgeLearnOf(kind, g), c = L.c;
       if (s.forgeKnown.includes(key)) return;
       if (s.forgeStudy) return this.log("正在学习其他图谱，一次只能学一个。", "sys");
-      if (g >= this.sectInfo().star) return this.log(`需要 ${g + 1} 星及以上门派才能学习。`, "sys");
+      if (kind !== "lz" && g >= this.sectInfo().star) return this.log(`需要 ${g + 1} 星及以上门派才能学习。`, "sys");
       if (s.contrib < c) return this.log("贡献不足。", "sys");
-      s.contrib -= c; s.forgeStudy = { key, end: this.now() + C.learnTime[g] * 60000 };
-      this.log(`开始学习${this.forgeKeyName(key)}，需 ${U.dur(C.learnTime[g] * 60)}。`, "good"); this.after();
+      s.contrib -= c; s.forgeStudy = { key, end: this.now() + L.min * 60000 };
+      this.log(`开始学习${this.forgeKeyName(key)}，需 ${U.dur(L.min * 60)}。`, "good"); this.after();
+    },
+    /* ---------- 灵珠：洞府炼器室炼制（三种矿石 + 对应灵晶，立即炼成放进背包） ---------- */
+    lzMats() { return DATA.parseMats(CFG.lingzhu.ORE); },
+    craftLz(ft) {
+      const C = CFG.lingzhu, mats = this.lzMats();
+      if (!this.s.forgeKnown.includes(this.forgeKey("lz", 0, ft))) return;
+      if (!this.hasMats(mats) || this.smCount("lj", ft) < C.JING) return this.log("材料不足。", "sys");
+      if (!this.addSm("lz", 1, ft)) return;
+      mats.forEach(m => this.takeMat(m.kind, m.g, m.n)); this.takeSm("lj", C.JING, ft);
+      this.log(`炼成${DATA.smName("lz", ft)}，放进聚灵阵的灵珠格可增加聚灵。`, "gold"); this.after();
     },
 
     /* ---------- 空间石 ---------- */
@@ -548,6 +560,12 @@ G.caveViews.forge = function () {
     <div class="room-grid five">${DATA.JIE.map((n, i) => `<button class="${g === i ? "active" : ""}" onclick="G.setForgeTier(${i})">${n}</button>`).join("")}</div>` +
     (rows || `<p class="desc">${DATA.JIE[g]}还没有可炼制的东西：炉子图纸在门派宝库兑换，装备图谱、空间石在门派炼器室学习。</p>`) +
     `<p class="desc">二阶起的装备、法宝、戒指要用一件上一阶同部位（同种）的 + 三种矿石，升阶后属性颜色不变、数值变大；阶不能高于使用中的炼器炉。炼制失败只扣矿石，上一阶装备退回。</p></div>`;
+  // 灵珠（门派炼器室学会图纸）
+  const LZ = CFG.lingzhu, lzMats = this.lzMats();
+  const lzRows = LZ.NAMES.map((n, ft) => !s.forgeKnown.includes(this.forgeKey("lz", 0, ft)) ? "" : `<div class="line"><div>${DATA.li(DATA.smIcon("lz", ft), "lz-glow")}${DATA.smName("lz", ft)}<span class="tag">聚灵+${U.fmt(LZ.BASE)}</span>
+    <small>${this.matsText(lzMats)}、<span class="${this.smCount("lj", ft) >= LZ.JING ? "" : "q5"}">${DATA.li(DATA.smIcon("lj", ft))}${DATA.smName("lj", ft)} ${U.fmt(this.smCount("lj", ft))}/${LZ.JING}</span></small></div>
+    <button class="sm" onclick="G.craftLz(${ft})" ${this.hasMats(lzMats) && this.smCount("lj", ft) >= LZ.JING ? "" : "disabled"}>炼制</button></div>`).join("");
+  if (lzRows) h += `<div class="card"><h3>灵珠</h3>${lzRows}</div>`;
   return h;
 };
 
@@ -555,8 +573,8 @@ G.caveViews.forge = function () {
 G.sectForgeView = function () {
   const s = this.s, star = this.sectInfo().star, g = this.forgeLibTier || 0, st = s.forgeStudy, lock = g >= star;
   let h = "";
-  if (st) { const sg = +st.key.split(":").pop(), sC = st.key.startsWith("eq:") ? CFG.forge.equip : CFG.forge.stone;
-    h += `<div class="card"><h3>学习中<small>${this.forgeKeyName(st.key)}</small></h3><p class="desc pg">${this.pgFill(Math.max(0, st.end - Date.now()), sC.learnTime[sg] * 60000)}<span>剩余 ${U.dur(Math.max(0, st.end - Date.now()) / 1000 + 59)}</span></p></div>`; }
+  if (st) { const sk = st.key.split(":")[0], sL = this.forgeLearnOf(sk === "eq" || sk === "lz" ? sk : "ss", +st.key.split(":").pop());
+    h += `<div class="card"><h3>学习中<small>${this.forgeKeyName(st.key)}</small></h3><p class="desc pg">${this.pgFill(Math.max(0, st.end - Date.now()), sL.min * 60000)}<span>剩余 ${U.dur(Math.max(0, st.end - Date.now()) / 1000 + 59)}</span></p></div>`; }
   const line = (kind, sl, name, tag, desc) => {
     const key = this.forgeKey(kind, g, sl), has = s.forgeKnown.includes(key), C = kind === "eq" ? CFG.forge.equip : CFG.forge.stone, c = C.learnCost[g];
     const img = kind === "ss" ? DATA.iconImg("ss") : DATA.iconImg(sl === "fabao" ? "fbs0_0" : "eq_" + sl);
@@ -568,6 +586,11 @@ G.sectForgeView = function () {
     DATA.forgeSlots.map(sl => line("eq", sl, DATA.forgeEqName(sl, g), DATA.slots[sl],
       (sl === "fabao" ? (g ? `升阶图谱：把${DATA.JIE[g - 1]}法宝升为${DATA.JIE[g]}（${DATA.fabaoTypes.length} 种通用，颜色不变）` : `炼制图谱：用耀石炼成一阶法宝（${DATA.fabaoTypes.map(t => t.name).join(" ")}，属性自选）`) : `主属性 ${CFG.forge.attr.main[sl].map(k => DATA.attrNames[k]).join("、")} + 1~5 条附加属性`) + (g ? ` · 需上一阶${DATA.slots[sl]}` : ""))).join("") +
     line("ss", null, DATA.stoneName(g), DATA.SS, `使用一个储物格 +1，每阶最多 ${CFG.forge.stone.MAX_USE} 个；炼制要空间晶核（秘境掉落）`) + `</div>`;
+  // 灵珠图纸：不分阶，每个星级都能学
+  const LZ = CFG.lingzhu, lzc = LZ.LEARN_COST;
+  h += `<div class="card"><h3>灵珠图纸</h3>` + LZ.NAMES.map((n, ft) => { const has = s.forgeKnown.includes(this.forgeKey("lz", 0, ft));
+    return `<div class="line"><div>${DATA.li(DATA.smIcon("lz", ft), "lz-glow")}${DATA.smName("lz", ft)}<small>${this.matsText(this.lzMats())}、${DATA.smName("lj", ft)} ×${LZ.JING}<br>${U.fmt(lzc)} 贡献 · 学习 ${U.dur(LZ.LEARN_TIME * 60)}</small></div>
+      <button class="sm" onclick="G.learnForge('lz',0,${ft})" ${has || st || s.contrib < lzc ? "disabled" : ""}>${has ? "已学会" : "学习"}</button></div>`; }).join("") + `</div>`;
   return h;
 };
 
