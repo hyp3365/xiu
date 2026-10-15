@@ -22,7 +22,8 @@ DATA.array = {
   MAX: _A.MAX,
   GATHER_BASE: _A.GATHER_BASE,
   STONE_LING: _A.STONE_LING,
-  factor: lv => 1 + DATA.segSum(_A, "SPEED", lv) / 100,
+  LING_STONE: _A.LING_STONE,
+  factor: lv => 1 + Math.round(DATA.segSum(_A, "SPEED", lv) * 1e6) / 1e8,
   gather: lv => { let t = _A.GATHER_BASE; for (let l = 1; l <= Math.min(lv, _A.MAX); l++) t += DATA.gatherLv(_A, l); return t; },
   cost: lv => DATA.segCost(_A, lv + 1),
 };
