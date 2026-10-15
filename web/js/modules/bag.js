@@ -45,8 +45,8 @@ G.module({
 
     /* ---------- 装备属性 ---------- */
     equipStats(e) {
-      // v25 炼制法宝：战斗中祭出；v57 剑 / 刀 / 锤 的专属属性（攻击、命中、暴击）装在法宝栏里直接加到人物属性
-      if (e.attrs && e.slot === "fabao") { const out = {}, K = { sAtk: "atk", dSAtk: "atk", sHit: "hit", sCrit: "crit" }; for (const a of e.attrs) if (K[a.k]) out[K[a.k]] = (out[K[a.k]] || 0) + DATA.attrVal(a, e.g, e); return out; }
+      // 炼制法宝：战斗中祭出；专属属性只在这件法宝攻击时生效（data/forge.js 的 fabaoInfo），不加到人物属性
+      if (e.attrs && e.slot === "fabao") return {};
       if (e.attrs) { const out = {}; for (const a of e.attrs) out[a.k] = (out[a.k] || 0) + DATA.attrVal(a, e.g, e); return out; } // 炼制装备 / 戒指（data/forge.js）
       if (e.cid) { const d = this.cuDef(e.cid); return d ? this.cuStats(d) : {}; } // 自定义装备/法宝：属性见 content/items.js
       const Le = e.g * 10 + CFG.equip.LAYER_OFFSET, f = Math.pow(DATA.GROW, Le), m = DATA.qualMult[e.q], k = e.q + 1, B = DATA.playerBase;
@@ -65,7 +65,7 @@ G.module({
         if (e.slot === "fabao") {
           const f = DATA.fabaoInfo(e);
           head = `${DATA.elById[e.el].name}属性${e.name} · 每次祭出消耗法力 ${U.fmt(f.mana)}<br>`;
-          if (!f.shield) head += `法宝攻击 ${U.fmt(f.atk)}<br>`;
+          if (!f.shield) head += `实际攻击 ${U.fmt(f.atk)}<br>`;
           if (f.shield) head += `护盾值 ${U.fmt(f.shield.hp)} · 防御 ${U.fmt(f.shield.def)}<br>`;
           if (f.ding) head += `击中后对方速度 -${U.num(f.ding.speed)}%、命中 -${U.num(f.ding.hit)}%、闪避 -${U.num(f.ding.dodge)}%，持续 ${f.ding.rounds} 回合<br>`;
         }
