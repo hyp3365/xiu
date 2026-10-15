@@ -7,7 +7,7 @@
  * 用到的地方：试炼塔 config/sect.js 的 sect.tower、雷劫 config/trib.js 的 trib；
  *   怪物（地图、秘境、灵地、天将星君界主、宗门考官）另见 js/data/mobs.js（数值 config/mobs.js）
  * ===================================================================== */
-DATA.REF_KEYS = ["hp", "atk", "def", "speed", "hit", "dodge"];
+DATA.REF_KEYS = ["hp", "atk", "def", "speed", "hit", "dodge", "mana"];
 DATA._ref = {};
 DATA.refStar = realm => (CFG.sect.REQ_REALM || []).filter(x => x <= realm).length;   // 该境界能进的最高星级
 DATA.refStats = (realm, layer, gf) => {
