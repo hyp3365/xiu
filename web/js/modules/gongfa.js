@@ -209,7 +209,7 @@ G.module({
 
     // 分类按钮 + 「修炼队列」按钮（修炼中的功法、排队情况都在这里看）
     const qn = (s.gfStudy ? 1 : 0) + s.gfQueue.length;
-    const cats = [["all", "全部"], ...DATA.gongfaTypes.map(t => [t.id, t.name]), ["spell", "法术"], ["mifa", "秘法"], ["queue", `修炼队列${qn ? `(${qn})` : ""}`]];
+    const cats = [["all", "全部"], ...DATA.gongfaTypes.filter(t => !t.base).map(t => [t.id, t.name]), ["spell", "法术"], ["mifa", "秘法"], ["queue", `修炼队列${qn ? `(${qn})` : ""}`]];
     const tabs = `<div class="room-grid">${cats.map(([k, n]) => `<button class="${filter === k ? "active" : ""}" ${k === "queue" ? `style="grid-column:1/-1"` : ""} onclick="G.setGfFilter('${k}')">${n}</button>`).join("")}</div>`;
 
     if (filter === "queue") return tabs + this.gfQueueView();
