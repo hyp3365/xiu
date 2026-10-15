@@ -717,16 +717,17 @@ G.module({
       return got.filter(Boolean).join("、");
     },
     // 按名字把东西记进 loot：火髓 / 专用材料 / 药材矿石 / 自定义物品
-    //   耀石：名字是「耀石」（没写属性）每个随机一种属性
+    //   耀石 / 灵晶：名字是「耀石」「灵晶」（没写属性）每个随机一种属性
     lootAdd(loot, name, n) {
       if (name === DATA.HX) { loot.hx = (loot.hx || 0) + n; return `${DATA.HX}×${n}`; }
       const sm = DATA.smByName(name);
       if (sm) {
         loot.sm = loot.sm || {};
-        if (!(sm.k === "ys" && sm.ft === undefined)) { const key = DATA.smKey(sm.k, sm.ft); loot.sm[key] = (loot.sm[key] || 0) + n; return `${DATA.smName(sm.k, sm.ft)}×${n}`; }
+        if (!(DATA.SM_GRADED.includes(sm.k) && sm.ft === undefined)) { const key = DATA.smKey(sm.k, sm.ft); loot.sm[key] = (loot.sm[key] || 0) + n; return `${DATA.smName(sm.k, sm.ft)}×${n}`; }
         const cnt = {};
-        for (let j = 0; j < n; j++) { const key = DATA.smKey("ys", Math.floor(Math.random() * DATA.elements.length)); loot.sm[key] = (loot.sm[key] || 0) + 1; cnt[key] = (cnt[key] || 0) + 1; }
-        return Object.keys(cnt).map(key => `${DATA.smName("ys", DATA.smParse(key).ft)}×${cnt[key]}`).join("、");
+        const nk = ((CFG.mijing.items[sm.k] || {}).names || DATA.elements).length;
+        for (let j = 0; j < n; j++) { const key = DATA.smKey(sm.k, Math.floor(Math.random() * nk)); loot.sm[key] = (loot.sm[key] || 0) + 1; cnt[key] = (cnt[key] || 0) + 1; }
+        return Object.keys(cnt).map(key => `${DATA.smName(sm.k, DATA.smParse(key).ft)}×${cnt[key]}`).join("、");
       }
       const m = DATA.matByName[name];
       if (m) { const key = m.kind + "|" + name; (loot.mats[key] = loot.mats[key] || { kind: m.kind, name, g: m.g, n: 0 }).n += n; return `${name}×${n}`; }
