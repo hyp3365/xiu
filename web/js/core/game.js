@@ -119,8 +119,7 @@ const G = {
     const MAX = 3e6; // 安全上限（约 347 天），防止浏览器卡死
     const runs = Math.min(n, MAX);
     const t0 = this.s.last;
-    for (let i = 0; i < runs; i++) { this._simNow = t0 + (i + 1) * DATA.TICK * 1000; this.tickAll(true); }
-    this._simNow = 0;
+    this.runTicks(t0, runs);   // 见 core/fastsim.js：事件之间的纯数值结算直接计算，结果和逐个结算一样
     this.silent = false;
     this.s.last = Date.now() - (sec % DATA.TICK) * 1000;
     const o = this._off; this._off = null;
@@ -164,7 +163,7 @@ const G = {
       const n = Math.min(Math.floor((now - this._lastTick) / T), 3e6);
       if (n > 1) {
         this.silent = true;
-        try { for (let i = 1; i < n; i++) { this._simNow = this._lastTick + i * T; this.tickAll(true); } }
+        try { this.runTicks(this._lastTick, n - 1); }
         finally { this._simNow = 0; this.silent = false; }
         this.dirty();
       }
