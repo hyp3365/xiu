@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------
  * 【功法】六大类，每类加成一种属性（固定数值，不是百分比）：
  *   心法 → 防御      功诀 → 攻击      真经 → 生命上限
- *   秘诀 → 修炼速度  身法 → 速度      凝神术 → 命中    遁术 → 闪避      法诀 → 法力上限
+ *   秘诀 → 修炼速度  身法 → 速度、命中 遁术 → 闪避      法诀 → 法力上限
  *   真诀 → 本门派属性的抗性（金木水火土雷之一，v15）
  * 每个门派每类功法一本（v93 取消天地玄黄四阶，效果 = 以前四阶相加）
  * 必须学会至少一部秘诀才能修炼。
@@ -43,12 +43,11 @@ DATA.gongfaTypes = [
   { id: "gongjue",  name: "功诀", suffix: "诀",   stat: "atk",       label: "攻击" },
   { id: "zhenjing", name: "真经", suffix: "真经", stat: "hp",        label: "生命上限" },
   { id: "mijue",    name: "秘诀", suffix: "秘诀", stat: "cultivate", label: "修炼速度" },
-  { id: "shenfa",   name: "身法", suffix: "身法", stat: "speed",     label: "速度" },
+  { id: "shenfa",   name: "身法", suffix: "身法", stat: "speed",     label: "速度", stat2: "hit", label2: "命中" },   // v124：身法同时加速度和命中
   { id: "dunshu",   name: "遁术", suffix: "遁术", stat: "dodge",     label: "闪避" },
   { id: "fajue",    name: "法诀", suffix: "法诀", stat: "mana",      label: "法力上限" },
   { id: "zhenjue",  name: "真诀", suffix: "真诀", stat: "res",       label: "抗性" }, // 抗性属性 = 来源属性
   { id: "tijue",    name: "肉身秘诀", suffix: "炼体诀", stat: "body", label: "肉身修炼速度", sectOnly: true }, // 修炼肉身的前提；只在宗门功法殿学习
-  { id: "ningshen", name: "凝神术", suffix: "凝神术", stat: "hit",   label: "命中" },   // v104：加命中（放最后，不影响其他功法的名字）
 ];
 
 DATA.gongfaTypes.forEach(t => { const n = (_NM.gfType || {})[t.id]; if (n) { t.name = DATA.nmPick(n, 0, t.name); t.suffix = DATA.nmPick(n, 1, t.suffix); } });
@@ -163,7 +162,7 @@ DATA.gfBase = (C, key) => { const B = _GF.base || {}; return B[key] !== undefine
 DATA._gfUnit = {};
 DATA.gfUnit = key => {
   if (DATA._gfUnit[key] !== undefined) return DATA._gfUnit[key];
-  const S = _GF.sect, nT = DATA.gongfaTypes.filter(t => t.stat === key).length;
+  const S = _GF.sect, nT = DATA.gongfaTypes.filter(t => t.stat === key || t.stat2 === key).length;
   let d = 0; for (let st = 1; st <= 10; st++) d += (S.STAT_STAR[st - 1] || 0) * DATA.sects.filter(x => x.star === st).length;
   return DATA._gfUnit[key] = d && nT ? ((S.TOTAL || {})[key] || 0) / (d * nT * DATA.lvMul(_GF.MAX)) : 0;
 };
@@ -219,7 +218,7 @@ DATA.gongfaInfo = (id, lv = 1) => {
   const [sectId, typeId, tierId] = id.split(":");
   const sect = DATA.gfSrcById[sectId], type = DATA.gongfaTypes.find(x => x.id === typeId), tier = DATA.tierById[tierId];
   if (!sect || !type || !tier || tierId !== "huang" || (type.base && (sect.src || "sect") !== "sect")) return null;
-  const per = DATA.gfCalc(sect, type.id, tier, type.stat, "EFFECT_GONGFA");
+  const per = DATA.gfCalc(sect, type.id, tier, type.stat, "EFFECT_GONGFA"), per2 = type.stat2 ? DATA.gfCalc(sect, type.id, tier, type.stat2, "EFFECT_GONGFA") : 0;
   const el = DATA.elById[(sect.els || {})[type.id] || sect.el];   // 仙魔冥神坊市、功德司：每本单独的属性
   const J = sect.src === "jshop" ? _GF.jshop || {} : null;
   return {
@@ -230,6 +229,7 @@ DATA.gongfaInfo = (id, lv = 1) => {
     value: per * DATA.lvMul(lv),                  // 当前加成（固定数值）
     next: per * DATA.lvMul(lv + 1),               // 下一层的加成
     perLv: per,                                   // 每层加成
+    label2: type.label2, value2: per2 * DATA.lvMul(lv), next2: per2 * DATA.lvMul(lv + 1), perLv2: per2,   // 第二项属性（身法的命中）
     cost: DATA.gfLearnCost(sect, type.id, tier),  // 首次学习：宗门 = 贡献，坊市 = 灵石，功德司 = 功德
   };
 };
