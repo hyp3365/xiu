@@ -423,21 +423,21 @@ G.module({
     },
 
     /* ---------- 属性丹：背包、服用 ---------- */
-    addDan(type, g, n = 1) {
+    addDan(type, g, n = 1, sg) {
       if (DATA.isSpeedRecipe(type)) return this.addPill(type, DATA.pillGrade(type, g), n); // 修炼速度丹 → 背包修炼丹（品质 = 阶，仙界修炼丹 + REALM0）
-      const it = this.s.bag.find(x => x.t === "dan" && x.type === type && x.g === g);
+      const it = this.s.bag.find(x => x.t === "dan" && x.type === type && x.g === g && !x.sg === !sg);
       if (it) { it.n += n; return true; }
       if (this.bagFull()) { this.log("背包已满，丹药无处存放，暂停出炉。", "bad"); return false; }
-      this.s.bag.push({ t: "dan", type, g, n }); return true;
+      this.s.bag.push(sg ? { t: "dan", type, g, n, sg: 1 } : { t: "dan", type, g, n }); return true;
     },
     danLeft(type, g) { return DATA.danLimit(type, g) - (this.s.danEaten[type + "|" + g] || 0); },
     eatDan(i, n) {
       const it = this.s.bag[i]; if (!it || it.t !== "dan") return;
       n = Math.min(n, it.n, this.danLeft(it.type, it.g));
-      if (n <= 0) return this.log(`${DATA.danName(it.type, it.g)}已达服用上限。`, "sys");
+      if (n <= 0) return this.log(`${DATA.danName(it.type, it.g, it.sg)}已达服用上限。`, "sys");
       const key = it.type + "|" + it.g, d = DATA.dans[it.type];
       this.s.danEaten[key] = (this.s.danEaten[key] || 0) + n;
-      this.log(`服下${DATA.danName(it.type, it.g)} ×${n}，${d.label} +${U.num(DATA.danVal(it.type, it.g) * n)}。`, "good");
+      this.log(`服下${DATA.danName(it.type, it.g, it.sg)} ×${n}，${d.label} +${U.num(DATA.danVal(it.type, it.g) * n)}。`, "good");
       this.removeAt(i, n); this.closeModal(); this.after();
     },
     // 所有已服用丹药的属性总和（computeStats 里用）
