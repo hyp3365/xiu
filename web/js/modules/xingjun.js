@@ -89,7 +89,7 @@ G.module({
     // NPC：属性按 config/mobs.js 的 [进入境界, 境界, 层, 功法层, 倍率]（tu）生成；ck = 暴击分类（天将 / 星君 / 界主）
     xjNpc(a, name, tu, ck) {
       const b = DATA.mobStats(tu, DATA.mobCrit(ck)), v = x => x * DATA.mobRnd();
-      const m = this.addMagic({ name, Lm: DATA.region(a, 3).L, kind: "boss", boss: true,
+      const m = this.addMagic({ name, a, Lm: DATA.region(a, 3).L, kind: "boss", boss: true,
         hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), mana: v(b.mana), res: v(b.res), manaBr: b.manaBr, crit: b.crit }, "boss");
       // 战斗秘法：天将 / 星君 / 界主固定种数（config/wudao.js MOB_MIFA.官位）
       const MM = CFG.wudao.MOB_MIFA || {}, N = (MM.官位 || {})[ck];
