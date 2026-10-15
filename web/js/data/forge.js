@@ -189,11 +189,11 @@ DATA.attrText = (a, e) => {
   const v = U.num(DATA.attrVal(a, e.g, e)), col = (_FG.attr.colors[a.c] || {}).name || "";
   if (e.slot === "fabao") {
     const el = DATA.elById[a.el] ? DATA.elById[a.el].name : "", p = Math.round(DATA.attrVal(a, e.g, e) * 10) / 10, F = _FG.fabao;   // % 类保留一位小数
-    const t = { pct: `伤害 攻击×${p}%`, elDmg: `额外${el}属性伤害 攻击×${p}%`, ignRes: `无视抗性 ${v}`, manaCut: `法力消耗 -${p}%`,
+    const t = { pct: `伤害 攻击×${p}%`, elDmg: `${el}属性伤害 ${p}%`, ignRes: `无视抗性 ${v}`, manaCut: `法力消耗 -${p}%`,
       sAtk: `法宝攻击时额外增加攻击 +${v}`, dSAtk: `法宝攻击时额外增加攻击 +${v}`, sHit: `法宝攻击时额外增加命中 +${v}`, sCrit: `法宝攻击时额外增加暴击 +${p}%`, sCritDmg: `暴击伤害 ${p}%`, sMana: `本法宝法力消耗 -${p}%`,
       sDing: `击中后降低对方属性 ${v} 回合`, sYin: `眩晕几率 ${p}%（${(F.YIN_ROUNDS || [])[a.c] || 1} 回合）`,
       shHpMain: `护盾值 ${v}`, shDef: `防御 ${v}`, shHp: `护盾值 +${v}`, dmgRed: `受到伤害 -${p}%` }[a.k] || DATA.fbAttrNames[a.k] || a.k;
-    return `${a.m === 2 ? "专属 " : a.m ? "" : "附加 "}${t}（${col}${a.enh ? `·强化${a.enh}` : ""}）`;
+    return `${a.m === 2 ? "专属 " : a.m ? "" : a.k === "elDmg" ? "附加伤害 " : "附加 "}${t}（${col}${a.enh ? `·强化${a.enh}` : ""}）`;
   }
   return `${a.m ? "" : "附加 "}${DATA.attrNames[a.k]} +${v}（${col}${a.enh ? `·强化${a.enh}` : ""}）`;
 };
