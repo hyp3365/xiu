@@ -3,16 +3,16 @@
  * 开局为“凡人”，修为满 100 突破为练气期一层。
  * ---------------------------------------------------------------------
  * 属性计算公式（computeStats）：
- *   生命 = (基础×成长^层序 + 装备 + 真经) × (1 + 装备生命%)
- *   攻击 =  基础×成长^层序 + 装备 + 功诀
- *   防御 =  基础×成长^层序 + 装备 + 心法
- *   法力 =  基础×成长^层序 + 装备 + 法诀
+ *   生命 = (凡人基础 + 修为突破合计 + 装备 + 真经) × (1 + 装备生命%)
+ *   攻击 =  凡人基础 + 修为突破合计 + 装备 + 功诀
+ *   防御 =  凡人基础 + 修为突破合计 + 装备 + 心法
+ *   法力 =  凡人基础 + 修为突破合计 + 装备 + 法诀
  *   （功法加成都是固定数值；以上各项再加 属性丹 永久加成）
- *   基础修炼速度 = 基础×成长^层序（不显示为属性）
- *   速度 = 基础×成长^层序 + 装备
- *   命中 = 基础×成长^层序 + 装备 + 身法 + 丹药；闪避 = 基础×成长^层序 + 装备 + 遁术 + 丹药
+ *   基础修炼速度 = 凡人基础 + 修为突破合计（不显示为属性）
+ *   速度 = 凡人基础 + 修为突破合计 + 装备
+ *   命中 = 凡人基础 + 修为突破合计 + 装备 + 身法 + 丹药；闪避 = 凡人基础 + 修为突破合计 + 装备 + 遁术 + 丹药
  *   暴击：固定基础值 + 装备 + 丹药，不随境界成长
- *   抗性（金木水火土雷各一）= RES_BASE×成长^层序 + 本系真诀；法术伤害按 防御 + 对应抗性 抵消
+ *   抗性（金木水火土雷各一）= RES_BASE + 修为突破合计 + 本系真诀；法术伤害按 防御 + 对应抗性 抵消
  * ===================================================================== */
 G.module({
   id: "player",
@@ -72,22 +72,22 @@ G.module({
       return { hp: (b.hp || 0) + m.hpIdle, mana: (b.mana || 0) + m.mpIdle };
     },
     computeStats() {
-      const L = this.s.L, f = Math.pow(DATA.GROW, L), B = DATA.playerBase, F = DATA.playerFixed;
+      const L = this.s.mortal ? -1 : this.s.L, F = DATA.playerFixed, R = k => DATA.realmStat(L, k);   // 修为突破属性（config/realm.js 的 GAIN）
       const eq = this.equipTotal(), gf = this.gongfaBonus(), dn0 = this.danBonus(), cu = this.customBonus();
       // 属性丹 + 自定义物品永久属性（content/items.js 里 type: "perm"）合在一起
       const dn = {}; for (const k of ["hp", "atk", "def", "mana", "hit", "dodge", "crit"]) dn[k] = (dn0[k] || 0) + (cu[k] || 0); // gongfaBonus 见 gongfa.js，danBonus（属性丹）见 craft.js
       const bd = this.bodyBonus ? this.bodyBonus() : {}; for (const k of ["hp", "atk", "def", "mana", "hit", "dodge", "crit"]) dn[k] += bd[k] || 0;   // 肉身突破加成（body.js）
       return {
-        hp:      (B.hp * f + eq.hp + gf.hp + dn.hp) * (1 + eq.hpPct / 100),
-        atk:     B.atk * f + eq.atk + gf.atk + dn.atk,
-        def:     B.def * f + eq.def + gf.def + dn.def,
-        mana:    B.mana * f + eq.mana + gf.mana + dn.mana,
-        cultivate: B.cultivate * f,
-        speed:   B.speed * f + eq.speed + gf.speed + cu.speed + (bd.speed || 0) + (dn0.speed || 0),
-        hit:     B.hit * f + eq.hit + gf.hit + dn.hit,
-        dodge:   B.dodge * f + eq.dodge + gf.dodge + dn.dodge,
+        hp:      (R("hp") + eq.hp + gf.hp + dn.hp) * (1 + eq.hpPct / 100),
+        atk:     R("atk") + eq.atk + gf.atk + dn.atk,
+        def:     R("def") + eq.def + gf.def + dn.def,
+        mana:    R("mana") + eq.mana + gf.mana + dn.mana,
+        cultivate: R("cultivate"),
+        speed:   R("speed") + eq.speed + gf.speed + cu.speed + (bd.speed || 0) + (dn0.speed || 0),
+        hit:     R("hit") + eq.hit + gf.hit + dn.hit,
+        dodge:   R("dodge") + eq.dodge + gf.dodge + dn.dodge,
         crit:    Math.min(DATA.CRIT_CAP, F.crit + eq.crit + dn.crit),
-        res:     Object.fromEntries(DATA.elements.map(e => [e.id, (CFG.player.RES_BASE || 0) * f + (gf.res[e.id] || 0) + (eq.res[e.id] || 0) + (cu.res[e.id] || 0) + (bd.res || 0) + (dn0.res || 0)])),
+        res:     Object.fromEntries(DATA.elements.map(e => [e.id, R("res") + (gf.res[e.id] || 0) + (eq.res[e.id] || 0) + (cu.res[e.id] || 0) + (bd.res || 0) + (dn0.res || 0)])),
       };
     },
   },
