@@ -35,7 +35,6 @@ CFG.names = CFG.names || {};
   add("火髓", pick(I, "hx", "火髓"));
   for (const k of ["kj", "lu"]) if (MI[k]) add(MI[k].name, pick(I, k, MI[k].name));
   if (MI.ys) { add(MI.ys.name, pick(I, "ys", MI.ys.name)); const yN = arr(N.ys, MI.ys.names || []); (MI.ys.names || []).forEach((o, i) => add(o, yN[i])); }
-  DATA.NM_REN = ren;
   { const all = [...herbDef.map((o, i) => pick(N.herb, i, o)), ...oreDef.map((o, i) => pick(N.ore, i, o))], dup = all.filter((x, i) => all.indexOf(x) !== i);
     if (dup.length) console.error("config/names.js：药材、矿石名字重复了：" + dup.join("、")); }
   // 深度替换：字符串值、对象键（保持键的顺序）
