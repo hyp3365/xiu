@@ -121,15 +121,10 @@ G.module({
       const fbSlots = s.fabao.slice(0, this.slotCount()).map((e, i) => e && e.attrs ? i : -1).filter(i => i >= 0);
       const acts = [...spells.map((sp, i) => ({ k: 1, sp, key: "sp:" + sp.id })), ...fabaos.map((fb, i) => ({ k: 2, fb, key: "fb:" + fbSlots[i] }))];
       const spNames = [...spells.map(sp => sp.name), ...fabaos.map(fb => fb.name)];
-      // 法宝伤害：主伤害（攻击×% + 属性伤害）按「防御×RES_RATE + 该系抗性 − 无视」减免；追加伤害只按对方该系抗性减免
+      // v108 法宝伤害：法宝攻击（按法宝阶）× 伤害%，按「防御×RES_RATE + 该系抗性 − 无视抗性」减免；额外伤害按对方该系抗性 − 无视抗性减免
       const fabaoDmg = fb => {
-        const resMain = Math.max(0, resOf(m, fb.el) - fb.ign) * (1 - fb.ignPct / 100);
-        let d = Math.max(st.atk * BT.MIN_DMG, fb.atk * fb.pct / 100 + fb.flat - resMain * BT.DEF_RATE);   // 法宝攻击（按法宝阶）
-        for (const x of fb.extra) {
-          let r = (m.res || {})[x.el] || 0;
-          if (x.el === fb.el) r = Math.max(0, r - fb.ign) * (1 - fb.ignPct / 100);
-          d += Math.max(0, x.flat + fb.atk * x.pct / 100 - r * BT.DEF_RATE);
-        }
+        let d = Math.max(st.atk * BT.MIN_DMG, fb.atk * fb.pct / 100 - Math.max(0, resOf(m, fb.el) - fb.ign) * BT.DEF_RATE);
+        for (const x of fb.extra) d += Math.max(0, fb.atk * x.pct / 100 - Math.max(0, ((m.res || {})[x.el] || 0) - fb.ign) * BT.DEF_RATE);
         return d;
       };
       const BS = this.bsetGet(), off = BS.off || [], keepMp = st.mana * (BS.keep || 0) / 100, rKeys = BS.r || [];
@@ -144,7 +139,8 @@ G.module({
         if (a.k === 1) { const sp = a.sp; return roll(st, mE(), Math.max(st.atk * BT.MIN_DMG, st.atk * sp.pct / 100 + sp.flat * this.lingenSpell(sp.el.id) - resOf(m, sp.el.id) * BT.DEF_RATE), 1, j); }
         const fb = a.fb;
         if (fb.shield) { shield = Object.assign({ el: fb.el }, fb.shield); act = { k: 3, sp: j, f: 0 }; return 0; }
-        const d = roll(st, mE(), fabaoDmg(fb), 2, j);
+        let d = roll(st, mE(), fabaoDmg(fb), 2, j);
+        if (act.f === 2 && fb.crit) d *= fb.crit / 100;   // 锤：暴击伤害 %
         if (act.f !== 1) {
           if (fb.ding) { m.deb = { speed: fb.ding.speed, hit: fb.ding.hit, dodge: fb.ding.dodge, left: fb.ding.rounds }; act.x = 2; }
           if (fb.yin && Math.random() * 100 < fb.yin.chance) { m.stun = Math.max(m.stun || 0, fb.yin.rounds); act.x = (act.x || 0) | 1; }
@@ -242,10 +238,8 @@ G.module({
         if (pj && act.f !== 1) act.x = (act.x || 0) | 32;
         d = after(d, pMob, mhp, m.hp, mobJc, meJc);
         if (act.f !== 1 && !(act.x & 128) && !meSeal && cnt.mob.zh < pMob.zhT && ch(pMob.zh)) { meSeal = pMob.zhR; sealR.me = rounds; cnt.mob.zh++; act.x = (act.x || 0) | 64; }
-        if (shield && act.f !== 1 && d > 0) {   // 护盾：先减盾防御，同属性再减 %、点，再减「受到伤害减少」，剩下先扣护盾值
-          d = Math.max(0, d - shield.def * BT.DEF_RATE);
-          if (act.k && m.el === shield.el) d = Math.max(0, d * (1 - shield.pct / 100) - shield.flat);
-          d = Math.max(0, d - shield.red);
+        if (shield && act.f !== 1 && d > 0) {   // 护盾：先减盾防御，再减「受到伤害减少%」，剩下先扣护盾值
+          d = Math.max(0, d - shield.def * BT.DEF_RATE) * (1 - shield.red / 100);
           const ab = Math.min(shield.hp, d); shield.hp -= ab; d -= ab; act.ab = ab;
           if (shield.hp <= 0) { shield = null; act.x = (act.x || 0) | 4; }
         }
