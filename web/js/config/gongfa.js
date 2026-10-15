@@ -22,7 +22,7 @@
  *   游戏里实际加成再 × 对应属性的灵根加成（config/lingen.js）
  *
  * 二、法术
- *   法术攻击 = 该星级对应境界（REF）的人物攻击（修为突破 + 肉身突破）− 人物初始攻击（config/player.js 的 atk）+ 使用者的功法攻击（不算装备、丹药等）
+ *   法术攻击 = 使用者当前修为 + 肉身突破的攻击（最高不超过该星级对应境界 REF 的修为 + 肉身攻击）+ 使用者的功法攻击（不算装备、丹药等）
  *   法术伤害 = 法术攻击 × SPELL_LV_PCT[层数]% × SPELL_MUL（不显示）× 来源.TYPE_MULT.spell × 来源.EFFECT_PCT × 灵根法术伤害加成
  *             − (敌人防御 × RES_RATE + 敌人该系抗性) × DEF_RATE（RES_RATE、DEF_RATE 见 config/battle.js；最低 人物攻击 × MIN_DMG）
  *   法力消耗  = 该星级对应境界的修为突破法力（REF）× MANA_PCT% × 灵根倍率（四舍五入，至少 1）
