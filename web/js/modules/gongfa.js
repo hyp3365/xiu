@@ -84,6 +84,7 @@ G.module({
         const v = info.value * this.lingenGongfa(info.el.id);  // 灵根加成
         if (info.type.stat === "res") b.res[info.el.id] = (b.res[info.el.id] || 0) + v;
         else b[info.type.stat] += v;
+        if (info.type.stat2) b[info.type.stat2] += info.value2 * this.lingenGongfa(info.el.id);
       }
       return b;
     },
@@ -194,7 +195,8 @@ G.module({
         ? (g.mk.id === "explore" || g.mk.full ? `${g.label} ${max ? mfv(g.value) : `圆满后 ${mfv(g.perLv)}`}` : `${g.label} ${mfv(g.value)}${max ? "" : `，下一层 ${mfv(g.next)}`}`)
         : g.kind === "sp"
         ? `${this.spellDmgTxt(g)}，耗法力 ${U.fmt(g.mana)}${max ? "" : `，下一层 攻击×${U.dec(g.next)}%`}`
-        : `${g.label} ${cv("+" + this.gfValue(g, g.value * this.lingenGongfa(g.el.id)))}${lgTxt}${max ? "" : `，下一层 ${cv("+" + this.gfValue(g, g.next * this.lingenGongfa(g.el.id)))}`}`;
+        : `${g.label} ${cv("+" + this.gfValue(g, g.value * this.lingenGongfa(g.el.id)))}${lgTxt}${max ? "" : `，下一层 ${cv("+" + this.gfValue(g, g.next * this.lingenGongfa(g.el.id)))}`}` +
+          (g.label2 ? `；${g.label2} ${cv("+" + this.gfValue(g, g.value2 * this.lingenGongfa(g.el.id)))}${max ? "" : `，下一层 ${cv("+" + this.gfValue(g, g.next2 * this.lingenGongfa(g.el.id)))}`}` : "");
       const sec = max ? 0 : this.studySec(g), n = Math.ceil(sec / DATA.STUDY_STEP), per = max ? 0 : DATA.studyPer(g), sp = max ? 0 : g.stonePer || 0;
       return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》${g.noEl ? "" : `<span class="tag">${g.star}星</span>`}${g.kind === "mf" || g.noEl ? "" : `<span class="tag">${g.el.name}</span>`}${g.noEl ? "" : `<span class="tag">${g.tier.name}</span>`}<span class="tag">${g.lv}/${MX}层</span>
         <small>${desc}${max ? "" : `<br>下一层：${U.dur(sec)} · 每5秒 ${U.fmt(per)} 修为${sp ? ` + ${U.fmt(sp)} 灵石` : ""}（共 ${U.fmt(per * n)}${sp ? ` 修为、${U.fmt(sp * n)} 灵石` : ""}）`}${plan > g.lv ? `<br>已排至第 ${plan} 层` : ""}</small></div>
