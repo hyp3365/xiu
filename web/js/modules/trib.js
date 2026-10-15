@@ -12,7 +12,7 @@
  *   s.tribSlots  [格子]：{ k: "fb", uid } 法宝 / { k: "sp", id } 法术 / { k: "it", name } 丹药；空格 null
  *   s.trib       正在进行（或刚结束还没关）的渡劫：
  *                { v: 2, L 突破后层序, start 劫雷开始时间（= 点开始 + PRE_SEC 秒）, time 时长秒, sec 已过秒, atk, crit, taken 共承受, hits 被劈次数, log, result,
- *                  shield 护盾 { hp, def, red, pct, flat, el } | null, cd { 格子序号: 可再用的时间 }, used { 格子序号: true 丹药已用 } }
+ *                  shield 护盾 { hp, def, red } | null, cd { 格子序号: 可再用的时间 }, used { 格子序号: true 丹药已用 } }
  * ===================================================================== */
 G.module({
   id: "trib",
@@ -115,11 +115,9 @@ G.module({
         x.sec = nextHit;
         let [d, c] = this.tribHit(x), ab = 0, brk = false;
         const sh = x.shield;
-        if (sh && sh.hp > 0) {   // 护盾：先减盾防御，雷属性盾再减 %、点，再减「受到伤害减少」，剩下先扣护盾值
+        if (sh && sh.hp > 0) {   // 护盾：先减盾防御，再减「受到伤害减少%」，剩下先扣护盾值
           const BT = CFG.battle;
-          d = Math.max(0, d - (sh.def || 0) * BT.DEF_RATE);
-          if (sh.el === "lei") d = Math.max(0, d * (1 - (sh.pct || 0) / 100) - (sh.flat || 0));
-          d = Math.max(0, d - (sh.red || 0));
+          d = Math.max(0, d - (sh.def || 0) * BT.DEF_RATE) * (1 - (sh.red || 0) / 100);
           ab = Math.min(sh.hp, d); sh.hp -= ab; d -= ab;
           if (sh.hp <= 0) { x.shield = null; brk = true; }
         }
@@ -296,8 +294,8 @@ G.module({
       if (x.used[i]) return this.tribToast("这颗丹药已经用了");
       if ((x.cd[i] || 0) > this.now()) return this.tribToast(`还要 ${Math.ceil((x.cd[i] - this.now()) / 1000)} 秒才能再用`);
       const st = this.stats(), addSh = o => {
-        const sh = x.shield && x.shield.hp > 0 ? x.shield : { hp: 0, def: 0, red: 0, pct: 0, flat: 0, el: "" };
-        sh.hp += o.hp; if (o.el) { sh.el = o.el; sh.pct = Math.max(sh.pct, o.pct || 0); sh.flat = Math.max(sh.flat, o.flat || 0); }
+        const sh = x.shield && x.shield.hp > 0 ? x.shield : { hp: 0, def: 0, red: 0 };
+        sh.hp += o.hp;
         sh.def = Math.max(sh.def, o.def || 0); sh.red = Math.max(sh.red, o.red || 0); x.shield = sh;
       };
       let msg;
@@ -307,8 +305,8 @@ G.module({
         const fb = DATA.fabaoInfo(e);
         if ((s.mana || 0) < fb.mana) return this.tribToast("法力不足");
         s.mana -= fb.mana;
-        const o = fb.shield ? { hp: fb.shield.hp, def: fb.shield.def, red: fb.shield.red, pct: fb.shield.pct, flat: fb.shield.flat, el: fb.el }
-          : { hp: Math.max(0, fb.atk * fb.pct / 100 + fb.flat) * (U0.FB_SHIELD === undefined ? 1 : U0.FB_SHIELD) };
+        const o = fb.shield ? { hp: fb.shield.hp, def: fb.shield.def, red: fb.shield.red }
+          : { hp: Math.max(0, fb.atk * fb.pct / 100) * (U0.FB_SHIELD === undefined ? 1 : U0.FB_SHIELD) };
         addSh(o); x.cd[i] = this.now() + (U0.FB_CD || 0) * 1000;
         msg = `祭出${fb.name}，护盾 +${U.fmt(o.hp)}`;
       } else if (c.k === "sp") {
