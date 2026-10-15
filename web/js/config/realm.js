@@ -16,7 +16,7 @@
  *   属性：hp 生命 atk 攻击 def 防御 mana 法力 speed 速度 hit 命中 dodge 闪避 res 每系抗性 cultivate 境界修炼速度（只有修为突破有）
  *   人物属性 = 凡人基础（config/player.js 的 base / RES_BASE）+ 修为突破合计 + 肉身突破合计 + 装备、功法、丹药……
  *   没写的属性 = 不加；没写的境界沿用上面最近一行。
- *   现在的数值：第一个境界按设定值，之后每个境界 × 约 1.4788，24 个境界合计每项 ≤ 第一个境界每层值的 25 万倍。
+ *   现在的数值：第一个境界按设定值，之后每个境界 × 同一倍率，24 个境界合计每项：修为突破 ≤ 第一个境界每层值的 9.1 万倍，肉身突破 ≤ 9.6 万倍。
  *   怪物、雷劫、试炼塔、法宝 / 法术参考属性都按这里算，改了会一起变。
  * ===================================================================== */
 window.CFG = window.CFG || {};
@@ -52,30 +52,30 @@ CFG.realm = {
 
   /* ---------- 修为突破：增加的属性（每层） ---------- */
   GAIN: [
-    [0, { hp: 35, atk: 6, def: 5, mana: 42, speed: 5, hit: 6, dodge: 5, res: 5, cultivate: 0.107 }],  // 练气
-    [1, { hp: 51.7, atk: 8.87, def: 7.39, mana: 62.1, speed: 7.39, hit: 8.87, dodge: 7.39, res: 7.39, cultivate: 0.232 }],  // 筑基
-    [2, { hp: 76.5, atk: 13.1, def: 10.9, mana: 91.8, speed: 10.9, hit: 13.1, dodge: 10.9, res: 10.9, cultivate: 0.5 }],  // 金丹
-    [3, { hp: 113, atk: 19.4, def: 16.1, mana: 135, speed: 16.1, hit: 19.4, dodge: 16.1, res: 16.1, cultivate: 1.08 }],  // 元婴
-    [4, { hp: 167, atk: 28.6, def: 23.9, mana: 200, speed: 23.9, hit: 28.6, dodge: 23.9, res: 23.9, cultivate: 2.33 }],  // 出窍
-    [5, { hp: 247, atk: 42.4, def: 35.3, mana: 297, speed: 35.3, hit: 42.4, dodge: 35.3, res: 35.3, cultivate: 5.03 }],  // 化神
-    [6, { hp: 366, atk: 62.7, def: 52.3, mana: 439, speed: 52.3, hit: 62.7, dodge: 52.3, res: 52.3, cultivate: 10.9 }],  // 练虚
-    [7, { hp: 541, atk: 92.8, def: 77.3, mana: 649, speed: 77.3, hit: 92.8, dodge: 77.3, res: 77.3, cultivate: 23.5 }],  // 合体
-    [8, { hp: 800, atk: 137, def: 114, mana: 960, speed: 114, hit: 137, dodge: 114, res: 114, cultivate: 50.6 }],  // 洞真
-    [9, { hp: 1180, atk: 202, def: 169, mana: 1420, speed: 169, hit: 202, dodge: 169, res: 169, cultivate: 109 }],  // 大乘
-    [10, { hp: 1750, atk: 300, def: 250, mana: 2100, speed: 250, hit: 300, dodge: 250, res: 250, cultivate: 236 }],  // 渡劫
-    [11, { hp: 2580, atk: 443, def: 369, mana: 3100, speed: 369, hit: 443, dodge: 369, res: 369, cultivate: 510 }],  // 散仙
-    [12, { hp: 3820, atk: 656, def: 547, mana: 4590, speed: 547, hit: 656, dodge: 547, res: 547, cultivate: 1100 }],  // 游仙
-    [13, { hp: 5660, atk: 970, def: 809, mana: 6790, speed: 809, hit: 970, dodge: 809, res: 809, cultivate: 2380 }],  // 地仙
-    [14, { hp: 8370, atk: 1430, def: 1190, mana: 10000, speed: 1190, hit: 1430, dodge: 1190, res: 1190, cultivate: 5130 }],  // 天仙
-    [15, { hp: 12300, atk: 2120, def: 1760, mana: 14800, speed: 1760, hit: 2120, dodge: 1760, res: 1760, cultivate: 11100 }],  // 金仙
-    [16, { hp: 18300, atk: 3140, def: 2610, mana: 21900, speed: 2610, hit: 3140, dodge: 2610, res: 2610, cultivate: 23900 }],  // 太乙金仙
-    [17, { hp: 27000, atk: 4640, def: 3860, mana: 32500, speed: 3860, hit: 4640, dodge: 3860, res: 3860, cultivate: 51600 }],  // 大罗金仙
-    [18, { hp: 40000, atk: 6860, def: 5720, mana: 48000, speed: 5720, hit: 6860, dodge: 5720, res: 5720, cultivate: 111000 }],  // 玄仙
-    [19, { hp: 59200, atk: 10100, def: 8460, mana: 71000, speed: 8460, hit: 10100, dodge: 8460, res: 8460, cultivate: 241000 }],  // 仙君
-    [20, { hp: 87600, atk: 15000, def: 12500, mana: 105000, speed: 12500, hit: 15000, dodge: 12500, res: 12500, cultivate: 519000 }],  // 帝仙
-    [21, { hp: 129000, atk: 22200, def: 18500, mana: 155000, speed: 18500, hit: 22200, dodge: 18500, res: 18500, cultivate: 1120000 }],  // 准圣
-    [22, { hp: 191000, atk: 32800, def: 27300, mana: 229000, speed: 27300, hit: 32800, dodge: 27300, res: 27300, cultivate: 2420000 }],  // 天道圣人
-    [23, { hp: 283000, atk: 48500, def: 40400, mana: 340000, speed: 40400, hit: 48500, dodge: 40400, res: 40400, cultivate: 5230000 }],  // 大道圣人
+    [0, { hp: 21, atk: 6, def: 5, mana: 16, speed: 3, hit: 3, dodge: 4, res: 4, cultivate: 0.021 }],  // 练气
+    [1, { hp: 29.5, atk: 8.45, def: 7.04, mana: 22.5, speed: 4.22, hit: 4.22, dodge: 5.63, res: 5.63, cultivate: 0.0295 }],  // 筑基
+    [2, { hp: 41.6, atk: 11.9, def: 9.91, mana: 31.7, speed: 5.95, hit: 5.95, dodge: 7.93, res: 7.93, cultivate: 0.0416 }],  // 金丹
+    [3, { hp: 58.6, atk: 16.7, def: 13.9, mana: 44.7, speed: 8.38, hit: 8.38, dodge: 11.1, res: 11.1, cultivate: 0.0586 }],  // 元婴
+    [4, { hp: 82.6, atk: 23.6, def: 19.6, mana: 62.9, speed: 11.8, hit: 11.8, dodge: 15.7, res: 15.7, cultivate: 0.0826 }],  // 出窍
+    [5, { hp: 116, atk: 33.2, def: 27.7, mana: 88.7, speed: 16.6, hit: 16.6, dodge: 22.1, res: 22.1, cultivate: 0.116 }],  // 化神
+    [6, { hp: 163, atk: 46.8, def: 39, mana: 124, speed: 23.4, hit: 23.4, dodge: 31.2, res: 31.2, cultivate: 0.163 }],  // 练虚
+    [7, { hp: 230, atk: 65.9, def: 54.9, mana: 175, speed: 32.9, hit: 32.9, dodge: 43.9, res: 43.9, cultivate: 0.23 }],  // 合体
+    [8, { hp: 325, atk: 92.9, def: 77.4, mana: 247, speed: 46.4, hit: 46.4, dodge: 61.9, res: 61.9, cultivate: 0.325 }],  // 洞真
+    [9, { hp: 458, atk: 130, def: 109, mana: 349, speed: 65.4, hit: 65.4, dodge: 87.2, res: 87.2, cultivate: 0.458 }],  // 大乘
+    [10, { hp: 645, atk: 184, def: 153, mana: 491, speed: 92.2, hit: 92.2, dodge: 122, res: 122, cultivate: 0.645 }],  // 渡劫
+    [11, { hp: 909, atk: 259, def: 216, mana: 692, speed: 129, hit: 129, dodge: 173, res: 173, cultivate: 0.909 }],  // 散仙
+    [12, { hp: 1280, atk: 365, def: 304, mana: 975, speed: 182, hit: 182, dodge: 243, res: 243, cultivate: 1.28 }],  // 游仙
+    [13, { hp: 1800, atk: 515, def: 429, mana: 1370, speed: 257, hit: 257, dodge: 343, res: 343, cultivate: 1.8 }],  // 地仙
+    [14, { hp: 2540, atk: 725, def: 604, mana: 1930, speed: 362, hit: 362, dodge: 483, res: 483, cultivate: 2.54 }],  // 天仙
+    [15, { hp: 3570, atk: 1020, def: 852, mana: 2720, speed: 511, hit: 511, dodge: 681, res: 681, cultivate: 3.57 }],  // 金仙
+    [16, { hp: 5040, atk: 1440, def: 1200, mana: 3840, speed: 720, hit: 720, dodge: 960, res: 960, cultivate: 5.04 }],  // 太乙金仙
+    [17, { hp: 7090, atk: 2020, def: 1690, mana: 5400, speed: 1010, hit: 1010, dodge: 1350, res: 1350, cultivate: 7.09 }],  // 大罗金仙
+    [18, { hp: 10000, atk: 2850, def: 2380, mana: 7610, speed: 1420, hit: 1420, dodge: 1900, res: 1900, cultivate: 10 }],  // 玄仙
+    [19, { hp: 14000, atk: 4020, def: 3350, mana: 10700, speed: 2010, hit: 2010, dodge: 2680, res: 2680, cultivate: 14 }],  // 仙君
+    [20, { hp: 19800, atk: 5660, def: 4720, mana: 15100, speed: 2830, hit: 2830, dodge: 3770, res: 3770, cultivate: 19.8 }],  // 帝仙
+    [21, { hp: 27900, atk: 7980, def: 6650, mana: 21200, speed: 3990, hit: 3990, dodge: 5320, res: 5320, cultivate: 27.9 }],  // 准圣
+    [22, { hp: 39300, atk: 11200, def: 9370, mana: 29900, speed: 5620, hit: 5620, dodge: 7490, res: 7490, cultivate: 39.3 }],  // 天道圣人
+    [23, { hp: 55400, atk: 15800, def: 13200, mana: 42200, speed: 7920, hit: 7920, dodge: 10500, res: 10500, cultivate: 55.4 }],  // 大道圣人
   ],
 
   /* ---------- 肉身突破：需要的气血（肉身修为）[境界序号, 一层需要, 每层增加] ---------- */
@@ -108,29 +108,29 @@ CFG.realm = {
 
   /* ---------- 肉身突破：增加的属性（每层） ---------- */
   BODY_GAIN: [
-    [0, { hp: 45, atk: 4, def: 6, speed: 5.2, hit: 5, dodge: 5, res: 4.8 }],  // 淬皮
-    [1, { hp: 66.5, atk: 5.91, def: 8.87, speed: 7.69, hit: 7.39, dodge: 7.39, res: 7.09 }],  // 炼肉
-    [2, { hp: 98.4, atk: 8.74, def: 13.1, speed: 11.3, hit: 10.9, dodge: 10.9, res: 10.4 }],  // 锻骨
-    [3, { hp: 145, atk: 12.9, def: 19.4, speed: 16.8, hit: 16.1, dodge: 16.1, res: 15.5 }],  // 易筋
-    [4, { hp: 215, atk: 19.1, def: 28.6, speed: 24.8, hit: 23.9, dodge: 23.9, res: 22.9 }],  // 洗髓
-    [5, { hp: 318, atk: 28.2, def: 42.4, speed: 36.7, hit: 35.3, dodge: 35.3, res: 33.9 }],  // 通脉
-    [6, { hp: 470, atk: 41.8, def: 62.7, speed: 54.3, hit: 52.3, dodge: 52.3, res: 50.2 }],  // 铜皮
-    [7, { hp: 696, atk: 61.8, def: 92.8, speed: 80.4, hit: 77.3, dodge: 77.3, res: 74.2 }],  // 铁骨
-    [8, { hp: 1020, atk: 91.5, def: 137, speed: 118, hit: 114, dodge: 114, res: 109 }],  // 银身
-    [9, { hp: 1520, atk: 135, def: 202, speed: 175, hit: 169, dodge: 169, res: 162 }],  // 金身
-    [10, { hp: 2250, atk: 200, def: 300, speed: 260, hit: 250, dodge: 250, res: 240 }],  // 玉骨
-    [11, { hp: 3320, atk: 295, def: 443, speed: 384, hit: 369, dodge: 369, res: 355 }],  // 琉璃身
-    [12, { hp: 4920, atk: 437, def: 656, speed: 568, hit: 547, dodge: 547, res: 525 }],  // 金刚体
-    [13, { hp: 7280, atk: 647, def: 970, speed: 841, hit: 809, dodge: 809, res: 776 }],  // 不坏体
-    [14, { hp: 10700, atk: 957, def: 1430, speed: 1240, hit: 1190, dodge: 1190, res: 1140 }],  // 宝体
-    [15, { hp: 15900, atk: 1410, def: 2120, speed: 1840, hit: 1760, dodge: 1760, res: 1690 }],  // 灵体
-    [16, { hp: 23500, atk: 2090, def: 3140, speed: 2720, hit: 2610, dodge: 2610, res: 2510 }],  // 圣体
-    [17, { hp: 34800, atk: 3090, def: 4640, speed: 4020, hit: 3860, dodge: 3860, res: 3710 }],  // 仙体
-    [18, { hp: 51500, atk: 4570, def: 6860, speed: 5950, hit: 5720, dodge: 5720, res: 5490 }],  // 神体
-    [19, { hp: 76100, atk: 6770, def: 10100, speed: 8800, hit: 8460, dodge: 8460, res: 8120 }],  // 道体
-    [20, { hp: 112000, atk: 10000, def: 15000, speed: 13000, hit: 12500, dodge: 12500, res: 12000 }],  // 混沌体
-    [21, { hp: 166000, atk: 14800, def: 22200, speed: 19200, hit: 18500, dodge: 18500, res: 17700 }],  // 鸿蒙体
-    [22, { hp: 246000, atk: 21800, def: 32800, speed: 28400, hit: 27300, dodge: 27300, res: 26200 }],  // 不灭体
-    [23, { hp: 364000, atk: 32300, def: 48500, speed: 42000, hit: 40400, dodge: 40400, res: 38800 }],  // 永恒体
+    [0, { hp: 23, atk: 5, def: 6, speed: 3, hit: 4, dodge: 3, res: 3 }],  // 淬皮
+    [1, { hp: 32.4, atk: 7.06, def: 8.47, speed: 4.23, hit: 5.64, dodge: 4.23, res: 4.23 }],  // 炼肉
+    [2, { hp: 45.8, atk: 9.97, def: 11.9, speed: 5.98, hit: 7.97, dodge: 5.98, res: 5.98 }],  // 锻骨
+    [3, { hp: 64.7, atk: 14, def: 16.8, speed: 8.44, hit: 11.2, dodge: 8.44, res: 8.44 }],  // 易筋
+    [4, { hp: 91.4, atk: 19.8, def: 23.8, speed: 11.9, hit: 15.9, dodge: 11.9, res: 11.9 }],  // 洗髓
+    [5, { hp: 129, atk: 28, def: 33.6, speed: 16.8, hit: 22.4, dodge: 16.8, res: 16.8 }],  // 通脉
+    [6, { hp: 182, atk: 39.6, def: 47.5, speed: 23.7, hit: 31.7, dodge: 23.7, res: 23.7 }],  // 铜皮
+    [7, { hp: 257, atk: 56, def: 67.2, speed: 33.6, hit: 44.8, dodge: 33.6, res: 33.6 }],  // 铁骨
+    [8, { hp: 363, atk: 79, def: 94.9, speed: 47.4, hit: 63.2, dodge: 47.4, res: 47.4 }],  // 银身
+    [9, { hp: 513, atk: 111, def: 134, speed: 67, hit: 89.3, dodge: 67, res: 67 }],  // 金身
+    [10, { hp: 725, atk: 157, def: 189, speed: 94.6, hit: 126, dodge: 94.6, res: 94.6 }],  // 玉骨
+    [11, { hp: 1020, atk: 222, def: 267, speed: 133, hit: 178, dodge: 133, res: 133 }],  // 琉璃身
+    [12, { hp: 1440, atk: 314, def: 377, speed: 188, hit: 251, dodge: 188, res: 188 }],  // 金刚体
+    [13, { hp: 2040, atk: 444, def: 533, speed: 266, hit: 355, dodge: 266, res: 266 }],  // 不坏体
+    [14, { hp: 2880, atk: 627, def: 752, speed: 376, hit: 501, dodge: 376, res: 376 }],  // 宝体
+    [15, { hp: 4070, atk: 885, def: 1060, speed: 531, hit: 708, dodge: 531, res: 531 }],  // 灵体
+    [16, { hp: 5750, atk: 1250, def: 1500, speed: 750, hit: 1000, dodge: 750, res: 750 }],  // 圣体
+    [17, { hp: 8120, atk: 1760, def: 2120, speed: 1060, hit: 1410, dodge: 1060, res: 1060 }],  // 仙体
+    [18, { hp: 11400, atk: 2490, def: 2990, speed: 1490, hit: 1990, dodge: 1490, res: 1490 }],  // 神体
+    [19, { hp: 16200, atk: 3520, def: 4220, speed: 2110, hit: 2810, dodge: 2110, res: 2110 }],  // 道体
+    [20, { hp: 22800, atk: 4970, def: 5970, speed: 2980, hit: 3980, dodge: 2980, res: 2980 }],  // 混沌体
+    [21, { hp: 32300, atk: 7020, def: 8430, speed: 4210, hit: 5620, dodge: 4210, res: 4210 }],  // 鸿蒙体
+    [22, { hp: 45600, atk: 9920, def: 11900, speed: 5950, hit: 7930, dodge: 5950, res: 5950 }],  // 不灭体
+    [23, { hp: 64400, atk: 14000, def: 16800, speed: 8400, hit: 11200, dodge: 8400, res: 8400 }],  // 永恒体
   ],
 };
