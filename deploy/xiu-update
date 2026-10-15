@@ -26,6 +26,11 @@ if os.path.exists(forge):
     s = open(forge, encoding="utf-8").read()
     s = re.sub(r'DATA\.IMG_V = [^;]*;', 'DATA.IMG_V = "%s";' % git("rev-parse", "HEAD:web/img")[:8], s, count=1)
     open(forge, "w", encoding="utf-8").write(s)
+# 图片清单 img_ver.txt（每行「图片路径 哈希」）：安装版 APK 按它逐张比对，只有服务器上换过的图才重新下载
+lst = []
+for line in git("-c", "core.quotepath=false", "ls-files", "-s", "web/img").splitlines():
+    meta, path = line.split("\t", 1); lst.append(path[8:] + " " + meta.split()[1][:8])
+open(os.path.join(web, "img_ver.txt"), "w", encoding="utf-8").write("\n".join(lst) + "\n")
 p = os.path.join(web, "index.html"); s = open(p, encoding="utf-8").read()
 def ver(m):
     f = os.path.join(web, m.group(2))
