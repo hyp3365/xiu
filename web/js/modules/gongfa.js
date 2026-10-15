@@ -71,7 +71,7 @@ G.module({
     gfLearnBtn(g, on, poor, word = "学习") {
       const L = this.s.gfLearn;
       if (this.hasGongfa(g.id)) return `<button class="sm" disabled>已学会</button>`;
-      if (L && L.id === g.id) return `<button class="sm" disabled>学习中 ${U.dur(Math.max(0, (L.end - this.now()) / 1000))}</button>`;
+      if (L && L.id === g.id) { const left = Math.max(0, L.end - this.now()); return `<button class="sm pg" disabled>${this.pgFill(left, DATA.gfLearnMin(g.star) * 60000)}<span>学习中 ${U.dur(left / 1000)}</span></button>`; }
       return `<button class="sm" onclick="${on}" ${L || poor ? "disabled" : ""}>${word}</button>`;
     },
     // 所有已学功法的加成合计（法术不算）
