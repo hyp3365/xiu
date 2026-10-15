@@ -14,15 +14,22 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.HashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 // 打开游戏网页。服务器地址来自仓库根目录 server-url.txt（打包时复制到 assets/server.txt）
-// 图片：打包时把 web/img 放进安装包（assets/img），版本号和服务器一致就直接用包里的，不一致（服务器换了图）才去服务器下载
+// 图片：打包时把 web/img 放进安装包（assets/img）。启动时读服务器的图片清单 img_ver.txt（sudo xiu-update 生成），
+//   逐张比对：和包里一样的直接用包里的，服务器换过的那几张才去服务器下载（不会因为换了一张图就全部重新下载）
 public class MainActivity extends Activity {
     private static final int BG = Color.parseColor("#14110f");
     private WebView web;
     private String imgTree = "";
     private final HashMap<String, String> imgHash = new HashMap<>();
+    private volatile HashMap<String, String> srvHash = null;          // 服务器图片清单
+    private final CountDownLatch srvReady = new CountDownLatch(1);
 
     @Override
     protected void onCreate(Bundle b) {
@@ -33,6 +40,7 @@ public class MainActivity extends Activity {
         w.setNavigationBarColor(BG);
         w.getDecorView().setBackgroundColor(BG);
         loadImgVer();
+        loadSrvHash();
         web = new WebView(this);
         web.setBackgroundColor(BG);
         WebSettings s = web.getSettings();
@@ -75,6 +83,29 @@ public class MainActivity extends Activity {
         } catch (Exception e) { }
     }
 
+    private void loadSrvHash() {
+        new Thread(() -> {
+            try {
+                String base = serverUrl(); if (!base.endsWith("/")) base += "/";
+                HttpURLConnection c = (HttpURLConnection) new URL(base + "img_ver.txt?t=" + System.currentTimeMillis()).openConnection();
+                c.setConnectTimeout(4000); c.setReadTimeout(4000);
+                if (c.getResponseCode() == 200) {
+                    HashMap<String, String> m = new HashMap<>();
+                    try (BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream(), "UTF-8"))) {
+                        String line;
+                        while ((line = r.readLine()) != null) {
+                            int i = line.lastIndexOf(' ');
+                            if (i > 0) m.put(line.substring(0, i), line.substring(i + 1).trim());
+                        }
+                    }
+                    if (!m.isEmpty()) srvHash = m;
+                }
+                c.disconnect();
+            } catch (Exception e) { }
+            srvReady.countDown();
+        }).start();
+    }
+
     private WebResourceResponse localImg(Uri u) {
         try {
             String path = u.getPath();
@@ -84,8 +115,15 @@ public class MainActivity extends Activity {
             String rel = path.substring(i + 5);
             String h = imgHash.get(rel);
             if (h == null) return null;                       // 包里没有这张图
-            String v = u.getQueryParameter("v");
-            if (v != null && !v.equals(imgTree) && !v.equals(h)) return null;   // 服务器图片版本变了
+            try { srvReady.await(5, TimeUnit.SECONDS); } catch (InterruptedException e) { }
+            HashMap<String, String> sh = srvHash;
+            if (sh != null) {
+                String s2 = sh.get(rel);
+                if (s2 != null && !s2.equals(h)) return null;          // 服务器换了这张图 → 去服务器下载
+            } else {
+                String v = u.getQueryParameter("v");                    // 读不到清单：按旧办法比对版本号
+                if (v != null && !v.equals(imgTree) && !v.equals(h) && v.length() == 8) return null;
+            }
             String mime = rel.endsWith(".webp") ? "image/webp" : rel.endsWith(".png") ? "image/png"
                     : rel.endsWith(".svg") ? "image/svg+xml" : rel.endsWith(".gif") ? "image/gif" : "image/jpeg";
             return new WebResourceResponse(mime, null, getAssets().open("img/" + rel));
