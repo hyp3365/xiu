@@ -352,7 +352,7 @@ CFG.worldMaps.mo = {
 
 /* ================= 神界 shen（金仙 15 起开放） ================= */
 CFG.worldMaps.shen = {
-  open: { realm: 0 },   // 开放条件：玩家大境界 ≥ 12
+  open: { realm: 12 },   // 开放条件：玩家大境界 ≥ 12
   // 每张地图的 7 处地点：id 不要改，名字可以改；{map} = 地图名；图片 img/hall_<id>.png；官位数值见 config/xingjun.js
   halls: { tg: "{map}神殿", xj: "神君殿", gd: "功德司", shop: "神市", lilian: "历练", wudao: "悟道碑", lingdi: "灵地" },   // 7 处地点名字（id 不要改）
   maps: [   // 10 张地图（顺序 = 第 1~10 张；字段见文件开头）
