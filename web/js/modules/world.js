@@ -297,7 +297,7 @@ G.module({
       s.hp = Math.max(1, php);
       // 战斗说明（显示在探索信息里）
       const why = `你出战时生命 ${U.fmt(hp0)}，共造成 ${U.fmt(dealt)} 伤害（对方剩余生命 ${U.fmt(Math.max(0, mhp))}/${U.fmt(m.hp)}），承受 ${U.fmt(taken)} 伤害；对方攻击 ${U.fmt(m.atk)} 防御 ${U.fmt(m.def)}${m.el ? `，${DATA.elById[m.el].name}属性，施法术 ${mSp} 次、法宝 ${mFb} 次` : ""}`;
-      const detail = { name: m.name, el: m.el || "", sp: spNames, first: meFirst ? 0 : 1, log, mf: m.mf.slice(),
+      const detail = { name: m.name, el: m.el || "", a: m.a, sp: spNames, first: meFirst ? 0 : 1, log, mf: m.mf.slice(),
         me: [R(hp0), R(st.hp), R(mana0), R(st.mana)], mob: [R(m.hp), R(m.hp), R(m.maxMana || 0), R(m.maxMana || 0)] };
       const win = mhp <= 0 && php > 0;   // 打满 MAX_ROUNDS 回合没击败对方也算失败（timeout）
       return { win, lose: !win, timeout: !win && php > 0, rounds, why, detail };
@@ -306,17 +306,19 @@ G.module({
     // 战斗过程每一下的文字（b = battle() 返回的 detail）
     battleRow(b, x) {
       const [r, w, k, sp, f, d, ph, pm, mh, mm, fx, ab] = x, el = b.el ? DATA.elById[b.el].name : "";
-      const who = (w ? b.name : "你") + (fx & 8 ? "发动连星秘法，" : "") + (fx & 32 ? "发动破军秘法，" : ""), tgt = w ? "你" : b.name;
-      const how = k === 1 ? `施放${w ? `${el}系法术` : `《${b.sp[sp] || "法术"}》`}` : k === 2 ? (w || !b.sp[sp] ? "祭出法宝" : `祭出法宝「${b.sp[sp]}」`)
-        : k === 3 ? `祭起法宝「${b.sp[sp] || "盾"}」` : k === 4 ? "被眩晕" : k === 5 ? "发动金蝉秘法" : fx & 8 ? "普通攻击" : "发动普通攻击";
-      let res = k === 3 ? `，护盾值 <b>${U.fmt(d)}</b>` : k === 4 ? "，无法行动" : k === 5 ? `，${CFG.wudao.JINCHAN && CFG.wudao.JINCHAN.ROUNDS || 3} 回合内免疫攻击` : fx & 128 ? `，被${tgt}的金蝉秘法挡下` : f === 1 ? `，被${tgt}闪避` : `，${f === 2 ? "暴击！" : ""}对${tgt}造成 <b>${U.fmt(d)}</b> 伤害`;
+      const P = `<span class="bt-p">你</span>`, M = `<span class="bt-m">${b.name}</span>`, who = w ? M : P, tgt = w ? P : M;
+      const S = t => `<span class="bt-s">${t}</span>`, D = n => `<span class="bt-d">${U.fmt(n)}</span>`;
+      const pre = (fx & 8 ? `发动${S("连星秘法")}，` : "") + (fx & 32 ? `发动${S("破军秘法")}，` : "");
+      const how = k === 1 ? `施放${S(w ? `${el}系法术` : `《${b.sp[sp] || "法术"}》`)}` : k === 2 ? `祭出${S(w || !b.sp[sp] ? "法宝" : `「${b.sp[sp]}」`)}`
+        : k === 3 ? `祭起${S(`「${b.sp[sp] || "护盾"}」`)}` : k === 4 ? "被眩晕" : k === 5 ? `发动${S("金蝉秘法")}` : "发动普通攻击";
+      let res = k === 3 ? `，护盾值 ${D(d)}` : k === 4 ? "，无法行动" : k === 5 ? `，${CFG.wudao.JINCHAN && CFG.wudao.JINCHAN.ROUNDS || 3} 回合内免疫攻击` : fx & 128 ? `，被${tgt}的金蝉秘法挡下` : f === 1 ? `，被${tgt}闪避` : `，${f === 2 ? `<span class="bt-c">暴击</span>` : ""}对${tgt}造成 ${D(d)} 点伤害`;
       if (ab) res += `（护盾抵挡 ${U.fmt(ab)}）`;
       if (fx & 4) res += "，护盾破碎";
       if (fx & 2) res += `，${tgt}速度、命中、闪避降低`;
       if (fx & 1) res += `，${tgt}被眩晕`;
       if (fx & 64) res += `，${tgt}被镇魂，只能普通攻击`;
       if (fx & 16) res += `，${tgt}发动御天秘法，保留一点生命`;
-      return `<p class="${w ? "bad" : "good"}"><b>第${r}回合</b> ${who}${how}${res}<br><small>你 生命 ${U.fmt(ph)}/${U.fmt(b.me[1])} 法力 ${U.fmt(pm)}/${U.fmt(b.me[3])} · ${b.name} 生命 ${U.fmt(mh)}/${U.fmt(b.mob[1])} 法力 ${U.fmt(mm)}/${U.fmt(b.mob[3])}</small></p>`;
+      return `<p>${who}${pre}${how}${res}。</p>`;
     },
     // 战斗总览：先手、开战数值、双方各方式伤害合计
     battleHead(b) {
@@ -324,58 +326,111 @@ G.module({
       const sum = (w, k) => b.log.filter(x => x[1] === w && x[2] === k).reduce((t, x) => t + x[5], 0);
       const cnt = (w, k) => b.log.filter(x => x[1] === w && x[2] === k).length;
       const line = w => K.map((n, k) => cnt(w, k) ? `${n} ${cnt(w, k)} 次${k < 3 ? " " + U.fmt(sum(w, k)) : ""}` : "").filter(Boolean).join("，") || "无";
-      return `<p class="desc">${el ? `${b.name}为${el}属性 · ` : ""}${b.first ? `${b.name}先手` : "你先手"}${b.mf && b.mf.length ? `<br>${b.name}秘法：${b.mf.map(k => (DATA.mifaKindById[k] || {}).name || k).join("、")}` : ""}<br>开战：你 生命 ${U.fmt(b.me[0])}/${U.fmt(b.me[1])} 法力 ${U.fmt(b.me[2])}/${U.fmt(b.me[3])} · ${b.name} 生命 ${U.fmt(b.mob[0])} 法力 ${U.fmt(b.mob[2])}<br>
+      return `<p class="bt-sum">${el ? `${b.name}为${el}属性 · ` : ""}${b.first ? `${b.name}先手` : "你先手"}${b.mf && b.mf.length ? `<br>${b.name}秘法：${b.mf.map(k => (DATA.mifaKindById[k] || {}).name || k).join("、")}` : ""}<br>开战：你 生命 ${U.fmt(b.me[0])}/${U.fmt(b.me[1])} 法力 ${U.fmt(b.me[2])}/${U.fmt(b.me[3])} · ${b.name} 生命 ${U.fmt(b.mob[0])} 法力 ${U.fmt(b.mob[2])}<br>
         你造成：${line(0)}<br>${b.name}造成：${line(1)}</p>`;
     },
-    // 完整战斗过程弹窗：src = "cur" 本次探索 / "last" 上一次结果，i = 事件序号
+    // 看详情：src = "cur" 本次探索 / "last" 上一次结果，i = 事件序号；用战斗过程画面重放，随时可跳过
     showBattle(src, i) {
       const s = this.s, list = src === "cur" ? (s.explore && s.explore.ev) : (s.lastRun && s.lastRun.ev), e = list && list[i];
       if (!e || !e.b) return;
-      const b = e.b, el = b.el ? DATA.elById[b.el].name : "";
-      this.modal(`<h2>战斗详情 · ${b.name}${el ? `（${el}属性）` : ""}</h2>${this.battleHead(b)}
-        <div class="explore-log">${b.log.map(x => this.battleRow(b, x)).join("") || "<p>无</p>"}</div>
-        <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+      const b = e.b, last = b.log[b.log.length - 1], win = last ? last[8] <= 0 && last[6] > 0 : false;
+      this.playBattle(b, "战斗过程", win ? "胜利" : "失败", win, [], true);
     },
-    // 战斗画面（试炼塔）：每 ROUND_SEC 秒播放一回合，3 秒后可跳过；结果已经结算好，这里只是播放
-    // 结果提示（log）等战斗播放完才出：logs = [[文字, 颜色], …]，不传则用 txt（胜 gold / 败 bad）
-    playBattle(b, title, txt, win, logs) {
+    // 怪物图：探索 / 星君按地图（img/mob/m地图序号.webp），试炼塔、晋升考验按名字固定挑一张
+    battleMobImg(b) {
+      let a = b.a;
+      if (!(a >= 0 && a < DATA.maps.length)) { let h = 0; for (const ch of b.name || "") h = (h * 31 + ch.charCodeAt(0)) >>> 0; a = h % DATA.maps.length; }
+      return `img/mob/m${a}.webp?v=${DATA.IMG_V}`;
+    },
+    // 战斗过程画面：每 ACT_SEC 秒播放一次出手；结果已经结算好，这里只是播放
+    //   现场战斗（试炼塔等）SKIP_SEC 秒后可跳过，replay（看详情）随时可跳过
+    //   结果提示（log）等战斗播放完才出：logs = [[文字, 颜色], …]，不传则用 txt（胜 gold / 败 bad）
+    playBattle(b, title, txt, win, logs, replay) {
       if (this._bp && this._bp.timer) clearInterval(this._bp.timer);
       if (this._bp) this.battleDone(this._bp);
-      const rounds = [];
-      b.log.forEach(x => { (rounds[x[0] - 1] = rounds[x[0] - 1] || []).push(x); });
-      const bp = this._bp = { b, title, txt, win, logs: logs || [[txt, win ? "gold" : "bad"]], rounds: rounds.filter(Boolean), shown: 0, t0: Date.now(), done: false };
+      const bp = this._bp = { b, title, txt, win, logs: logs || [[txt, win ? "gold" : "bad"]], acts: b.log.slice(), shown: 0, t0: Date.now(), done: false, replay: !!replay, hp: [b.me[0], b.mob[0]] };
       this._lockModal = true;
+      const v = DATA.IMG_V;
+      this.modal(`<div class="btv">
+        <div class="btv-title">${title}</div>
+        <div class="btv-stage" style="background-image:url(img/bt_bg.webp?v=${v})">
+          <div class="btv-hp l"><div class="btv-bar"><i id="bt-hp0"></i></div><span id="bt-hpt0"></span></div>
+          <div class="btv-zhan">战</div>
+          <div class="btv-hp r"><div class="btv-bar"><i id="bt-hp1"></i></div><span id="bt-hpt1"></span></div>
+          <div class="btv-u l" id="bt-u0"><img src="img/bt_hero.webp?v=${v}" alt=""><div class="btv-nm">${this.s.name || "你"}</div></div>
+          <div class="btv-u r" id="bt-u1"><img src="${this.battleMobImg(b)}" alt=""><div class="btv-nm">${b.name}</div></div>
+          <div class="btv-fx" id="bt-fx"></div>
+        </div>
+        <div class="btv-log" id="bt-log"><p class="bt-gray"><span class="bt-m">${b.name}</span>上阵${b.el ? `（${DATA.elById[b.el].name}属性）` : ""}，${b.first ? `<span class="bt-m">${b.name}</span>先手` : `<span class="bt-p">你</span>先手`}。</p></div>
+        <div id="bt-end"></div>
+        <div class="btns" id="bt-btn"></div></div>`);
+      this.btHp();
       const step = () => {
         if (this._bp !== bp) return clearInterval(bp.timer);
-        if (bp.shown < bp.rounds.length) bp.shown++;
-        if (bp.shown >= bp.rounds.length) { bp.done = true; clearInterval(bp.timer); }
-        this.drawBattle();
+        if (bp.shown < bp.acts.length) this.btAct(bp.acts[bp.shown++], true);
+        if (bp.shown >= bp.acts.length) { clearInterval(bp.timer); setTimeout(() => { if (this._bp === bp) this.btFinish(); }, 600); }
+        this.btBtn();
       };
-      bp.shown = Math.min(1, bp.rounds.length); if (bp.shown >= bp.rounds.length) bp.done = true;
-      this.drawBattle();
-      if (!bp.done || Date.now() - bp.t0 < 3000) bp.timer = setInterval(step, (CFG.battle.ROUND_SEC || 1) * 1000);
+      this.btBtn();
+      if (!bp.acts.length) return this.btFinish();
+      step(); bp.timer = setInterval(step, (CFG.battle.ACT_SEC || 1) * 1000);
+      bp.skipT = setTimeout(() => this.btBtn(), (CFG.battle.SKIP_SEC || 3) * 1000 + 50);
+    },
+    btCanSkip() { const bp = this._bp; return bp && (bp.replay || Date.now() - bp.t0 >= (CFG.battle.SKIP_SEC || 3) * 1000); },
+    btBtn() {
+      const bp = this._bp, el = $("#bt-btn"); if (!bp || !el) return;
+      const ok = this.btCanSkip(), left = Math.ceil((CFG.battle.SKIP_SEC || 3) - (Date.now() - bp.t0) / 1000);
+      const h = bp.done ? `<button class="btv-btn" onclick="G.closeBattle()">关闭</button>`
+        : `<button class="btv-btn" onclick="G.skipBattle()" ${ok ? "" : "disabled"}>${ok ? "跳过" : `${left} 秒后可跳过`}</button>`;
+      if (el.innerHTML !== h) el.innerHTML = h;
+    },
+    btHp() {
+      const bp = this._bp; if (!bp) return; const b = bp.b, mx = [b.me[1], b.mob[1]];
+      for (const i of [0, 1]) { const bar = $("#bt-hp" + i), t = $("#bt-hpt" + i); if (!bar) continue;
+        bar.style.width = Math.max(0, Math.min(100, bp.hp[i] / (mx[i] || 1) * 100)) + "%"; t.textContent = U.fmt(Math.max(0, bp.hp[i])); }
+    },
+    // 播放一次出手：文字 + 血条 + 动作（普通攻击冲撞、法术光球、法宝飞剑、护盾光罩）
+    btAct(x, anim) {
+      const bp = this._bp, b = bp.b, [r, w, k, sp, f, d, ph, pm, mh, mm, fx] = x;
+      bp.hp = [ph, mh];
+      const log = $("#bt-log");
+      if (log) { if (r !== bp.round) { bp.round = r; log.insertAdjacentHTML("beforeend", `<p class="bt-rd">第 ${r} 回合</p>`); }
+        log.insertAdjacentHTML("beforeend", this.battleRow(b, x)); log.scrollTop = 1e9; }
+      if (!anim) return;
+      const fxEl = $("#bt-fx"), me = $("#bt-u" + w), tg = $("#bt-u" + (1 - w)); if (!fxEl || !me || !tg) return this.btHp();
+      const re = (el, c) => { el.classList.remove(c); void el.offsetWidth; el.classList.add(c); };
+      const add = (cls, txt, side, ms) => { const n = document.createElement("div"); n.className = cls + " " + (side ? "r" : "l"); if (txt) n.textContent = txt; fxEl.appendChild(n); setTimeout(() => n.remove(), ms || 1200); return n; };
+      const el = b.el && !w ? "" : b.el;   // 怪物法术 / 法宝带属性色
+      const name = k === 1 ? (w ? (b.el ? DATA.elById[b.el].name + "系法术" : "法术") : (b.sp[sp] || "法术")) : k === 2 ? (w || !b.sp[sp] ? "法宝" : b.sp[sp]) : k === 3 ? (b.sp[sp] || "护盾") : k === 5 ? "金蝉秘法" : "";
+      if (name) add("btv-skill", name, w);
+      const hit = () => {
+        if (k === 3 || k === 4 || k === 5) return;
+        if (fx & 128) { add("btv-pop gray", "免疫", 1 - w); return; }
+        if (f === 1) { re(tg, "btv-dodge"); add("btv-pop gray", "闪避", 1 - w); return; }
+        re(tg, "btv-hit"); add("btv-pop" + (f === 2 ? " crit" : ""), (f === 2 ? "暴击 " : "") + "-" + U.fmt(d), 1 - w);
+        this.btHp();
+      };
+      if (k === 0) { re(me, w ? "btv-lunge-r" : "btv-lunge-l"); setTimeout(hit, 260); }
+      else if (k === 1) { re(me, "btv-cast"); add("btv-orb " + (w ? "go-l" : "go-r") + (el ? " el-" + el : ""), "", w, 700); setTimeout(hit, 520); }
+      else if (k === 2) { re(me, "btv-cast"); add("btv-fb " + (w ? "go-l" : "go-r"), "", w, 800); setTimeout(hit, 600); }
+      else if (k === 3) { add("btv-shield", "", w, 1000); this.btHp(); }
+      else if (k === 4) { add("btv-pop gray", "眩晕", w); this.btHp(); }
+      else { add("btv-shield gold", "", w, 1000); this.btHp(); }
+    },
+    btFinish() {
+      const bp = this._bp; if (!bp || bp.done) return;
+      clearInterval(bp.timer); clearTimeout(bp.skipT);
+      while (bp.shown < bp.acts.length) this.btAct(bp.acts[bp.shown++], false);
+      const last = bp.acts[bp.acts.length - 1]; if (last) bp.hp = [last[6], last[8]];
+      bp.done = true; this.btHp(); this.battleDone(bp);
+      const end = $("#bt-end"); if (end) end.innerHTML = `<p class="bt-res ${bp.win ? "win" : "lose"}">${bp.txt}</p>${this.battleHead(bp.b)}`;
+      const log = $("#bt-log"); if (log) log.scrollTop = 1e9;
+      this.btBtn();
     },
     // 播放完：这时才在信息栏提示胜负（只提示一次）
     battleDone(bp) { if (bp.logged) return; bp.logged = true; bp.logs.forEach(([m, c]) => this.log(m, c)); },
-    drawBattle() {
-      const bp = this._bp; if (!bp) return;
-      if (bp.done) this.battleDone(bp);
-      const b = bp.b, canSkip = Date.now() - bp.t0 >= 3000;
-      const rows = bp.rounds.slice(0, bp.shown).map(r => r.map(x => this.battleRow(b, x)).join("")).join("");
-      const el = b.el ? DATA.elById[b.el].name : "";
-      this.modal(`<h2>${bp.title} · ${b.name}${el ? `（${el}属性）` : ""}</h2>
-        <p class="desc">第 ${bp.rounds.length ? (bp.rounds[Math.max(0, bp.shown - 1)][0][0]) : 0} 回合${bp.done ? "" : " · 战斗中……"}</p>
-        <div class="explore-log" id="bt-log">${rows || "<p>交手……</p>"}</div>
-        ${bp.done ? `<p class="${bp.win ? "good" : "bad"}"><b>${bp.txt}</b></p>${this.battleHead(b)}` : ""}
-        <div class="btns">${bp.done ? `<button onclick="G.closeBattle()">关闭</button>`
-          : `<button onclick="G.skipBattle()" ${canSkip ? "" : "disabled"}>${canSkip ? "跳过战斗" : "3 秒后可跳过"}</button>`}</div>`);
-      const box = $("#bt-log"); if (box) box.scrollTop = 1e9;
-    },
-    skipBattle() {
-      const bp = this._bp; if (!bp || Date.now() - bp.t0 < 3000) return;
-      clearInterval(bp.timer); bp.shown = bp.rounds.length; bp.done = true; this.drawBattle();
-    },
-    closeBattle() { if (this._bp) clearInterval(this._bp.timer); this._bp = null; this._lockModal = false; this.closeModal(); this.render(); },
+    skipBattle() { if (this.btCanSkip()) this.btFinish(); },
+    closeBattle() { if (this._bp) { clearInterval(this._bp.timer); clearTimeout(this._bp.skipT); this.battleDone(this._bp); } this._bp = null; this._lockModal = false; this.closeModal(); this.render(); },
 
     /* ---------- 掉落 ---------- */
     newLoot() { return { stone: 0, mats: {}, pills: [], equips: [] }; },
@@ -543,6 +598,7 @@ G.module({
       else if (type === "ore") { t = `发现矿脉，挖得 ${roll("oreEvent") || "无"}`; c = "good"; }
       else if (type === "monster" || type === "elite" || type === "boss") {
         const kind = type === "monster" ? "normal" : type, m = mj !== undefined ? this.makeMjMob(mj, kind, mk) : this.makeMob(a, r, kind);
+        m.a = a;
         const res = this.battle(m), tag = `${m.boss ? "【首领】" : m.elite ? "【精英】" : ""}${m.name}`;
         if (res.win) { this.s.kills++; t = `遭遇${tag}，${res.rounds}回合击败，获得 ${this.rollMonsterLoot(x.loot, m, a, mj, mk)}`; c = m.boss ? "gold" : ""; }
         else if (res.lose) { t = `遭遇${tag}，${res.timeout ? `${res.rounds} 回合未能击败，力竭重伤` : `第 ${res.rounds} 回合不敌重伤`}，遗失灵石 ${U.fmt(this.loseStone())}。${res.why}`; c = "bad"; }
