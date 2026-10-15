@@ -42,20 +42,22 @@ DATA.elIdx = el => Math.max(0, DATA.elements.findIndex(x => x.id === el));   // 
 DATA.fabaoName = (ft, g, def) => { const L = (CFG.names.fabaoName || {})[ft]; return (L && L[g]) || def || (DATA.fabaoTypes[ft] || {}).name || "法宝"; };
 // 秘境专用材料（config/mijing.js 的 items）：背包里 { t: "sm", k, ft, n }，k = kj 空间晶核 / lu 养神灵露 / ys 耀石（ft = 属性序号 0~5）
 //   ft = -1 表示「任意一种耀石」（装备、戒指炼制和强化用；扣的时候先扣最多的那种）
-DATA.SM_GRADED = ["ys"];
+//   lj 灵晶、lz 灵珠也分属性（ft = 0~4 金木水火土）；灵珠的设置在 config/array.js 的 CFG.lingzhu
+if (CFG.lingzhu) CFG.mijing.items.lz = { name: "灵珠", names: CFG.lingzhu.NAMES, sell: CFG.lingzhu.SELL, desc: CFG.lingzhu.DESC };
+DATA.SM_GRADED = ["ys", "lj", "lz"];
 DATA.smName = (k, ft) => {
   const I = CFG.mijing.items;
-  if (k === "ys") return ft >= 0 ? ((I.ys.names || [])[ft] || DATA.elements[ft].name + I.ys.name) : I.ys.name;
+  if (DATA.SM_GRADED.includes(k) && I[k]) return ft >= 0 ? ((I[k].names || [])[ft] || DATA.elements[ft].name + I[k].name) : I[k].name;
   return (I[k] || {}).name || k;
 };
 // 按名字找专用材料：「耀石」（每个随机一种属性）「火耀石」……
 DATA.smByName = name => {
   const I = CFG.mijing.items;
-  if (I.ys) { if (name === I.ys.name) return { k: "ys" }; const f = (I.ys.names || []).indexOf(name); if (f >= 0) return { k: "ys", ft: f }; }
-  for (const k in I) if (k !== "ys" && I[k].name === name) return { k };
+  for (const k of DATA.SM_GRADED) if (I[k]) { if (name === I[k].name) return { k }; const f = (I[k].names || []).indexOf(name); if (f >= 0) return { k, ft: f }; }
+  for (const k in I) if (!DATA.SM_GRADED.includes(k) && I[k].name === name) return { k };
   return null;
 };
-DATA.smIcon = (k, ft) => k === "ys" ? DATA.iconImg("sm_ys" + Math.max(0, ft || 0)) : DATA.iconImg("sm_" + k);
+DATA.smIcon = (k, ft) => DATA.SM_GRADED.includes(k) ? DATA.iconImg("sm_" + k + Math.max(0, ft || 0)) : DATA.iconImg("sm_" + k);
 // 掉落记账的键：k / k:ft
 DATA.smKey = (k, ft) => k + (ft === undefined ? "" : ":" + ft);
 DATA.smParse = key => { const [k, f] = key.split(":"); return { k, ft: f === undefined ? undefined : +f }; };
@@ -272,7 +274,7 @@ DATA.pillIcon = type => DATA.iconImg("pill_" + (DATA.PILL_ICONS.includes(type) ?
 DATA.danIcon = type => DATA.isSpeedRecipe(type) ? DATA.pillIcon(type) : DATA.iconImg("dan_" + type);
 DATA.furnaceIcon = kind => DATA.iconImg("fu_" + kind);
 // 列表里的小图：DATA.li(图片地址)
-DATA.li = src => src ? `<img class="li" src="${src}" alt="" loading="lazy">` : "";
+DATA.li = (src, cls) => src ? `<img class="li${cls ? " " + cls : ""}" src="${src}" alt="" loading="lazy">` : "";
 // 功法 / 法术：按属性选图，按阶（黄玄地天）换边框；秘法统一一张卷轴
 DATA.skillIcon = g => g.kind === "mf" || g.noEl ? DATA.iconImg("mifa") : DATA.iconImg((g.kind === "sp" ? "sp_" : "gf_") + g.el.id);
 DATA.skillIco = g => `<span class="ico t-${g.tier.id}"><img src="${DATA.skillIcon(g)}" alt="" loading="lazy">${g.kind === "mf" ? `<b>${g.tier.name[0]}</b>` : ""}</span>`;   // v93：功法、法术不再显示阶
