@@ -27,6 +27,7 @@ DATA.refStats = (realm, layer, gf, star, src) => {
         if (sc.src === "shop" && t.sectOnly) continue;
         const g = DATA.gongfaInfo(DATA.gongfaId(sc.id, t.id, ti.id), gf);
         if (g && o[t.stat] !== undefined) o[t.stat] += g.value;
+        if (g && t.stat2 && o[t.stat2] !== undefined) o[t.stat2] += g.value2;
       }
     }
   }
