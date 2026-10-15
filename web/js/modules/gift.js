@@ -36,12 +36,12 @@ G.module({
       const srcName = o => `${o.star}星·${o.name}${o.book ? `·第${o.book}卷` : ""}`;
       if (c === "stone" || c === "contrib" || c === "merit") return [N];
       if (c === "gf") {
-        const srcs = [...DATA.sects, ...DATA.shopSources, ...DATA.jieGf.jshop, ...DATA.jieGf.gd, ...DATA.towerBooks].sort((x, y) => x.star - y.star);
+        const srcs = [...DATA.sects, ...DATA.shopSources, ...DATA.jieGf.jshop, ...DATA.jieGf.gd, ...DATA.towerBooks, ...DATA.twSources].sort((x, y) => x.star - y.star);
         const o = DATA.gfSrcById[a.src] || srcs[0];
-        const types = o.src === "tower" ? DATA.gongfaTypes.filter(t => t.id === "mijue") : o.src === "shop" ? DATA.gongfaTypes.filter(t => !t.sectOnly) : DATA.gongfaTypes;
+        const types = o.src === "tower" ? DATA.gongfaTypes.filter(t => t.id === "mijue") : o.src === "shop" || o.src === "tianwai" ? DATA.gongfaTypes.filter(t => !t.sectOnly) : DATA.gongfaTypes;
         return [{ k: "src", label: "来源", opts: srcs.map(x => [x.id, srcName(x)]) }, { k: "type", label: "种类", opts: types.map(t => [t.id, t.name]) }];
       }
-      if (c === "sp") return [{ k: "src", label: "门派", opts: DATA.sects.map(x => [x.id, srcName(x)]) }];
+      if (c === "sp") return [{ k: "src", label: "门派", opts: [...DATA.sects, ...DATA.twSources].map(x => [x.id, srcName(x)]) }];
       if (c === "mf") return [{ k: "star", label: "星级", opts: Array.from({ length: DATA.SECT_STARS }, (_, i) => [i + 1, `${i + 1}星`]) },
         { k: "kind", label: "种类", opts: DATA.mifaKinds.map(k => [k.id, k.name]) }];
       if (c === "fabao") return [{ k: "ft", label: "形状", opts: DATA.fabaoTypes.map((t, i) => [i, t.name]) }, { k: "el", label: "属性", opts: DATA.elements.map(e => [e.id, e.name]) },
@@ -106,7 +106,7 @@ G.module({
         case "contrib": s.contrib = (s.contrib || 0) + n; return true;
         case "merit": s.merit = (s.merit || 0) + n; return true;
         case "gf": case "sp": case "mf": {
-          const id = it.c === "gf" ? DATA.gongfaId(it.src, it.type, it.tier) : it.c === "sp" ? DATA.spellId(it.src, DATA.sectById[it.src].el, it.tier) : DATA.mifaId(it.star, it.kind);
+          const id = it.c === "gf" ? DATA.gongfaId(it.src, it.type, it.tier) : it.c === "sp" ? DATA.spellId(it.src, DATA.gfSrcById[it.src].el, it.tier) : DATA.mifaId(it.star, it.kind);
           if (!DATA.skillInfo(id)) return false;
           if (!s.gongfa[id]) { s.gongfa[id] = 1; if (it.c === "sp") this.autoSlotSpell(id); }
           return true;
