@@ -29,6 +29,7 @@ G.module({
     // 某差事的效果 %（所有派去的道童相加）
     svStage(d) { const C = CFG.servant; return Math.min(C.STAGES, Math.ceil(d.lv / (C.MAX_LV / C.STAGES))); },
     svEff(d, job) { const C = CFG.servant, J = C.JOB[job]; return J ? J.MAX * this.svStage(d) / C.STAGES : 0; },
+    svEffTxt(job, v) { return job === "zhen" ? `聚灵 +${U.num(v)}` : `${job === "cult" ? "+" : "−"}${U.num(v)}%`; },   // 阵法辅助是固定聚灵，其余是 %
     servantPct(job) { return (this.s.servants || []).filter(d => d.job === job).reduce((t, d) => t + this.svEff(d, job), 0); },
     svStartPick() {
       const s = this.s, C = CFG.servant, p = s.svPick;
@@ -74,7 +75,7 @@ G.module({
       const d = this.s.servants[i]; if (!d) return this.closeModal();
       const C = CFG.servant, max = d.lv >= C.MAX_LV, c = this.svUpCost(d), J = C.JOB[d.job], ow = this.svOwed(d), owc = ow * this.svSalary(d), au = this.s.svAuto;
       this.modal(`<h2>${this.svName(d)}</h2><div class="sv-pick"><img src="${this.svImg(d)}" alt=""><div>
-        资质 ${d.star} 星 · 五行 ${C.EL[d.el]}<br>等级 ${d.lv} / ${C.MAX_LV}<br>差事：${J ? `${J.name} ${d.job === "cult" || d.job === "zhen" ? "+" : "−"}${U.num(this.svEff(d, d.job))}%` : "空闲"}<br>每日俸禄 ${U.fmt(this.svSalary(d))} 灵石${ow ? `<br><span class="q5">欠发 ${ow} 天</span>` : ""}</div></div>
+        资质 ${d.star} 星 · 五行 ${C.EL[d.el]}<br>等级 ${d.lv} / ${C.MAX_LV}<br>差事：${J ? `${J.name} ${this.svEffTxt(d.job, this.svEff(d, d.job))}` : "空闲"}<br>每日俸禄 ${U.fmt(this.svSalary(d))} 灵石${ow ? `<br><span class="q5">欠发 ${ow} 天</span>` : ""}</div></div>
         <div class="btns"><button class="${au ? "on" : ""}" onclick="G.svAutoToggle(${i})">自动发放俸禄：${au ? "开" : "关"}</button><button onclick="G.svPay(${i})" ${owc && this.s.stone >= owc ? "" : "disabled"}>发放俸禄${owc ? `（${U.fmt(owc)} 灵石）` : ""}</button></div>
         <div class="btns"><button class="primary" onclick="G.svUp(${i})" ${max || this.s.stone < c ? "disabled" : ""}>${max ? "已满级" : `升级（${U.fmt(c)} 灵石）`}</button>
         <button onclick="G.svFire(${i})">遣散</button><button onclick="G.closeModal()">关闭</button></div>`);
@@ -85,7 +86,7 @@ G.module({
       const slots = J.els.map(el => { const i = L.findIndex(d => d.job === job && d.el === el);
         return `<div class="line"><div>${C.EL[el]}${i >= 0 ? `：${this.svName(L[i])} ${L[i].lv}级` : "：空"}</div>${i >= 0 ? `<button class="sm" onclick="G.svSetJob(${i},null,'${job}')">撤回</button>` : ""}</div>`; }).join("");
       const cand = L.map((d, i) => [d, i]).filter(([d]) => J.els.includes(d.el) && d.job !== job);
-      this.modal(`<h2>${J.name}<small> ${job === "cult" || job === "zhen" ? "+" : "−"}${U.num(this.servantPct(job))}%</small></h2>${slots}
+      this.modal(`<h2>${J.name}<small> ${this.svEffTxt(job, this.servantPct(job))}</small></h2>${slots}
         <h3 style="margin-top:8px">选择道童</h3>
         ${cand.length ? cand.map(([d, i]) => `<div class="line"><div class="sv-li"><img src="${this.svImg(d)}" alt="">${this.svName(d)} ${d.lv}级${d.job ? `<small>${C.JOB[d.job].name}中</small>` : ""}</div><button class="sm primary" onclick="G.svSetJob(${i},'${job}','${job}')">派遣</button></div>`).join("") : `<p>没有可派遣的${J.els.map(e => C.EL[e]).join("、")}属性道童。</p>`}
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
@@ -106,7 +107,7 @@ G.caveViews.servant = function () {
   const pickBtn = !p ? `<button class="primary" onclick="G.svStartPick()" ${s.stone < C.PICK_COST || n >= C.MAX ? "disabled" : ""}>选拔道童<small>${n >= C.MAX ? "道童已满" : U.fmt(C.PICK_COST) + " 灵石"}</small></button>`
     : p.end ? `<button disabled>选拔道童<small>${U.dur(Math.max(0, (p.end - this.now()) / 1000))}</small></button>`
     : `<button class="primary" onclick="G.svOpenPick()">选拔道童<small>已选出</small></button>`;
-  const jobs = Object.keys(C.JOB).map(k => `<button onclick="G.svOpenJob('${k}')">${C.JOB[k].name}<small>${k === "cult" || k === "zhen" ? "+" : "−"}${U.num(this.servantPct(k))}%</small></button>`).join("");
+  const jobs = Object.keys(C.JOB).map(k => `<button onclick="G.svOpenJob('${k}')">${C.JOB[k].name}<small>${this.svEffTxt(k, this.servantPct(k))}</small></button>`).join("");
   return `<div class="card"><h3>${DATA.caveName("servant")}<small>道童 ${n} / ${C.MAX}</small></h3>
     ${rows}
     </div><div class="room-grid sv-jobs">${pickBtn}${jobs}</div>`;
