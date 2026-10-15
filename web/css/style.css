@@ -310,6 +310,7 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24
 /* 小按钮文字不换行；列表行左边文字可收缩，按钮不被挤压 */
 button.sm{white-space:nowrap;flex-shrink:0}
 .line>div:first-child{min-width:0;flex:1 1 auto}
+.sg-btns{display:flex;gap:6px;flex-shrink:0}
 .line>button,.line>div:last-child>button{white-space:nowrap;flex-shrink:0}
 /* 法宝：按属性（金木水火土雷）显示颜色，和法术一样不褪色 */
 .fbel.eqt0 img,img.fbel.eqt0,.fbel.eqt1 img,img.fbel.eqt1,.fbel.eqt2 img,img.fbel.eqt2{filter:none}
