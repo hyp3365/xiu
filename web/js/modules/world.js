@@ -121,11 +121,11 @@ G.module({
       const fbSlots = s.fabao.slice(0, this.slotCount()).map((e, i) => e && e.attrs ? i : -1).filter(i => i >= 0);
       const acts = [...spells.map((sp, i) => ({ k: 1, sp, key: "sp:" + sp.id })), ...fabaos.map((fb, i) => ({ k: 2, fb, key: "fb:" + fbSlots[i] }))];
       const spNames = [...spells.map(sp => sp.name), ...fabaos.map(fb => fb.name)];
-      // v108 法宝伤害：法宝攻击（按法宝阶）× 伤害%，按「防御×RES_RATE + 该系抗性 − 无视抗性」减免；额外伤害按对方该系抗性 − 无视抗性减免
+      // 法宝伤害：攻击 × 伤害%，按「防御×RES_RATE + 该系抗性 − 无视抗性」减免；再加附加伤害 = 主伤害 × %
       const fabaoDmg = fb => {
         let d = Math.max(st.atk * BT.MIN_DMG, fb.atk * fb.pct / 100 - Math.max(0, resOf(m, fb.el) - fb.ign) * BT.DEF_RATE);
-        for (const x of fb.extra) d += Math.max(0, fb.atk * x.pct / 100 - Math.max(0, ((m.res || {})[x.el] || 0) - fb.ign) * BT.DEF_RATE);
-        return d;
+        let ex = 0; for (const x of fb.extra) ex += d * x.pct / 100;   // 附加伤害：主伤害 × %
+        return d + ex;
       };
       const BS = this.bsetGet(), off = BS.off || [], keepMp = st.mana * (BS.keep || 0) / 100, rKeys = BS.r || [];
       let rDone = 0;
