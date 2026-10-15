@@ -80,6 +80,7 @@ const G = {
     return s;
   },
   save(force) {
+    if (this._stopped) return;
     this.s.last = Date.now();
     localStorage.setItem("xiu_local_" + API.user, JSON.stringify(this.s)); // 本地备份
     this._dirtySave = true;
@@ -89,7 +90,15 @@ const G = {
     if (!API.token || !this._dirtySave) return;
     this._dirtySave = false; this._lastUpload = Date.now();
     try { await API.upload(this.s); this.setSync("已同步"); }
-    catch (e) { this._dirtySave = true; this.setSync("同步失败"); if (/登录/.test(e.message)) this.relogin(); }
+    catch (e) {
+      if (e.status === 409) return this.kicked();
+      this._dirtySave = true; this.setSync("同步失败"); if (/登录/.test(e.message)) this.relogin();
+    }
+  },
+  // 账号在别的设备进入了游戏：本设备停止运行和上传，点按钮重新读取服务器上的最新进度
+  kicked() {
+    this._stopped = true; this._lockModal = true;
+    this.modal(`<h2>已在其他设备登录</h2><p>账号已在其他设备进入游戏，本设备已暂停。</p><div class="btns"><button class="primary" onclick="location.reload()">重新进入</button></div>`);
   },
   setSync(t) { const el = $("#sync"); if (el) el.textContent = t; },
 
@@ -233,7 +242,7 @@ const G = {
     setInterval(() => { if (this.s && this.s.trib) this.advanceTrib(); if (this.tribOpen) this.showTrib(); }, 1000); // 雷劫每秒一回合
     setInterval(() => { if ((this.tab === "gongfa" && (this.s.gfStudy || this.s.cqStudy)) || (this.tab === "sect" && (this.sectTab === "affair" || this.sectTab === "alchemy" || (this.sectTab === "gfroom" && this.freeGfOn()))) || (this.tab === "world" && this.s.explore) || this.tab === "cave") this.render(); }, 1000);
     // 切到后台 / 关闭页面时立即上传
-    document.addEventListener("visibilitychange", () => { if (document.hidden && !this._stopped) { this.save(); API.beacon(this.s); } else if (!document.hidden) this.loop(); });
+    document.addEventListener("visibilitychange", () => { if (document.hidden && !this._stopped) { this.save(); API.beacon(this.s); } else if (!document.hidden && !this._stopped) { this.loop(); this.save(true); } });
     window.addEventListener("pagehide", () => { if (!this._stopped) API.beacon(this.s); });
   },
 
