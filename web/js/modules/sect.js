@@ -404,6 +404,48 @@ G.module({
       return out.join("，");
     },
     // 点「挑战」：立即算出结果，打开战斗画面逐回合播放（3 秒后可跳过）
+    /* ---------- v158 实力测试（试炼塔下面）：选境界 + 层，属性同地图普通怪；不扣生命、不自动结束 ---------- */
+    // 同境界的地图普通怪那一行（功法星级 / 来源 / 层 / 倍率照抄），没有就用低一点境界的
+    testMobRow(realm) {
+      let best = null;
+      for (const w of ["fan", "xian", "ming", "mo", "shen"]) { const M = CFG.mobs[w] || {};
+        for (const mp in M) { const c = M[mp]; if (!c || typeof c !== "object") continue;
+          for (const d in c) { const n = c[d] && c[d]["普通"]; if (!Array.isArray(n) || n[1] > realm) continue;
+            if (!best || n[1] > best[1] || (n[1] === best[1] && n[2] >= best[2])) best = n; } } }
+      return best || [0, 0, 1, 0, 1, 0, 1];
+    },
+    testPick() { if (!this._tp) { const r = Math.floor((this.s.L || 0) / DATA.LAYERS); this._tp = { r: Math.min(DATA.realms.length - 1, r), l: DATA.LAYERS }; } return this._tp; },
+    setTestPick(k, v) { this.testPick()[k] = +v; this.render(); },
+    testMobT() { const p = this.testPick(), row = this.testMobRow(p.r); return [p.r, p.r, p.l, row[3], row[4], row[5], row[6] === undefined ? 1 : row[6]]; },
+    testMobName() { const p = this.testPick(); return `${DATA.realms[p.r]}${DATA.layerNames[p.l - 1]}·试炼傀儡`; },
+    // 怪物学的功法：按宗门分组 [[宗门名, [功法名…]]]
+    testMobGf(t) {
+      const out = [], ms = t[3] > 0 ? t[3] : DATA.refStar(t[1]); if (!(t[5] > 0)) return out;
+      for (const sc of DATA.refSrcList(t[4] > 0 ? t[4] : 1)) { if (sc.star > ms) continue; const l = [];
+        for (const ty of DATA.gfTypesOf(sc.src)) for (const ti of DATA.tiers) { if (sc.src === "shop" && ty.sectOnly) continue;
+          const g = DATA.gongfaInfo(DATA.gongfaId(sc.id, ty.id, ti.id), t[5]); if (g) l.push(g.name); }
+        if (l.length) out.push([sc.name, l]); }
+      return out;
+    },
+    testFight() {
+      const t = this.testMobT(), b = DATA.mobStats(t, DATA.mobCrit("普通"));
+      const v = x => x * DATA.mobRnd();   // 和地图普通怪一样每项随机浮动
+      const m = this.addMagic({ name: this.testMobName(), kind: "normal", hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), mana: v(b.mana), res: v(b.res), manaBr: b.manaBr, crit: b.crit }, "normal");
+      const res = this.battle(m, { test: true });
+      this.playBattle(res.detail, "实力测试", "", true, [], false, { test: true });
+    },
+    testView() {
+      const p = this.testPick(), t = this.testMobT(), b = DATA.mobStats(t, DATA.mobCrit("普通")), gf = this.testMobGf(t), M = (CFG.mobs.magic || {}).normal || {};
+      const rOpts = DATA.realms.map((n, i) => [i, n]), lOpts = DATA.layerNames.map((n, i) => [i + 1, n]);
+      const n = gf.reduce((a, x) => a + x[1].length, 0);
+      const st = [["生命", b.hp], ["攻击", b.atk], ["防御", b.def], ["速度", b.speed], ["命中", b.hit], ["闪避", b.dodge], ["法力", b.mana], ["抗性", b.res]].map(([k, v]) => `${k} ${U.fmt(v)}`).join("　") + `　暴击 ${U.num(b.crit)}%`;
+      return `<div class="card"><h3>实力测试<small>不扣生命，可随时关闭</small></h3>
+        <div class="line"><div>对手境界</div><div class="sg-btns">${this.selBox("testR", rOpts, p.r, v => this.setTestPick("r", v))}${this.selBox("testL", lOpts, p.l, v => this.setTestPick("l", v))}</div></div>
+        <p class="desc">${this.testMobName()}（属性同地图普通怪，战斗时每项 ×${(CFG.mobs.RAND || [1, 1]).join("~")} 随机）<br>${st}</p>
+        <p class="desc">法术：每回合 ${M.spell ? M.spell.chance : 0}% 几率，伤害 攻击×${M.spell ? M.spell.pct : 0}%　法宝：每回合 ${M.fabao ? M.fabao.chance : 0}% 几率，伤害 攻击×${M.fabao ? M.fabao.pct : 0}%</p>
+        ${n ? `<details class="desc"><summary>功法：${t[3] > 1 ? `1~${t[3]}` : t[3]}星宗门功法 ${n} 部，各练至第 ${t[5]} 层</summary>${gf.map(([nm, l]) => `<p><b>${nm}</b>：${l.map(x => `${x}（${t[5]}层）`).join("、")}</p>`).join("")}</details>` : `<p class="desc">功法：无</p>`}
+        <div class="btns"><button onclick="G.testFight()">开始测试</button></div></div>`;
+    },
     challengeTower() {
       const star = this.sectInfo().star, f = this.towerFloor() + 1; if (f > this.towerMax()) return;
       const st = this.stats();
@@ -575,6 +617,7 @@ G.module({
         <button class="sm" onclick="G.challengeTower()">挑战</button></div>`}
         ${bonus ? `<p class="desc">第 ${nb} 层额外奖励：${this.towerBonusText(bonus)}</p>` : ""}
         <p class="desc">进度按门派星级记录，换门派不会重置。${(T.RING || [])[star - 1] >= 0 && DATA.ringNames[T.RING[star - 1]] ? `本塔第 10 层奖励${DATA.ringName(T.RING[star - 1], 0)}，第 20~100 层依次奖励它的二阶~十阶升级图纸，之后每 10 层奖励一本试炼塔秘诀（共 ${DATA.towerBookCount(star)} 本）。` : `本塔每 10 层奖励一本试炼塔秘诀（共 ${DATA.towerBookCount(star)} 本）。`}</p></div>`;
+      h += this.testView();
     } else if (tab === "secret") {
       const c = DATA.secretCost(x.star);
       h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "secret", "宗门秘境")}<small>每次消耗 ${U.fmt(c)} 贡献</small></h3>

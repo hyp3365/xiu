@@ -124,8 +124,9 @@ G.module({
 
     // 通用战斗：速度高者先手，判闪避、暴击。返回 { win, lose, rounds, why, log }，并更新玩家生命、法力
     //   log：完整战斗过程（点「详情」查看），格式见 battleDetail
-    battle(m) {
-      const st = this.stats(), s = this.s;
+    //   opt.test（v158 实力测试）：双方都不扣生命、打满 TEST_ROUNDS 回合，结束后人物生命 / 法力还原
+    battle(m, opt = {}) {
+      const st = this.stats(), s = this.s, TEST = !!opt.test;
       const spells = s.spellSlots.slice(0, this.slotCount()).map(id => DATA.spellInfo(id, s.gongfa[id])).filter(Boolean);
       let si = 0, act = null;   // act：这一下出手的方式 { k: 0 普通攻击 / 1 法术 / 2 法宝, sp 法术名序号, f: 0 命中 / 1 被闪避 / 2 暴击 }
       const BT = CFG.battle, rnd = () => BT.RAND_MIN + Math.random() * (BT.RAND_MAX - BT.RAND_MIN);
@@ -256,7 +257,7 @@ G.module({
         if (pj && act.k < 3 && act.f !== 1) act.x = (act.x || 0) | 32;
         d = after(d, pMe, php, st.hp, meJc, mobJc);
         if (act.k < 3 && act.f !== 1 && !(act.x & 128) && !mobSeal && cnt.me.zh < pMe.zhT && ch(pMe.zh)) { mobSeal = pMe.zhR; sealR.mob = rounds; cnt.me.zh++; act.x = (act.x || 0) | 64; }
-        mhp -= d; dealt += d;
+        if (!TEST) mhp -= d; dealt += d;
         if (mhp <= 0 && php > 0 && cnt.mob.yt < pMob.ytT && ch(pMob.yt)) { dealt -= 1 - mhp; mhp = 1; cnt.mob.yt++; act.x = (act.x || 0) | 16; }   // 对方御天保命
         rec(0, act.k === 3 ? shield.hp : d);
       };
@@ -273,7 +274,7 @@ G.module({
           const ab = Math.min(shield.hp, d); shield.hp -= ab; d -= ab; act.ab = ab;
           if (shield.hp <= 0) { shield = null; act.x = (act.x || 0) | 4; }
         }
-        php -= d; taken += d;
+        if (!TEST) php -= d; taken += d;
         if (php <= 0 && mhp > 0 && cnt.me.yt < pMe.ytT && ch(pMe.yt)) { taken -= 1 - php; php = 1; cnt.me.yt++; act.x = (act.x || 0) | 16; }   // 御天保命
         rec(1, d);
       };
@@ -284,7 +285,7 @@ G.module({
         c.jc++; if (w) mobJc = JC.ROUNDS || 3; else meJc = JC.ROUNDS || 3;
         act = { k: 5, f: 0 }; rec(w, 0);
       };
-      while (php > 0 && mhp > 0 && rounds < BT.MAX_ROUNDS) {
+      while (php > 0 && mhp > 0 && rounds < (TEST ? BT.TEST_ROUNDS || 500 : BT.MAX_ROUNDS)) {
         rounds++;
         jcTry(0); jcTry(1);
         // 连星秘法：这回合有几率再出手一次（[10] 标记 8）
@@ -297,7 +298,8 @@ G.module({
         if (meSeal && sealR.me !== rounds) meSeal--; else if (meSeal) sealR.me = -1;
         if (mobSeal && sealR.mob !== rounds) mobSeal--; else if (mobSeal) sealR.mob = -1;
       }
-      s.hp = Math.max(1, php);
+      s.hp = TEST ? hp0 : Math.max(1, php);
+      if (TEST) s.mana = mana0;
       // 战斗说明（显示在探索信息里）
       const why = `你出战时生命 ${U.fmt(hp0)}，共造成 ${U.fmt(dealt)} 伤害（对方剩余生命 ${U.fmt(Math.max(0, mhp))}/${U.fmt(m.hp)}），承受 ${U.fmt(taken)} 伤害；对方攻击 ${U.fmt(m.atk)} 防御 ${U.fmt(m.def)}${m.el ? `，${DATA.elById[m.el].name}属性，施法术 ${mSp} 次、法宝 ${mFb} 次` : ""}`;
       const detail = { name: m.name, el: m.el || "", a: m.a, sp: spNames, first: meFirst ? 0 : 1, log, mf: m.mf.slice(),
@@ -350,10 +352,11 @@ G.module({
     // 战斗过程画面：每 ACT_SEC 秒播放一次出手；结果已经结算好，这里只是播放
     //   现场战斗（试炼塔等）SKIP_SEC 秒后可跳过，replay（看详情）随时可跳过
     //   结果提示（log）等战斗播放完才出：logs = [[文字, 颜色], …]，不传则用 txt（胜 gold / 败 bad）
-    playBattle(b, title, txt, win, logs, replay) {
+    //   opt.test（v158 实力测试）：不自动结束、随时可关闭，显示累计伤害
+    playBattle(b, title, txt, win, logs, replay, opt = {}) {
       if (this._bp && this._bp.timer) clearInterval(this._bp.timer);
       if (this._bp) this.battleDone(this._bp);
-      const bp = this._bp = { b, title, txt, win, logs: logs || [[txt, win ? "gold" : "bad"]], acts: b.log.slice(), shown: 0, t0: Date.now(), done: false, replay: !!replay, hp: [b.me[0], b.mob[0]] };
+      const bp = this._bp = { b, title, txt, win, logs: logs || [[txt, win ? "gold" : "bad"]], acts: b.log.slice(), shown: 0, t0: Date.now(), done: false, replay: !!replay, test: !!opt.test, sum: [0, 0], hp: [b.me[0], b.mob[0]] };
       this._lockModal = true;
       const v = DATA.IMG_V, mi = this.battleMobImg(b);
       this.modal(`<div class="btv">
@@ -366,13 +369,16 @@ G.module({
           <div class="btv-u r" id="bt-u1"><img src="${mi.src}" onerror="this.onerror=null;this.src='${mi.alt}'" alt=""><div class="btv-nm">${b.name}</div></div>
           <div class="btv-fx" id="bt-fx"></div>
         </div>
-        <div class="btv-log" id="bt-log"><p class="bt-gray"><span class="bt-m">${b.name}</span>上阵${b.el ? `（${DATA.elById[b.el].name}属性）` : ""}，${b.first ? `<span class="bt-m">${b.name}</span>先手` : `<span class="bt-p">你</span>先手`}。</p></div>
+        ${opt.test ? `<div class="btv-sum" id="bt-sum"></div>` : ""}
+        <div class="btv-log" id="bt-log">${opt.head || ""}<p class="bt-gray"><span class="bt-m">${b.name}</span>上阵${b.el ? `（${DATA.elById[b.el].name}属性）` : ""}，${b.first ? `<span class="bt-m">${b.name}</span>先手` : `<span class="bt-p">你</span>先手`}。</p></div>
         <div class="btns" id="bt-btn"></div></div>`);
       this.btHp();
       const step = () => {
         if (this._bp !== bp) return clearInterval(bp.timer);
         if (bp.shown < bp.acts.length) this.btAct(bp.acts[bp.shown++], true);
-        if (bp.shown >= bp.acts.length) { clearInterval(bp.timer); setTimeout(() => { if (this._bp === bp) this.btFinish(); }, 600); }
+        if (bp.shown >= bp.acts.length) { clearInterval(bp.timer);
+          if (bp.test) { const lg = $("#bt-log"); if (lg) { lg.insertAdjacentHTML("beforeend", `<p class="bt-gray">已打满 ${bp.round || 0} 回合，测试结束。</p>`); lg.scrollTop = 1e9; } }
+          else setTimeout(() => { if (this._bp === bp) this.btFinish(); }, 600); }
         this.btBtn();
       };
       this.btBtn();
@@ -384,7 +390,7 @@ G.module({
     btBtn() {
       const bp = this._bp, el = $("#bt-btn"); if (!bp || !el) return;
       const ok = this.btCanSkip(), left = Math.ceil((CFG.battle.SKIP_SEC || 3) - (Date.now() - bp.t0) / 1000);
-      const h = bp.done ? `<button class="btv-btn" onclick="G.closeBattle()">关闭</button>`
+      const h = bp.done || bp.test ? `<button class="btv-btn" onclick="G.closeBattle()">关闭</button>`
         : `<button class="btv-btn" onclick="G.skipBattle()" ${ok ? "" : "disabled"}>${ok ? "跳过" : `${left} 秒后可跳过`}</button>`;
       if (el.innerHTML !== h) el.innerHTML = h;
     },
@@ -397,6 +403,8 @@ G.module({
     btAct(x, anim) {
       const bp = this._bp, b = bp.b, [r, w, k, sp, f, d, ph, pm, mh, mm, fx] = x;
       bp.hp = [ph, mh];
+      if (bp.test) { if (k < 3 && d > 0) bp.sum[w] += d; const se = $("#bt-sum"), R0 = bp.round || 1;
+        if (se) se.innerHTML = `你共造成 <b>${U.fmt(bp.sum[0])}</b>（每回合 ${U.fmt(bp.sum[0] / Math.max(1, r))}）　对方共造成 <b>${U.fmt(bp.sum[1])}</b>（每回合 ${U.fmt(bp.sum[1] / Math.max(1, r))}）`; }
       const log = $("#bt-log");
       if (log) { if (r !== bp.round) { bp.round = r; log.insertAdjacentHTML("beforeend", `<p class="bt-rd">第 ${r} 回合</p>`); }
         log.insertAdjacentHTML("beforeend", this.battleRow(b, x)); log.scrollTop = 1e9; }
