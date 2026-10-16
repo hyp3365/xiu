@@ -251,6 +251,7 @@ DATA.spellInfo = (id, lv = 1, own) => {
     kind: "sp", id, sect, src: DATA.srcType(sect), star: sect.star, el, tier, lv,
     name: DATA.spellName(sect, el, tier),
     // 法术攻击 = 自己修为 + 肉身攻击（不超过该星级对应境界的）+ 功法攻击（own 不写 = 玩家自己的）；伤害 = 法术攻击 × pct% × mul（mul = SPELL_MUL × 来源倍率，不显示）
+    uses: (U0 => v(U0[lv - 1], U0[U0.length - 1]))(_GF.SPELL_USES || [99]),   // v152 每场战斗最多施展几次
     atk: DATA.capAtk(DATA.spellRef(sect.star).atk, own), pct: lp(lv), next: lp(lv + 1), mul: v(_GF.SPELL_MUL) * tm * v(C.EFFECT_PCT),
     // 法力消耗 = 该星级对应境界的修为突破法力（REF）× MANA_PCT% × 灵根倍率（灵根倍率 = 1 + 该系灵根等级 × MANA_LINGEN）
     mana: Math.max(1, Math.round(DATA.spellManaBase(sect.star) * v(_GF.MANA_PCT, 0) / 100

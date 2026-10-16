@@ -306,7 +306,7 @@ G.module({
         if ((s.mana || 0) < fb.mana) return this.tribToast("法力不足");
         s.mana -= fb.mana;
         const o = fb.shield ? { hp: fb.shield.hp, def: fb.shield.def, red: fb.shield.red }
-          : { hp: Math.max(0, fb.atk * fb.pct / 100) * (U0.FB_SHIELD === undefined ? 1 : U0.FB_SHIELD) };
+          : { hp: (Math.max(0, fb.atk * fb.pct / 100) + (fb.addDmg || 0)) * (U0.FB_SHIELD === undefined ? 1 : U0.FB_SHIELD) };
         addSh(o); x.cd[i] = this.now() + (U0.FB_CD || 0) * 1000;
         msg = `祭出${fb.name}，护盾 +${U.fmt(o.hp)}`;
       } else if (c.k === "sp") {

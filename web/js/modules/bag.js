@@ -67,6 +67,8 @@ G.module({
           head = `${DATA.elById[e.el].name}属性${e.name} · 每次祭出消耗法力 ${U.fmt(f.mana)}<br>`;
           // 合计（攻击 / 护盾 / 鼎）单独一块，和下面的属性条隔开
           let sum = f.shield ? `护盾值 ${U.fmt(f.shield.hp)} · 防御 ${U.fmt(f.shield.def)}` : `攻击 ${U.fmt(f.atk)}`;
+          if (e.enh) sum += ` · 强化 +${e.enh}（${f.shield ? "护盾值" : "附加伤害"} +${U.fmt(DATA.fbEnh(e))}）`;
+          sum += `<br>每场战斗最多祭出 ${f.uses} 次`;
           if (f.ding) sum += `<br>击中后对方速度 -${U.num(f.ding.speed)}%、命中 -${U.num(f.ding.hit)}%、闪避 -${U.num(f.ding.dodge)}%，持续 ${f.ding.rounds} 回合`;
           head += `<span class="fb-sum">${sum}</span>`;
         }
@@ -251,7 +253,29 @@ G.module({
     },
 
     /* ---------- 强化（config/forge.js 的 forge.enhance）：每条属性分别强化 ---------- */
-    canEnhance(e) { return !!(e && e.attrs && e.attrs.some(a => DATA.attrEnhOK(a, e))); },
+    canEnhance(e) { return !!(e && e.attrs && (e.slot === "fabao" || e.attrs.some(a => DATA.attrEnhOK(a, e)))); },
+    // v152 法宝强化：整件一个等级，没有上限；只要火髓 + 同属性耀石
+    fbEnhCost(e) { const E = CFG.forge.enhance.fabao, k = 1 + (e.enh || 0) * (E.COST_STEP || 0);
+      return { fire: Math.ceil(((E.FIRE || [])[e.g] || 1) * k), jj: Math.ceil(((E.SPECIAL || [])[e.g] || 0) * k), sk: "ys", sf: this.ysFor(e), mats: [] }; },
+    fbEnhRate(e) { return Math.max(0, this.craftRate("qi", e.g) - (e.enh || 0) * (CFG.forge.enhance.fabao.RATE_DROP || 0) / 100); },
+    drawFbEnhance(e) {
+      const c = this.fbEnhCost(e), per = DATA.fbEnhPer(e), sh = (DATA.fabaoTypes[e.ft] || {}).shield, lb = sh ? "护盾值" : "附加伤害", n = e.enh || 0;
+      this.modal(`<img class="item-img${DATA.eqCls(e)}" src="${DATA.eqIcon(e)}" alt=""><h2 class="q${e.q}${DATA.fbElCls(e)}">强化 · ${this.itemName({ t: "eq", e })}</h2>
+        <p class="desc">${DATA.HX} ${U.fmt(this.fireCount())} · ${DATA.li(DATA.smIcon("ys", this.ysFor(e)))}${DATA.smName("ys", this.ysFor(e))} ${U.fmt(this.smCount("ys", this.ysFor(e)))} · 失败只扣材料，不掉强化等级。法宝升阶时强化等级 −20%（最少 −1）。</p>
+        <div class="line"><div>强化 +${n}<small>${lb} +${U.fmt(n * per)} → +${U.fmt((n + 1) * per)}（每级 +${U.fmt(per)}）<br>
+          <span class="${this.fireCount() >= c.fire ? "" : "q5"}">${DATA.HX} ${c.fire}</span>${c.jj ? `、<span class="${this.smCount(c.sk, c.sf) >= c.jj ? "" : "q5"}">${DATA.li(DATA.smIcon(c.sk, c.sf))}${DATA.smName(c.sk, c.sf)} ${c.jj}</span>` : ""} · 成功率 ${this.ratePct(this.fbEnhRate(e))}</small></div>
+          <button class="sm" onclick="G.doFbEnhance()" ${this.enhHave(c) ? "" : "disabled"}>强化</button></div>
+        <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+    },
+    doFbEnhance() {
+      const e = this._enhObj; if (!e || e.slot !== "fabao") return;
+      const c = this.fbEnhCost(e);
+      if (!this.enhHave(c)) return this.log("材料不足。", "sys");
+      this.takeFire(c.fire); if (c.jj) this.takeSm(c.sk, c.jj, c.sf);
+      if (Math.random() < this.fbEnhRate(e)) { e.enh = (e.enh || 0) + 1; this.log(`强化成功！${this.itemName({ t: "eq", e })}：${(DATA.fabaoTypes[e.ft] || {}).shield ? "护盾值" : "附加伤害"} +${U.fmt(DATA.fbEnh(e))}`, "gold"); }
+      else this.log(`强化失败，材料已耗尽，${e.name}完好无损。`, "bad");
+      this.after(); this.drawEnhance();
+    },
     // 第 i 条属性下一次强化的消耗 { fire 火髓, jj 炼宝玄晶, mats 三种矿石 }
     enhCost(e, i) {
       const E = DATA.enhCfg(e), a = e.attrs[i], k = 1 + ((a && a.enh) || 0) * (E.COST_STEP || 0);
@@ -265,6 +289,7 @@ G.module({
     openEnhance(src) { const e = this.resetTarget(src); if (!this.canEnhance(e)) return; this._enhObj = e; this.drawEnhance(); },
     drawEnhance() {
       const e = this._enhObj; if (!e) return;
+      if (e.slot === "fabao") return this.drawFbEnhance(e);
       const E = DATA.enhCfg(e);
       this.modal(`<img class="item-img${DATA.eqCls(e)}" src="${DATA.eqIcon(e)}" alt=""><h2 class="q${e.q}${DATA.fbElCls(e)}">强化 · ${this.itemName({ t: "eq", e })}</h2>
         <p class="desc">${DATA.HX} ${U.fmt(this.fireCount())} · ${DATA.li(DATA.smIcon("ys", this.ysFor(e)))}${DATA.smName("ys", this.ysFor(e))} ${U.fmt(this.smCount("ys", this.ysFor(e)))} · 失败只扣材料，不掉强化等级。</p>` +
@@ -421,7 +446,7 @@ G.module({
     // 点法术栏：显示详细，可卸下
     openSpellSlot(i) {
       const id = this.s.spellSlots[i], g = id && DATA.spellInfo(id, this.s.gongfa[id]); if (!g) return;
-      this.modal(`<h2 class="q${g.tier.idx + 1}">《${g.name}》</h2><p>${g.el.name}系 · ${g.lv} 层<br>伤害 = ${this.spellDmgTxt(g)}<br>耗法力 ${U.fmt(g.mana)}</p>
+      this.modal(`<h2 class="q${g.tier.idx + 1}">《${g.name}》</h2><p>${g.el.name}系 · ${g.lv} 层<br>伤害 = ${this.spellDmgTxt(g)}<br>耗法力 ${U.fmt(g.mana)} · 每场战斗最多 ${g.uses} 次</p>
         <div class="btns"><button onclick="G.unslotSpell(${i})">卸下</button><button onclick="G.openSpellPick(${i})">更换</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
   },

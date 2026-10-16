@@ -152,16 +152,19 @@ G.module({
       const fabaoDmg = fb => {
         let d = Math.max(st.atk * BT.MIN_DMG, fb.atk * fb.pct / 100 - Math.max(0, resOf(m, fb.el) - fb.ign) * BT.DEF_RATE);
         let ex = 0; for (const x of fb.extra) ex += d * x.pct / 100;   // 附加伤害：主伤害 × %
-        return d + ex;
+        return d + ex + (fb.addDmg || 0);   // v152 强化附加伤害（固定数字）
       };
       const BS = this.bsetGet(), off = BS.off || [], keepMp = st.mana * (BS.keep || 0) / 100, rKeys = BS.r || [];
       let rDone = 0;
       // 出一招：a = acts[j]；res = true 可以动用保留的法力；放不出返回 null
+      const usedN = {};   // v152 这场战斗每招已用几次
       const cast = (j, res) => {
         const a = acts[j]; if (!a) return null;
         const cost = a.k === 1 ? a.sp.mana : a.fb.mana;
         if (a.k === 2 && a.fb.shield && shield) return null;   // 护盾还在：盾不用再祭
         if (s.mana < cost || (!res && s.mana - cost < keepMp)) return null;
+        if ((usedN[j] || 0) >= ((a.k === 1 ? a.sp.uses : a.fb.uses) || 1)) return null;   // v152 每场战斗使用次数用完
+        usedN[j] = (usedN[j] || 0) + 1;
         s.mana -= cost;
         if (a.k === 1) { const sp = a.sp; return roll(st, mE(), Math.max(st.atk * BT.MIN_DMG, sp.atk * sp.pct / 100 * sp.mul * this.lingenSpell(sp.el.id) - resOf(m, sp.el.id) * BT.DEF_RATE), 1, j); }
         const fb = a.fb;

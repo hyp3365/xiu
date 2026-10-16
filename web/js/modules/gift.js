@@ -10,7 +10,7 @@
  *   mf {star, kind}                     秘法
  *   fabao {ft, el, g, n}                法宝（形状、属性、阶）
  *   eq {slot, g, n}                     装备（slot = 部位，戒指写 "ring:种类序号"）
- *   herb / ore {g, n}                   药材 / 矿石（不含特产）
+ *   herb / ore {g, n}                   药材 / 矿石（不含特产）；ore 的 g ≥ 1000 = 耀石（g − 1000 = 属性序号）
  *   tc {name, n}                        四界特产
  *   dan {item: "p:类型" 修炼丹 | "d:丹方", g, n}
  *   bp {item: "f:炉子" | "r:戒指序号", g, n}   图纸
@@ -53,6 +53,7 @@ G.module({
       if (c === "eq") return [{ k: "slot", label: "部位", opts: [...DATA.eqSlots6.map(x => [x, DATA.slots[x]]), ...DATA.ringNames.map((n, r) => ["ring:" + r, n])] }, { k: "g", label: "阶", opts: jie }, N];
       if (c === "herb" || c === "ore") {
         const sp = this.giftSpecial(), list = (c === "herb" ? DATA.herbs : DATA.ores).map((n, g) => [g, n]).filter(([, n]) => !sp.includes(n));
+        if (c === "ore") list.push(...CFG.mijing.items.ys.names.map((n, i) => [1000 + i, n]));   // v152 耀石放在矿石里：g = 1000 + 属性序号
         return [{ k: "g", label: "名称", opts: list }, N];
       }
       if (c === "tc") return [{ k: "name", label: "名称", opts: this.giftSpecial().filter(n => DATA.matByName[n]).map(n => [n, n]) }, N];
@@ -94,7 +95,7 @@ G.module({
           case "mf": return `秘法《${DATA.mifaInfo(DATA.mifaId(it.star, it.kind)).name}》`;
           case "fabao": return `${DATA.JIE[it.g]}·${DATA.elById[it.el].name}·${DATA.fabaoName(it.ft, it.g)}${n}`;
           case "eq": { const [sl, r] = String(it.slot).split(":"); return (sl === "ring" ? DATA.ringName(+r, it.g) : DATA.forgeEqName(sl, it.g)) + n; }
-          case "herb": case "ore": return DATA.matName(it.c, it.g) + n;
+          case "herb": case "ore": return (it.c === "ore" && it.g >= 1000 ? DATA.smName("ys", it.g - 1000) : DATA.matName(it.c, it.g)) + n;
           case "tc": return it.name + n;
           case "lj": case "lz": return DATA.smName(it.c, it.ft) + n;
           case "hx": return DATA.HX + n;
@@ -119,7 +120,8 @@ G.module({
         }
         case "fabao": return rep(() => this.addEquip(DATA.rollForged("fabao", it.g, it.ft, it.el)));
         case "eq": { const [sl, r] = String(it.slot).split(":"); return rep(() => this.addEquip(DATA.rollForged(sl, it.g, sl === "ring" ? +r : undefined))); }
-        case "herb": case "ore": return this.addMat(it.c, DATA.matName(it.c, it.g), it.g, n);
+        case "herb": case "ore": if (it.c === "ore" && it.g >= 1000) return this.addSm("ys", n, it.g - 1000);
+          return this.addMat(it.c, DATA.matName(it.c, it.g), it.g, n);
         case "lj": case "lz": return this.addSm(it.c, n, it.ft);
         case "hx": return this.addFire(n);
         case "tc": { const m = DATA.matByName[it.name]; return !!m && this.addMat(m.kind, it.name, m.g, n); }

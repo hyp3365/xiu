@@ -72,7 +72,7 @@ DATA.ringMats = g => DATA.parseMats(_FG.ring.mats[g]);
 DATA.ringTime = g => _FG.ring.time[g] * 60000;
 DATA.ringBpName = (g, r) => DATA.JIE[g] + (DATA.ringNames[r] || "戒指") + "图纸";   // v26：图纸分戒指种类（r）
 // 法宝属性名（额外伤害 elDmg 带一个属性 el）
-DATA.fbAttrNames = { pct: "伤害", elDmg: "额外伤害", ignRes: "无视抗性", manaCut: "法力消耗减少%",
+DATA.fbAttrNames = { uses: "祭出次数", pct: "伤害", elDmg: "额外伤害", ignRes: "无视抗性", manaCut: "法力消耗减少%",
   sAtk: "攻击", dSAtk: "攻击", sHit: "命中", sCrit: "暴击%", sCritDmg: "暴击伤害%", sMana: "本法宝法力消耗减少%", sDing: "降低属性", sYin: "眩晕几率%",
   shHpMain: "护盾值", shDef: "防御", shHp: "增加护盾值", dmgRed: "受到伤害减少%" };
 for (const k in DATA.fbAttrNames) DATA.fbAttrNames[k] = DATA.nmPick(CFG.names.fbAttr, k, DATA.fbAttrNames[k]);
@@ -93,8 +93,9 @@ DATA.attrPos = a => a.p || 0;
 DATA.rangeMult = (a, g) => { const [lo, hi] = DATA.colorRange(a.c, g); return lo + (hi - lo) * DATA.attrPos(a); };
 // v43 强化：每条属性 a.enh = 强化次数（config/forge.js 的 forge.enhance.equip / fabao）
 DATA.enhCfg = e => CFG.forge.enhance[e && e.slot === "fabao" ? "fabao" : "equip"];
-DATA.attrEnhOK = (a, e) => ((DATA.enhCfg(e).ADD || {})[a.k] || 0) > 0;
-DATA.enhMult = (a, e, n) => 1 + (n === undefined ? a.enh || 0 : n) * ((DATA.enhCfg(e).ADD || {})[a.k] || 0) / 100;
+//   v152 法宝不再按条强化（整件法宝 e.enh 级，见 DATA.fbEnh），旧的每条强化次数不再生效
+DATA.attrEnhOK = (a, e) => !(e && e.slot === "fabao") && ((DATA.enhCfg(e).ADD || {})[a.k] || 0) > 0;
+DATA.enhMult = (a, e, n) => e && e.slot === "fabao" ? 1 : 1 + (n === undefined ? a.enh || 0 : n) * ((DATA.enhCfg(e).ADD || {})[a.k] || 0) / 100;
 // 一条属性的数值（e = 整件装备，用来区分法宝 / 戒指），含强化
 DATA.attrVal = (a, g, e) => { return DATA.attrBase(a, g, e) * (a.enh ? DATA.enhMult(a, e) : 1); };
 // 一条属性没强化时的数值
@@ -149,6 +150,7 @@ DATA.rollForged = (slot, g, r, el) => {
 // 升阶：颜色、位置都不变，只改阶和名字（数值按新阶自动变大）
 DATA.upgradeForged = (prev, g) => {
   const e = JSON.parse(JSON.stringify(prev));
+  if (e.slot === "fabao" && e.enh > 0) { const E = CFG.forge.enhance.fabao; e.enh = Math.max(0, e.enh - Math.max(E.DOWN_MIN === undefined ? 1 : E.DOWN_MIN, Math.floor(e.enh * (E.DOWN_PCT || 0) / 100))); }   // v152 法宝升阶：强化等级 −20%，最少 −1
   e.g = g;
   e.name = e.slot === "ring" ? DATA.ringNames[e.r] : e.slot === "fabao" ? DATA.fabaoName(e.ft, g) : DATA.forgeNames[e.slot][g];
   return e;
@@ -194,13 +196,16 @@ DATA.attrText = (a, e) => {
     const t = { pct: `伤害 攻击×${p}%`, elDmg: `${el}属性伤害 ${p}%`, ignRes: `攻击时无视${el}抗 ${p}%`, manaCut: `法力消耗 -${p}%`,
       sAtk: `法宝攻击时额外增加攻击 +${v}`, dSAtk: `法宝攻击时额外增加攻击 +${v}`, sHit: `法宝攻击时额外增加命中 +${v}`, sCrit: `法宝攻击时额外增加暴击 +${p}%`, sCritDmg: `暴击伤害 ${p}%`, sMana: `本法宝法力消耗 -${p}%`,
       sDing: `击中后降低对方属性 ${v} 回合`, sYin: `眩晕几率 ${p}%（${(F.YIN_ROUNDS || [])[a.c] || 1} 回合）`,
-      shHpMain: `护盾值 ${v}`, shDef: `防御 ${v}`, shHp: `护盾值 +${v}`, dmgRed: `受到伤害 -${p}%` }[a.k] || DATA.fbAttrNames[a.k] || a.k;
-    return `${a.m === 2 ? "专属 " : a.m ? "" : a.k === "elDmg" ? "附加伤害 " : "附加 "}${t}（${col}${a.enh ? `·强化${a.enh}` : ""}）`;
+      shHpMain: `护盾值 ${v}`, shDef: `防御 ${v}`, shHp: `护盾值 +${v}`, dmgRed: `受到伤害 -${p}%`, uses: `每场战斗祭出次数 +${Math.round(p)}` }[a.k] || DATA.fbAttrNames[a.k] || a.k;
+    return `${a.m === 2 ? "专属 " : a.m ? "" : a.k === "elDmg" ? "附加伤害 " : "附加 "}${t}（${col}）`;
   }
   return `${a.m ? "" : "附加 "}${DATA.attrNames[a.k]} +${v}（${col}${a.enh ? `·强化${a.enh}` : ""}）`;
 };
 // v107 法宝第 g 阶的参考属性：config/forge.js 的 fabao.REF[阶] 那个境界的人物属性（修为突破 + 肉身突破，不算功法），含 manaBr
 DATA._fbRef = {};
+// v152 法宝强化：盾 = 增加护盾值，其他 = 附加伤害（固定数字）
+DATA.fbEnhPer = e => { const E = CFG.forge.enhance.fabao, T = DATA.fabaoTypes[e.ft] || {}; return ((T.shield ? E.SHIELD : E.DMG) || [])[e.g] || 0; };
+DATA.fbEnh = e => (e.enh || 0) * DATA.fbEnhPer(e);
 DATA.fbRef = g => DATA._fbRef[g] || (DATA._fbRef[g] = (() => { const r = (_FG.fabao.REF || [])[g] || [2 * g + 1, 10]; return DATA.mobStats([0, r[0], r[1], 0, 1, 0, 1]); })());
 // 法宝攻击 = 自己修为 + 肉身攻击（不超过参考攻击）+ 功法攻击（own 不写 = 玩家自己的，见 data/gongfa.js 的 DATA.capAtk）
 // 法宝战斗数值（atk 已含剑 / 刀的专属攻击；hit、critAdd = 刀 / 锤攻击时额外命中、暴击%）：{ el, atk, pct, mana, ign, cutPct, extra: [{ el, pct }], crit（锤暴击伤害%）, shield, ding, yin }
@@ -208,6 +213,8 @@ DATA.fabaoInfo = (e, own) => {
   const F = _FG.fabao, T = DATA.fabaoTypes[e.ft] || {}, ref = DATA.fbRef(e.g);
   const o = { name: DATA.fabaoName(e.ft, e.g, e.name), el: e.el, ft: e.ft, atk: DATA.capAtk(ref.atk, own), pct: 0, ign: 0, cutPct: 0, extra: [] };
   let shHp = 0, shDef = 0, red = 0, ding = 0, yin = 0, yinC = 0;
+  o.uses = F.USES === undefined ? 1 : F.USES;   // 每场战斗最多祭出几次
+  if (T.shield) shHp += DATA.fbEnh(e); else o.addDmg = DATA.fbEnh(e);   // 强化：护盾值 / 附加伤害
   for (const a of e.attrs) {
     const v = DATA.attrVal(a, e.g, e);
     if (a.k === "pct") o.pct += v; else if (a.k === "ignRes") { if (a.el === e.el) o.ign += v; }   // 无视抗性、附加伤害：属性和法宝一样才生效
@@ -220,6 +227,7 @@ DATA.fabaoInfo = (e, own) => {
     else if (a.k === "shHpMain" || a.k === "shHp") shHp += v; else if (a.k === "shDef") shDef += v; else if (a.k === "dmgRed") red += v;
     else if (a.k === "sDing") ding = Math.max(ding, v);
     else if (a.k === "sYin") { yin += v; yinC = Math.max(yinC, a.c); }
+    else if (a.k === "uses") o.uses += Math.round(v);
   }
   const CAP = F.CAP || {}, at = (arr, d) => { const x = (arr || [])[e.g]; return x === undefined ? d : x; };
   o.pct *= (T.mul === undefined ? 1 : T.mul) * (F.DMG_MUL === undefined ? 1 : F.DMG_MUL);   // 形状倍率、DMG_MUL（不显示）
