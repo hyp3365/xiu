@@ -57,9 +57,11 @@ DATA.GROW = _P.GROW;
 DATA.playerBase = _P.base;
 DATA.playerFixed = _P.fixed;
 // 闪避几率 % = (防守方闪避 - 进攻方命中) ÷ 进攻方命中 × 100 ÷ DODGE_DIV，最低 0，最高 DODGE_CAP
-// v174 命中率 % = HIT_BASE + (命中 − 对方闪避) ÷ 对方闪避 × 100 ÷ HIT_STEP × HIT_ADD，限制在 HIT_MIN ~ HIT_MAX，保留小数不取整（config/battle.js）
-DATA.hitChance = (hit, dodge) => { const B = CFG.battle, d = Math.max(0, dodge || 0), diff = ((hit || 0) - d) / Math.max(1, d + (B.HIT_PAD || 0)) * 100;   // v182 相对差 = (命中 − 闪避) ÷ (闪避 + HIT_PAD)
-  return Math.min(B.HIT_MAX, Math.max(B.HIT_MIN, B.HIT_BASE + diff / B.HIT_STEP * B.HIT_ADD)); };
+// 命中率：见 config/battle.js 的 HIT_*（v183 按整档加减）
+DATA.hitChance = (hit, dodge) => { const B = CFG.battle, d = Math.max(0, dodge || 0), diff = ((hit || 0) - d) / Math.max(1, d + (B.HIT_PAD || 0)) * 100;   // 相对差 = (命中 − 闪避) ÷ (闪避 + HIT_PAD)
+  // v183 按整档算：高 每满 HIT_UP_STEP % +HIT_UP_ADD %；低 每满 HIT_DN_STEP % −HIT_DN_ADD %（不满一档不变）
+  const add = diff >= 0 ? Math.floor(diff / B.HIT_UP_STEP + 1e-9) * B.HIT_UP_ADD : -Math.floor(-diff / B.HIT_DN_STEP + 1e-9) * B.HIT_DN_ADD;
+  return Math.min(B.HIT_MAX, Math.max(B.HIT_MIN, B.HIT_BASE + add)); };
 DATA.dodgeChance = (hit, dodge) => 100 - DATA.hitChance(hit, dodge);   // 闪避几率 = 100 − 命中率
 DATA.CRIT_CAP = _P.CRIT_CAP;
 
