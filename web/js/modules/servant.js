@@ -23,13 +23,28 @@ G.module({
     svName(d) { return d.name || `${CFG.servant.EL[d.el] || d.el}·${d.star}星道童`; },
     svRandName(av) { const C = CFG.servant; return U.pick(C.SURNAME) + U.pick((C.AV_FEMALE || []).includes(av) ? C.NAME_F : C.NAME_M); },
     svImg(d) { return `img/sv${(d.av || 0) % CFG.servant.AVATARS}.png?v=2`; },
-    svUpCost(d) { const C = CFG.servant; return Math.floor(C.UP_BASE * Math.pow(C.UP_RATE, d.lv - 1) * (C.STAR_COST[d.star - 1] || 1)); },
-    svSalary(d) { const S = CFG.servant.SALARY; return Math.floor((S.BASE + S.PER_LV * d.lv) * (S.STAR[d.star - 1] || 1)); },
+    // 1 级 a、满级 b，中间每级 × 同一个倍率
+    svGeo(a, b, lv) { const M = CFG.servant.MAX_LV; return M <= 1 ? b : a * Math.pow(b / a, (Math.min(lv, M) - 1) / (M - 1)); },
+    // 升级倍率：1 级升 2 级 UP_BASE，升满总量 = UP_TOTAL + (10 − 星) × UP_STAR_ADD
+    svUpRate(star) {
+      const C = CFG.servant, key = [C.UP_BASE, C.UP_TOTAL, C.UP_STAR_ADD, C.MAX_LV, star].join(",");
+      if (!this._svRate) this._svRate = {};
+      if (this._svRate[key]) return this._svRate[key];
+      const n = C.MAX_LV - 1, tot = C.UP_TOTAL + (10 - star) * C.UP_STAR_ADD, sum = r => Math.abs(r - 1) < 1e-12 ? C.UP_BASE * n : C.UP_BASE * (Math.pow(r, n) - 1) / (r - 1);
+      let lo = 0.0001, hi = 10; for (let i = 0; i < 200; i++) { const m = (lo + hi) / 2; if (sum(m) < tot) lo = m; else hi = m; }
+      return (this._svRate[key] = (lo + hi) / 2);
+    },
+    svUpCost(d) { const C = CFG.servant; return Math.round(C.UP_BASE * Math.pow(this.svUpRate(d.star), d.lv - 1)); },
+    svSalary(d) { const S = CFG.servant.SALARY; return Math.round(this.svGeo(S.LV1, S.MAX, d.lv)); },   // 只看等级，不看资质
     svOwed(d) { return Math.max(0, Math.round((Date.parse(this.bjDay()) - Date.parse(d.paid || this.bjDay())) / 864e5)); },
     // 某差事的效果 %（所有派去的道童相加）
     svStage(d) { const C = CFG.servant; return Math.min(C.STAGES, Math.ceil(d.lv / (C.MAX_LV / C.STAGES))); },
-    svEff(d, job) { const C = CFG.servant, J = C.JOB[job]; return J ? J.MAX * this.svStage(d) / C.STAGES : 0; },
-    svEffTxt(job, v) { return job === "zhen" ? `聚灵 +${U.num(v)}` : `${job === "cult" ? "+" : "−"}${U.num(v)}%`; },   // 阵法辅助是固定聚灵，其余是 %
+    svEff(d, job) {
+      const C = CFG.servant, J = C.JOB[job]; if (!J) return 0;
+      if (J.LV1 !== undefined) return Math.round(this.svGeo(J.LV1, J.MAX, d.lv) * 100) / 100;   // 阵法辅助：每级平稳增长（保留 2 位小数）
+      return J.MAX * this.svStage(d) / C.STAGES;
+    },
+    svEffTxt(job, v) { return job === "zhen" ? `聚灵 +${U.num(v)}%` : `${job === "cult" ? "+" : "−"}${U.num(v)}%`; },
     servantPct(job) { return (this.s.servants || []).filter(d => d.job === job).reduce((t, d) => t + this.svEff(d, job), 0); },
     svStartPick() {
       const s = this.s, C = CFG.servant, p = s.svPick;
