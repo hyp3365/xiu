@@ -268,25 +268,18 @@ DATA.fabaoInfo = (e, own) => {
  *   img/mats/herb0.png ……  药材、矿石（按 config/items.js 里的顺序）
  *   img/icons/eq_部位.png  装备、戒指；fb_属性.png 法宝；gf_属性.png 功法；sp_属性.png 法术
  *   img/icons/pill_丹药id.png 修炼丹、dan_类型.png 属性丹、fu_dan / fu_qi.png 炉子、ss.png 空间石
- *   fbs形状_属性.png 法宝（7 种形状 × 6 种属性）、sm_ys属性.png 耀石、mifa.png 秘法、seed.png 种子、stone.png 灵石、cu_*.png 自定义物品
+ *   fbs形状_属性.png 法宝（7 种形状 × 6 种属性）、sm_ys属性.png 耀石、mifa.png 秘法、seed.png 种子、stone.png 灵石、cu_misc.png 自定义物品
  *   hx.png 火髓、bp.png 图纸 */
 DATA.IMG_V = 7;
 DATA.matImg = (kind, g) => `img/mats/${kind}${g}.png?v=${DATA.IMG_V}`;
 DATA.iconImg = n => `img/icons/${n}.png?v=${DATA.IMG_V}`;
 DATA.ICON_EQ = ["helmet", "armor", "weapon", "legs", "boots", "pendant", "ring"];
-// 自定义物品的图片：content/items.js 里写了 img（图片路径）就用它，没写按类型给一张
-DATA.cuIcon = d => {
-  if (!d) return DATA.iconImg("cu_misc");
-  if (d.img) return d.img;
-  if (d.type === "equip") return DATA.iconImg("eq_" + (DATA.ICON_EQ.includes(d.slot) ? d.slot : "weapon"));
-  if (d.type === "fabao") return DATA.iconImg("fb_" + (Object.keys(d.res || {})[0] || "jin"));
-  return DATA.iconImg({ use: "cu_use", perm: "dan_crit", box: "cu_box" }[d.type] || "cu_misc");
-};
+// 自定义物品的图片：content/items.js 里写了 img（图片路径）就用它，没写用 cu_misc.png
+DATA.cuIcon = d => d && d.img || DATA.iconImg("cu_misc");
 // 装备 / 法宝的图片
 DATA.eqIcon = e => {
   if (!e) return "";
-  if (e.cid) return DATA.cuIcon((window.ITEMS && ITEMS.list || {})[e.cid]);
-  if (e.slot === "fabao") return DATA.iconImg("fbs" + e.ft + "_" + DATA.elIdx(e.el));   // 炼制法宝按形状 + 属性（自定义法宝见上面 cid）
+  if (e.slot === "fabao") return DATA.iconImg("fbs" + e.ft + "_" + DATA.elIdx(e.el));   // 炼制法宝按形状 + 属性
   return DATA.ICON_EQ.includes(e.slot) ? DATA.iconImg("eq_" + e.slot) : "";
 };
 DATA.PILL_ICONS = ["juqi", "juling", "peiyuan", "taixu", "jiuxuan", "hongmeng"];

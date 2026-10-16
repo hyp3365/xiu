@@ -516,25 +516,7 @@ G.module({
     /* ---------- 掉落 ---------- */
     newLoot() { return { stone: 0, mats: {} }; },
     // 掉落：config/drops.js 里该地图的掉落组（数量 × 该地图 mat 倍率）
-    //   之后再加 content/items.js 里 ITEMS.drops 的自定义物品掉落
-    rollEvent(loot, ev, a) {
-      const base = this.rollEventMats(loot, ev, a), extra = this.rollCustom(loot, ev, a);
-      return [base, extra].filter(Boolean).join("、");
-    },
-    // 自定义物品掉落（ITEMS.drops）：按地图、区域、事件、几率
-    rollCustom(loot, ev, a) {
-      const r = this.s.explore ? this.s.explore.reg || 0 : 0, got = [];
-      for (const d of ITEMS.drops || []) {
-        if (!d || d.event !== ev || !this.cuDef(d.item)) continue;
-        if (d.map !== "all" && d.map !== undefined && +d.map !== a) continue;
-        if (d.region !== "all" && d.region !== undefined && +d.region !== r) continue;
-        if (Math.random() * 100 >= (d.chance || 0)) continue;
-        const nn = d.n || [1, 1], n = U.rand(nn[0], nn[1]); if (n <= 0) continue;
-        loot.cu = loot.cu || {}; loot.cu[d.item] = (loot.cu[d.item] || 0) + n;
-        got.push(`${d.item}×${U.fmt(n)}`);
-      }
-      return got.join("、");
-    },
+    rollEvent(loot, ev, a) { return this.rollEventMats(loot, ev, a); },
     // 药材矿石掉落：rule = 秘境的 { kinds, n }（不传按地图自己的规则）；特产 fixed 组必定掉
     rollEventMats(loot, ev, a, mulSet, rule) {
       const groups = DATA.mapDrop(a, ev, rule), mul = mulSet !== undefined ? mulSet : DATA.mapMat(a);
@@ -897,7 +879,7 @@ G.module({
     setMapSel(a) { this.mapSel = a; this.render(); },   // a = 地图序号，"mj" = 秘境
 
     /* ---------- 坊市：丹药 装备 功法 药材 矿石 ----------
-     * 丹药、装备：content/items.js 的 ITEMS.shop，只卖练气品质（自定义物品按 item 名）
+     * 丹药、装备：content/items.js 的 ITEMS.shop，只卖练气品质
      * 功法：凡界坊市功法（config/gongfa.js 的 shop），灵石购买，买下即学会第 1 层
      * 药材、矿石：凡界地图会掉的（config/drops.js），售价 = 出售价 × CFG.price.SHOP_MAT */
     setShopTab(t) { this.shopTab = t; this.render(); },
@@ -907,8 +889,7 @@ G.module({
       const src = ITEMS.shop || [...Object.keys(DATA.pills).map(t => ({ kind: "pill", type: t })), ...DATA.eqSlots6.map(sl => ({ kind: "eq", slot: sl }))];
       for (const x of src) {
         if (!x || (x.realm !== undefined && this.r() < x.realm)) continue;
-        if (x.item) { const d = this.cuDef(x.item); if (d) list.push({ kind: "cu", name: x.item, price: x.price || 0, tab: ["equip", "fabao"].includes(d.type) ? "eq" : "pill" }); }
-        else if (x.kind === "pill" && DATA.pills[x.type]) list.push({ kind: "pill", type: x.type, g, price: x.price || DATA.pillPrice(x.type, g), tab: "pill" });
+        if (x.kind === "pill" && DATA.pills[x.type]) list.push({ kind: "pill", type: x.type, g, price: x.price || DATA.pillPrice(x.type, g), tab: "pill" });
         else if (x.kind === "eq" && DATA.eqSlots6.includes(x.slot)) list.push({ kind: "eq", slot: x.slot, price: x.price || Math.floor(CFG.price.SHOP_EQUIP), tab: "eq" });
       }
       return list;
@@ -918,8 +899,7 @@ G.module({
       let k = 0;
       for (; k < n; k++) {
         if (this.s.stone < it.price) { this.log("灵石不足。", "sys"); break; }
-        const ok = it.kind === "pill" ? this.addPill(it.type, it.g) : it.kind === "cu" ? this.addCustom(it.name)
-          : this.addEquip(DATA.rollForged(it.slot, 0)); // 头盔~吊坠：一阶炼器装备（随机属性）
+        const ok = it.kind === "pill" ? this.addPill(it.type, it.g) : this.addEquip(DATA.rollForged(it.slot, 0)); // 头盔~吊坠：一阶炼器装备（随机属性）
         if (!ok) break;
         this.s.stone -= it.price;
       }
@@ -1010,11 +990,10 @@ G.module({
       if (t === "pill" || t === "eq") {
         const rows = this.shopList().map((it, i) => {
           if (it.tab !== t) return "";
-          const cd = it.kind === "cu" ? this.cuDef(it.name) : null, multi = it.kind === "pill" || (cd && cd.type !== "equip" && cd.type !== "fabao");
-          const name = cd ? `<span class="q${cd.q || 0}">${it.name}</span>` : it.kind === "pill" ? `${DATA.realms[it.g]}·${DATA.pills[it.type].name}` : DATA.forgeEqName(it.slot, 0);
-          const desc = cd ? `${DATA.cuTypes[cd.type] || ""}${cd.desc ? " · " + cd.desc : ""}${["perm", "equip", "fabao"].includes(cd.type) ? " · " + this.cuStatText(this.cuStats(cd)) : ""}`
-            : it.kind === "pill" ? `修炼速度 +${Math.round(DATA.pillPct(it.type, it.g))}%，${DATA.pills[it.type].dur}次修炼` : `${DATA.slots[it.slot]} · 2 条主属性 + 1~5 条附加属性（颜色随机）`;
-          const img = cd ? DATA.cuIcon(cd) : it.kind === "pill" ? DATA.pillIcon(it.type) : DATA.iconImg("eq_" + it.slot);
+          const multi = it.kind === "pill";
+          const name = it.kind === "pill" ? `${DATA.realms[it.g]}·${DATA.pills[it.type].name}` : DATA.forgeEqName(it.slot, 0);
+          const desc = it.kind === "pill" ? `修炼速度 +${Math.round(DATA.pillPct(it.type, it.g))}%，${DATA.pills[it.type].dur}次修炼` : `${DATA.slots[it.slot]} · 2 条主属性 + 1~5 条附加属性（颜色随机）`;
+          const img = it.kind === "pill" ? DATA.pillIcon(it.type) : DATA.iconImg("eq_" + it.slot);
           return `<div class="line"><div>${DATA.li(img)}${name}<small>${desc}</small></div><div>
             <button class="sm" onclick="G.buy(${i})" ${s.stone < it.price ? "disabled" : ""}>${U.fmt(it.price)}</button>
             ${multi ? `<button class="sm" onclick="G.buy(${i},10)" ${s.stone < it.price * 10 ? "disabled" : ""}>×10</button>` : ""}</div></div>`;

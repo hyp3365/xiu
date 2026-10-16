@@ -15,8 +15,5 @@ DATA.SLOT_MAX = CFG.equip.SLOT_MAX;
 DATA.SLOT_EVERY = CFG.equip.SLOT_EVERY || 1;   // 每隔几个大境界开 1 格
 DATA.slotRealm = i => i * DATA.SLOT_EVERY;     // 第 i 格（0 起）开启的大境界 // 法宝栏、法术栏最多格数（config/equip.js）
 
-// 自定义装备/法宝（content/items.js）名字前显示的品质名（config/names.js 的 quality）
-DATA.quals = DATA.nmArr(CFG.names.quality, ["凡品", "灵品", "宝品", "玄品", "地品", "天品"]);
-
 // 背包
 DATA.BAG_START = CFG.bag.START; // 储物格初始数量（config/items.js 的 bag.START）

@@ -296,8 +296,7 @@ G.module({
         this.log(`习得${C.NAME}第 1 层！在「功法 → 秘法」里修炼升层，在世界地图点「出窍」探索。`, "gold");
         return this.after();
       }
-      if (it.item) { if (!this.addCustom(it.item)) return; }
-      else if (it.kind === "furnace") { if (!this.addFurnaceItem(it.fk, it.g)) return; }
+      if (it.kind === "furnace") { if (!this.addFurnaceItem(it.fk, it.g)) return; }
       else if (it.kind === "pill") { if (!this.addPill(it.type, this.r())) return; }
       else this.s.stone += Math.floor(it.n * this.starMul());
       this.s.contrib -= c;
@@ -470,7 +469,7 @@ G.module({
       } else if (roll < SC.stone.chance + SC.pill.chance + SC.equip.chance) {
         const sl = U.pick(Object.keys(DATA.slots));   // 任意部位：本门星级对应阶的炼器装备 / 戒指 / 法宝
         const e = DATA.rollForged(sl, Math.min(9, this.sectInfo().star - 1));
-        if (this.addEquip(e)) this.log(`秘境深处得到<span class="q${e.q}">${this.eqQual(e)}${this.itemName({ t: "eq", e })}</span>！`, "gold");
+        if (this.addEquip(e)) this.log(`秘境深处得到<span class="q${e.q}">${this.itemName({ t: "eq", e })}</span>！`, "gold");
       } else this.log("秘境中迷雾重重，一无所获。", "sys");
       this.after();
     },
@@ -566,18 +565,18 @@ G.module({
         `<button class="${tt === k ? "active" : ""}" onclick="G.setTreasuryTab('${k}')">${n}</button>`).join("")}</div>`;
       if (tt === "pill") {
         h += `<div class="card"><h3>杂物<small>以贡献兑换 · 炉子放进背包后点「使用」</small></h3>` + this.treasuryList().map((it, i) => {
-          if (!it || (it.item && !this.cuDef(it.item))) return "";
+          if (!it) return "";
           if (it.kind === "chuqiao") {
             const C = CFG.chuqiao, has = !!s.cqLv, c = this.cqCost(), rl = !this.realmOK(C.REALM), sl = C.STAR > x.star;
             return `<div class="line"><div>${DATA.li(DATA.iconImg("mifa"))}<span class="q4">${C.NAME}</span>
               <small>出窍探索时可继续修炼 · 学会后在「功法 → 秘法」修炼升层 · 需${DATA.realmLabel(C.REALM)} · ${U.fmt(c)} 贡献</small></div>
               <button class="sm" onclick="G.exchange(${i})" ${has || rl || sl || s.contrib < c ? "disabled" : ""}>${has ? "已学会" : sl ? `${C.STAR}星宗门可兑换` : rl ? "境界不足" : "兑换"}</button></div>`;
           }
-          const c = this.treasuryCost(it), lock = (it.star || 1) > x.star, cd = it.item ? this.cuDef(it.item) : null;
+          const c = this.treasuryCost(it), lock = (it.star || 1) > x.star;
           const desc = it.kind === "furnace" ? `${it.fk === "dan" ? "炼丹" : "炼器"}时间 -${DATA.furnaceBonus(it.fk, it.g)}% · `
-            : cd ? `${DATA.cuTypes[cd.type] || ""}${cd.desc ? " · " + cd.desc : ""}${["perm", "equip", "fabao"].includes(cd.type) ? " · " + this.cuStatText(this.cuStats(cd)) : ""} · ` : "";
-          const img = cd ? DATA.cuIcon(cd) : it.kind === "furnace" ? DATA.furnaceIcon(it.fk) : it.kind === "pill" ? DATA.pillIcon(it.type) : DATA.iconImg("stone");
-          return `<div class="line"><div>${DATA.li(img)}${cd ? `<span class="q${cd.q || 0}">${this.treasuryName(it)}</span>` : this.treasuryName(it)}<small>${desc}${U.fmt(c)} 贡献</small></div>
+            : "";
+          const img = it.kind === "furnace" ? DATA.furnaceIcon(it.fk) : it.kind === "pill" ? DATA.pillIcon(it.type) : DATA.iconImg("stone");
+          return `<div class="line"><div>${DATA.li(img)}${this.treasuryName(it)}<small>${desc}${U.fmt(c)} 贡献</small></div>
             <button class="sm" onclick="G.exchange(${i})" ${lock || s.contrib < c ? "disabled" : ""}>${lock ? `${it.star}星宗门可兑换` : "兑换"}</button></div>`;
         }).join("") + `</div>`;
       } else if (tt === "seed") {

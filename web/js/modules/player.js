@@ -3,7 +3,7 @@
  * 开局为“凡人”，修为满 100 突破为练气期一层。
  * ---------------------------------------------------------------------
  * 属性计算公式（computeStats）：
- *   生命 = (凡人基础 + 修为突破合计 + 装备 + 真经) × (1 + 装备生命%)
+ *   生命 = 凡人基础 + 修为突破合计 + 装备 + 真经
  *   攻击 =  凡人基础 + 修为突破合计 + 装备 + 功诀
  *   防御 =  凡人基础 + 修为突破合计 + 装备 + 心法
  *   法力 =  凡人基础 + 修为突破合计 + 装备 + 法诀
@@ -47,14 +47,11 @@ G.module({
 
     // 汇总装备加成
     equipTotal() {
-      const add = { atk: 0, hp: 0, def: 0, mana: 0, crit: 0, hit: 0, dodge: 0, speed: 0, hpPct: 0, res: {} };
+      const add = { atk: 0, hp: 0, def: 0, mana: 0, crit: 0, hit: 0, dodge: 0, speed: 0 };
       const all = [...Object.values(this.s.equip), ...this.s.fabao.slice(0, this.slotCount())]; // 装备 + 法宝
       for (const e of all) if (e) {
         const st = this.equipStats(e);
-        for (const k in st) {
-          if (k === "res") { for (const el in st.res) add.res[el] = (add.res[el] || 0) + st.res[el]; }   // 自定义装备的抗性
-          else if (k in add) add[k] += st[k];
-        }
+        for (const k in st) if (k in add) add[k] += st[k];
       }
       return add;
     },
@@ -74,21 +71,20 @@ G.module({
     },
     computeStats() {
       const L = this.s.mortal ? -1 : this.s.L, F = DATA.playerFixed, R = k => DATA.realmStat(L, k);   // 修为突破属性（config/realm.js 的 GAIN）
-      const eq = this.equipTotal(), gf = this.gongfaBonus(), dn0 = this.danBonus(), cu = this.customBonus();
-      // 属性丹 + 自定义物品永久属性（content/items.js 里 type: "perm"）合在一起
-      const dn = {}; for (const k of ["hp", "atk", "def", "mana", "hit", "dodge", "crit"]) dn[k] = (dn0[k] || 0) + (cu[k] || 0); // gongfaBonus 见 gongfa.js，danBonus（属性丹）见 craft.js
+      const eq = this.equipTotal(), gf = this.gongfaBonus(), dn0 = this.danBonus();
+      const dn = {}; for (const k of ["hp", "atk", "def", "mana", "hit", "dodge", "crit"]) dn[k] = dn0[k] || 0; // 属性丹；gongfaBonus 见 gongfa.js，danBonus（属性丹）见 craft.js
       const bd = this.bodyBonus ? this.bodyBonus() : {}; for (const k of ["hp", "atk", "def", "mana", "hit", "dodge", "crit"]) dn[k] += bd[k] || 0;   // 肉身突破加成（body.js）
       return {
-        hp:      (R("hp") + eq.hp + gf.hp + dn.hp) * (1 + eq.hpPct / 100),
+        hp:      R("hp") + eq.hp + gf.hp + dn.hp,
         atk:     R("atk") + eq.atk + gf.atk + dn.atk,
         def:     R("def") + eq.def + gf.def + dn.def,
         mana:    R("mana") + eq.mana + gf.mana + dn.mana,
         cultivate: R("cultivate"),
-        speed:   R("speed") + eq.speed + gf.speed + cu.speed + (bd.speed || 0) + (dn0.speed || 0),
+        speed:   R("speed") + eq.speed + gf.speed + (bd.speed || 0) + (dn0.speed || 0),
         hit:     R("hit") + eq.hit + gf.hit + dn.hit,
         dodge:   R("dodge") + eq.dodge + gf.dodge + dn.dodge,
         crit:    Math.min(DATA.CRIT_CAP, F.crit + eq.crit + dn.crit),
-        res:     Object.fromEntries(DATA.elements.map(e => [e.id, R("res") + (gf.res[e.id] || 0) + (eq.res[e.id] || 0) + (cu.res[e.id] || 0) + (bd.res || 0) + (dn0.res || 0)])),
+        res:     Object.fromEntries(DATA.elements.map(e => [e.id, R("res") + (gf.res[e.id] || 0) + (bd.res || 0) + (dn0.res || 0)])),
       };
     },
   },

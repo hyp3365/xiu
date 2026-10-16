@@ -105,9 +105,9 @@ CFG.names = CFG.names || {};
     const diff = (o, c) => { const m = {}; (o || []).forEach((x, i) => { if (ok(x) && ok(c[i]) && x !== c[i]) m[x] = c[i]; }); return m; };
     const mat = { herb: diff(old.herb, cur.herb), ore: diff(old.ore, cur.ore) };
     const anyMat = Object.keys(mat.herb).length || Object.keys(mat.ore).length;
-    // 装备名：按种类找原名，等于原名才换（自定义物品 cid 不动）
+    // 装备名：按种类找原名，等于原名才换
     const eqNew = e => {
-      if (!e || typeof e.name !== "string" || e.cid) return null;
+      if (!e || typeof e.name !== "string") return null;
       const g = (o, c) => o !== undefined && c !== undefined && e.name === o && o !== c ? c : null;
       if (e.attrs) {
         if (e.slot === "ring") return g((old.ring || [])[e.r], cur.ring[e.r]);

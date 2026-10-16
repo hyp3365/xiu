@@ -48,7 +48,6 @@ G.module({
       // 炼制法宝：战斗中祭出；专属属性只在这件法宝攻击时生效（data/forge.js 的 fabaoInfo），不加到人物属性
       if (e.attrs && e.slot === "fabao") return {};
       if (e.attrs) { const out = {}; for (const a of e.attrs) out[a.k] = (out[a.k] || 0) + DATA.attrVal(a, e.g, e); const en = DATA.eqEnhStats(e); for (const k in en) out[k] = (out[k] || 0) + en[k]; return out; } // 炼制装备 / 戒指（data/forge.js）
-      if (e.cid) { const d = this.cuDef(e.cid); return d ? this.cuStats(d) : {}; } // 自定义装备/法宝：属性见 content/items.js
       return {};
     },
     equipDesc(e) {
@@ -67,10 +66,8 @@ G.module({
         if (e.slot !== "fabao" && e.enh) head += `<span class="fb-sum">强化${e.enh}次　${this.enhText(e, e.enh).replace(/、/g, "　")}</span>`;
         return head + e.attrs.map(a => `<span class="ac${a.c}">${DATA.attrText(a, e)}</span>`).join("<br>");
       }
-      if (e.cid) { const d = this.cuDef(e.cid); return (d && d.desc ? d.desc + "<br>" : "") + this.cuStatText(this.equipStats(e)); }
       return "";
     },
-    eqQual(e) { return e.cid ? (DATA.quals[e.q] || "") + " " : ""; },   // 只有自定义装备/法宝显示「凡品」等品质名；炼制装备按属性颜色区分
 
     /* ---------- 存取物品 ---------- */
     bagFull() { return this.s.bag.length >= this.s.bagCap; },
@@ -107,7 +104,6 @@ G.module({
       if (it.t === "hx") return DATA.HX;
       if (it.t === "sm") return DATA.smName(it.k, it.ft, it.tier);
       if (it.t === "rbp") return DATA.ringBpName(it.g, it.r);
-      if (it.e.cid) return it.e.name;
       if (it.e.attrs && it.e.slot === "fabao") return `${DATA.JIE[it.e.g]}·${DATA.elById[it.e.el].name}·${DATA.fabaoName(it.e.ft, it.e.g, it.e.name)}${it.e.enh ? ` +${it.e.enh}` : ""}`;
       if (it.e.attrs) return `${DATA.JIE[it.e.g]}·${it.e.name}${it.e.enh ? ` +${it.e.enh}` : ""}`;
       return `${DATA.realms[it.e.g]}·${it.e.name}`;
@@ -117,14 +113,13 @@ G.module({
       if (it.t === "dan") return DATA.danPrice(it.type, it.g);
       if (it.t === "mat") return DATA.matPrice(it.kind, it.g);
       if (it.t === "cu") { const d = this.cuDef(it.name); return d ? d.sell || 0 : 0; }
-      if (it.t === "eq" && it.e.cid) { const d = this.cuDef(it.e.cid); if (d && d.sell !== undefined) return d.sell; }
       if (it.t === "ss" || it.t === "book" || it.t === "gfb") return 0;
       if (it.t === "hx") return CFG.forge.reset.SELL || 0;
       if (it.t === "sm") { const v = (CFG.mijing.items[it.k] || {}).sell || 0; return Array.isArray(v) ? v[it.ft || 0] || 0 : v; }
       if (it.t === "rbp") return CFG.forge.ring.bpSell[it.g] || 0;
       if (it.t === "eq" && it.e.attrs) return (it.e.slot === "ring" ? CFG.forge.ring.sell : CFG.forge.equip.sell)[it.e.g] || 0;
       if (it.t === "fu" || it.t === "bp") return Math.floor(DATA.blueprintCost(it.kind, it.g) * (it.t === "fu" ? 2 : 1));
-      return 0;   // 自定义装备/法宝没写 sell：不能出售
+      return 0;
     },
 
     setBagTab(t) { this.bagTab = t; this.render(); },
@@ -154,7 +149,7 @@ G.module({
       const rows = s.bag.map((it, i) => [it, i]).filter(([it]) => match(it) && !it.lq).map(([it, i]) => {
         const p = this.sellPrice(it), n = it.n || 1, q = it.t === "eq" ? it.e.q : it.t === "cu" ? ((this.cuDef(it.name) || {}).q || 0) : 0;
         const src = this.itemIcon(it), img = src ? `<img src="${src}" alt="" style="width:28px;height:28px;vertical-align:middle;margin-right:4px">` : "";
-        return `<div class="line"><div>${img}<span class="q${q}">${it.t === "eq" ? this.eqQual(it.e) : ""}${this.itemName(it)}</span>${n > 1 ? ` ×${U.fmt(n)}` : ""}<small>单价 ${U.fmt(p)} 灵石</small></div>
+        return `<div class="line"><div>${img}<span class="q${q}">${this.itemName(it)}</span>${n > 1 ? ` ×${U.fmt(n)}` : ""}<small>单价 ${U.fmt(p)} 灵石</small></div>
           <div><button class="sm" onclick="G.sellItem(${i},1)" ${p > 0 ? "" : "disabled"}>卖1个</button>${n > 1 ? ` <button class="sm" onclick="G.sellItem(${i},${n})" ${p > 0 ? "" : "disabled"}>全部</button>` : ""}</div></div>`;
       }).join("");
       return `<div class="card"><h3>出售<small>${{ all: "全部", dan: "丹药", herb: DATA.matKinds.herb, ore: DATA.matKinds.ore }[flt]} · 灵石 ${U.fmt(s.stone)}</small></h3>${rows || `<p class="desc">没有可出售的物品。</p>`}
@@ -194,7 +189,7 @@ G.module({
         : `<button onclick="G.sellItem(${i},1)">出售（${U.fmt(this.sellPrice(it))}）</button>`;
       const cq = it.t === "cu" ? ((this.cuDef(it.name) || {}).q || 0) : 0;
       const big = it.t === "mat" ? "" : this.itemIcon(it);
-      let h = (big ? `<img class="item-img${it.t === "eq" ? DATA.eqCls(it.e) : ""}" src="${big}" alt="">` : "") + `<h2 class="q${it.t === "eq" ? it.e.q : cq}${it.t === "eq" ? DATA.fbElCls(it.e) : ""}">${it.t === "eq" ? this.eqQual(it.e) : ""}${this.itemName(it)}${it.n ? " ×" + it.n : ""}</h2>`;
+      let h = (big ? `<img class="item-img${it.t === "eq" ? DATA.eqCls(it.e) : ""}" src="${big}" alt="">` : "") + `<h2 class="q${it.t === "eq" ? it.e.q : cq}${it.t === "eq" ? DATA.fbElCls(it.e) : ""}">${this.itemName(it)}${it.n ? " ×" + it.n : ""}</h2>`;
       if (it.t === "pill") {
         const ok = this.canUsePill(it.g);
         h += `<p>修炼速度 +${Math.round(DATA.pillPct(it.type, it.g))}%，持续 ${DATA.pills[it.type].dur} 次修炼。<br>只有${DATA.realmLabel(it.g)}可服用。
@@ -248,7 +243,7 @@ G.module({
     openEquip(key) {
       const e = key.startsWith("fb") ? this.s.fabao[+key.slice(2)] : this.s.equip[key]; if (!e) return;
       const src = DATA.eqIcon(e);
-      this.modal(`${src ? `<img class="item-img${DATA.eqCls(e)}" src="${src}" alt="">` : ""}<h2 class="q${e.q}${DATA.fbElCls(e)}">${this.eqQual(e)}${this.itemName({ t: "eq", e })}</h2><p>${DATA.slots[e.slot]} · ${this.equipDesc(e)}</p>
+      this.modal(`${src ? `<img class="item-img${DATA.eqCls(e)}" src="${src}" alt="">` : ""}<h2 class="q${e.q}${DATA.fbElCls(e)}">${this.itemName({ t: "eq", e })}</h2><p>${DATA.slots[e.slot]} · ${this.equipDesc(e)}</p>
         <div class="btns"><button onclick="G.unequip('${key}')">卸下</button>${key.startsWith("fb") ? `<button onclick="G.openFabaoSwap(${+key.slice(2)})">更换</button>` : ""}${e.attrs ? `<button onclick="G.openReset('${key}')">洗练</button>` : ""}${this.canEnhance(e) ? `<button onclick="G.openEnhance('${key}')">强化</button>` : ""}<button onclick="G.closeModal()">关闭</button></div>`);
     },
 
@@ -372,7 +367,7 @@ G.module({
         s.bag.splice(i, 1); s.equip[key] = e;
         if (old) s.bag.push({ t: "eq", e: old });
       }
-      this.log(`装备了${this.eqQual(e)}${e.name}。`, "good"); this.closeModal(); this.after();
+      this.log(`装备了${e.name}。`, "good"); this.closeModal(); this.after();
     },
     unequip(key) {
       if (this.bagFull()) return this.log("背包已满。", "sys");
@@ -407,14 +402,14 @@ G.module({
       const s = this.s, list = s.bag.map((it, i) => i).filter(i => s.bag[i].t === "eq" && s.bag[i].e.slot === "fabao");
       if (!list.length) return this.log("背包里没有可更换的法宝。", "sys");
       this.modal(`<h2>更换法宝</h2>` + list.map(i => { const e = s.bag[i].e;
-        return `<div class="line"><div><span class="q${e.q}">${this.eqQual(e)}${this.itemName(s.bag[i])}</span><small>${this.equipDesc(e)}</small></div>
+        return `<div class="line"><div><span class="q${e.q}">${this.itemName(s.bag[i])}</span><small>${this.equipDesc(e)}</small></div>
           <button class="sm" onclick="G.swapFabao(${k},${i})">更换</button></div>`; }).join("") + `<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
     swapFabao(k, i) {
       const s = this.s, it = s.bag[i], old = s.fabao[k];
       if (!it || it.t !== "eq" || it.e.slot !== "fabao" || !old) return;
       s.fabao[k] = it.e; s.bag[i] = { t: "eq", e: old };
-      this.log(`装备了${this.eqQual(it.e)}${it.e.name}。`, "good"); this.closeModal(); this.after();
+      this.log(`装备了${it.e.name}。`, "good"); this.closeModal(); this.after();
     },
     unslotSpell(i) { this.s.spellSlots.splice(i, 1); this.closeModal(); this.after(); },
     // 点法术栏：显示详细，可卸下
