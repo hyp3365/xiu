@@ -49,13 +49,10 @@ G.module({
       if (e.attrs && e.slot === "fabao") return {};
       if (e.attrs) { const out = {}; for (const a of e.attrs) out[a.k] = (out[a.k] || 0) + DATA.attrVal(a, e.g, e); const en = DATA.eqEnhStats(e); for (const k in en) out[k] = (out[k] || 0) + en[k]; return out; } // 炼制装备 / 戒指（data/forge.js）
       if (e.cid) { const d = this.cuDef(e.cid); return d ? this.cuStats(d) : {}; } // 自定义装备/法宝：属性见 content/items.js
+      // 坊市品质戒指（config/equip.js）
       const Le = e.g * 10 + CFG.equip.LAYER_OFFSET, f = Math.pow(DATA.GROW, Le), m = DATA.qualMult[e.q], k = e.q + 1, B = DATA.playerBase;
       const K = DATA.equipK[e.slot] || {}, out = {};
-      for (const key in K) {
-        if (key in B) out[key] = B[key] * f * m * K[key];               // 攻击/生命/防御/法力：随境界成长
-        else if (key === "hit" || key === "dodge") out[key] = K[key] * k * (e.g + 1); // 命中/闪避：随品质和境界
-        else out[key] = K[key] * k;                                      // 百分比、速度：随品质
-      }
+      for (const key in K) out[key] = key in B ? B[key] * f * m * K[key] : K[key] * k;   // 人物 base 里有的随境界成长，其他（暴击%）随品质
       return out;
     },
     equipDesc(e) {
@@ -80,7 +77,7 @@ G.module({
       return Object.keys(st).map(k => `${n[k]}+${U.num(st[k])}`).join(" ");
     },
     eqQual(e) { return e.attrs ? "" : (DATA.quals[e.q] || "") + " "; },   // 炼制装备没有「凡品」等品质名，按属性颜色区分
-    makeEquip(slot, g, q) { return { slot, g, q, name: DATA.equipNames[slot][Math.min(5, q)] }; },
+    makeEquip(slot, g, q) { return { slot, g, q, name: DATA.equipNames[slot][Math.min(5, q)] }; },   // 坊市品质戒指（config/equip.js）
 
     /* ---------- 存取物品 ---------- */
     bagFull() { return this.s.bag.length >= this.s.bagCap; },

@@ -40,7 +40,7 @@ G.module({
     bodyNeed(T) { if (T === undefined) T = this.s.bodyL + 1; return DATA.brNeed(CFG.realm.BODY_EXP, T); },   // config/realm.js 的 BODY_EXP
     // 肉身修炼速度（每 10 秒）
     bodySpeed() {
-      const s = this.s, base = (CFG.body.BASE_SPEED || 0) * Math.pow(CFG.body.SPEED_GROW || DATA.GROW, s.mortal ? 0 : s.L);
+      const s = this.s, base = (CFG.body.BASE_SPEED || 0) * Math.pow(CFG.body.SPEED_GROW, s.mortal ? 0 : s.L);
       const M = this.mifaBonus(), gf = this.gongfaBonus().body || 0, mf = M.bodySpeed || 0, pct = (M.bodySpeedPct || 0) + (this.servantPct ? this.servantPct("cult") : 0);   // 炼体秘法圆满额外 % + 道童辅助修炼 %
       return { base, gf, mf, pct, total: Math.floor((base + gf + mf) * (1 + pct / 100)) };
     },
@@ -52,7 +52,7 @@ G.module({
       if (seg) {   // 分段规则：(base + step × 段内层数) × 凡界 / 仙界倍率
         const k = T - seg.from * DATA.LAYERS, mult = seg.mult === "xian" ? B.HERB_MULT_XIAN : B.HERB_MULT_FAN;
         n = Math.max(1, Math.round((seg.base + seg.step * k) * (mult === undefined ? 1 : mult))); herbs = seg.herbs;
-      } else {     // 旧规则（神体及以上）
+      } else {     // 不在分段里的境界（神体及以上）：HERB_XIAN_BASE × HERB_RATE^(T − HERB_FROM × 10)
         n = Math.max(1, Math.round(B.HERB_XIAN_BASE * Math.pow(B.HERB_RATE, T - B.HERB_FROM * DATA.LAYERS))); herbs = B.HERBS_XIAN;
       }
       return { stone: Math.floor(B.STONE_BASE * Math.pow(B.STONE_RATE, T)),

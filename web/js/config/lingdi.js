@@ -18,7 +18,7 @@
  * 【怪物属性】在 config/mobs.js 的 lingdi（每处灵地 普通 / 精英 / 首领 单独设置）
  *
  * 【掉落】（击败怪物 / 发现灵药 / 发现矿脉 时）
- *   灵石 = STONE_BASE × STONE_GROW^L × 随机(1~2.5) × STONE_RATE × 种类倍率 × 该灵地 stone（config/drops.js）
+ *   灵石 = 所在界 RUN_STONE 按 L 算的每只普通怪灵石基数 × 随机(1~2.5) × STONE_RATE × 种类倍率 × 该灵地 stone（config/drops.js）
  *   药材矿石 = 从 find.map 那张地图（即这一界）的药材 + 矿石表合起来抽（config/drops.js 的 worldDrops[界].herb / ore），
  *            掉几种、每种几个按 config/drops.js 的 CFG.dropRule.lingdi（kinds / n），
  *            每种个数 = max(1, 四舍五入(随机(n) × 该灵地 mat))；不掉四界特产
@@ -30,7 +30,7 @@
  * 【每处灵地的字段】
  *   name 名字（和 config/mobs.js 的 lingdi 对应）   w 所在界（xian 仙界 / ming 冥界 / mo 魔界 / shen 神界）
  *   find  { map 在这一界第几张地图能发现（0 起：2 = 第 3 张，5 = 第 6 张，8 = 第 9 张），chance 每走完一次发现的几率% }
- *   mat 药材矿石数量倍率   stone 灵石倍率   L 层序（只用来算灵石：STONE_GROW^L，现在写的是发现地图北域的 L）
+ *   mat 药材矿石数量倍率   stone 灵石倍率   L 层序（只用来算灵石，见 config/drops.js 的 RUN_STONE；现在写的是发现地图北域的 L）
  *   bossName 首领名字   monsters 普通怪名字（随机取一个；精英怪 = "精英·" + 名字）
  *   extra 额外掉落（见上）
  * ===================================================================== */

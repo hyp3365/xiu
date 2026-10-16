@@ -244,11 +244,11 @@ G.module({
     },
     // 背包里上一阶同部位的炼器装备（优先颜色最差的）
     //   v25：戒指要同种（r）；优先颜色最好的（升阶颜色不变）
-    //   法宝：r = 形状序号、el = 属性（要同形状同属性）；多件时优先强化次数高的
+    //   法宝：r = 形状序号、el = 属性（要同形状同属性）；多件时优先强化等级高的
     prevEquipIndex(slot, g, r, el) {
       let best = -1;
       const same = e => r === undefined || (slot === "fabao" ? e.ft === r && (!el || e.el === el) : e.r === r);
-      const score = e => ((e.enh || 0) + e.attrs.reduce((t, a) => t + (a.enh || 0), 0)) * 10 + e.q;
+      const score = e => (e.enh || 0) * 10 + e.q;
       this.s.bag.forEach((it, i) => { if (it.t === "eq" && it.e.attrs && it.e.slot === slot && it.e.g === g - 1 && same(it.e) && (best < 0 || score(it.e) > score(this.s.bag[best].e))) best = i; });
       return best;
     },
@@ -257,7 +257,7 @@ G.module({
     craftFurnace(kind, g, slot, ft, el) {
       const s = this.s, q = s.forgeQueue, job = { kind, g };
       if (kind === "ring") job.r = +slot; else if (slot) job.slot = slot;
-      if (slot === "fabao") { if (!DATA.fabaoTypes[ft] || !DATA.elById[el]) return this.openFabaoPick(g); job.ft = +ft; job.el = el; job.fv = 2; }
+      if (slot === "fabao") { if (!DATA.fabaoTypes[ft] || !DATA.elById[el]) return this.openFabaoPick(g); job.ft = +ft; job.el = el; }
       const mats = this.jobMats(job);
       if (s.furnaceUse.qi < 0) return this.log("炼器必须装有炼器炉（宗门宝库 · 杂物可兑换一阶炼器炉）。", "sys");
       if (DATA.FURNACE_KINDS.includes(kind)) { if (!s.blueprints[kind].includes(g)) return this.log("尚未学会该图纸。", "sys"); }

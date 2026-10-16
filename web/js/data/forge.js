@@ -34,7 +34,7 @@ DATA.stoneMats = g => DATA.parseMats(_FG.stone.mats[g]);
 DATA.stoneTime = g => _FG.stone.time[g] * 60000;
 
 // 法宝：7 种形状（config/forge.js 的 fabao.types：剑 刀 锤 环 盾 鼎 印），属性炼制时自己选，显示如 一阶·火·剑
-//   法宝在存档里：ft = 形状序号、el = 属性、fv = 2（v57 新法宝；没有 fv 的是旧的 36 种，读档时转换）
+//   法宝在存档里：ft = 形状序号、el = 属性
 DATA.fabaoTypes = _FG.fabao.types;
 DATA.forgeNames.fabao = DATA.JIE.map(() => DATA.slots.fabao);        // 门派炼器室图谱名：一阶·法宝
 DATA.elIdx = el => Math.max(0, DATA.elements.findIndex(x => x.id === el));   // 属性序号（金木水火土雷 = 0~5）
@@ -83,20 +83,13 @@ DATA.fbPct = a => { const R = DATA.fbRange(a.k), r = R && (R[a.c] || R[R.length 
 // 比例 × 哪个参考属性（不写 = 本身就是 %）
 DATA.FB_REF_OF = { shHpMain: "hp", shHp: "hp", sAtk: "atk", dSAtk: "atk", sHit: "hit" };
 
-// 颜色 c 在第 g 阶的数值范围 [最小, 最大]（没设置 RANGE 时用旧算法 colors.mult × RAND）
-DATA.colorRange = (c, g) => {
-  const A = _FG.attr, R = A.RANGE && A.RANGE[c] && A.RANGE[c][g];
-  if (R) return R;
-  const m = (A.colors[c] || A.colors[0]).mult; return [m * A.RAND_MIN, m * A.RAND_MAX];
-};
+// 颜色 c 在第 g 阶的数值范围 [最小, 最大]（config/forge.js 的 attr.RANGE）
+DATA.colorRange = (c, g) => _FG.attr.RANGE[c][g];
 // 属性在范围里的位置 0~1
 DATA.attrPos = a => a.p || 0;
 DATA.rangeMult = (a, g) => { const [lo, hi] = DATA.colorRange(a.c, g); return lo + (hi - lo) * DATA.attrPos(a); };
-// v43 强化：每条属性 a.enh = 强化次数（config/forge.js 的 forge.enhance.equip / fabao）
+// 强化：整件 e.enh 级（config/forge.js 的 forge.enhance.equip / fabao；法宝见 DATA.fbEnh，装备 / 戒指见 DATA.eqEnh）
 DATA.enhCfg = e => CFG.forge.enhance[e && e.slot === "fabao" ? "fabao" : "equip"];
-//   v152/v153 不再按条强化：整件 e.enh 级（法宝见 DATA.fbEnh，装备 / 戒指见 DATA.eqEnh），旧的每条强化次数不再生效
-DATA.attrEnhOK = () => false;
-DATA.enhMult = () => 1;
 // 装备 / 戒指：强化后这条主属性加多少（固定数值）；不是主属性、PER 里没写（暴击）= 0
 DATA.eqEnhPer = (e, k) => (((CFG.forge.enhance.equip.PER || {})[k]) || [])[e.g] || 0;
 DATA.eqEnh = (a, e) => e && e.slot !== "fabao" && a.m ? (e.enh || 0) * DATA.eqEnhPer(e, a.k) : 0;
@@ -106,15 +99,15 @@ DATA.attrVal = (a, g, e) => DATA.attrBase(a, g, e);   // v156 强化属性单独
 DATA.eqEnhStats = e => { const o = {}; if (!e || !e.attrs || e.slot === "fabao" || !e.enh) return o;
   for (const a of e.attrs) if (a.m && !(a.k in o)) { const v = e.enh * DATA.eqEnhPer(e, a.k); if (v > 0) o[a.k] = v; } return o; };
 // 一条属性没强化时的数值
-// v154 装备 / 戒指：REF[阶] 境界的修为突破 + 肉身突破属性 × PCT[颜色]%（暴击除外）
+// 装备 / 戒指：REF[阶] 境界的修为突破 + 肉身突破属性 × PCT[颜色]%（暴击除外）
 DATA._eqRef = {};
-DATA.eqRef = g => DATA._eqRef[g] || (DATA._eqRef[g] = (() => { const r = (_FG.attr.REF || [])[g] || [2 * g + 1, 10]; return DATA.mobStats([0, r[0], r[1], 0, 1, 0, 1]); })());
-DATA.eqPctOK = a => !!_FG.attr.PCT && a.k !== "crit";
+DATA.eqRef = g => DATA._eqRef[g] || (DATA._eqRef[g] = (() => { const r = (_FG.attr.REF || [])[g] || [2 * g + 1, 10]; return DATA.mobStats([0, r[0], r[1], 0, 1, 100, 0, 1]); })());
+DATA.eqPctOK = a => a.k !== "crit";
 DATA.eqPct = a => { const R = _FG.attr.PCT, r = R[a.c] || R[R.length - 1]; return Math.round((r[0] + (r[1] - r[0]) * DATA.attrPos(a)) * 100) / 100; };
 DATA.attrBase = (a, g, e) => {
   const A = _FG.attr, fb = e && e.slot === "fabao" && e.attrs;
   if (!fb && DATA.eqPctOK(a)) return (DATA.eqRef(g)[a.k] || 0) * DATA.eqPct(a) / 100 * (e && e.slot === "ring" ? (_FG.ring.MULT || 1) : 1);
-  // v26：附加属性单独设置了「每阶金色最高值」（AFFIX_TOP，装备 / 戒指）
+  // 附加暴击单独设置了「每阶金色最高值」（AFFIX_TOP，装备 / 戒指）
   const TOP = !a.m && !fb && A.AFFIX_TOP;
   if (TOP && TOP[a.k] && TOP[a.k][g] !== undefined) {
     const last = DATA.colorRange(A.colors.length - 1, g)[1] || 1;
@@ -131,8 +124,8 @@ DATA.attrBase = (a, g, e) => {
     if (a.k === "shHp") { let m = 0; for (const b of e.attrs) if (b.k === "shHpMain") m += ref.hp * SM * DATA.fbPct(b) / 100; return m * v / 100; }   // v170 附加护盾值 = 盾主属性护盾值 × %（不算强化）
     return DATA.FB_REF_OF[a.k] ? ref[DATA.FB_REF_OF[a.k]] * v / 100 : v;
   }
-  const grow = a.k === "crit" ? g + 1 : (A.GROW[g] || 1);
-  return (A.base[a.k] || 0) * grow * DATA.rangeMult(a, g) * (a.m ? 1 : A.AFFIX_MULT) * (e && e.slot === "ring" ? (_FG.ring.MULT || 1) : 1);
+  // 暴击%：base.crit × 阶数 × 颜色范围倍率
+  return (A.base[a.k] || 0) * (g + 1) * DATA.rangeMult(a, g) * (a.m ? 1 : A.AFFIX_MULT) * (e && e.slot === "ring" ? (_FG.ring.MULT || 1) : 1);
 };
 DATA.bestQ = attrs => DATA.COLOR_Q[Math.max(...attrs.map(a => a.c))];
 // 随机一条属性（颜色 + 位置）；w = 颜色权重（不填 = attr.colors 的 weight）
@@ -148,8 +141,8 @@ DATA.fbAffix = (k, W) => DATA.rollAttr(k, 0, k === "elDmg" || k === "ignRes" ? U
 DATA.fbPool = T => T && T.shield ? _FG.fabao.SHIELD_POOL : _FG.fabao.pool;   // 法宝附加属性池（盾单独一组）
 // v164 祭出次数（uses）一件法宝最多一条：已经有了就不再随机出来
 DATA.fbPoolLeft = (pool, attrs) => attrs.some(a => a.k === "uses") ? pool.filter(k => k !== "uses") : pool;
-// v164 旧法宝如果有多条祭出次数，只有数值最高（同值取第一条）的那条生效，返回它的序号
-DATA.fbUsesIdx = e => { let bi = -1, bv = -1; (e.attrs || []).forEach((a, i) => { if (a.k === "uses") { const v = DATA.attrVal(a, e.g, e); if (v > bv) { bv = v; bi = i; } } }); return bi; };
+// 祭出次数那一条的序号（没有 = -1）
+DATA.fbUsesIdx = e => (e.attrs || []).findIndex(a => a.k === "uses");
 DATA.rollForged = (slot, g, r, el) => {
   const A = _FG.attr;
   if (slot === "fabao") {   // r = 形状序号、el = 属性（不填就随机）
@@ -159,7 +152,7 @@ DATA.rollForged = (slot, g, r, el) => {
     for (const k of T.special || []) attrs.push(DATA.rollAttr(k, 2, undefined, W));
     const n = U.weighted(F.AFFIX_COUNT) + 1, pool = DATA.fbPool(T);
     for (let i = 0; i < n; i++) attrs.push(DATA.fbAffix(U.pick(DATA.fbPoolLeft(pool, attrs)), W));   // v164 祭出次数最多一条
-    return { slot, g, ft, el: elv, name: DATA.fabaoName(ft, g), enh: 0, q: DATA.bestQ(attrs), attrs, fv: 2 };
+    return { slot, g, ft, el: elv, name: DATA.fabaoName(ft, g), enh: 0, q: DATA.bestQ(attrs), attrs };
   }
   if (slot === "ring" && r === undefined) r = Math.floor(Math.random() * DATA.ringNames.length);
   const main = (slot === "ring" ? _FG.ring.main[r] : A.main[slot] || []).slice(0, 2), W = DATA.equipNewW(), attrs = main.map(k => DATA.rollAttr(k, 1, undefined, W));
@@ -180,7 +173,7 @@ DATA.upgradeForged = (prev, g) => {
 // 火髓洗练：locks = 锁定的属性序号；没锁的重新随机
 DATA.resetCost = (e, nLock) => Math.ceil((_FG.reset.FIRE[e.g] || 1) * Math.pow(_FG.reset.LOCK_MULT || 2, nLock));
 // v44：没锁的附加属性重新随机条数 —— 锁定的附加属性 + 新随机的 ≤ reset.AFFIX_MAX（5），新随机的至少 1 条（锁满了就 0 条）
-//   新条数在 [1, AFFIX_MAX − 锁定的附加属性] 里按 reset.COUNT_WEIGHT 随机；去掉的那几格强化次数按从高到低转给新属性
+//   新条数在 [1, AFFIX_MAX − 锁定的附加属性] 里按 reset.COUNT_WEIGHT 随机
 DATA.washRange = (e, locks) => {
   const R = _FG.reset, MX = R.AFFIX_MAX || 5, lockedAff = e.attrs.filter((a, i) => !a.m && locks.includes(i)).length;
   const hi = Math.max(0, MX - lockedAff); return [Math.min(1, hi), hi];
@@ -192,13 +185,12 @@ DATA.rerollForged = (e, locks) => {
   let w = []; for (let c = lo; c <= hi; c++) w.push(CW[c - 1] || 0);
   if (!w.some(x => x > 0)) w = w.map(() => 1);
   const n = hi <= 0 ? 0 : lo + U.weighted(w);
-  const enh = e.attrs.filter((a, i) => !a.m && !locks.includes(i)).map(a => a.enh || 0).sort((x, y) => y - x);
   const have = e.attrs.filter((a, i) => locks.includes(i));   // v164 已有的（锁定的 + 新洗出来的），祭出次数最多一条
   const roll = () => {
     let k;
     if (fb) { k = U.pick(DATA.fbPoolLeft(DATA.fbPool(DATA.fabaoTypes[e.ft]), have)); have.push({ k }); }
     else { const pool = A.pool.filter(x => !used.includes(x)); if (!pool.length) return null; k = U.pick(pool); used.push(k); }
-    const a = fb ? DATA.fbAffix(k, W) : DATA.rollAttr(k, 0, undefined, W); if (enh.length && enh[0]) a.enh = enh.shift(); else enh.shift(); return a;
+    return fb ? DATA.fbAffix(k, W) : DATA.rollAttr(k, 0, undefined, W);
   };
   let made = 0;
   const out = [];
@@ -222,7 +214,6 @@ DATA.attrText = (a, e) => {
       shHpMain: `护盾值 ${v}`, shDef: `防御 ${v}`, shHp: `护盾值 +${v}`, dmgRed: `受到伤害 -${p}%`, uses: `每场战斗祭出次数 +${Math.round(p)}` }[a.k] || DATA.fbAttrNames[a.k] || a.k;
     const txt = `${a.m === 2 ? "专属 " : a.m ? "" : a.k === "elDmg" ? "附加伤害 " : "附加 "}${t}（${col}）`;
     // v157 属性和法宝不同的附加伤害 / 无视抗性不生效：红字标出
-    if (a.k === "uses" && e.attrs.indexOf(a) !== DATA.fbUsesIdx(e)) return `<span class="fb-bad">${txt} 只有一条祭出次数生效</span>`;   // v164
     return (a.k === "elDmg" || a.k === "ignRes") && a.el !== e.el ? `<span class="fb-bad">${txt} 与法宝属性不合</span>` : txt;
   }
   return `${a.m ? "" : "附加 "}${DATA.attrNames[a.k]} +${v}（${col}）`;
@@ -232,7 +223,7 @@ DATA._fbRef = {};
 // v152 法宝强化：盾 = 增加护盾值，其他 = 附加伤害（固定数字）
 DATA.fbEnhPer = e => { const E = CFG.forge.enhance.fabao, T = DATA.fabaoTypes[e.ft] || {}; return ((T.shield ? E.SHIELD : E.DMG) || [])[e.g] || 0; };
 DATA.fbEnh = e => (e.enh || 0) * DATA.fbEnhPer(e);
-DATA.fbRef = g => DATA._fbRef[g] || (DATA._fbRef[g] = (() => { const r = (_FG.fabao.REF || [])[g] || [2 * g + 1, 10]; return DATA.mobStats([0, r[0], r[1], 0, 1, 0, 1]); })());
+DATA.fbRef = g => DATA._fbRef[g] || (DATA._fbRef[g] = (() => { const r = (_FG.fabao.REF || [])[g] || [2 * g + 1, 10]; return DATA.mobStats([0, r[0], r[1], 0, 1, 100, 0, 1]); })());
 // 法宝攻击 = 自己修为 + 肉身攻击（不超过参考攻击）+ 功法攻击（own 不写 = 玩家自己的，见 data/gongfa.js 的 DATA.capAtk）
 // 法宝战斗数值（atk 已含剑 / 刀的专属攻击；hit、critAdd = 刀 / 锤攻击时额外命中、暴击%）：{ el, atk, pct, mana, ign, cutPct, extra: [{ el, pct }], crit（锤暴击伤害%）, shield, ding, yin }
 DATA.fabaoInfo = (e, own) => {
@@ -254,7 +245,7 @@ DATA.fabaoInfo = (e, own) => {
     else if (a.k === "sDing") ding = Math.max(ding, v);
     else if (a.k === "sYin") { yin += v; yinC = Math.max(yinC, a.c); }
   }
-  const ui = DATA.fbUsesIdx(e); if (ui >= 0) o.uses += Math.round(DATA.attrVal(e.attrs[ui], e.g, e));   // v164 祭出次数只算一条（最高的）
+  const ui = DATA.fbUsesIdx(e); if (ui >= 0) o.uses += Math.round(DATA.attrVal(e.attrs[ui], e.g, e));   // v164 祭出次数一件法宝最多一条
   const CAP = F.CAP || {}, at = (arr, d) => { const x = (arr || [])[e.g]; return x === undefined ? d : x; };
   o.pct *= (T.mul === undefined ? 1 : T.mul) * (F.DMG_MUL === undefined ? 1 : F.DMG_MUL);   // 形状倍率、DMG_MUL（不显示）
   if (T.shield) o.shield = { def: shDef, hp: shHp, red: Math.min(CAP.dmgRed === undefined ? 100 : CAP.dmgRed, red) };   // 盾
@@ -295,11 +286,7 @@ DATA.cuIcon = d => {
 DATA.eqIcon = e => {
   if (!e) return "";
   if (e.cid) return DATA.cuIcon((window.ITEMS && ITEMS.list || {})[e.cid]);
-  if (e.slot === "fabao") {   // 炼制法宝按种类；自定义 / 旧法宝按名字挑一个属性图
-    if (e.ft !== undefined && e.fv === 2) return DATA.iconImg("fbs" + e.ft + "_" + DATA.elIdx(e.el));
-    const el = e.el || DATA.elements[[...(e.name || "")].reduce((a, c) => a + c.charCodeAt(0), 0) % 6].id;
-    return DATA.iconImg("fb_" + el);
-  }
+  if (e.slot === "fabao") return DATA.iconImg("fbs" + e.ft + "_" + DATA.elIdx(e.el));   // 炼制法宝按形状 + 属性（自定义法宝见上面 cid）
   return DATA.ICON_EQ.includes(e.slot) ? DATA.iconImg("eq_" + e.slot) : "";
 };
 DATA.PILL_ICONS = ["juqi", "juling", "peiyuan", "taixu", "jiuxuan", "hongmeng"];

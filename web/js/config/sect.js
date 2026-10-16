@@ -81,19 +81,11 @@ CFG.sect = {
     { name: "天品修炼室", pct: 80, cost: 6 },
     { name: "宗主修炼室", pct: 120, cost: 1, rank: 6 },   // 宗主专用
   ],
-  // 试炼塔守关者：现在按 config/mobs.js 的 tower（三个阶段）算；那边没写的星级才用下面这套
-  // 试炼塔守关者：第 n 层守关者属性 = 人物属性（参考）× MULT × GROW^(n-1)
-  //   人物属性（参考）= 本门派星级的入门境界（REQ_REALM，凡人按练气）第 LAYER 层 + 全部宗门功法练到 GF 层
-  //   层数、首通奖励见下面 CFG.sect.trial
+  // 试炼塔：守关者属性在 config/mobs.js 的 tower（三个阶段）；层数、首通奖励见下面 CFG.sect.trial
   tower: {
     MAX: 100,      // 备用层数：trial.FLOORS 没写这个星级时才用
     REWARD: 20,    // 备用首通贡献 = REWARD × 层数：trial.floor.contrib 没写这个星级时才用
-    GROW: 1.1,     // 每高一层守关者属性 ×1.1
-    LAYER: 5,      // 参考人物在入门境界的第几层（1~10）
-    GF: 5,         // 参考人物的宗门功法都练到第几层（0 = 不算功法）
-    // 各项属性倍率：hp 生命 atk 攻击 def 防御 speed 速度 hit 命中 dodge 闪避；
-    //   crit = 守关者暴击 %，直接用这个数（不乘、不随层数成长）
-    MULT: { hp: 1.1, atk: 1.1, def: 1.1, speed: 1.1, hit: 1.1, dodge: 1.1, crit: 102 } },
+  },
   SECRET_COST: 200,  // 宗门秘境每次消耗贡献 = SECRET_COST × 门派星级（直接乘星数，不读 STAR_MULT）
   // 宝库「杂物」页货单（content/items.js 里写了 ITEMS.treasury 时用那边的，这里不生效）
   //   cost 兑换消耗贡献（不乘星级）；可加 star: N = 需要 N 星以上门派才能换
@@ -128,12 +120,12 @@ CFG.sect.REQ_REALM = [
 CFG.sect.secret = {
   stone: { chance: 0.4, mult: 30 },          // 40%：灵石 = mult × 星级倍率 × (1~2 随机)
   pill:  { chance: 0.35, n: [2, 5] },        // 35%：当前境界的随机一种修炼丹，n = 数量范围 2~5 枚
-  equip: { chance: 0.15, q: [2, 4] },        // 15%：随机一个部位的炼器装备，阶 = 门派星级（1 星 = 一阶，最高十阶）；q 品质范围 2~4（宝品~地品）只给不能炼制的部位用，目前所有部位都能炼，所以不生效
+  equip: { chance: 0.15 },                   // 15%：随机一个部位的炼器装备 / 戒指 / 法宝，阶 = 门派星级（1 星 = 一阶，最高十阶）
 };
 
 /* ---------- 1~10 星宗门试炼塔 ----------
  * N 星门派的试炼塔有 FLOORS[N-1] 层；进度按星级分别记录（换同星级门派不会重置，也不能重复领奖励）
- * 守关者属性见上面 CFG.sect.tower
+ * 守关者属性见 config/mobs.js 的 tower
  * 每层首通奖励：贡献、火髓、药材、矿石、灵石（下面 floor）
  * 每 EVERY 层额外奖励：
  *   第 1 次（第 10 层）：一枚一阶戒指，哪一种看 RING（每个星级一种）

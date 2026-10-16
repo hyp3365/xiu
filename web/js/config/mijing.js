@@ -16,7 +16,7 @@
  * 【怪物属性、进入境界】在 config/mobs.js 的 mijing（每处秘境 普通 / 精英 / 首领 单独设置）
  *
  * 【掉落】（击败怪物 / 发现灵药 / 发现矿脉 时）
- *   灵石 = STONE_BASE × STONE_GROW^L × 随机(1~2.5) × STONE_RATE × 种类倍率 × 该秘境 stone（config/drops.js）
+ *   灵石 = 凡界 RUN_STONE 按 L 算的每只普通怪灵石基数 × 随机(1~2.5) × STONE_RATE × 种类倍率 × 该秘境 stone（config/drops.js）
  *          （用秘境自己的 stone，不再乘地图的 stone）
  *   药材矿石 = 从 config/drops.js 里 mapDrops[drops] 那张地图的药材 + 矿石表合起来抽，
  *            掉几种、每种几个按 config/drops.js 的 CFG.dropRule.mijing（kinds / n），
@@ -31,7 +31,7 @@
  *   find  { map 在哪张凡界地图能发现（0 青云山林 1 黑风谷 2 万妖岭 3 幽冥沼泽 4 落星海 5 地火熔窟 6 埋骨战场 7 断魂谷 8 雷泽荒原），
  *           chance 每走完一次发现的几率% }
  *   drops 药材矿石表用哪张地图的（种数、个数按 dropRule.mijing）（序号同 find.map）   mat 药材矿石数量倍率   stone 灵石倍率
- *   L     层序（只用来算灵石掉落：STONE_GROW^L）
+ *   L     层序（只用来算灵石掉落，见 config/drops.js 的 RUN_STONE）
  *   bossName 首领名字   monsters 普通怪名字（随机取一个；精英怪 = "精英·" + 名字）
  *   extra 额外掉落：按事件分列表（monster 普通怪 / elite 精英 / boss 首领 / herbEvent 灵药 / oreEvent 矿脉，不写 = 没有），
  *         每条 { item 物品名, chance 几率%, n [最少, 最多] }

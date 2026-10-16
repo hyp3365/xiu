@@ -1,6 +1,6 @@
 /* =====================================================================
  * 怪物属性生成（数值在 config/mobs.js）
- * 每个怪物 8 个数 [进入境界, 境界, 层, 功法星级, 功法来源, 学功法%, 功法层, 倍率]（旧 7 个数也认，见 DATA.mobRow）：
+ * 每个怪物 8 个数 [进入境界, 境界, 层, 功法星级, 功法来源, 学功法%, 功法层, 倍率]：
  *   怪物基础属性 = (修为突破属性 + 肉身突破属性 + 宗门功法属性) × 倍率
  *   遇到时 × 随机(RAND[0] ~ RAND[1])；暴击 = CRIT
  * 生成后写进：
@@ -11,21 +11,19 @@
 DATA.MOB_KIND = { normal: "普通", elite: "精英", boss: "首领" };
 DATA.MOB_KEYS = ["hp", "atk", "def", "speed", "hit", "dodge", "mana", "res"];
 // 遇到时的随机倍率
-// v180 RAND 每种属性单独：{ atk: [a, b], hp: [a, b], 其他: [a, b] }（旧写法 [a, b] 也认）
-DATA.mobRandOf = k => { const R = CFG.mobs.RAND || [1, 1]; return Array.isArray(R) ? R : R[k] || R["其他"] || [1, 1]; };
+// v180 RAND 每种属性单独：{ atk: [a, b], hp: [a, b], 其他: [a, b] }
+DATA.mobRandOf = k => { const R = CFG.mobs.RAND; return R[k] || R["其他"]; };
 DATA.mobRnd = k => { const R = DATA.mobRandOf(k); return R[0] + Math.random() * (R[1] - R[0]); };
 // 肉身突破 n 次的合计加成（同 modules/body.js bodyBonus）
 DATA.mobBody = n => { const o = {}; for (const k of DATA.MOB_KEYS) o[k] = DATA.bodyStat(n, k); return o; };
-// v168 一行怪物数据统一成对象。两种写法都认：
-//   新 8 个数 [进入境界, 境界, 层, 功法星级, 功法来源, 学功法%, 功法层, 倍率]
-//   旧 7 个数 [进入境界, 境界, 层, 功法星级, 功法来源, 功法层, 倍率]（学功法 100%）
+// v168 一行怪物数据统一成对象：8 个数 [进入境界, 境界, 层, 功法星级, 功法来源, 学功法%, 功法层, 倍率]
 //   层、学功法%、功法层都可以写一个数，或 [最小, 最大]（每次遇到随机；层、功法层取整数，学功法% 可带小数）
+DATA.MOB_NONE = [0, 0, 1, 0, 1, 100, 0, 1];   // 没写时：练气一层、不算功法
 DATA.mobRange = v => Array.isArray(v) ? [v[0], v[v.length - 1]] : [v || 0, v || 0];
 DATA.mobRow = t => {
-  t = t || [0, 0, 1, 0, 1, 0, 1];
-  const n8 = t.length >= 8;
+  t = t || DATA.MOB_NONE;
   return { enter: t[0], realm: Math.max(0, Math.min(DATA.realms.length - 1, t[1])), lay: DATA.mobRange(t[2]), star: t[3] || 0, src: t[4] || 1,
-    pct: n8 ? DATA.mobRange(t[5]) : [100, 100], gf: DATA.mobRange(n8 ? t[6] : t[5]), k: (n8 ? t[7] : t[6]) === undefined ? 1 : (n8 ? t[7] : t[6]) };
+    pct: DATA.mobRange(t[5]), gf: DATA.mobRange(t[6]), k: t[7] === undefined ? 1 : t[7] };
 };
 // 1 ~ 星级、来源里的全部功法，按种类分组：{ 种类id: [{ id, stat, stat2 }] }（缓存）
 DATA._mobBooks = {};
@@ -93,9 +91,9 @@ DATA.mobMeet = (grp, kind) => { const t = grp && grp._t && grp._t[kind]; return 
     m.mob = c;   // 天将 / 星君 / 界主
   }
 })();
-DATA.mobTj = a => (DATA.maps[a].mob || {})["天将"] || [0, 0, 1, 0, 1, 0, 1];
-DATA.mobXj = (a, i) => { const l = (DATA.maps[a].mob || {})["星君"] || []; return l[i] || l[l.length - 1] || [0, 0, 1, 0, 1, 0, 1]; };
-DATA.mobJz = a => (DATA.maps[a].mob || {})["界主"] || [0, 0, 1, 0, 1, 0, 1];
+DATA.mobTj = a => (DATA.maps[a].mob || {})["天将"] || DATA.MOB_NONE;
+DATA.mobXj = (a, i) => { const l = (DATA.maps[a].mob || {})["星君"] || []; return l[i] || l[l.length - 1] || DATA.MOB_NONE; };
+DATA.mobJz = a => (DATA.maps[a].mob || {})["界主"] || DATA.MOB_NONE;
 
 // ---------- 秘境 / 灵地 ----------
 (() => {

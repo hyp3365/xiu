@@ -33,10 +33,3 @@ DATA.refStats = (realm, layer, gf, star, src) => {
   }
   return DATA._ref[key] = o;
 };
-// 人物属性 × 倍率表 M（{ hp: 1.2, … }，不写 = 1）× 统一倍率 k；crit 用 M.crit
-DATA.refMob = (st, M = {}, k = 1) => {
-  const o = {};
-  for (const x of DATA.REF_KEYS) o[x] = st[x] * (M[x] === undefined ? 1 : M[x]) * k;
-  o.manaBr = st.manaBr; o.crit = M.crit === undefined ? 5 : M.crit;
-  return o;
-};

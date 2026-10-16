@@ -33,7 +33,7 @@ G.module({
     makeTrib(L) {
       const T = CFG.trib, ri = Math.floor(L / DATA.LAYERS), M = T.MOB || {};
       const tp = M[DATA.realms[ri]] || M[DATA.NM_DEF.realm[ri]] || [4, 1];
-      const st = DATA.mobStats([0, ri, L % DATA.LAYERS + 1, 0, 1, tp[0], tp[1]]);
+      const st = DATA.mobStats([0, ri, L % DATA.LAYERS + 1, 0, 1, 100, tp[0], tp[1]]);
       const R = T.RAND || [1, 1], rnd = R[0] + Math.random() * (R[1] - R[0]);
       return { atk: st.atk * rnd, crit: T.crit === undefined ? 5 : T.crit };
     },

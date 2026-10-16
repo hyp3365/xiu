@@ -52,7 +52,7 @@ DATA.FAN_MAP_N = DATA.maps.length;
 CFG.monster = { regions: [], MAP_REALM: [] };
 DATA.maps.forEach(m => { m.w = "fan"; });
 DATA.worldMapIdx = { fan: DATA.maps.map((m, a) => a) };
-// v50：每界第 10 张起的地图排在所有界前 9 张之后（老存档的地图序号不变）
+// v50：每界第 10 张起的地图排在所有界前 9 张之后（地图序号是存档和配置里用的编号，顺序不要改）
 DATA.WORLD_MAP_OLD = 9;
 for (const pass of [0, 1]) for (const w of ["xian", "ming", "mo", "shen"]) {
   const W = (CFG.worldMaps || {})[w]; if (!pass) DATA.worldMapIdx[w] = [];

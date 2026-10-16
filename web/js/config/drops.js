@@ -7,22 +7,21 @@
 window.CFG = window.CFG || {};
 
 // ---------- 灵石掉落 ----------
-// 击败怪物得灵石 = 向下取整( STONE_BASE × STONE_GROW^区域层序 × 随机(1 ~ 2.5) × STONE_RATE × 种类倍率 × 地图 stone )
+// 击败怪物得灵石 = 取整( 每只普通怪灵石基数（见下面 RUN_STONE）× 随机(1 ~ 2.5) × STONE_RATE × 种类倍率 × 地图 stone )（随机取整）
 //   区域层序：凡界 = 地图序号(0起) × 10 + config/mobs.js 的 FAN_L[区域]（东 0 西 3 南 6 北 9）；
 //             秘境 = config/mijing.js 里该秘境的 L；仙冥魔神见 config/worldmaps.js
 //   种类倍率：普通怪 1、精英怪 ELITE_STONE、首领 BOSS_STONE
 //   地图 stone：下面 mapDrops 里该地图的 stone（秘境用秘境自己的 stone）
 // 发现灵药 / 矿脉不掉灵石；战败只丢本次收获，不扣身上灵石（见 config/explore.js）
 CFG.drop = {
-  STONE_BASE: 2,     // 灵石基数
-  STONE_GROW: 1.15,  // 每升 1 个区域层序灵石 ×1.15；也用于：装备出售价 = config/items.js 的 price.EQUIP_SELL × 1.15^(装备阶×10) × (品质+1)，星君俸禄的灵石基数
+  STONE_GROW: 1.15,  // 坊市品质戒指出售价 = config/items.js 的 price.EQUIP_SELL × 1.15^(境界序号×10) × (品质+1)
   STONE_RATE: 1,     // 灵石掉落总倍率（全部怪物统一再乘）
   ELITE_STONE: 2,    // 精英怪灵石 ×2
   BOSS_STONE: 3,     // 首领灵石 ×3
   // 一次地图探索（全胜）平均灵石：[该界第一张图东域, 最后一张图北域]，中间按区域层序平均递增
   //   每只怪 = 平均值 ÷ (1.75 × (普通怪数 + 精英怪数×ELITE_STONE + 首领数×BOSS_STONE)) × 随机(1 ~ 2.5) × 种类倍率 × STONE_RATE × 地图 stone
   //   秘境 / 灵地按它的区域层序 L 套所在界的平均值，再 × 自己的 stone（config/mijing.js、config/lingdi.js，默认 2 = 多一倍）
-  //   不写某界就用上面 STONE_BASE × STONE_GROW^区域层序 的旧公式
+  //   每一界都要写（凡界 fan、仙界 xian、冥界 ming、魔界 mo、神界 shen）
   RUN_STONE: { fan: [60, 160], xian: [350, 1000], ming: [350, 1000], mo: [350, 1000], shen: [450, 1200] },
 };
 

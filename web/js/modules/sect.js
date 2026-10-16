@@ -257,7 +257,6 @@ G.module({
     cqTick() {
       const s = this.s, x = s.cqStudy; if (!x) return;
       const C = CFG.chuqiao, STEP = Math.max(1, C.EXP_SEC) * 1000, per = Math.floor(C.EXP_PER), now = this.now();
-      if (x.end !== undefined) { x.done = Math.max(0, x.total - (x.end - now)); x.at = now; x.spent = 0; delete x.end; }   // 旧格式
       while (x.done < x.total && now - x.at >= STEP) {
         if (s.exp < per) { x.stalled = true; x.at = now; break; }
         s.exp -= per; x.spent += per; x.done += STEP; x.at += STEP; x.stalled = false;
@@ -343,13 +342,11 @@ G.module({
     /* ---------- 试炼塔（v25：1~10 星，层数见 config/sect.js 的 sect.trial） ---------- */
     towerFloor() { return this.s.towers[this.sectInfo().star] || 0; },
     towerMax() { return DATA.towerMax(this.sectInfo().star); },
-    // 守关者属性 = 人物属性 × MULT × GROW^(层数-1)（config/sect.js 的 sect.tower）
-    // v59：config/mobs.js 的 tower 有这个星级时按三个阶段算（每段从「起」渐变到「止」），没有才用旧算法
+    // 守关者属性：config/mobs.js 的 tower 按三个阶段算（每段从「起」渐变到「止」），见 DATA.towerStage
     makeTowerGuard(floor) {
-      const T = CFG.sect.tower, star = this.sectInfo().star, R = (CFG.sect.REQ_REALM || [])[star - 1] || 0;
-      const tw = DATA.towerStage(star, floor, this.towerMax());
-      if (tw) { const m = {}; for (const k of DATA.REF_KEYS) m[k] = tw[k] * DATA.mobRnd(k); m.crit = tw.crit; m.manaBr = tw.manaBr; return this.addMagic(Object.assign(m, { name: `第${floor}层守关者`, boss: false }), "tower"); }
-      const m = DATA.refMob(DATA.refStats(R, T.LAYER || 5, T.GF === undefined ? 5 : T.GF), T.MULT, Math.pow(T.GROW, floor - 1)); m.L = R * DATA.LAYERS + (T.LAYER || 5) - 1;
+      const tw = DATA.towerStage(this.sectInfo().star, floor, this.towerMax()), m = {};
+      for (const k of DATA.REF_KEYS) m[k] = tw[k] * DATA.mobRnd(k);
+      m.crit = tw.crit; m.manaBr = tw.manaBr;
       return this.addMagic(Object.assign(m, { name: `第${floor}层守关者`, boss: false }), "tower");
     },
     // 第 f 层每 10 层的额外奖励是什么：{ kind: "ring", r } / { kind: "rbp", g } / { kind: "mijue" }
@@ -471,8 +468,8 @@ G.module({
         const t = U.pick(Object.keys(DATA.pills).filter(k => !DATA.pills[k].xian)), n = U.rand(SC.pill.n[0], SC.pill.n[1]);
         this.addPill(t, g, n); this.log(`秘境中发现前人遗留的${DATA.pills[t].name} ×${n}。`, "gold");
       } else if (roll < SC.stone.chance + SC.pill.chance + SC.equip.chance) {
-        const sl = U.pick(Object.keys(DATA.slots));   // 头盔~吊坠：本门星级对应阶的炼器装备；戒指、法宝：旧品质装备
-        const e = DATA.forgeSlots.includes(sl) || sl === "ring" ? DATA.rollForged(sl, Math.min(9, this.sectInfo().star - 1)) : this.makeEquip(sl, g, U.rand(SC.equip.q[0], SC.equip.q[1]));
+        const sl = U.pick(Object.keys(DATA.slots));   // 任意部位：本门星级对应阶的炼器装备 / 戒指 / 法宝
+        const e = DATA.rollForged(sl, Math.min(9, this.sectInfo().star - 1));
         if (this.addEquip(e)) this.log(`秘境深处得到<span class="q${e.q}">${this.eqQual(e)}${this.itemName({ t: "eq", e })}</span>！`, "gold");
       } else this.log("秘境中迷雾重重，一无所获。", "sys");
       this.after();

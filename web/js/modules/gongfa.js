@@ -90,13 +90,8 @@ G.module({
       if (x.key !== undefined) return this.forgeKeyName(x.key);
       const g = DATA.skillInfo(x.id, 1); return g ? `《${g.name}》` : "功法";
     },
-    // 学习总时间（毫秒）；老存档没记 ms 的按现在的配置算
-    lqMs(ch, x) {
-      if (x.ms !== undefined) return x.ms;
-      if (ch === "gf") { const g = DATA.skillInfo(x.id, 1); return g ? DATA.gfLearnMin(g.star) * 60000 : 0; }
-      if (ch === "dan") { const [t, g] = x.key.split("|"); return DATA.danLearnTime(t, +g); }
-      const p = x.key.split(":"), sk = p[0]; return this.forgeLearnOf(sk === "eq" || sk === "lz" ? sk : "ss", +p[p.length - 1]).min * 60000;
-    },
+    // 学习总时间（毫秒）：加入队列时记在 x.ms
+    lqMs(ch, x) { return x.ms; },
     // 加入（调用前已扣费）：空着就马上开始，否则排队
     lqAdd(ch, x) {
       const s = this.s, sl = this.lqSlot(ch);

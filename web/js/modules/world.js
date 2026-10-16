@@ -23,7 +23,7 @@ G.module({
 
   /* explore：历练 / 自动探索中
    *   { map 地图序号, reg 区域序号(0东 1西 2南 3北), once 是否历练, start 本次开始时间, step 已走步数, count 已完成次数,
-   *     loot 本次收获 { stone, mats: { "herb|名字": {kind,name,g,n} }, pills: [], equips: [] },
+   *     loot 本次收获 { stone, mats: { "herb|名字": {kind,name,g,n} } }（秘境另有 hx、sm，自定义物品 cu）,
    *     ev 本次事件列表（最新在前）, last 上一次结算文字 } */
   // trainedR：已历练通过的区域（地图序号 × 4 + 区域序号）
   // mj：秘境 { found 已发现, trained 已历练通过, day 日期, used { 秘境序号: 今天已进次数 } }；ld：灵地，格式同 mj
@@ -60,7 +60,7 @@ G.module({
     // 每步灵石 = 当前地图北域一次探索平均灵石 ÷ TIME × 随机(0.5 ~ 1.5)（随机取整）
     kuangStone(a) {
       const E = CFG.drop, X = CFG.explore, L = DATA.region(a, DATA.regionCount - 1).L, per = this.runStonePer(DATA.maps[a].w || "fan", L);
-      const run = (per !== null ? per : E.STONE_BASE * Math.pow(E.STONE_GROW, L)) * 1.75 * (X.MONSTERS + (X.ELITES || 0) * E.ELITE_STONE + X.BOSS * E.BOSS_STONE) * E.STONE_RATE * DATA.mapStone(a);
+      const run = per * 1.75 * (X.MONSTERS + (X.ELITES || 0) * E.ELITE_STONE + X.BOSS * E.BOSS_STONE) * E.STONE_RATE * DATA.mapStone(a);
       return Math.floor(run / X.KUANG.TIME * (0.5 + Math.random()) + Math.random());
     },
     toggleKuang(a) {
@@ -514,7 +514,7 @@ G.module({
     closeBattle() { if (this._bp) { clearInterval(this._bp.timer); clearTimeout(this._bp.skipT); this.battleDone(this._bp); } this._bp = null; this._lockModal = false; this.closeModal(); this.render(); },
 
     /* ---------- 掉落 ---------- */
-    newLoot() { return { stone: 0, mats: {}, pills: [], equips: [] }; },
+    newLoot() { return { stone: 0, mats: {} }; },
     // 掉落：config/drops.js 里该地图的掉落组（数量 × 该地图 mat 倍率）
     //   之后再加 content/items.js 里 ITEMS.drops 的自定义物品掉落
     rollEvent(loot, ev, a) {
@@ -559,9 +559,9 @@ G.module({
     // 击败怪物的掉落，写进 loot，返回描述文字
     //   mj = 秘境序号（秘境：灵石倍率、掉落按 config/mijing.js）
     //   mk = "ld"：灵地（config/lingdi.js）
-    // CFG.drop.RUN_STONE：w 界、区域层序 L 时每只普通怪的灵石基数（未配置返回 null）
+    // CFG.drop.RUN_STONE：w 界、区域层序 L 时每只普通怪的灵石基数
     runStonePer(w, L) {
-      const E = CFG.drop, R = (E.RUN_STONE || {})[w || "fan"]; if (!R) return null;
+      const E = CFG.drop, R = E.RUN_STONE[w || "fan"];
       if (!this._rsL) this._rsL = {};
       let b = this._rsL[w];
       if (!b) { b = [Infinity, -Infinity]; DATA.maps.forEach((mp, i) => { if ((mp.w || "fan") !== (w || "fan")) return; for (let r = 0; r < DATA.regionCount; r++) { const l = DATA.region(i, r).L; if (l < b[0]) b[0] = l; if (l > b[1]) b[1] = l; } }); this._rsL[w] = b; }
@@ -573,8 +573,8 @@ G.module({
       const E = CFG.drop, mult = m.boss ? E.BOSS_STONE : m.elite ? E.ELITE_STONE : 1, ev = m.boss ? "boss" : m.elite ? "elite" : "monster";
       const sm = mj !== undefined ? (this.mjDef(mj, mk).stone || 1) : DATA.mapStone(a);
       const w = mj !== undefined ? (mk === "ld" ? this.mjDef(mj, mk).w : "fan") : DATA.maps[a].w, per = this.runStonePer(w, m.Lm);
-      const raw = (per !== null ? per : E.STONE_BASE * Math.pow(E.STONE_GROW, m.Lm)) * (1 + Math.random() * 1.5) * E.STONE_RATE * mult * sm;
-      const stone = Math.floor(raw + (per !== null ? Math.random() : 0));   // 新公式随机取整，平均值不被向下取整吃掉
+      const raw = per * (1 + Math.random() * 1.5) * E.STONE_RATE * mult * sm;
+      const stone = Math.floor(raw + Math.random());   // 随机取整，平均值不被向下取整吃掉
       loot.stone += stone;
       const mats = mj !== undefined ? this.rollMj(loot, ev, mj, mk) : this.rollEvent(loot, ev, a);
       return `灵石${U.fmt(stone)}${mats ? "、" + mats : ""}`; // 怪物不掉丹药、装备
@@ -587,8 +587,6 @@ G.module({
         if (cq) { o.cq.runs++; o.cq.stone += loot.stone; } else { o.exRuns++; o.exStone += loot.stone; }
         const add = (k, n) => { L.exItems[k] = (L.exItems[k] || 0) + n; o.allItems[k] = (o.allItems[k] || 0) + n; };
         for (const k in loot.mats) { const x = loot.mats[k]; add(DATA.matFull(x.kind, x.g), x.n); }
-        loot.pills.forEach(p => add(`${DATA.realms[p.g]}·${DATA.pills[p.t].name}`, 1));
-        loot.equips.forEach(e => add(this.itemName({ t: "eq", e }), 1));
         for (const name in loot.cu || {}) add(name, loot.cu[name]);
         if (loot.hx) add(DATA.HX, loot.hx);
         for (const k in loot.sm || {}) { const p = DATA.smParse(k); add(DATA.smName(p.k, p.ft, p.tier), loot.sm[k]); }
@@ -596,8 +594,6 @@ G.module({
       s.stone += loot.stone; if (loot.stone) parts.push(`灵石${U.fmt(loot.stone)}`);
       let lost = 0;
       for (const k in loot.mats) { const x = loot.mats[k]; if (this.addMat(x.kind, x.name, x.g, x.n)) parts.push(`${DATA.matFull(x.kind, x.g)}×${U.fmt(x.n)}`); else lost++; }
-      loot.pills.forEach(p => { if (this.addPill(p.t, p.g)) parts.push(`${DATA.realms[p.g]}·${DATA.pills[p.t].name}`); else lost++; });
-      loot.equips.forEach(e => { if (this.addEquip(e)) parts.push(`<span class="q${e.q}">${DATA.quals[e.q]}${e.name}</span>`); else lost++; });
       for (const name in loot.cu || {}) { if (this.addCustom(name, loot.cu[name])) parts.push(`${name}×${U.fmt(loot.cu[name])}`); else lost++; } // 自定义物品
       if (loot.hx) { if (this.addFire(loot.hx)) parts.push(`${DATA.HX}×${U.fmt(loot.hx)}`); else lost++; }   // 秘境：火髓、专用材料
       for (const k in loot.sm || {}) { const p = DATA.smParse(k);
@@ -913,7 +909,7 @@ G.module({
         if (!x || (x.realm !== undefined && this.r() < x.realm)) continue;
         if (x.item) { const d = this.cuDef(x.item); if (d) list.push({ kind: "cu", name: x.item, price: x.price || 0, tab: ["equip", "fabao"].includes(d.type) ? "eq" : "pill" }); }
         else if (x.kind === "pill" && DATA.pills[x.type]) list.push({ kind: "pill", type: x.type, g, price: x.price || DATA.pillPrice(x.type, g), tab: "pill" });
-        else if (x.kind === "eq" && DATA.equipNames[x.slot]) list.push({ kind: "eq", slot: x.slot, g, q: x.q || 1, price: x.price || Math.floor(CFG.price.SHOP_EQUIP), tab: "eq" });
+        else if (x.kind === "eq" && DATA.slots[x.slot] && (DATA.forgeSlots.includes(x.slot) || DATA.equipNames[x.slot])) list.push({ kind: "eq", slot: x.slot, g, q: x.q || 1, price: x.price || Math.floor(CFG.price.SHOP_EQUIP), tab: "eq" });
       }
       return list;
     },

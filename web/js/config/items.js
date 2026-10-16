@@ -78,7 +78,7 @@ CFG.price = {
   PILL_GRADE_STEP: 0.1,   // 修炼丹每高一品质，加成 + pct 的 10%：加成% = pct × (1 + 品质序号 × 0.1)
   PILL_PRICE_STEP: 1.2,   // 修炼丹每高一品质，坊市售价 × 1.2：售价 = price × 1.2^品质序号
   PILL_SELL: 0.3,         // 修炼丹出售价 = 坊市售价 × 0.3（向下取整）
-  EQUIP_SELL: 5,          // 旧式品质装备出售价 = floor(5 × 灵石成长^(境界序号×10) × (品质+1))；灵石成长 = config/drops.js 的 STONE_GROW（炼制装备的出售价见 config/forge.js）
+  EQUIP_SELL: 5,          // 坊市品质戒指出售价 = floor(5 × 灵石成长^(境界序号×10) × (品质+1))；灵石成长 = config/drops.js 的 STONE_GROW（炼制装备的出售价见 config/forge.js）
   SHOP_EQUIP: 15,         // 坊市装备默认售价（灵石）：content/items.js 的 ITEMS.shop 里没写 price 时用这个
 };
 

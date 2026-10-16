@@ -19,7 +19,7 @@ window.CFG = window.CFG || {};
 
 /* ================= 二、人物属性 ================= */
 CFG.player = {
-  GROW: 1.08,         // 只用于旧式品质装备的属性成长（人物属性不再乘倍率，见 config/realm.js）
+  GROW: 1.08,         // 只用于坊市品质戒指的属性成长（见 config/equip.js；人物属性不乘倍率，见 config/realm.js）
   base: {             // 凡人基础值（再加 config/realm.js 的修为突破合计）；开局生命、法力也取这里
     hp: 64.2,           // 生命上限
     atk: 3.6,           // 攻击

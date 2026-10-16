@@ -33,7 +33,7 @@
  * ★ 怪物属性：全部在 config/mobs.js（每张地图 东西南北 × 普通 精英 首领，天将、星君、界主）
  *
  * ★ 灵石公式（击败怪物，modules/world.js rollMonsterLoot；CFG.drop 在 config/drops.js）：
- *   灵石 = 取整( STONE_BASE × STONE_GROW^L × 随机(1 ~ 2.5) × STONE_RATE × 怪物种类倍率 × 该地图 stone )
+ *   灵石 = 取整( RUN_STONE 按区域层序 L 算的每只普通怪灵石基数 × 随机(1 ~ 2.5) × STONE_RATE × 怪物种类倍率 × 该地图 stone )
  *   怪物种类倍率：普通 1，精英 = ELITE_STONE，首领 = BOSS_STONE；L = 该区域的 L
  *
  * ★ 材料公式（药材、矿石，modules/world.js rollEventMats）：
