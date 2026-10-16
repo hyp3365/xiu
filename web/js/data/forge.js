@@ -100,7 +100,10 @@ DATA.enhMult = () => 1;
 DATA.eqEnhPer = (e, k) => (((CFG.forge.enhance.equip.PER || {})[k]) || [])[e.g] || 0;
 DATA.eqEnh = (a, e) => e && e.slot !== "fabao" && a.m ? (e.enh || 0) * DATA.eqEnhPer(e, a.k) : 0;
 // 一条属性的数值（e = 整件装备，用来区分法宝 / 戒指），含强化
-DATA.attrVal = (a, g, e) => DATA.attrBase(a, g, e) + DATA.eqEnh(a, e);
+DATA.attrVal = (a, g, e) => DATA.attrBase(a, g, e);   // v156 强化属性单独算（DATA.eqEnhStats），不并进属性条，洗练不影响
+// v156 装备 / 戒指强化属性：{ 属性: 数值 }，按主属性种类 × 强化等级，只随升阶（每级数值）变化
+DATA.eqEnhStats = e => { const o = {}; if (!e || !e.attrs || e.slot === "fabao" || !e.enh) return o;
+  for (const a of e.attrs) if (a.m && !(a.k in o)) { const v = e.enh * DATA.eqEnhPer(e, a.k); if (v > 0) o[a.k] = v; } return o; };
 // 一条属性没强化时的数值
 // v154 装备 / 戒指：REF[阶] 境界的修为突破 + 肉身突破属性 × PCT[颜色]%（暴击除外）
 DATA._eqRef = {};
