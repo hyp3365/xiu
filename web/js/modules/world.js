@@ -422,7 +422,11 @@ G.module({
         re(tg, "btv-hit"); add("btv-pop" + (f === 2 ? " crit" : ""), (f === 2 ? "暴击 " : "") + "-" + U.fmt(d), 1 - w);
         this.btHp();
       };
-      if (k === 0) { re(me, w ? "btv-lunge-r" : "btv-lunge-l"); setTimeout(hit, 260); }
+      // v159 动作：人物普攻 = 冲到对方身边挥剑；人物法术 / 法宝 = 原地挥剑；怪物普攻 = 冲过去扑 / 挥爪（随机）；怪物法术 / 法宝 = 原地前扑 / 挥手（随机）
+      const MV = ["btv-lunge-l", "btv-pounce-r", "btv-claw-r", "btv-mpounce", "btv-mwave"];
+      const mv = c => { MV.forEach(x => x !== c && me.classList.remove(x)); re(me, c); };
+      if (k === 1 || k === 2) { if (w) mv(Math.random() < 0.5 ? "btv-mpounce" : "btv-mwave"); }
+      if (k === 0) { me.classList.remove("btv-cast"); mv(w ? (Math.random() < 0.5 ? "btv-pounce-r" : "btv-claw-r") : "btv-lunge-l"); setTimeout(hit, 400); }
       else if (k === 1) { re(me, "btv-cast"); add("btv-orb " + (w ? "go-l" : "go-r") + (el ? " el-" + el : ""), "", w, 700); setTimeout(hit, 520); }
       else if (k === 2) { re(me, "btv-cast"); add("btv-fb " + (w ? "go-l" : "go-r"), "", w, 800); setTimeout(hit, 600); }
       else if (k === 3) { add("btv-shield", "", w, 1000); this.btHp(); }
