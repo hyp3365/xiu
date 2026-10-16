@@ -5,7 +5,7 @@
  *
  * 【伤害公式】（代码：js/modules/world.js 的 battle；雷劫在 js/modules/cultivate.js 的 advanceTrib）
  *   历练、秘境、试炼塔、宗门考核、星君挑战都用 battle；雷劫用同样的 MIN_DMG / DEF_RATE / RAND / CRIT_MULT。
- *   出手顺序：每场战斗双方速度各 × 95%~105% 随机（SPEED_RAND），速度高者先手（相等时人物先手），双方轮流各出手一次为一回合，最多 MAX_ROUNDS 回合。
+ *   出手顺序：每场战斗人物速度 × 95%~105% 随机（SPEED_RAND），速度高者先手（相等时人物先手），双方轮流各出手一次为一回合，最多 MAX_ROUNDS 回合。
  *
  *   普通攻击：原始伤害 = max(保底伤害（MIN_BASE + 层 × MIN_STEP）, 攻击 − 对方防御 × DEF_RATE)
  *   法术    ：原始伤害 = max(保底伤害（MIN_BASE + 层 × MIN_STEP）, 攻击 × 法术% + 法术固定伤害 × 灵根加成 − 对方该系抗性 × DEF_RATE)
@@ -33,7 +33,7 @@ CFG.battle = {
   // v174 命中：初始命中率 HIT_BASE %；命中比对方闪避每高 HIT_STEP %（按对方闪避算的相对差），命中率 + HIT_ADD %，低则同样降低；
   //   上限 HIT_MAX %、下限 HIT_MIN %；小数参与判定不取整。人物、怪物双方都这样算（DODGE_DIV / DODGE_CAP 不再使用）
   HIT_BASE: 70, HIT_STEP: 3, HIT_ADD: 1, HIT_MAX: 95, HIT_MIN: 20,
-  // v174 速度：每场战斗开始时双方速度各自 × 随机(SPEED_RAND[0] ~ SPEED_RAND[1]) %，速度快的先出手
+  // v174 速度：每场战斗开始时人物速度 × 随机(SPEED_RAND[0] ~ SPEED_RAND[1]) %（怪物不随机，它的属性本身已随机），速度快的先出手
   SPEED_RAND: [95, 105],
   TOWER_HP_MIN: 0.3, // 生命低于上限这个比例（30%）不能挑战试炼塔、宗门晋升考验
 };

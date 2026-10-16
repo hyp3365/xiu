@@ -237,8 +237,8 @@ G.module({
         if (tgtJc && act.f !== 1) { d = 0; act.x = (act.x || 0) | 128; }
         return d;
       };
-      // v174 本场速度随机 95%~105%（双方各自），谁快谁先出手
-      const SR = BT.SPEED_RAND || [100, 100], sRnd = () => (SR[0] + Math.random() * (SR[1] - SR[0])) / 100, spMe = sRnd(), spMob = sRnd();
+      // v174 本场人物速度随机 95%~105%（怪物属性本身已随机，不再随机），谁快谁先出手
+      const SR = BT.SPEED_RAND || [100, 100], spMe = (SR[0] + Math.random() * (SR[1] - SR[0])) / 100, spMob = 1;
       const hp0 = s.hp, mana0 = s.mana, meFirst = st.speed * spMe >= m.speed * spMob;
       // 怪物出手：先判法术，再判法宝（都按 防御×RES_RATE + 该系抗性 减免），都没有就普通攻击
       let mSp = 0, mFb = 0;
