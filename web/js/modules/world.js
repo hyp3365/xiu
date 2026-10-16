@@ -280,7 +280,7 @@ G.module({
         d = after(d, pMe, php, st.hp, meJc, mobJc);
         if (act.k < 3 && act.f !== 1 && !(act.x & 128) && !mobSeal && cnt.me.zh < pMe.zhT && ch(pMe.zh)) { mobSeal = pMe.zhR; sealR.mob = rounds; cnt.me.zh++; act.x = (act.x || 0) | 64; }
         if (mShield && act.k < 3 && act.f !== 1 && d > 0) {   // v165 怪物护盾
-          d = Math.max(0, d - mShield.def * BT.DEF_RATE) * (1 - mShield.red / 100);
+          d = Math.max(MIN(st), Math.max(0, d - mShield.def * BT.DEF_RATE) * (1 - mShield.red / 100));   // v172 减盾防御后仍有保底伤害
           const ab = Math.min(mShield.hp, d); mShield.hp -= ab; d -= ab; act.ab = ab;
           if (mShield.hp <= 0) { mShield = null; act.x = (act.x || 0) | 4; }
         }
@@ -298,7 +298,7 @@ G.module({
         d = after(d, pMob, mhp, m.hp, mobJc, meJc);
         if (act.f !== 1 && !(act.x & 128) && !meSeal && cnt.mob.zh < pMob.zhT && ch(pMob.zh)) { meSeal = pMob.zhR; sealR.me = rounds; cnt.mob.zh++; act.x = (act.x || 0) | 64; }
         if (shield && act.f !== 1 && d > 0) {   // 护盾：先减盾防御，再减「受到伤害减少%」，剩下先扣护盾值
-          d = Math.max(0, d - shield.def * BT.DEF_RATE) * (1 - shield.red / 100);
+          d = Math.max(MIN(m), Math.max(0, d - shield.def * BT.DEF_RATE) * (1 - shield.red / 100));   // v172 减盾防御后仍有保底伤害
           const ab = Math.min(shield.hp, d); shield.hp -= ab; d -= ab; act.ab = ab;
           if (shield.hp <= 0) { shield = null; act.x = (act.x || 0) | 4; }
         }
