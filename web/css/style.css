@@ -368,8 +368,6 @@ body.nologin #app, body.nologin #toast { display: none; }
 @keyframes btv-dodge-r{50%{transform:translateX(18px);opacity:.35}}
 .btv-cast img{animation:btv-cast calc(.6s * var(--bs,1))}
 .btv-u.l.btv-cast .btv-body{animation:btv-cast calc(.6s * var(--bs,1))}
-.btv-u.l.btv-cast .btv-sword{animation:btv-sweep calc(.6s * var(--bs,1)) ease-in-out}
-.btv-u.l.btv-cast .btv-arm{animation:btv-armsw calc(.6s * var(--bs,1)) ease-in-out}
 @keyframes btv-cast{50%{filter:drop-shadow(0 0 14px #ffd36b) drop-shadow(0 0 24px #ffb43a) brightness(1.3)}}
 .btv-orb{position:absolute;top:52%;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:radial-gradient(#fff,#ffe37a 35%,#ff9a2a 70%,transparent 72%);box-shadow:0 0 18px 8px #ffb43acc}
 .btv-orb.el-jin{background:radial-gradient(#fff,#ffe9a0 35%,#d8b13a 70%,transparent 72%);box-shadow:0 0 18px 8px #f3d36bcc}
@@ -425,8 +423,6 @@ button small .cd{min-width:0}
 .btv-u.l img{max-height:76%;transform-origin:45% 95%}
 .btv-u.r img{transform-origin:50% 95%}
 @keyframes btv-swing{0%,100%{transform:none}35%{transform:rotate(-7deg)}60%{transform:rotate(11deg) translateX(6%)}}
-.btv-lunge-l .btv-sword{animation:btv-sweep-hit calc(.8s * var(--bs,1)) ease-in-out}
-.btv-lunge-l .btv-arm{animation:btv-armsw-hit calc(.8s * var(--bs,1)) ease-in-out}
 @keyframes btv-swing-hit{0%,36%,100%{transform:none}45%{transform:rotate(-10deg)}56%{transform:rotate(16deg) translateX(8%)}68%{transform:none}}
 .btv-pounce-r{animation:btv-pounce-r calc(.8s * var(--bs,1)) ease-in-out;z-index:3}
 @keyframes btv-pounce-r{0%,100%{transform:none}10%{transform:translateY(4%) scaleY(.92)}30%{transform:translate(calc(var(--dx,-120%) * .55),-22%) rotate(-10deg)}48%{transform:translateX(var(--dx,-120%)) rotate(-16deg) scale(1.1)}58%{transform:translateX(var(--dx,-120%)) rotate(-4deg)}72%{transform:translateX(var(--dx,-120%))}}
@@ -469,3 +465,7 @@ button small .cd{min-width:0}
 /* v169 怪物放大 */
 .btv-u.r{right:3%;width:40%}
 .btv-u.r img{max-height:82%}
+
+/* v170 人物不挥剑：攻击 / 法术 / 法宝 = 抖动 + 放大，结束恢复原大小 */
+.btv-u.l.btv-hact{animation:btv-hact calc(.8s * var(--bs,1)) ease-in-out;transform-origin:50% 100%;z-index:3}
+@keyframes btv-hact{0%,100%{transform:none}18%{transform:scale(1.2)}26%{transform:scale(1.2) translateX(-5px)}34%{transform:scale(1.2) translateX(5px)}42%{transform:scale(1.2) translateX(-5px)}50%{transform:scale(1.2) translateX(5px)}58%{transform:scale(1.2) translateX(-3px)}66%{transform:scale(1.2) translateX(3px)}78%{transform:scale(1.2)}}

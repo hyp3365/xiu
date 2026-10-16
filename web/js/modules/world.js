@@ -440,7 +440,7 @@ G.module({
       if (!anim) return;
       const fxEl = $("#bt-fx"), me = $("#bt-u" + w), tg = $("#bt-u" + (1 - w)); if (!fxEl || !me || !tg) return this.btHp();
       // v160 同一个元素只留一个动作 class（否则 CSS 里后写的动作会盖掉新动作，看起来原地不动）
-      const ALL = ["btv-hit", "btv-dodge", "btv-lunge-l", "btv-pounce-r", "btv-claw-r", "btv-wave-r", "btv-mpounce", "btv-mwave", "btv-cast"];
+      const ALL = ["btv-hit", "btv-dodge", "btv-lunge-l", "btv-pounce-r", "btv-claw-r", "btv-wave-r", "btv-mpounce", "btv-mwave", "btv-cast", "btv-hact"];
       const re = (el, c) => { ALL.forEach(x => el.classList.remove(x)); void el.offsetWidth; el.classList.add(c); };
       const SL = CFG.battle.ANIM_SLOW || 1;   // v161 动画放慢倍数
       const add = (cls, txt, side, ms) => { ms = (ms || 1200) * SL; const n = document.createElement("div"); n.className = cls + " " + (side ? "r" : "l"); if (txt) n.textContent = txt; fxEl.appendChild(n); setTimeout(() => n.remove(), ms || 1200); return n; };
@@ -455,15 +455,15 @@ G.module({
         re(tg, "btv-hit"); add("btv-pop" + (f === 2 ? " crit" : ""), (f === 2 ? "暴击 " : "") + "-" + U.fmt(d), 1 - w);
         this.btHp();
       };
-      // v159 动作：人物普攻 = 冲到对方身边挥剑；人物法术 / 法宝 = 原地挥剑；怪物普攻 = 冲过去扑 / 挥爪（随机）；怪物法术 / 法宝 = 原地前扑 / 挥手（随机）
+      // v170 人物不挥剑：普攻 / 法术 / 法宝 = 原地抖动 + 放大，放完恢复原大小；（v159）怪物普攻 = 冲过去扑 / 挥爪（随机）；怪物法术 / 法宝 = 原地前扑 / 挥手（随机）
       // 普攻：先算出跑到对方面前要走多远（--dx，像素），再播放动作
       const mv = c => { if (k === 0) { const im = el => (el.querySelector("img") || el).getBoundingClientRect(), a = im(me), t = im(tg);
           const dx = w ? (t.right - a.left) - a.width * 0.25 : (t.left - a.right) + a.width * 0.25; me.style.setProperty("--dx", Math.round(dx) + "px"); }
         re(me, c); if (k !== 0 && (k === 1 || k === 2)) me.classList.add("btv-cast"); };
       if (k === 1 || k === 2) { if (w) mv(Math.random() < 0.5 ? "btv-mpounce" : "btv-mwave"); }
-      if (k === 0) { mv(w ? ["btv-pounce-r", "btv-claw-r", "btv-wave-r"][Math.floor(Math.random() * 3)] : "btv-lunge-l"); setTimeout(hit, 430 * SL); }
-      else if (k === 1) { if (!w) re(me, "btv-cast"); add("btv-orb " + (w ? "go-l" : "go-r") + (el ? " el-" + el : ""), "", w, 700); setTimeout(hit, 520 * SL); }
-      else if (k === 2) { if (!w) re(me, "btv-cast"); add("btv-fb " + (w ? "go-l" : "go-r"), "", w, 800); setTimeout(hit, 600 * SL); }
+      if (k === 0) { if (w) mv(["btv-pounce-r", "btv-claw-r", "btv-wave-r"][Math.floor(Math.random() * 3)]); else re(me, "btv-hact"); setTimeout(hit, 430 * SL); }
+      else if (k === 1) { if (!w) { re(me, "btv-hact"); me.classList.add("btv-cast"); } add("btv-orb " + (w ? "go-l" : "go-r") + (el ? " el-" + el : ""), "", w, 700); setTimeout(hit, 520 * SL); }
+      else if (k === 2) { if (!w) { re(me, "btv-hact"); me.classList.add("btv-cast"); } add("btv-fb " + (w ? "go-l" : "go-r"), "", w, 800); setTimeout(hit, 600 * SL); }
       else if (k === 3) { this.btRing(w, true); this.btHp(); }
       else if (k === 4) { add("btv-pop gray", "眩晕", w); this.btHp(); }
       else { add("btv-shield gold", "", w, 1000); this.btHp(); }

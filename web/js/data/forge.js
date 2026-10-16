@@ -128,7 +128,7 @@ DATA.attrBase = (a, g, e) => {
     const SM = _FG.fabao.SHIELD_MULT || 1;
     if (a.k === "shHpMain") return ref.hp * SM * v / 100;
     if (a.k === "shDef") return ref.def * SM * v / 100;
-    if (a.k === "shHp") return DATA.capStat(ref.hp, "hp") * v / 100;   // 附加护盾值不变（v165 方案 A）
+    if (a.k === "shHp") { let m = 0; for (const b of e.attrs) if (b.k === "shHpMain") m += ref.hp * SM * DATA.fbPct(b) / 100; return m * v / 100; }   // v170 附加护盾值 = 盾主属性护盾值 × %（不算强化）
     return DATA.FB_REF_OF[a.k] ? ref[DATA.FB_REF_OF[a.k]] * v / 100 : v;
   }
   const grow = a.k === "crit" ? g + 1 : (A.GROW[g] || 1);
