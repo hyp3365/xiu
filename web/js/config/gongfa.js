@@ -142,7 +142,7 @@ CFG.gongfa = {
 CFG.gongfa.sect = {
   // ---- 效果（只影响功法效果、法术伤害和法力消耗，不影响学习消耗）----
   // 类型倍率：每类功法 / 法术单独一个
-  TYPE_MULT: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1, tijue: 1 },
+  TYPE_MULT: { xinfa: 0.76, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1, tijue: 1 },
   STAR_MULT: [       // 效果的门派星级倍率
     1,     // 1 星门派
     1.3,   // 2 星
