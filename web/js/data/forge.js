@@ -122,7 +122,9 @@ DATA.attrBase = (a, g, e) => {
   if (fb) {   // v108 法宝：比例 %（按颜色随机）；FB_REF_OF 里的 = 参考属性 × %，盾防御 = 参考防御 × ATK_MULT × %；鼎 = 回合数
     if (a.k === "sDing") return (_FG.fabao.DING_ROUNDS || [])[a.c] || 1;
     const v = DATA.fbPct(a), ref = DATA.fbRef(g);
-    if (a.k === "shDef") return ref.def * (_FG.fabao.ATK_MULT || 1) * v / 100;
+    // v165 盾（方案 A，同攻击法宝）：基数 = 自己修为 + 肉身（不超过参考值）+ 功法
+    if (a.k === "shDef") return DATA.capStat(ref.def, "def") * (_FG.fabao.ATK_MULT || 1) * v / 100;
+    if (a.k === "shHpMain" || a.k === "shHp") return DATA.capStat(ref.hp, "hp") * v / 100;
     return DATA.FB_REF_OF[a.k] ? ref[DATA.FB_REF_OF[a.k]] * v / 100 : v;
   }
   const grow = a.k === "crit" ? g + 1 : (A.GROW[g] || 1);

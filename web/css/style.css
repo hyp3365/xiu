@@ -458,3 +458,11 @@ button small .cd{min-width:0}
 @keyframes btv-armsw{0%,100%{transform:none}30%{transform:translate(-2%,1%) rotate(3deg)}62%{transform:translate(5%,-1.5%) rotate(-6deg)}}
 @keyframes btv-sweep-hit{0%,32%,100%{transform:rotate(40deg)}44%{transform:rotate(52deg)}62%{transform:rotate(2deg)}80%{transform:rotate(30deg)}}
 @keyframes btv-armsw-hit{0%,32%,100%{transform:none}44%{transform:translate(-2%,1%) rotate(3deg)}62%{transform:translate(5%,-1.5%) rotate(-6deg)}}
+
+/* v165 护盾光圈：一直显示到护盾破碎 */
+.btv-ring{position:absolute;border-radius:50%;border:2px solid #9fd8ffcc;background:radial-gradient(transparent 58%,#9fd8ff55);box-shadow:0 0 14px #9fd8ffaa,inset 0 0 10px #9fd8ff66;pointer-events:none;z-index:4;animation:btv-ring-in calc(.5s * var(--bs,1)) ease-out,btv-ring-glow 2s ease-in-out infinite alternate}
+.btv-ring.mob{border-color:#ffb36bcc;background:radial-gradient(transparent 58%,#ffb36b55);box-shadow:0 0 14px #ffb36baa,inset 0 0 10px #ffb36b66}
+.btv-ring.off{animation:btv-ring-out .5s ease-in forwards}
+@keyframes btv-ring-in{0%{opacity:0;transform:scale(.6)}100%{opacity:1;transform:scale(1)}}
+@keyframes btv-ring-glow{0%{opacity:.75}100%{opacity:1}}
+@keyframes btv-ring-out{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.25)}}

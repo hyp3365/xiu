@@ -159,10 +159,11 @@ G.module({
       let rDone = 0;
       // 出一招：a = acts[j]；res = true 可以动用保留的法力；放不出返回 null
       const usedN = {};   // v152 这场战斗每招已用几次
+      let res2 = false;
       const cast = (j, res) => {
         const a = acts[j]; if (!a) return null;
         const cost = a.k === 1 ? a.sp.mana : a.fb.mana;
-        if (a.k === 2 && a.fb.shield && shield) return null;   // 护盾还在：盾不用再祭
+        if (a.k === 2 && a.fb.shield && (shield || !res2)) return null;   // 护盾还在：盾不用再祭；v165 盾只在出手前免费祭（res2），不占出手
         if (s.mana < cost || (!res && s.mana - cost < keepMp)) return null;
         if ((usedN[j] || 0) >= ((a.k === 1 ? a.sp.uses : a.fb.uses) || 1)) return null;   // v152 每场战斗使用次数用完
         usedN[j] = (usedN[j] || 0) + 1;
@@ -250,19 +251,45 @@ G.module({
       const log = [], R = Math.round;
       //   v57 多两格：[10] 标记（1 眩晕对方 2 鼎减益 4 护盾破碎）、[11] 护盾抵挡的伤害；方式 3 = 祭起护盾（伤害格 = 护盾值）、4 = 被眩晕
       const rec = (w, d) => log.push([rounds, w, act.k, act.sp === undefined ? -1 : act.sp, act.f, R(d), R(Math.max(0, php)), R(s.mana), R(Math.max(0, mhp)), R(m.mana || 0), act.x || 0, R(act.ab || 0)]);
+      // v165 出手前：护盾不在、盾还有次数、法力够 → 先免费祭起护盾（不占这次出手，只算盾的使用次数）
+      const freeShield = () => {
+        if (meSeal || shield) return;
+        for (const j of useJ) if (acts[j].k === 2 && acts[j].fb.shield) {
+          res2 = true; const d = cast(j, true); res2 = false;
+          if (d !== null) { rec(0, shield.hp); return; }
+        }
+      };
+      // v165 怪物护盾：几率 = 法宝几率 × CHANCE_PCT%，每场最多 MAX 次，不占出手
+      const MS = (CFG.mobs.magic || {}).SHIELD || {};
+      let mShield = null, mShN = 0;
+      const mobShield = () => {
+        const c = m.fabao; if (!c || mobSeal || mShield || mShN >= (MS.MAX || 0)) return;
+        const P = c.mana || [0, 1], cost = (m.manaBr || 0) * P[0] * (P[1] === undefined ? 1 : P[1]);
+        if (m.mana < cost || Math.random() * 100 >= c.chance * (MS.CHANCE_PCT || 0) / 100) return;
+        m.mana -= cost; mShN++;
+        mShield = { hp: m.hp * (MS.HP_PCT || 0) / 100, def: m.def * (MS.DEF_PCT || 0) / 100, red: MS.RED || 0 };
+        act = { k: 3, f: 0 }; rec(1, mShield.hp);
+      };
       const me = (lx) => {
+        freeShield();
         const pj = ch(pMe.pj), def0 = m.def; if (pj) m.def = def0 * (1 - pMe.pjI / 100);   // 破军：这一下无视部分防御
         let d = myHit(); m.def = def0;
         if (lx) act.x = (act.x || 0) | 8;
         if (pj && act.k < 3 && act.f !== 1) act.x = (act.x || 0) | 32;
         d = after(d, pMe, php, st.hp, meJc, mobJc);
         if (act.k < 3 && act.f !== 1 && !(act.x & 128) && !mobSeal && cnt.me.zh < pMe.zhT && ch(pMe.zh)) { mobSeal = pMe.zhR; sealR.mob = rounds; cnt.me.zh++; act.x = (act.x || 0) | 64; }
+        if (mShield && act.k < 3 && act.f !== 1 && d > 0) {   // v165 怪物护盾
+          d = Math.max(0, d - mShield.def * BT.DEF_RATE) * (1 - mShield.red / 100);
+          const ab = Math.min(mShield.hp, d); mShield.hp -= ab; d -= ab; act.ab = ab;
+          if (mShield.hp <= 0) { mShield = null; act.x = (act.x || 0) | 4; }
+        }
         if (!TEST) mhp -= d; dealt += d;
         if (mhp <= 0 && php > 0 && cnt.mob.yt < pMob.ytT && ch(pMob.yt)) { dealt -= 1 - mhp; mhp = 1; cnt.mob.yt++; act.x = (act.x || 0) | 16; }   // 对方御天保命
-        rec(0, act.k === 3 ? shield.hp : d);
+        rec(0, d);
       };
       const him = (lx) => {
         if (m.stun > 0) { m.stun--; act = { k: 4, f: 0 }; rec(1, 0); return; }   // 被眩晕：这次不能出手
+        mobShield();
         const pj = ch(pMob.pj), def0 = st.def; if (pj) st.def = def0 * (1 - pMob.pjI / 100);
         let d = mobSeal ? hit(mE(), st) : mobHit(); st.def = def0;   // 被镇魂：只能普通攻击
         if (lx) act.x = (act.x || 0) | 8;
@@ -318,7 +345,7 @@ G.module({
         : k === 3 ? `祭起${S(`「${b.sp[sp] || "护盾"}」`)}` : k === 4 ? "被眩晕" : k === 5 ? `发动${S("金蝉秘法")}` : "发动普通攻击";
       let res = k === 3 ? `，护盾值 ${D(d)}` : k === 4 ? "，无法行动" : k === 5 ? `，${CFG.wudao.JINCHAN && CFG.wudao.JINCHAN.ROUNDS || 3} 回合内免疫攻击` : fx & 128 ? `，被${tgt}的金蝉秘法挡下` : f === 1 ? `，被${tgt}闪避` : `，${f === 2 ? `<span class="bt-c">暴击</span>` : ""}对${tgt}造成 ${D(d)} 点伤害`;
       if (ab) res += `（护盾抵挡 ${U.fmt(ab)}）`;
-      if (fx & 4) res += "，护盾破碎";
+      if (fx & 4) res += `，${tgt}的护盾破碎`;
       if (fx & 2) res += `，${tgt}速度、命中、闪避降低`;
       if (fx & 1) res += `，${tgt}被眩晕`;
       if (fx & 64) res += `，${tgt}被镇魂，只能普通攻击`;
@@ -420,6 +447,7 @@ G.module({
       const name = k === 1 ? (w ? (b.el ? DATA.elById[b.el].name + "系法术" : "法术") : (b.sp[sp] || "法术")) : k === 2 ? (w || !b.sp[sp] ? "法宝" : b.sp[sp]) : k === 3 ? (b.sp[sp] || "护盾") : k === 5 ? "金蝉秘法" : "";
       if (name) add("btv-skill", name, w);
       const hit = () => {
+        if (fx & 4) this.btRing(1 - w, false);   // v165 护盾破碎：光圈消失
         if (k === 3 || k === 4 || k === 5) return;
         if (fx & 128) { add("btv-pop gray", "免疫", 1 - w); return; }
         if (f === 1) { re(tg, "btv-dodge"); add("btv-pop gray", "闪避", 1 - w); return; }
@@ -435,9 +463,21 @@ G.module({
       if (k === 0) { mv(w ? ["btv-pounce-r", "btv-claw-r", "btv-wave-r"][Math.floor(Math.random() * 3)] : "btv-lunge-l"); setTimeout(hit, 430 * SL); }
       else if (k === 1) { if (!w) re(me, "btv-cast"); add("btv-orb " + (w ? "go-l" : "go-r") + (el ? " el-" + el : ""), "", w, 700); setTimeout(hit, 520 * SL); }
       else if (k === 2) { if (!w) re(me, "btv-cast"); add("btv-fb " + (w ? "go-l" : "go-r"), "", w, 800); setTimeout(hit, 600 * SL); }
-      else if (k === 3) { add("btv-shield", "", w, 1000); this.btHp(); }
+      else if (k === 3) { this.btRing(w, true); this.btHp(); }
       else if (k === 4) { add("btv-pop gray", "眩晕", w); this.btHp(); }
       else { add("btv-shield gold", "", w, 1000); this.btHp(); }
+    },
+    // v165 护盾光圈：护盾在的时候一直显示，套住人物 / 怪物（比人物大一点），破碎时消失
+    btRing(w, on) {
+      const u = $("#bt-u" + w); if (!u) return;
+      let r = u.querySelector(".btv-ring");
+      if (!on) { if (r) { r.classList.add("off"); setTimeout(() => r.remove(), 500); } return; }
+      if (r) r.remove();
+      const im = (u.querySelector(".btv-hero") || u.querySelector("img") || u).getBoundingClientRect(), ur = u.getBoundingClientRect();
+      r = document.createElement("div"); r.className = "btv-ring" + (w ? " mob" : "");
+      const W2 = im.width * 1.3, H2 = im.height * 1.1;
+      Object.assign(r.style, { width: W2 + "px", height: H2 + "px", left: (im.left - ur.left + im.width / 2 - W2 / 2) + "px", top: (im.top - ur.top + im.height / 2 - H2 / 2) + "px" });
+      u.appendChild(r);
     },
     btFinish() {
       const bp = this._bp; if (!bp || bp.done) return;

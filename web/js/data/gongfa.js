@@ -267,6 +267,12 @@ DATA.ownAtk = () => {
   if (typeof G === "undefined" || !G.s || !G.gongfaBonus) return { br: 0, gf: 0 };
   return { br: DATA.realmStat(G.s.mortal ? -1 : G.s.L, "atk") + ((G.bodyBonus ? G.bodyBonus() : {}).atk || 0), gf: G.gongfaBonus().atk };
 };
+// v165 通用版：k = hp / def …（盾的护盾值、防御用）：min(修为 + 肉身, 参考值) + 功法
+DATA.ownStat = k => {
+  if (typeof G === "undefined" || !G.s || !G.gongfaBonus) return { br: 0, gf: 0 };
+  return { br: DATA.realmStat(G.s.mortal ? -1 : G.s.L, k) + ((G.bodyBonus ? G.bodyBonus() : {})[k] || 0), gf: G.gongfaBonus()[k] || 0 };
+};
+DATA.capStat = (cap, k) => { const o = DATA.ownStat(k); return o.br || o.gf ? Math.min(o.br, cap) + o.gf : cap; };
 DATA.capAtk = (cap, own) => { const o = own || DATA.ownAtk(); return Math.min(o.br, cap) + o.gf; };
 // 法术第 star 星对应境界（config/gongfa.js 的 REF）的人物属性：修为突破 + 肉身突破（不算功法），含 manaBr
 DATA._spRef = {};
