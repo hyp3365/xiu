@@ -345,13 +345,15 @@ G.module({
           <button class="sm ${L.includes(i) ? "active" : ""}" onclick="G.toggleLock(${i})">${L.includes(i) ? "已锁定" : "锁定"}</button></div>`).join("") +
         `<p>消耗${DATA.HX} <b>${cost}</b>（拥有 ${this.fireCount()}）</p>
         ${wash ? `<p class="desc">炼制、购买得到的法宝属性最高绿色，紫色、金色只能洗练得到。</p>` : ""}
-        <div class="btns"><button class="primary" onclick="G.doReset()" ${this.fireCount() >= cost && L.length < e.attrs.length ? "" : "disabled"}>${nm}</button><button onclick="G.closeModal()">关闭</button></div>`);
+        <div class="btns"><button class="primary" onclick="G.doReset()" ${this.fireCount() >= cost && this.canWash(e, L) ? "" : "disabled"}>${nm}</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
+    // v164 全部锁定时，附加属性没满（< reset.AFFIX_MAX）也能洗练：再洗出新的附加属性补到满
+    canWash(e, L) { return L.length < e.attrs.length || DATA.washRange(e, L)[1] > 0; },
     toggleLock(i) { const L = this._locks || (this._locks = []), j = L.indexOf(i); j >= 0 ? L.splice(j, 1) : L.push(i); this.drawReset(); },
     doReset() {
       const e = this._resetObj; if (!e || !e.attrs) return;
       const L = this._locks || [], cost = DATA.resetCost(e, L.length);
-      if (L.length >= e.attrs.length) return;
+      if (!this.canWash(e, L)) return;
       if (!this.takeFire(cost)) return this.log(`${DATA.HX}不足。`, "sys");
       const keep = L.map(i => e.attrs[i]);
       DATA.rerollForged(e, L);

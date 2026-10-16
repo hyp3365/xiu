@@ -140,6 +140,10 @@ DATA.equipNewW = () => { const mx = _FG.attr.NEW_COLOR_MAX === undefined ? 1 : _
 DATA.fbAffix = (k, W) => DATA.rollAttr(k, 0, k === "elDmg" || k === "ignRes" ? U.pick(DATA.elements).id : undefined, W);
 // 随机生成一件装备 / 戒指（r = 戒指种类）/ 法宝
 DATA.fbPool = T => T && T.shield ? _FG.fabao.SHIELD_POOL : _FG.fabao.pool;   // 法宝附加属性池（盾单独一组）
+// v164 祭出次数（uses）一件法宝最多一条：已经有了就不再随机出来
+DATA.fbPoolLeft = (pool, attrs) => attrs.some(a => a.k === "uses") ? pool.filter(k => k !== "uses") : pool;
+// v164 旧法宝如果有多条祭出次数，只有数值最高（同值取第一条）的那条生效，返回它的序号
+DATA.fbUsesIdx = e => { let bi = -1, bv = -1; (e.attrs || []).forEach((a, i) => { if (a.k === "uses") { const v = DATA.attrVal(a, e.g, e); if (v > bv) { bv = v; bi = i; } } }); return bi; };
 DATA.rollForged = (slot, g, r, el) => {
   const A = _FG.attr;
   if (slot === "fabao") {   // r = 形状序号、el = 属性（不填就随机）
@@ -148,7 +152,7 @@ DATA.rollForged = (slot, g, r, el) => {
     const W = DATA.fabaoNewW(), attrs = (T.shield ? ["shHpMain", "shDef"] : ["pct"]).map(k => DATA.rollAttr(k, 1, undefined, W));
     for (const k of T.special || []) attrs.push(DATA.rollAttr(k, 2, undefined, W));
     const n = U.weighted(F.AFFIX_COUNT) + 1, pool = DATA.fbPool(T);
-    for (let i = 0; i < n; i++) attrs.push(DATA.fbAffix(U.pick(pool), W));
+    for (let i = 0; i < n; i++) attrs.push(DATA.fbAffix(U.pick(DATA.fbPoolLeft(pool, attrs)), W));   // v164 祭出次数最多一条
     return { slot, g, ft, el: elv, name: DATA.fabaoName(ft, g), enh: 0, q: DATA.bestQ(attrs), attrs, fv: 2 };
   }
   if (slot === "ring" && r === undefined) r = Math.floor(Math.random() * DATA.ringNames.length);
@@ -183,9 +187,10 @@ DATA.rerollForged = (e, locks) => {
   if (!w.some(x => x > 0)) w = w.map(() => 1);
   const n = hi <= 0 ? 0 : lo + U.weighted(w);
   const enh = e.attrs.filter((a, i) => !a.m && !locks.includes(i)).map(a => a.enh || 0).sort((x, y) => y - x);
+  const have = e.attrs.filter((a, i) => locks.includes(i));   // v164 已有的（锁定的 + 新洗出来的），祭出次数最多一条
   const roll = () => {
     let k;
-    if (fb) k = U.pick(DATA.fbPool(DATA.fabaoTypes[e.ft]));
+    if (fb) { k = U.pick(DATA.fbPoolLeft(DATA.fbPool(DATA.fabaoTypes[e.ft]), have)); have.push({ k }); }
     else { const pool = A.pool.filter(x => !used.includes(x)); if (!pool.length) return null; k = U.pick(pool); used.push(k); }
     const a = fb ? DATA.fbAffix(k, W) : DATA.rollAttr(k, 0, undefined, W); if (enh.length && enh[0]) a.enh = enh.shift(); else enh.shift(); return a;
   };
@@ -211,6 +216,7 @@ DATA.attrText = (a, e) => {
       shHpMain: `护盾值 ${v}`, shDef: `防御 ${v}`, shHp: `护盾值 +${v}`, dmgRed: `受到伤害 -${p}%`, uses: `每场战斗祭出次数 +${Math.round(p)}` }[a.k] || DATA.fbAttrNames[a.k] || a.k;
     const txt = `${a.m === 2 ? "专属 " : a.m ? "" : a.k === "elDmg" ? "附加伤害 " : "附加 "}${t}（${col}）`;
     // v157 属性和法宝不同的附加伤害 / 无视抗性不生效：红字标出
+    if (a.k === "uses" && e.attrs.indexOf(a) !== DATA.fbUsesIdx(e)) return `<span class="fb-bad">${txt} 只有一条祭出次数生效</span>`;   // v164
     return (a.k === "elDmg" || a.k === "ignRes") && a.el !== e.el ? `<span class="fb-bad">${txt} 与法宝属性不合</span>` : txt;
   }
   return `${a.m ? "" : "附加 "}${DATA.attrNames[a.k]} +${v}（${col}）`;
@@ -241,8 +247,8 @@ DATA.fabaoInfo = (e, own) => {
     else if (a.k === "shHpMain" || a.k === "shHp") shHp += v; else if (a.k === "shDef") shDef += v; else if (a.k === "dmgRed") red += v;
     else if (a.k === "sDing") ding = Math.max(ding, v);
     else if (a.k === "sYin") { yin += v; yinC = Math.max(yinC, a.c); }
-    else if (a.k === "uses") o.uses += Math.round(v);
   }
+  const ui = DATA.fbUsesIdx(e); if (ui >= 0) o.uses += Math.round(DATA.attrVal(e.attrs[ui], e.g, e));   // v164 祭出次数只算一条（最高的）
   const CAP = F.CAP || {}, at = (arr, d) => { const x = (arr || [])[e.g]; return x === undefined ? d : x; };
   o.pct *= (T.mul === undefined ? 1 : T.mul) * (F.DMG_MUL === undefined ? 1 : F.DMG_MUL);   // 形状倍率、DMG_MUL（不显示）
   if (T.shield) o.shield = { def: shDef, hp: shHp, red: Math.min(CAP.dmgRed === undefined ? 100 : CAP.dmgRed, red) };   // 盾
