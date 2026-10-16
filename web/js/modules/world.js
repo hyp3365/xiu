@@ -267,7 +267,8 @@ G.module({
         const P = c.mana || [0, 1], cost = (m.manaBr || 0) * P[0] * (P[1] === undefined ? 1 : P[1]);
         if (m.mana < cost || Math.random() * 100 >= c.chance * (MS.CHANCE_PCT || 0) / 100) return;
         m.mana -= cost; mShN++;
-        mShield = { hp: m.hp * (MS.HP_PCT || 0) / 100, def: m.def * (MS.DEF_PCT || 0) / 100, red: MS.RED || 0 };
+        const rp = v => Array.isArray(v) ? v[0] + Math.random() * (v[1] - v[0]) : v || 0;   // v166 [最小, 最大] 随机
+        mShield = { hp: m.hp * rp(MS.HP_PCT) / 100, def: m.def * rp(MS.DEF_PCT) / 100, red: MS.RED || 0 };
         act = { k: 3, f: 0 }; rec(1, mShield.hp);
       };
       const me = (lx) => {
