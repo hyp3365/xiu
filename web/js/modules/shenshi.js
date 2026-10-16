@@ -17,7 +17,7 @@ G.module({
       const ok = g.kind === "mf" ? C.MIFA : g.kind === "gf" && (C.TYPES || []).includes(DATA.gfTypeKey(g.type.id));
       return ok ? ((C.STAR || [])[g.star - 1] || 0) : 0;
     },
-    ssForgettable(id) { const g = DATA.skillInfo(id, 1); return !!g && g.kind === "gf" && id !== DATA.START_GF && (CFG.shenshi.TYPES || []).includes(DATA.gfTypeKey(g.type.id)); },
+    ssForgettable(id) { const g = DATA.skillInfo(id, 1); return !!g && g.kind === "gf" && (CFG.shenshi.TYPES || []).includes(DATA.gfTypeKey(g.type.id)); },
     lsUsed() {
       const s = this.s; let n = 0;
       for (const id in s.gongfa) n += this.ssCost(id);
@@ -78,11 +78,15 @@ G.shenshiView = function () {
 
 /* 功法页 · 遗忘（gongfa.js 调用） */
 G.forgetView = function () {
-  const s = this.s, list = Object.keys(s.gongfa).filter(id => this.ssForgettable(id)).map(id => DATA.skillInfo(id, s.gongfa[id])).filter(Boolean)
-    .sort((a, b) => b.star - a.star || b.lv - a.lv);
+  const s = this.s, list = Object.keys(s.gongfa).filter(id => this.ssForgettable(id)).map(id => DATA.skillInfo(id, s.gongfa[id])).filter(Boolean);
+  const line = g => `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》${g.star ? `<span class="tag">${g.star}星</span>` : ""}<span class="tag">${g.lv}/${g.max || DATA.GONGFA_MAX}层</span>
+      <small>${g.label} +${this.gfValue(g, g.value)} · 占用神识 ${this.ssCost(g.id)}</small></div><button class="sm" onclick="G.forgetGongfa('${g.id}')">遗忘</button></div>`;
+  // 和功法页一样按类别分卡片显示
+  const cards = DATA.gongfaTypes.filter(t => !t.base).map(t => {
+    const items = list.filter(g => (g.type.base || g.type.id) === t.id).sort((a, b) => b.star - a.star || b.lv - a.lv);
+    return items.length ? `<div class="card"><h3>${t.name}<small>${t.label}</small></h3>${items.map(line).join("")}</div>` : "";
+  }).join("");
   return `<div class="card"><h3>遗忘<small>剩余神识 ${this.lsLeft()} / ${s.lsMax}</small></h3>
     <p class="desc">攻击、防御、修炼速度、肉身修炼速度类功法可以遗忘。遗忘后功法删除，层数和加的属性一起删除，占用的神识归还。</p>
-    ${list.length ? list.map(g => `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.lv}层</span>
-      <small>${g.label} +${this.gfValue(g, g.value)} · 占用神识 ${this.ssCost(g.id)}</small></div><button class="sm" onclick="G.forgetGongfa('${g.id}')">遗忘</button></div>`).join("")
-      : `<p class="desc">没有可以遗忘的功法。</p>`}</div>`;
+    ${list.length ? "" : `<p class="desc">没有可以遗忘的功法。</p>`}</div>${cards}`;
 };
