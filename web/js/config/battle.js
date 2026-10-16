@@ -13,7 +13,7 @@
  *   怪物法术 / 法宝：原始伤害 = max(保底伤害（MIN_BASE + 层 × MIN_STEP）, 攻击 × pct% − 对方该系抗性 × DEF_RATE)（见 config/mobs.js 的 magic）
  *   其中 某系抗性 = 防御 × RES_RATE + 该系抗性
  *
- *   然后：先判命中（命中率 % = 70 + (命中 − 对方闪避) ÷ 对方闪避 × 100 ÷ 3，限制 20 ~ 95，见下面 HIT_*），没命中 = 闪避
+ *   然后：先判命中（命中率 % = 80 + (命中 − 对方闪避) ÷ (对方闪避 + 100) × 100 ÷ 5，限制 30 ~ 96，见下面 HIT_*），没命中 = 闪避
  *         没闪避 → 伤害 = 原始伤害 × 随机(RAND_MIN ~ RAND_MAX)
  *         再判暴击（几率 = min(暴击%, CRIT_CAP)）→ 暴击时伤害 × CRIT_MULT
  *   雷劫：伤害 = max(保底伤害（MIN_BASE + 层 × MIN_STEP）, 攻击 − 防御 × DEF_RATE) × 随机(RAND_MIN ~ RAND_MAX)，暴击 × CRIT_MULT；雷劫无法闪避
@@ -32,7 +32,8 @@ CFG.battle = {
   TEST_ROUNDS: 500,   // v158 宗门「实力测试」最多打几回合（不扣生命，可随时关闭）   // 一场战斗最多回合数，打满还没击败对方算失败（雷劫不受此限）
   // v174 命中：初始命中率 HIT_BASE %；命中比对方闪避每高 HIT_STEP %（按对方闪避算的相对差），命中率 + HIT_ADD %，低则同样降低；
   //   上限 HIT_MAX %、下限 HIT_MIN %；小数参与判定不取整。人物、怪物双方都这样算（DODGE_DIV / DODGE_CAP 不再使用）
-  HIT_BASE: 70, HIT_STEP: 3, HIT_ADD: 1, HIT_MAX: 95, HIT_MIN: 20,
+  // v182：相对差 = (命中 − 对方闪避) ÷ (对方闪避 + HIT_PAD) × 100；每 HIT_STEP % 命中率 ± HIT_ADD %
+  HIT_BASE: 80, HIT_STEP: 5, HIT_ADD: 1, HIT_MAX: 96, HIT_MIN: 30, HIT_PAD: 100,
   // v174 速度：每场战斗开始时人物速度 × 随机(SPEED_RAND[0] ~ SPEED_RAND[1]) %（怪物不随机，它的属性本身已随机），速度快的先出手
   SPEED_RAND: [95, 105],
   TOWER_HP_MIN: 0.3, // 生命低于上限这个比例（30%）不能挑战试炼塔、宗门晋升考验
