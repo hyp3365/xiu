@@ -109,6 +109,7 @@ G.module({
       if (it.t === "bp") return DATA.furnaceName(it.kind, it.g) + "图纸";
       if (it.t === "cu") return it.name;
       if (it.t === "book") return CFG.start.book.name;
+      if (it.t === "gfb") { const g = DATA.skillInfo(it.id, 1); return g ? `《${g.name}》` : "秘诀"; }   // 试炼塔秘诀
       if (it.t === "ss") return DATA.stoneName(it.g);
       if (it.t === "hx") return DATA.HX;
       if (it.t === "sm") return DATA.smName(it.k, it.ft, it.tier);
@@ -124,7 +125,7 @@ G.module({
       if (it.t === "mat") return DATA.matPrice(it.kind, it.g);
       if (it.t === "cu") { const d = this.cuDef(it.name); return d ? d.sell || 0 : 0; }
       if (it.t === "eq" && it.e.cid) { const d = this.cuDef(it.e.cid); if (d && d.sell !== undefined) return d.sell; }
-      if (it.t === "ss" || it.t === "book") return 0;
+      if (it.t === "ss" || it.t === "book" || it.t === "gfb") return 0;
       if (it.t === "hx") return CFG.forge.reset.SELL || 0;
       if (it.t === "sm") { const v = (CFG.mijing.items[it.k] || {}).sell || 0; return Array.isArray(v) ? v[it.ft || 0] || 0 : v; }
       if (it.t === "rbp") return CFG.forge.ring.bpSell[it.g] || 0;
@@ -145,7 +146,7 @@ G.module({
         case "ss": return DATA.iconImg("ss");
         case "hx": return DATA.iconImg("hx");
         case "sm": return DATA.smIcon(it.k, it.ft);
-        case "book": return DATA.iconImg("mifa");
+        case "book": case "gfb": return DATA.iconImg("mifa");
         case "bp": case "rbp": return DATA.iconImg("bp");
         case "cu": return DATA.cuIcon(this.cuDef(it.name));
       }
@@ -170,8 +171,18 @@ G.module({
     // 开局功法书：学会第 1 层，书用掉
     learnBook(i) {
       const it = this.s.bag[i]; if (!it || it.t !== "book" || this.hasGongfa(DATA.START_GF)) return;
-      this.s.gongfa[DATA.START_GF] = 1; this.removeAt(i, 1);
+      if (!this.lsCheck()) return;   // 灵识点（shenshi.js）
+      this.lsSpend(); this.s.gongfa[DATA.START_GF] = 1; this.removeAt(i, 1);
       this.log(`习得《${CFG.start.book.name}》第 1 层。`, "gold"); this.closeModal(); this.after();
+    },
+    // 试炼塔秘诀：在背包里学习，学会第 1 层，消耗灵识点，书用掉
+    learnGfBook(i) {
+      const it = this.s.bag[i]; if (!it || it.t !== "gfb") return;
+      const g = DATA.skillInfo(it.id, 1); if (!g) return;
+      if (this.hasGongfa(it.id)) return this.log("已经学会了。", "sys");
+      if (!this.lsCheck()) return;
+      this.lsSpend(); this.s.gongfa[it.id] = 1; this.removeAt(i, 1);
+      this.log(`习得《${g.name}》第 1 层，可在功法栏修炼提升。`, "gold"); this.closeModal(); this.after();
     },
     /* ---------- 弹窗：点储物格 ---------- */
     openItem(i) {
@@ -214,6 +225,10 @@ G.module({
         const B = CFG.start.book, has = this.hasGongfa(DATA.START_GF);
         h += `<p>秘诀 · 修炼速度每层 +${U.num(B.SPEED)} · 共 ${B.MAX} 层${has ? "<br><span class='q5'>已学会。</span>" : ""}</p>
           <div class="btns"><button class="primary" onclick="G.learnBook(${i})" ${has ? "disabled" : ""}>学习</button></div>`;
+      } else if (it.t === "gfb") {
+        const g = DATA.skillInfo(it.id, 1), has = this.hasGongfa(it.id), need = CFG.shenshi.LEARN_COST || 0, left = this.lsLeft();
+        h += `<p>试炼塔秘诀${g && g.label ? ` · ${g.label}每层 +${this.gfValue(g, g.perLv)}` : ""}<br>学习消耗灵识点 ${need} 点（剩余 ${left} 点）${has ? "<br><span class='q5'>已学会。</span>" : left < need ? "<br><span class='q5'>灵识点不足，可在「修炼 → 神识」增加。</span>" : ""}</p>
+          <div class="btns"><button class="primary" onclick="G.learnGfBook(${i})" ${has ? "disabled" : ""}>学习</button></div>`;
       } else if (it.t === "rbp") {
         const has = it.r === undefined ? this.s.forgeKnown.includes(this.forgeKey("ring", it.g)) : this.ringKnown(it.r, it.g);
         h += `<p>学习后可在洞府炼器室把${DATA.JIE[it.g - 1]}${DATA.ringNames[it.r] || "戒指（全部 9 种）"}升为${DATA.JIE[it.g]}（上一阶同种戒指 + 三种矿石）。${has ? "<br><span class='q5'>已学会。</span>" : ""}</p>
@@ -459,6 +474,7 @@ G.module({
       else if (it.t === "bp") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("bp")}" alt="">${DATA.furnaceName(it.kind, it.g)}</div>`;
  else if (it.t === "sm") cells += `<div class="cell q3" onclick="G.openItem(${i})"><img class="mi" src="${DATA.smIcon(it.k, it.ft)}" alt="">${DATA.smName(it.k, it.ft, it.tier)}<span class="n">${U.fmt(it.n)}</span></div>`;
  else if (it.t === "book") cells += `<div class="cell q1" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("mifa")}" alt="">${CFG.start.book.name}</div>`;
+ else if (it.t === "gfb") cells += `<div class="cell q3" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("mifa")}" alt="">${this.itemName(it)}</div>`;
  else if (it.t === "hx") cells += `<div class="cell q4" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("hx")}" alt="">${DATA.HX}<span class="n">${U.fmt(it.n)}</span></div>`;
       else if (it.t === "rbp") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("bp")}" alt="">${DATA.ringNames[it.r] || "戒指"}图纸${it.n > 1 ? `<span class="n">${it.n}</span>` : ""}</div>`;
  else if (it.t === "ss") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("ss")}" alt="">${DATA.stoneName(it.g)}<span class="n">${it.n}</span></div>`;

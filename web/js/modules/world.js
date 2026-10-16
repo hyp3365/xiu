@@ -864,7 +864,8 @@ G.module({
       if (!this.realmOK(g.sect.reqRealm)) return this.log(`境界不足，需要${DATA.realmLabel(g.sect.reqRealm)}。`, "sys");
       if (this.s.stone < g.cost) return this.log("灵石不足。", "sys");
       if (this.s.gfLearn) return this.log("正在学习其他功法。", "sys");
-      this.s.stone -= g.cost; this.startGfLearn(id); this.after();
+      if (!this.lsCheck()) return;   // 灵识点（shenshi.js）
+      this.s.stone -= g.cost; this.lsSpend(); this.startGfLearn(id); this.after();
     },
     // 仙魔冥神坊市 / 功德司功法：坊市 = 灵石 + 本图贡献，功德司 = 功德
     learnJieGf(id) {
@@ -872,13 +873,14 @@ G.module({
       if (!g || (g.src !== "jshop" && g.src !== "gd") || this.hasGongfa(id)) return;
       if (!this.realmOK(g.sect.reqRealm)) return this.log(`境界不足，需要${DATA.realmLabel(g.sect.reqRealm)}。`, "sys");
       if (s.gfLearn) return this.log("正在学习其他功法。", "sys");
+      if (!this.lsCheck()) return;   // 灵识点（shenshi.js）
       if (g.src === "gd") { if ((s.merit || 0) < g.cost) return this.log("功德不足。", "sys"); s.merit -= g.cost; }
       else {
         if (s.stone < g.cost) return this.log("灵石不足。", "sys");
         if (this.xjGxOf(g.sect.map) < g.gx) return this.log("本图贡献不足。", "sys");
         s.stone -= g.cost; this.xjGxAdd(g.sect.map, -g.gx);
       }
-      this.startGfLearn(id); this.after();
+      this.lsSpend(); this.startGfLearn(id); this.after();
     },
     // 功德司上古丹：本界第 i 张图卖 i 阶（config/alchemy.js 的 SHANGGU）
     sgDanList(a) {

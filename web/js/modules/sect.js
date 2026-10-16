@@ -138,7 +138,8 @@ G.module({
       const g = DATA.skillInfo(id);
       if (!g || g.src !== "sect" || this.hasGongfa(id) || this.s.contrib < g.cost) return;
       if (this.s.gfLearn) return this.log("正在学习其他功法。", "sys");
-      this.s.contrib -= g.cost; this.startGfLearn(id); this.after();
+      if (!this.lsCheck()) return;   // 灵识点（shenshi.js）
+      this.s.contrib -= g.cost; this.lsSpend(); this.startGfLearn(id); this.after();
     },
 
     /* ---------- 事务堂 ---------- */
@@ -363,15 +364,15 @@ G.module({
     },
     towerNextBook(star) {   // 下一本没给的秘诀 id（修炼秘诀、肉身秘诀轮流），给完 = null
       const M = DATA.towerBookCount(star);
-      for (let k = 1; k <= M; k++) for (const t of DATA.TOWER_TYPES) { const id = DATA.towerBookId(star, k, t); if (id && !this.s.gongfa[id]) return id; }
+      for (let k = 1; k <= M; k++) for (const t of DATA.TOWER_TYPES) { const id = DATA.towerBookId(star, k, t); if (id && !this.s.gongfa[id] && !(this.s.gfLearn && this.s.gfLearn.id === id) && !this.s.bag.some(x => x.t === "gfb" && x.id === id)) return id; }   // 已学会 / 背包里有的不再给
       return null;
     },
     towerBonusText(b) { return !b ? "" : b.kind === "ring" ? DATA.ringName(b.r, 0) : b.kind === "rbp" ? DATA.ringBpName(b.g, b.r)
       : this.towerNextBook(this.sectInfo().star) ? "试炼塔秘诀一本" : `${DATA.HX} / 耀石 / 功德 随机一种`; },
-    // 试炼塔秘诀：每次给下一本（习得第 1 层，之后在「功法」页修炼升层）；给完后 火髓 / 耀石 / 功德 随机一种（config/sect.js 的 trial.EXTRA）
+    // 试炼塔秘诀：每次给下一本，放进背包（在背包里学习，消耗灵识点；之后在「功法」页修炼升层）；给完后 火髓 / 耀石 / 功德 随机一种（config/sect.js 的 trial.EXTRA）
     giveTowerMijue(star) {
       const s = this.s, id = this.towerNextBook(star);
-      if (id) { s.gongfa[id] = 1; this.dirty(); return `《${DATA.gongfaInfo(id, 1).name}》习得第 1 层`; }
+      if (id) { const nm = `《${DATA.gongfaInfo(id, 1).name}》`; if (this.bagFull()) return `${nm}（背包已满，未能放入）`; s.bag.push({ t: "gfb", id, n: 1 }); this.dirty(); return `${nm}（已放入背包）`; }
       const X = CFG.sect.trial.EXTRA || {}, kinds = ["fire", "ys", "merit"].filter(k => X[k]), k = kinds[U.rand(0, kinds.length - 1)];
       if (!k) return "";
       const r = X[k][star - 1] || X[k][X[k].length - 1], n = U.rand(r[0], r[1]);

@@ -194,6 +194,7 @@ G.module({
   view() {
     const s = this.s, st = this.stats(), sp = this.speed(), cap = this.lingCap();
     if (this.cultView === "body") return this.bodyView();   // 修炼肉身（modules/body.js）
+    if (this.cultView === "shenshi") return this.shenshiView();   // 神识（modules/shenshi.js）
     const can = this.canBreak(), major = this.isMajor();
     const next = s.mortal ? "引气入体（突破至练气期）" : major ? `突破至${DATA.realmLabel(this.r() + 1)}` : "突破";
     const block = this.isCultivating() ? this.cultivateBlock() : "";
@@ -209,6 +210,7 @@ G.module({
       <div class="bar ling"><div style="width:${Math.min(100, s.ling / cap * 100)}%"></div></div>
       <div class="btns">
         <button class="${s.auto ? "on" : "primary"}" onclick="G.toggleAuto()">自动修炼：${s.auto ? "开" : "关"}</button>
+        <button onclick="G.openShenshi(true)">神识</button>
         <button onclick="G.openBody(true)">修炼肉身</button>
         <button class="primary" style="flex-basis:100%" onclick="G.breakthrough()" ${can || s.trib ? "" : "disabled"}>
           ${s.trib ? (s.trib.result ? "查看渡劫结果" : "渡劫中…查看劫云") : can ? next : `修为未满，还差 ${U.fmt(this.needExp() - s.exp)}`}</button>
