@@ -412,3 +412,5 @@ body{font-variant-numeric:tabular-nums}
 .cdn{display:inline-block;min-width:3.6em;white-space:nowrap;font-variant-numeric:tabular-nums;text-align:right;vertical-align:bottom}
 .line>b .cd,.row>span:last-child>.cd,button small .cd,h3 small .cd{text-align:right}
 button small .cd{min-width:0}
+/* v149 修炼页 自动修炼 / 神识 / 修炼肉身 一行三个 */
+.btns button.b3{flex:1 1 0;min-width:0;white-space:nowrap;padding-left:4px;padding-right:4px}

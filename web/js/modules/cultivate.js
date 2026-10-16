@@ -209,9 +209,9 @@ G.module({
       <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>
       <div class="bar ling"><div style="width:${Math.min(100, s.ling / cap * 100)}%"></div></div>
       <div class="btns">
-        <button class="${s.auto ? "on" : "primary"}" onclick="G.toggleAuto()">自动修炼：${s.auto ? "开" : "关"}</button>
-        <button onclick="G.openShenshi(true)">神识</button>
-        <button onclick="G.openBody(true)">修炼肉身</button>
+        <button class="b3 ${s.auto ? "on" : "primary"}" onclick="G.toggleAuto()">自动修炼：${s.auto ? "开" : "关"}</button>
+        <button class="b3" onclick="G.openShenshi(true)">神识</button>
+        <button class="b3" onclick="G.openBody(true)">修炼肉身</button>
         <button class="primary" style="flex-basis:100%" onclick="G.breakthrough()" ${can || s.trib ? "" : "disabled"}>
           ${s.trib ? (s.trib.result ? "查看渡劫结果" : "渡劫中…查看劫云") : can ? next : `修为未满，还差 ${U.fmt(this.needExp() - s.exp)}`}</button>
       </div>

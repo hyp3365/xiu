@@ -45,12 +45,10 @@ G.shenshiView = function () {
   const btn = n => { n = Math.min(n, room); const c = n > 0 ? this.lsBuyCost(n) : null;
     return `<button ${c === null || s.stone < c ? "disabled" : ""} onclick="G.buyLingshi(${n})">增加 ${n > 0 ? n : ""} 点${c !== null ? `<small>${U.fmt(c)} 灵石</small>` : ""}</button>`; };
   const next = room > 0 ? this.lsPrice(s.lsMax + 1) : null;
-  const table = (CFG.shenshi.BUY || []).map(([a, b, p]) => `<div class="row small"><span>第 ${a} ~ ${b} 点</span><span>每点 ${U.fmt(p)} 灵石</span></div>`).join("");
   return `<div class="card"><h3>神识<small>灵石 ${U.fmt(s.stone)}</small></h3>
     <div class="stats"><div><span>灵识点</span>${left}</div><div><span>总灵识</span>${s.lsMax} / ${cap}</div></div>
     <p class="desc" style="margin-top:6px">学习功法、法术每本消耗 ${need} 点灵识，灵识点不够不能学习。已用 ${s.lsUsed || 0} 点。</p>
     <div class="row small" style="margin-top:6px"><span>下一点灵识</span><span>${next === null ? "已达上限" : `${U.fmt(next)} 灵石`}</span></div>
     <div class="btns">${room > 0 ? btn(1) + (room > 1 ? btn(10) : "") : `<button disabled>灵识点已达上限</button>`}
-      <button onclick="G.openShenshi(false)">返回修炼</button></div></div>
-    ${table ? `<div class="card"><h3>增加灵识消耗</h3>${table}</div>` : ""}`;
+      <button onclick="G.openShenshi(false)">返回修炼</button></div></div>`;
 };
