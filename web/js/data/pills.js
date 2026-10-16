@@ -5,8 +5,7 @@
  * 每种丹药每个大境界都有一个品质（grade = 境界序号），只能服用与当前境界相同品质的。
  * ===================================================================== */
 DATA.pills = CFG.pills;
-DATA.PILL_GRADE_STEP = CFG.price.PILL_GRADE_STEP;
 DATA.PILL_PRICE_STEP = CFG.price.PILL_PRICE_STEP;
 
-DATA.pillPct = (type, grade) => DATA.pills[type].pct * (1 + grade * DATA.PILL_GRADE_STEP);
+DATA.pillPct = type => DATA.pills[type].pct;   // 各阶固定
 DATA.pillPrice = (type, grade) => Math.floor(DATA.pills[type].price * Math.pow(DATA.PILL_PRICE_STEP, grade));

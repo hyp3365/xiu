@@ -58,24 +58,23 @@ CFG.matsOther = {
 /* ---------- 修炼速度丹药 ----------
  * 只能服用与当前境界相同品质的（品质序号：练气 = 0、筑基 = 1 ……）
  * 字段：name 名字；pct 练气品质的修炼速度加成 %；dur 持续修炼次数；price 练气品质坊市售价（灵石）；desc 说明
- *   修炼速度加成% = pct × (1 + 品质序号 × price.PILL_GRADE_STEP)
+ *   修炼速度加成% = pct（一阶~十阶都一样）
  *   坊市售价     = floor(price × price.PILL_PRICE_STEP ^ 品质序号)
  *   出售价       = floor(坊市售价 × price.PILL_SELL)
  *   同一种丹药效果还在时再吃：加成取两者较大的，剩余次数 + dur
  * xian: true = 仙界修炼丹：只能在门派炼丹房（6~10 星）学丹方自己炼，宗门秘境不会掉 */
 CFG.pills = {
-  juqi:    { name: "聚气丹", pct: 10,  dur: 180, price: 10,  desc: "增加修炼速度" },       // 聚气丹：+10%，180 次，10 灵石
-  juling:  { name: "聚灵丹", pct: 20,  dur: 180, price: 30, desc: "大幅增加修炼速度" },   // 聚灵丹：+20%，180 次，30 灵石
-  peiyuan: { name: "培元丹", pct: 50, dur: 180, price: 60, desc: "极大增加修炼速度" },    // 培元丹：+50%，180 次，60 灵石
+  juqi:    { name: "聚气丹", pct: 10, dur: 180, price: 10, desc: "增加修炼速度" },       // 聚气丹：+10%，180 次，10 灵石
+  juling:  { name: "聚灵丹", pct: 20, dur: 180, price: 30, desc: "大幅增加修炼速度" },   // 聚灵丹：+20%，180 次，30 灵石
+  peiyuan: { name: "培元丹", pct: 40, dur: 180, price: 60, desc: "极大增加修炼速度" },    // 培元丹：+40%，180 次，60 灵石
   // 仙界修炼丹
-  taixu:    { name: "太虚悟道丹", pct: 60,  dur: 180, price: 100, desc: "大幅提升修炼速度，感悟太虚大道", xian: true },   // 太虚悟道丹：+60%
-  jiuxuan:  { name: "九转玄灵丹", pct: 80,  dur: 180, price: 150, desc: "汇聚九天玄灵之气，加速灵力运转", xian: true },   // 九转玄灵丹：+80%
+  taixu:    { name: "太虚悟道丹", pct: 30,  dur: 180, price: 100, desc: "大幅提升修炼速度，感悟太虚大道", xian: true },   // 太虚悟道丹：+30%
+  jiuxuan:  { name: "九转玄灵丹", pct: 60,  dur: 180, price: 150, desc: "汇聚九天玄灵之气，加速灵力运转", xian: true },   // 九转玄灵丹：+60%
   hongmeng: { name: "鸿蒙紫极丹", pct: 120, dur: 180, price: 200, desc: "蕴含鸿蒙紫气，极大提升修炼效率", xian: true },  // 鸿蒙紫极丹：+120%
 };
 
 /* ---------- 价格倍率 ---------- */
 CFG.price = {
-  PILL_GRADE_STEP: 0.1,   // 修炼丹每高一品质，加成 + pct 的 10%：加成% = pct × (1 + 品质序号 × 0.1)
   PILL_PRICE_STEP: 1.2,   // 修炼丹每高一品质，坊市售价 × 1.2：售价 = price × 1.2^品质序号
   PILL_SELL: 0.3,         // 修炼丹出售价 = 坊市售价 × 0.3（向下取整）
   SHOP_EQUIP: 15,         // 坊市装备默认售价（灵石）：content/items.js 的 ITEMS.shop 里没写 price 时用这个
