@@ -49,14 +49,9 @@ G.module({
       if (e.attrs && e.slot === "fabao") return {};
       if (e.attrs) { const out = {}; for (const a of e.attrs) out[a.k] = (out[a.k] || 0) + DATA.attrVal(a, e.g, e); const en = DATA.eqEnhStats(e); for (const k in en) out[k] = (out[k] || 0) + en[k]; return out; } // 炼制装备 / 戒指（data/forge.js）
       if (e.cid) { const d = this.cuDef(e.cid); return d ? this.cuStats(d) : {}; } // 自定义装备/法宝：属性见 content/items.js
-      // 坊市品质戒指（config/equip.js）
-      const Le = e.g * 10 + CFG.equip.LAYER_OFFSET, f = Math.pow(DATA.GROW, Le), m = DATA.qualMult[e.q], k = e.q + 1, B = DATA.playerBase;
-      const K = DATA.equipK[e.slot] || {}, out = {};
-      for (const key in K) out[key] = key in B ? B[key] * f * m * K[key] : K[key] * k;   // 人物 base 里有的随境界成长，其他（暴击%）随品质
-      return out;
+      return {};
     },
     equipDesc(e) {
-      const n = { atk: "攻击", hp: "生命", def: "防御", mana: "法力", crit: "暴击%", hit: "命中", dodge: "闪避", speed: "速度", hpPct: "生命%" };
       if (e.attrs) {
         let head = "";
         if (e.slot === "fabao") {
@@ -72,12 +67,10 @@ G.module({
         if (e.slot !== "fabao" && e.enh) head += `<span class="fb-sum">强化${e.enh}次　${this.enhText(e, e.enh).replace(/、/g, "　")}</span>`;
         return head + e.attrs.map(a => `<span class="ac${a.c}">${DATA.attrText(a, e)}</span>`).join("<br>");
       }
-      const st = this.equipStats(e);
-      if (e.cid) { const d = this.cuDef(e.cid); return (d && d.desc ? d.desc + "<br>" : "") + this.cuStatText(st); }
-      return Object.keys(st).map(k => `${n[k]}+${U.num(st[k])}`).join(" ");
+      if (e.cid) { const d = this.cuDef(e.cid); return (d && d.desc ? d.desc + "<br>" : "") + this.cuStatText(this.equipStats(e)); }
+      return "";
     },
-    eqQual(e) { return e.attrs ? "" : (DATA.quals[e.q] || "") + " "; },   // 炼制装备没有「凡品」等品质名，按属性颜色区分
-    makeEquip(slot, g, q) { return { slot, g, q, name: DATA.equipNames[slot][Math.min(5, q)] }; },   // 坊市品质戒指（config/equip.js）
+    eqQual(e) { return e.cid ? (DATA.quals[e.q] || "") + " " : ""; },   // 只有自定义装备/法宝显示「凡品」等品质名；炼制装备按属性颜色区分
 
     /* ---------- 存取物品 ---------- */
     bagFull() { return this.s.bag.length >= this.s.bagCap; },
@@ -131,7 +124,7 @@ G.module({
       if (it.t === "rbp") return CFG.forge.ring.bpSell[it.g] || 0;
       if (it.t === "eq" && it.e.attrs) return (it.e.slot === "ring" ? CFG.forge.ring.sell : CFG.forge.equip.sell)[it.e.g] || 0;
       if (it.t === "fu" || it.t === "bp") return Math.floor(DATA.blueprintCost(it.kind, it.g) * (it.t === "fu" ? 2 : 1));
-      return Math.floor(CFG.price.EQUIP_SELL * Math.pow(DATA.STONE_GROW, it.e.g * 10) * (it.e.q + 1));
+      return 0;   // 自定义装备/法宝没写 sell：不能出售
     },
 
     setBagTab(t) { this.bagTab = t; this.render(); },

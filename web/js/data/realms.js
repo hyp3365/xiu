@@ -52,9 +52,7 @@ DATA.realmStat = (L, k) => (k === "res" ? _P.RES_BASE || 0 : _P.base[k] || 0) + 
 // 肉身突破属性：突破 n 层的合计
 DATA.bodyStat = (n, k) => DATA.brSum(_R.BODY_GAIN, n, "rs")[k] || 0;
 
-// 人物属性：base = 凡人基础（再加修为突破合计，见 DATA.realmStat）；fixed 不随境界；GROW 只给坊市品质戒指用（config/equip.js）
-DATA.GROW = _P.GROW;
-DATA.playerBase = _P.base;
+// 人物属性：base = 凡人基础（再加修为突破合计，见 DATA.realmStat）；fixed 不随境界
 DATA.playerFixed = _P.fixed;
 // 命中率：见 config/battle.js 的 HIT_*（v183 按整档加减）
 DATA.hitChance = (hit, dodge) => { const B = CFG.battle, d = Math.max(0, dodge || 0), diff = ((hit || 0) - d) / Math.max(1, d + (B.HIT_PAD || 0)) * 100;   // 相对差 = (命中 − 闪避) ÷ (闪避 + HIT_PAD)

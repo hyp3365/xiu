@@ -904,12 +904,12 @@ G.module({
     setShopStar(n) { this.shopStar = n; this.render(); },
     shopList() {
       const g = 0, list = [];   // 只卖练气品质
-      const src = ITEMS.shop || [...Object.keys(DATA.pills).map(t => ({ kind: "pill", type: t })), ...Object.keys(DATA.slots).filter(sl => sl !== "fabao").map(sl => ({ kind: "eq", slot: sl, q: 1 }))];
+      const src = ITEMS.shop || [...Object.keys(DATA.pills).map(t => ({ kind: "pill", type: t })), ...DATA.eqSlots6.map(sl => ({ kind: "eq", slot: sl }))];
       for (const x of src) {
         if (!x || (x.realm !== undefined && this.r() < x.realm)) continue;
         if (x.item) { const d = this.cuDef(x.item); if (d) list.push({ kind: "cu", name: x.item, price: x.price || 0, tab: ["equip", "fabao"].includes(d.type) ? "eq" : "pill" }); }
         else if (x.kind === "pill" && DATA.pills[x.type]) list.push({ kind: "pill", type: x.type, g, price: x.price || DATA.pillPrice(x.type, g), tab: "pill" });
-        else if (x.kind === "eq" && DATA.slots[x.slot] && (DATA.forgeSlots.includes(x.slot) || DATA.equipNames[x.slot])) list.push({ kind: "eq", slot: x.slot, g, q: x.q || 1, price: x.price || Math.floor(CFG.price.SHOP_EQUIP), tab: "eq" });
+        else if (x.kind === "eq" && DATA.eqSlots6.includes(x.slot)) list.push({ kind: "eq", slot: x.slot, price: x.price || Math.floor(CFG.price.SHOP_EQUIP), tab: "eq" });
       }
       return list;
     },
@@ -919,7 +919,7 @@ G.module({
       for (; k < n; k++) {
         if (this.s.stone < it.price) { this.log("灵石不足。", "sys"); break; }
         const ok = it.kind === "pill" ? this.addPill(it.type, it.g) : it.kind === "cu" ? this.addCustom(it.name)
-          : this.addEquip(DATA.forgeSlots.includes(it.slot) ? DATA.rollForged(it.slot, 0) : this.makeEquip(it.slot, it.g, it.q)); // 头盔~吊坠：一阶炼器装备（随机属性）
+          : this.addEquip(DATA.rollForged(it.slot, 0)); // 头盔~吊坠：一阶炼器装备（随机属性）
         if (!ok) break;
         this.s.stone -= it.price;
       }
@@ -1011,9 +1011,9 @@ G.module({
         const rows = this.shopList().map((it, i) => {
           if (it.tab !== t) return "";
           const cd = it.kind === "cu" ? this.cuDef(it.name) : null, multi = it.kind === "pill" || (cd && cd.type !== "equip" && cd.type !== "fabao");
-          const name = cd ? `<span class="q${cd.q || 0}">${it.name}</span>` : it.kind === "pill" ? `${DATA.realms[it.g]}·${DATA.pills[it.type].name}` : DATA.forgeSlots.includes(it.slot) ? DATA.forgeEqName(it.slot, 0) : `${DATA.quals[it.q]} ${DATA.realms[it.g]}·${DATA.equipNames[it.slot][Math.min(5, it.q)]}`;
+          const name = cd ? `<span class="q${cd.q || 0}">${it.name}</span>` : it.kind === "pill" ? `${DATA.realms[it.g]}·${DATA.pills[it.type].name}` : DATA.forgeEqName(it.slot, 0);
           const desc = cd ? `${DATA.cuTypes[cd.type] || ""}${cd.desc ? " · " + cd.desc : ""}${["perm", "equip", "fabao"].includes(cd.type) ? " · " + this.cuStatText(this.cuStats(cd)) : ""}`
-            : it.kind === "pill" ? `修炼速度 +${Math.round(DATA.pillPct(it.type, it.g))}%，${DATA.pills[it.type].dur}次修炼` : DATA.forgeSlots.includes(it.slot) ? `${DATA.slots[it.slot]} · 2 条主属性 + 1~5 条附加属性（颜色随机）` : `${DATA.slots[it.slot]} · ${this.equipDesc(this.makeEquip(it.slot, it.g, it.q))}`;
+            : it.kind === "pill" ? `修炼速度 +${Math.round(DATA.pillPct(it.type, it.g))}%，${DATA.pills[it.type].dur}次修炼` : `${DATA.slots[it.slot]} · 2 条主属性 + 1~5 条附加属性（颜色随机）`;
           const img = cd ? DATA.cuIcon(cd) : it.kind === "pill" ? DATA.pillIcon(it.type) : DATA.iconImg("eq_" + it.slot);
           return `<div class="line"><div>${DATA.li(img)}${name}<small>${desc}</small></div><div>
             <button class="sm" onclick="G.buy(${i})" ${s.stone < it.price ? "disabled" : ""}>${U.fmt(it.price)}</button>

@@ -14,7 +14,6 @@ window.CFG = window.CFG || {};
 //   地图 stone：下面 mapDrops 里该地图的 stone（秘境用秘境自己的 stone）
 // 发现灵药 / 矿脉不掉灵石；战败只丢本次收获，不扣身上灵石（见 config/explore.js）
 CFG.drop = {
-  STONE_GROW: 1.15,  // 坊市品质戒指出售价 = config/items.js 的 price.EQUIP_SELL × 1.15^(境界序号×10) × (品质+1)
   STONE_RATE: 1,     // 灵石掉落总倍率（全部怪物统一再乘）
   ELITE_STONE: 2,    // 精英怪灵石 ×2
   BOSS_STONE: 3,     // 首领灵石 ×3

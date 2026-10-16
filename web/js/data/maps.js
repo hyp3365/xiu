@@ -95,7 +95,6 @@ DATA.exploreIdle = ["四下寂静，无事发生。", "山风拂过，草木沙�
 // 以下数值来自 js/config/ 下的数值文件（explore.js 探索流程，drops.js 掉落）
 const _E = CFG.explore;
 DATA.EXPLORE_STOP = _E.STOP;
-DATA.STONE_GROW = CFG.drop.STONE_GROW;
 // 该地图某个事件的掉落组：[{ items: {名字: 权重}, kinds, n }, { fixed: {名字: [最少, 最多]} }]
 //   击败怪物：药材 + 矿石合成一张表抽（种数合计）；发现灵药 / 矿脉：只用药材 / 矿石表（只有普通药材矿石）
 //   fixed 必定掉落组：四界特产 special 只在 ev === "boss"（首领）时掉；再加该地图 config/drops.js 里写的 fixed[事件]

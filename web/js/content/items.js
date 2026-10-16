@@ -22,7 +22,7 @@ window.ITEMS = {};
  *              stone 灵石  ling 灵气  contrib 门派贡献  exp 修为
  *   "perm"   永久属性（像属性丹），limit = 最多使用几个（不写 = 不限）。属性见下面「属性」
  *   "equip"  装备，slot 部位：helmet 头盔 / armor 护甲 / weapon 武器 / legs 腿甲 / boots 靴 / pendant 吊坠 / ring 戒指
- *            realm 显示境界序号（0 练气 1 筑基 …，只影响出售价默认值、不影响属性）。属性见下面
+ *            realm 境界序号（0 练气 1 筑基 …，只用于背包排序、不影响属性）；不写 sell = 不能出售。属性见下面
  *   "fabao"  法宝（放进法宝栏生效）。属性见下面
  *   "box"    礼包，打开得到：stone 灵石、items { "物品名": 数量 }（可以放自定义物品，也可以放药材矿石，如 青灵草: 10）
  *   "misc"   杂物，只能出售（任务物品、收藏品等）
@@ -53,7 +53,7 @@ ITEMS.list = {
 /* ---------------- 2. 坊市 ----------------
  * 每一行一种货品，从上到下显示，删掉一行就不卖了：
  *   { kind: "pill", type: "juqi" }        修炼丹（juqi 聚气丹 / juling 聚灵丹 / peiyuan 培元丹），品质 = 当前境界，价格自动
- *   { kind: "eq", slot: "weapon", q: 1 }  系统装备（当前境界），价格自动
+ *   { kind: "eq", slot: "weapon" }        一阶炼器装备（随机属性），slot 只能是 helmet armor weapon legs boots pendant（坊市不卖戒指）
  *   { item: "回春丹", price: 100 }        上面 list 里的物品，price 灵石
  *   任意一行都可以加：price 固定价格（覆盖自动价格）  realm 需要的境界序号（0 练气 1 筑基 …，不够就不显示）
  */
@@ -61,13 +61,12 @@ ITEMS.shop = [
   { kind: "pill", type: "juqi" , price: 100 },
   { kind: "pill", type: "juling", price: 400 },
   { kind: "pill", type: "peiyuan", price: 900 },
-  { kind: "eq", slot: "helmet", q: 1, price: 600 },
-  { kind: "eq", slot: "armor", q: 1, price: 600 },
-  { kind: "eq", slot: "weapon", q: 1, price: 600 },
-  { kind: "eq", slot: "legs", q: 1, price: 600 },
-  { kind: "eq", slot: "boots", q: 1, price: 600 },
-  { kind: "eq", slot: "pendant", q: 1, price: 600 },
-  { kind: "eq", slot: "ring", q: 1, price: 600 },
+  { kind: "eq", slot: "helmet", price: 600 },
+  { kind: "eq", slot: "armor", price: 600 },
+  { kind: "eq", slot: "weapon", price: 600 },
+  { kind: "eq", slot: "legs", price: 600 },
+  { kind: "eq", slot: "boots", price: 600 },
+  { kind: "eq", slot: "pendant", price: 600 },
   // 下面是示例：去掉行首的 // 就会上架
   // { item: "回春丹", price: 100 },
   // { item: "青锋剑", price: 2000, realm: 1 },

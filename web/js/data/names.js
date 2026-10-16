@@ -97,7 +97,7 @@ CFG.names = CFG.names || {};
 
   /* ---------- 4. 读档：存档里的旧名 → 新名 ---------- */
   // 存档里记的名字快照：药材、矿石（背包、探索收获按名字记），装备名（e.name）
-  DATA.nmSnap = () => ({ herb: DATA.herbs.slice(), ore: DATA.ores.slice(), equip: JSON.parse(JSON.stringify(DATA.equipNames)),
+  DATA.nmSnap = () => ({ herb: DATA.herbs.slice(), ore: DATA.ores.slice(),
     forge: JSON.parse(JSON.stringify(DATA.forgeNames)), ring: DATA.ringNames.slice(), fabao: DATA.fabaoTypes.map(t => t.name) });
   DATA.nmMigrate = s => {
     if (!s) return s;
@@ -114,7 +114,7 @@ CFG.names = CFG.names || {};
         if (e.slot === "fabao") return g((old.fabao || [])[e.ft], cur.fabao[e.ft]);
         return g(((old.forge || {})[e.slot] || [])[e.g], (cur.forge[e.slot] || [])[e.g]);
       }
-      return g(((old.equip || {})[e.slot] || [])[e.q], (cur.equip[e.slot] || [])[e.q]);
+      return null;
     };
     const seen = new Set();
     const walk = o => {
