@@ -102,8 +102,14 @@ DATA.eqEnh = (a, e) => e && e.slot !== "fabao" && a.m ? (e.enh || 0) * DATA.eqEn
 // 一条属性的数值（e = 整件装备，用来区分法宝 / 戒指），含强化
 DATA.attrVal = (a, g, e) => DATA.attrBase(a, g, e) + DATA.eqEnh(a, e);
 // 一条属性没强化时的数值
+// v154 装备 / 戒指：REF[阶] 境界的修为突破 + 肉身突破属性 × PCT[颜色]%（暴击除外）
+DATA._eqRef = {};
+DATA.eqRef = g => DATA._eqRef[g] || (DATA._eqRef[g] = (() => { const r = (_FG.attr.REF || [])[g] || [2 * g + 1, 10]; return DATA.mobStats([0, r[0], r[1], 0, 1, 0, 1]); })());
+DATA.eqPctOK = a => !!_FG.attr.PCT && a.k !== "crit";
+DATA.eqPct = a => { const R = _FG.attr.PCT, r = R[a.c] || R[R.length - 1]; return Math.round((r[0] + (r[1] - r[0]) * DATA.attrPos(a)) * 100) / 100; };
 DATA.attrBase = (a, g, e) => {
   const A = _FG.attr, fb = e && e.slot === "fabao" && e.attrs;
+  if (!fb && DATA.eqPctOK(a)) return (DATA.eqRef(g)[a.k] || 0) * DATA.eqPct(a) / 100 * (e && e.slot === "ring" ? (_FG.ring.MULT || 1) : 1);
   // v26：附加属性单独设置了「每阶金色最高值」（AFFIX_TOP，装备 / 戒指）
   const TOP = !a.m && !fb && A.AFFIX_TOP;
   if (TOP && TOP[a.k] && TOP[a.k][g] !== undefined) {
@@ -202,7 +208,7 @@ DATA.attrText = (a, e) => {
       shHpMain: `护盾值 ${v}`, shDef: `防御 ${v}`, shHp: `护盾值 +${v}`, dmgRed: `受到伤害 -${p}%`, uses: `每场战斗祭出次数 +${Math.round(p)}` }[a.k] || DATA.fbAttrNames[a.k] || a.k;
     return `${a.m === 2 ? "专属 " : a.m ? "" : a.k === "elDmg" ? "附加伤害 " : "附加 "}${t}（${col}）`;
   }
-  return `${a.m ? "" : "附加 "}${DATA.attrNames[a.k]} +${v}（${col}）`;
+  return `${a.m ? "" : "附加 "}${DATA.attrNames[a.k]} +${v}（${col}${DATA.eqPctOK(a) ? `·${DATA.eqPct(a)}%` : ""}）`;
 };
 // v107 法宝第 g 阶的参考属性：config/forge.js 的 fabao.REF[阶] 那个境界的人物属性（修为突破 + 肉身突破，不算功法），含 manaBr
 DATA._fbRef = {};
