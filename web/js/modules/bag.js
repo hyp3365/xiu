@@ -171,17 +171,16 @@ G.module({
     // 开局功法书：学会第 1 层，书用掉
     learnBook(i) {
       const it = this.s.bag[i]; if (!it || it.t !== "book" || this.hasGongfa(DATA.START_GF)) return;
-      if (!this.lsCheck()) return;   // 灵识点（shenshi.js）
-      this.lsSpend(); this.s.gongfa[DATA.START_GF] = 1; this.removeAt(i, 1);
+      this.s.gongfa[DATA.START_GF] = 1; this.removeAt(i, 1);
       this.log(`习得《${CFG.start.book.name}》第 1 层。`, "gold"); this.closeModal(); this.after();
     },
-    // 试炼塔秘诀：在背包里学习，学会第 1 层，消耗灵识点，书用掉
+    // 试炼塔秘诀：在背包里学习，学会第 1 层，占用神识，书用掉
     learnGfBook(i) {
       const it = this.s.bag[i]; if (!it || it.t !== "gfb") return;
       const g = DATA.skillInfo(it.id, 1); if (!g) return;
       if (this.hasGongfa(it.id)) return this.log("已经学会了。", "sys");
-      if (!this.lsCheck()) return;
-      this.lsSpend(); this.s.gongfa[it.id] = 1; this.removeAt(i, 1);
+      if (!this.lsCheck(it.id)) return;   // 神识（shenshi.js）
+      this.s.gongfa[it.id] = 1; this.removeAt(i, 1);
       this.log(`习得《${g.name}》第 1 层，可在功法栏修炼提升。`, "gold"); this.closeModal(); this.after();
     },
     /* ---------- 弹窗：点储物格 ---------- */
@@ -226,8 +225,8 @@ G.module({
         h += `<p>秘诀 · 修炼速度每层 +${U.num(B.SPEED)} · 共 ${B.MAX} 层${has ? "<br><span class='q5'>已学会。</span>" : ""}</p>
           <div class="btns"><button class="primary" onclick="G.learnBook(${i})" ${has ? "disabled" : ""}>学习</button></div>`;
       } else if (it.t === "gfb") {
-        const g = DATA.skillInfo(it.id, 1), has = this.hasGongfa(it.id), need = CFG.shenshi.LEARN_COST || 0, left = this.lsLeft();
-        h += `<p>试炼塔秘诀${g && g.label ? ` · ${g.label}每层 +${this.gfValue(g, g.perLv)}` : ""}<br>学习消耗灵识点 ${need} 点（剩余 ${left} 点）${has ? "<br><span class='q5'>已学会。</span>" : left < need ? "<br><span class='q5'>灵识点不足，可在「修炼 → 神识」增加。</span>" : ""}</p>
+        const g = DATA.skillInfo(it.id, 1), has = this.hasGongfa(it.id), need = this.ssCost(it.id), left = Math.max(0, this.lsLeft());
+        h += `<p>试炼塔秘诀${g && g.label ? ` · ${g.label}每层 +${this.gfValue(g, g.perLv)}` : ""}<br>学习占用神识 ${need}（剩余 ${left}）${has ? "<br><span class='q5'>已学会。</span>" : left < need ? "<br><span class='q5'>神识不足，可在「修炼 → 神识」增加或遗忘功法。</span>" : ""}</p>
           <div class="btns"><button class="primary" onclick="G.learnGfBook(${i})" ${has ? "disabled" : ""}>学习</button></div>`;
       } else if (it.t === "rbp") {
         const has = it.r === undefined ? this.s.forgeKnown.includes(this.forgeKey("ring", it.g)) : this.ringKnown(it.r, it.g);

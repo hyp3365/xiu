@@ -138,8 +138,8 @@ G.module({
       const g = DATA.skillInfo(id);
       if (!g || g.src !== "sect" || this.hasGongfa(id) || this.s.contrib < g.cost) return;
       if (this.s.gfLearn) return this.log("正在学习其他功法。", "sys");
-      if (!this.lsCheck()) return;   // 灵识点（shenshi.js）
-      this.s.contrib -= g.cost; this.lsSpend(); this.startGfLearn(id); this.after();
+      if (!this.lsCheck(id)) return;   // 神识（shenshi.js）
+      this.s.contrib -= g.cost; this.startGfLearn(id); this.after();
     },
 
     /* ---------- 事务堂 ---------- */
@@ -369,7 +369,7 @@ G.module({
     },
     towerBonusText(b) { return !b ? "" : b.kind === "ring" ? DATA.ringName(b.r, 0) : b.kind === "rbp" ? DATA.ringBpName(b.g, b.r)
       : this.towerNextBook(this.sectInfo().star) ? "试炼塔秘诀一本" : `${DATA.HX} / 耀石 / 功德 随机一种`; },
-    // 试炼塔秘诀：每次给下一本，放进背包（在背包里学习，消耗灵识点；之后在「功法」页修炼升层）；给完后 火髓 / 耀石 / 功德 随机一种（config/sect.js 的 trial.EXTRA）
+    // 试炼塔秘诀：每次给下一本，放进背包（在背包里学习，占用神识；之后在「功法」页修炼升层）；给完后 火髓 / 耀石 / 功德 随机一种（config/sect.js 的 trial.EXTRA）
     giveTowerMijue(star) {
       const s = this.s, id = this.towerNextBook(star);
       if (id) { const nm = `《${DATA.gongfaInfo(id, 1).name}》`; if (this.bagFull()) return `${nm}（背包已满，未能放入）`; s.bag.push({ t: "gfb", id, n: 1 }); this.dirty(); return `${nm}（已放入背包）`; }

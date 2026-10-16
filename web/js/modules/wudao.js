@@ -35,6 +35,7 @@ G.module({
       if (s.gongfa[id]) return;
       if (s.stone < c.stone) return this.log("灵石不足。", "sys");
       if (s.contrib < c.contrib) return this.log("门派贡献不足。", "sys");
+      if (!this.lsCheck(id)) return;   // 神识（shenshi.js）
       s.stone -= c.stone; s.contrib -= c.contrib; s.gongfa[id] = 1;
       this.log(`习得《${DATA.mifaInfo(id).name}》！之后在「功法 → 秘法」里修炼升层。`, "good");
       this.dirty(); this.after();
