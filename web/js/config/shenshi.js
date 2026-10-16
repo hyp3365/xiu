@@ -15,7 +15,7 @@
 window.CFG = window.CFG || {};
 
 CFG.shenshi = {
-  INIT: 100,        // 初始灵识点
+  INIT: 0,        // 初始灵识点
   LEARN_COST: 1,    // 学习一本功法 / 法术消耗几点
   BUY: [
     [101, 110, 300000],
