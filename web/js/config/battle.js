@@ -4,7 +4,7 @@
  * 所有数值文件都在 js/config/ 下，一个部分一个文件；改完把 index.html 里的 ?v=数字 加 1。
  *
  * 【伤害公式】（代码：js/modules/world.js 的 battle；雷劫在 js/modules/cultivate.js 的 advanceTrib）
- *   历练、秘境、试炼塔、宗门考核、星君挑战都用 battle；雷劫用同样的 MIN_DMG / DEF_RATE / RAND / CRIT_MULT。
+ *   历练、秘境、试炼塔、宗门考核、星君挑战都用 battle；雷劫用同样的 MIN_BASE / MIN_STEP / DEF_RATE / RAND / CRIT_MULT。
  *   出手顺序：每场战斗人物速度 × 95%~105% 随机（SPEED_RAND），速度高者先手（相等时人物先手），双方轮流各出手一次为一回合，最多 MAX_ROUNDS 回合。
  *
  *   普通攻击：原始伤害 = max(保底伤害（MIN_BASE + 层 × MIN_STEP）, 攻击 − 对方防御 × DEF_RATE)
@@ -21,15 +21,14 @@
 window.CFG = window.CFG || {};
 
 CFG.battle = {
-  MIN_DMG: 0.01,     // （v171 起不用）
   MIN_BASE: 1,       // v171 保底伤害（防御再高也至少打这么多）= 练气一层 MIN_BASE，之后每层 + MIN_STEP（看出手方自己的境界层数；凡人 = 练气一层）
   MIN_STEP: 3,
   DEF_RATE: 0.9,     // 防御 / 抗性抵消比例：伤害 = 攻击 − 防御 × 0.9
   RAND_MIN: 0.9,     // 伤害随机下限（× 0.9）
   RAND_MAX: 1.1,     // 伤害随机上限（× 1.1）
   CRIT_MULT: 2,      // 暴击伤害倍率（× 2）
-  MAX_ROUNDS: 100,
-  TEST_ROUNDS: 500,   // v158 宗门「实力测试」最多打几回合（不扣生命，可随时关闭）   // 一场战斗最多回合数，打满还没击败对方算失败（雷劫不受此限）
+  MAX_ROUNDS: 100,   // 一场战斗最多回合数，打满还没击败对方算失败（雷劫不受此限）
+  TEST_ROUNDS: 500,   // v158 宗门「实力测试」最多打几回合（不扣生命，可随时关闭）
   // v183：相对差 = (命中 − 对方闪避) ÷ (对方闪避 + HIT_PAD) × 100
   //   比对方高：每满 HIT_UP_STEP % 命中率 + HIT_UP_ADD %；比对方低：每满 HIT_DN_STEP % 命中率 − HIT_DN_ADD %；不满一档不变
   HIT_BASE: 80, HIT_UP_STEP: 6, HIT_UP_ADD: 1, HIT_DN_STEP: 5, HIT_DN_ADD: 2.5, HIT_MAX: 96, HIT_MIN: 30, HIT_PAD: 0,

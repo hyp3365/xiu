@@ -12,7 +12,7 @@ window.CFG = window.CFG || {};
 //             秘境 = config/mijing.js 里该秘境的 L；仙冥魔神见 config/worldmaps.js
 //   种类倍率：普通怪 1、精英怪 ELITE_STONE、首领 BOSS_STONE
 //   地图 stone：下面 mapDrops 里该地图的 stone（秘境用秘境自己的 stone）
-// 发现灵药 / 矿脉不掉灵石；战败遗失灵石见 config/explore.js 的 LOSE_STONE
+// 发现灵药 / 矿脉不掉灵石；战败只丢本次收获，不扣身上灵石（见 config/explore.js）
 CFG.drop = {
   STONE_BASE: 2,     // 灵石基数
   STONE_GROW: 1.15,  // 每升 1 个区域层序灵石 ×1.15；也用于：装备出售价 = config/items.js 的 price.EQUIP_SELL × 1.15^(装备阶×10) × (品质+1)，星君俸禄的灵石基数

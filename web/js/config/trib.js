@@ -17,8 +17,8 @@
  *     参考属性 = 突破后那一层（境界、层）的修为突破属性 + 肉身突破属性 + 该境界能进的全部宗门功法练到第「功法层」层的加成
  *     劫云属性 = 参考属性 × 倍率 × 随机(RAND)，每次渡劫开始时随机一次
  *   同一个大境界的十层用同一组 [功法层, 倍率]，境界、层随突破的那一层变化
- *   每 HIT_SEC 秒劈一次：一次伤害 = max(攻击 × MIN_DMG, 攻击 − 人物防御 × DEF_RATE) × 随机(RAND_MIN ~ RAND_MAX)
- *     （MIN_DMG、DEF_RATE、RAND_MIN、RAND_MAX、CRIT_MULT 见 config/battle.js），暴击率 crit %，暴击 × CRIT_MULT；劫云必中
+ *   每 HIT_SEC 秒劈一次：一次伤害 = max(保底伤害（MIN_BASE + 层 × MIN_STEP）, 攻击 − 人物防御 × DEF_RATE) × 随机(RAND_MIN ~ RAND_MAX)
+ *     （MIN_BASE、MIN_STEP、DEF_RATE、RAND_MIN、RAND_MAX、CRIT_MULT 见 config/battle.js），暴击率 crit %，暴击 × CRIT_MULT；劫云必中
  *
  * 【结果】撑过 TIME[境界] 秒没倒 = 突破成功，生命法力回满
  *   生命被劈空 = 失败：生命剩 1，损失 当前修为 × FAIL_LOSS（向下取整）

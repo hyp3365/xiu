@@ -56,7 +56,6 @@ DATA.bodyStat = (n, k) => DATA.brSum(_R.BODY_GAIN, n, "rs")[k] || 0;
 DATA.GROW = _P.GROW;
 DATA.playerBase = _P.base;
 DATA.playerFixed = _P.fixed;
-// 闪避几率 % = (防守方闪避 - 进攻方命中) ÷ 进攻方命中 × 100 ÷ DODGE_DIV，最低 0，最高 DODGE_CAP
 // 命中率：见 config/battle.js 的 HIT_*（v183 按整档加减）
 DATA.hitChance = (hit, dodge) => { const B = CFG.battle, d = Math.max(0, dodge || 0), diff = ((hit || 0) - d) / Math.max(1, d + (B.HIT_PAD || 0)) * 100;   // 相对差 = (命中 − 闪避) ÷ (闪避 + HIT_PAD)
   // v183 按整档算：高 每满 HIT_UP_STEP % +HIT_UP_ADD %；低 每满 HIT_DN_STEP % −HIT_DN_ADD %（不满一档不变）

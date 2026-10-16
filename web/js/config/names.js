@@ -710,11 +710,8 @@ CFG.names.cave = {   // 洞府各处：代号不能改
 };
 
 /* ================= 十一、功法 · 法术 · 秘法 ================= */
-CFG.names.gfTier = {   // 功法、法术四阶
-  huang: "黄阶",          // 黄阶（1/4）
-  xuan: "玄阶",           // 玄阶（2/4）
-  di: "地阶",             // 地阶（3/4）
-  tian: "天阶",           // 天阶（4/4）
+CFG.names.gfTier = {   // 功法、法术的阶名（只有一阶，内部 id huang）
+  huang: "黄阶",
 };
 /* 功法类别：值 = [类别名, 功法名后缀]（青阳 + 紫霄 + 后缀 → 青阳紫霄心法） */
 CFG.names.gfType = {
@@ -728,11 +725,8 @@ CFG.names.gfType = {
   zhenjue: ["真诀", "真诀"],        // 加抗性
   tijue: ["肉身秘诀", "炼体诀"],    // 加肉身修炼速度
 };
-CFG.names.spellSuffix = {   // 法术名后缀，按阶（青阳 + 赤炎 + 术）
-  huang: "术",            // 黄阶法术
-  xuan: "诀",             // 玄阶法术
-  di: "印",               // 地阶法术
-  tian: "神通",           // 天阶法术
+CFG.names.spellSuffix = {   // 法术名后缀（青阳 + 赤炎 + 术）
+  huang: "术",
 };
 CFG.names.gfSource = {   // 功法来源
   sect: "宗门",           // 宗门功法殿

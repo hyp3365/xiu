@@ -605,10 +605,6 @@ G.module({
       if (o) o.exLost += lost;
       return parts.join("、") + (lost ? `（背包已满，遗失 ${lost} 件）` : "");
     },
-    // 战败损失
-    // v187 历练 / 探索 / 出窍 / 秘境 / 灵地战败：只丢本次收获（物品 + 灵石），不扣身上灵石
-    exDropAll(x) { return !!x; },
-    loseStone() { const lost = Math.floor(this.s.stone * CFG.explore.LOSE_STONE); this.s.stone -= lost; return lost; },
 
     /* ---------- 自动探索 ---------- */
     // once = true：历练（只走一次）；否则自动探索（需先历练通过该区域）
@@ -686,7 +682,7 @@ G.module({
         m.a = a;
         const res = this.battle(m), tag = `${m.boss ? "【首领】" : m.elite ? "【精英】" : ""}${m.name}`;
         if (res.win) { this.s.kills++; t = `遭遇${tag}，${res.rounds}回合击败，获得 ${this.rollMonsterLoot(x.loot, m, a, mj, mk)}`; c = m.boss ? "gold" : ""; }
-        else if (res.lose) { t = `遭遇${tag}，${res.timeout ? `${res.rounds} 回合未能击败，力竭重伤` : `第 ${res.rounds} 回合不敌重伤`}，${this.exDropAll(x) ? "本次探索收获全部遗失" : `遗失灵石 ${U.fmt(this.loseStone())}`}。${res.why}`; c = "bad"; }
+        else if (res.lose) { t = `遭遇${tag}，${res.timeout ? `${res.rounds} 回合未能击败，力竭重伤` : `第 ${res.rounds} 回合不敌重伤`}，本次探索收获全部遗失。${res.why}`; c = "bad"; }
         else { t = `遭遇${tag}，缠斗 ${res.rounds} 回合，各自退去`; }
         bd = res.detail;
       } else t = U.pick(DATA.exploreIdle);
@@ -726,7 +722,7 @@ G.module({
         if (x.step >= T || lost) {
           // 结算本次
           x.count++;
-          if (lost && this.exDropAll(x)) x.loot = this.newLoot();   // v186 战败：本次收获全部遗失
+          if (lost) x.loot = this.newLoot();   // v187 战败：只丢本次收获（物品 + 灵石），不扣身上灵石
           const got = this.giveLoot(x.loot);
           x.last = `${x.once ? "历练" : x.mj !== undefined ? "探索" : `第 ${x.count} 次探索`}${lost ? `（第 ${x.step} 步战败，提前结束）` : ""}：${got || "一无所获"}`;
           this.log(x.mj !== undefined ? this.exName(x) + x.last : x.last, lost ? "bad" : "gold");

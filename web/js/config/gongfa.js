@@ -2,44 +2,37 @@
  * ★ 数值设置 · 功法 & 法术 ★
  * ---------------------------------------------------------------------
  * 改完把 index.html 里的 ?v=数字 加 1。
- * 写法说明：[星级-1] = 数组按星级取值，第 1 个是 1 星；[阶] = 按 huang 黄阶 / xuan 玄阶 / di 地阶 / tian 天阶 取值；
+ * 写法说明：[星级-1] = 数组按星级取值，第 1 个是 1 星；
  *           [人物大境界] = 数组第 1 个是练气（凡人也按练气）…… 第 24 个是大道圣人。
- *
- * 【v93 取消天地玄黄四阶】每个来源每类功法只有一本、每系法术只有一本（内部按 huang 记）：
- *   功法每层效果 = 以前四阶加起来：TIER_MULT 里 黄+玄+地+天 四个数相加代替「TIER_MULT[阶]」
- *   法术：伤害倍率、固定伤害、法力消耗、学习价格都按以前黄阶（huang）
- *   宗门功法学习贡献按 sect.LEARN_AS 那一阶（默认地阶）；坊市功法售价按 shop.PRICE_AS 那一阶（默认天阶）
- *   修炼升层消耗按 STUDY_TIER.huang；学习（首次习得）需要 LEARN_MIN 分钟
+ * 每个来源每类功法只有一本（宗门见 BOOKS）、每系法术只有一本；学习（首次习得）需要 LEARN_MIN 分钟
  *
  * 「效果」和「获得 / 修炼的消耗」是几套独立的公式，互不影响：
- *   功法效果、法术伤害 → base、LV_MULT、各来源的 TYPE_MULT / STAR_MULT / TIER_MULT / EFFECT_*
- *   法术伤害 → REF、SPELL_*      法力消耗 → REF、MANA_*（不受来源倍率影响）
+ *   功法效果 → sect 的 TOTAL / STAT_STAR / RAND、TYPE_MULT、LV_MULT，各来源 PCT
+ *   法术伤害 → REF、SPELL_*、TYPE_MULT.spell、EFFECT_PCT      法力消耗 → REF、MANA_*（不受来源倍率影响）
  *   宗门学习贡献 → sect.learn、LEARN_*      坊市售价 → shop.price、PRICE_*      修炼升层 → STUDY_*
  *
- * 一、功法效果（v125：全部按 sect.TOTAL 分配，见下面 sect 的 TOTAL；下面的 base 公式已不用）
- * 每个门派每类功法几本见 BOOKS
- *   每层效果 = base[项目] × 来源.TYPE_MULT[类别] × 来源.STAR_MULT[星级-1] × 来源.TIER_MULT[阶] × 来源.EFFECT_GONGFA
+ * 一、功法效果（v121 / v125：全部按 sect.TOTAL 分配，公式见下面 sect 的 TOTAL）
  *   第 n 层效果 = 每层效果 × LV_MULT[n-1]
  *   游戏里实际加成再 × 对应属性的灵根加成（config/lingen.js）
  *
  * 二、法术
  *   法术攻击 = 使用者当前修为 + 肉身突破的攻击（最高不超过该星级对应境界 REF 的修为 + 肉身攻击）+ 使用者的功法攻击（不算装备、丹药等）
  *   法术伤害 = 法术攻击 × SPELL_LV_PCT[层数]% × SPELL_MUL（不显示）× 来源.TYPE_MULT.spell × 来源.EFFECT_PCT × 灵根法术伤害加成
- *             − (敌人防御 × RES_RATE + 敌人该系抗性) × DEF_RATE（RES_RATE、DEF_RATE 见 config/battle.js；最低 人物攻击 × MIN_DMG）
+ *             − (敌人防御 × RES_RATE + 敌人该系抗性) × DEF_RATE（RES_RATE、DEF_RATE 见 config/battle.js；最低 保底伤害 MIN_BASE + 层 × MIN_STEP）
  *   法力消耗  = 该星级对应境界的修为突破法力（REF）× MANA_PCT% × 灵根倍率（四舍五入，至少 1）
  *               灵根倍率 = 1 + 该系灵根等级 × MANA_LINGEN
  *   境界数组写不满 24 个时，超出的境界用最后一个值。
  *
  * 三、修炼升层（功法、法术、宗门秘法都在「功法」页排队修炼）
  *   每层修炼时间 = STUDY_MIN[当前层-1] 分钟（宗门秘法「悟道 / 悟法」按 % 减少，最少 config/wudao.js 的 STUDY_MIN_SEC 秒）
- *   每 STUDY_STEP 秒（默认 5 秒）扣一次修为 = STUDY_RATE × STUDY_STAR[星级-1] × STUDY_TIER[阶]（取整，至少 1；不乘层数）
- *     宗门秘法没有阶，按 STUDY_TIER = 1 算；另外每次还扣灵石（见 config/wudao.js 的 STUDY_STONE）
+ *   每 STUDY_STEP 秒（默认 5 秒）扣一次修为 = STUDY_RATE × STUDY_STAR[星级-1]（取整，至少 1；不乘层数）
+ *     宗门秘法另外每次还扣灵石（见 config/wudao.js 的 STUDY_STONE）
  *   一层一共消耗修为 = 每次消耗 × (修炼时间 ÷ STUDY_STEP)，层数越高只是时间越长
  *   修为不够时暂停，够了自动继续；练功房会让进度变快，每次扣的修为同比例变多，总消耗不变
  *
  * 四、来源（各自一组倍率、学习价格）
  *   sect   宗门功法 & 法术（门派功法殿，用贡献学习）
- *   shop   凡界坊市功法 & 法术（坊市「功法」页，用灵石购买，1~6 星）
+ *   shop   凡界坊市功法 & 法术（坊市「功法」页，用灵石购买，1~5 星）
  *   tower  试炼塔秘诀（试炼塔奖励，只有秘诀，效果 = 宗门同星级秘诀 × tower.PCT%）
  * ===================================================================== */
 window.CFG = window.CFG || {};
@@ -69,8 +62,8 @@ CFG.gongfa = {
   //   BP_MIN / RBP_MIN：背包里炉子图纸 / 戒指图纸的学习时间（分钟），按阶（第1个 = 一阶）；不写 = 同阶装备图谱的学习时间
   //   试炼塔秘诀（背包）= 同星级功法学习时间
   LEARN_Q: { MAX: 5, MIFA_MUL: 5 },
-  // 每次（每 STUDY_STEP 秒）消耗修为 = STUDY_RATE × STUDY_STAR[星级-1] × STUDY_TIER[阶]（不乘层数）
-  //   例：3 星功法：10 × 400 × 1 = 4000 修为 / 5 秒（每层都一样，层数越高只是时间越长）
+  // 每次（每 STUDY_STEP 秒）消耗修为 = STUDY_RATE × STUDY_STAR[星级-1]（不乘层数）
+  //   例：3 星功法：20 × 400 = 8000 修为 / 5 秒（每层都一样，层数越高只是时间越长）
   STUDY_RATE: 20,    // 修炼消耗的基础值
   STUDY_STAR: [      // 修炼消耗的星级倍率
     3,       // 1 星
@@ -86,7 +79,6 @@ CFG.gongfa = {
     70000,   // 11 星
     95000,   // 12 星
   ],
-  STUDY_TIER: { huang: 1 },   // 修炼消耗倍率（只有一阶）
 
   // 每个宗门每类功法几本（只有宗门功法，坊市、功德司等都是 1 本）：没写 = 1 本。同星级每本效果有 ±RAND 的随机
   BOOKS: { xinfa: 3, gongjue: 3, zhenjing: 3, fajue: 3, tijue: 3, mijue: 3 },
@@ -134,8 +126,8 @@ CFG.gongfa = {
 };
 
 /* ================= 宗门功法 & 法术（门派功法殿） =================
- * 效果部分：TYPE_MULT / STAR_MULT / TIER_MULT / EFFECT_*，乘法见文件开头「一」「二」
- * 学习部分：首次学习消耗贡献 = learn × LEARN_TYPE[类别] × LEARN_STAR[门派星级-1] × LEARN_TIER[阶] × EFFECT_LEARN（取整）
+ * 效果部分：TYPE_MULT / TOTAL / STAT_STAR / RAND / EFFECT_*，乘法见文件开头「一」「二」
+ * 学习部分：首次学习消耗贡献 = learn × LEARN_TYPE[类别] × LEARN_STAR[门派星级-1] × EFFECT_LEARN（取整）
  *           学会即第 1 层；不受效果倍率影响
  * 类别 id：xinfa 心法  gongjue 功诀  zhenjing 真经  mijue 秘诀  shenfa 身法  dunshu 遁术
  *          fajue 法诀  zhenjue 真诀  tijue 肉身秘诀  spell 法术 */
@@ -143,22 +135,6 @@ CFG.gongfa.sect = {
   // ---- 效果（只影响功法效果、法术伤害和法力消耗，不影响学习消耗）----
   // 类型倍率：每类功法 / 法术单独一个
   TYPE_MULT: { xinfa: 0.76, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1, tijue: 1 },
-  STAR_MULT: [       // 效果的门派星级倍率
-    1,     // 1 星门派
-    1.3,   // 2 星
-    1.6,   // 3 星
-    1.9,   // 4 星
-    2.2,   // 5 星
-    2.5,   // 6 星
-    2.7,   // 7 星
-    3,     // 8 星
-    3.3,   // 9 星
-    3.6,   // 10 星
-    3.9,   // 11 星（天外天）
-    4.2,   // 12 星（天外天）
-  ],
-  // v104：加生命 / 攻击 / 防御 / 速度 / 命中 / 闪避 / 法力 / 抗性的功法，星级倍率用这个（v125 起秘诀、肉身秘诀也用；法术仍用上面的 STAR_MULT）
-  //   按 12 个宗门全部功法相加时，金仙（1~8 星）功法约占怪物属性的 45%
   // v121：1 ~ 10 星宗门功法全部学会、全部练满（MAX 层）时，每项属性一共加多少（只算功法本身，不算灵根）
   //   每本每层 = TOTAL ÷ (Σ 1~10 星 STAT_STAR × 该星宗门数 × 该属性功法本数 × LV_MULT[MAX-1]) × STAT_STAR[星级-1] × 随机(1 ± RAND)
   //   坊市、仙魔冥神坊市、功德司、天外天（每类 1 本）= 宗门同星级同类一本 × 各自的 PCT%；抗性 res 按所有真诀合计
@@ -166,7 +142,7 @@ CFG.gongfa.sect = {
     cultivate: 3000000,   // 秘诀 → 修炼速度
     body: 3000000 },      // 肉身秘诀 → 肉身修炼速度
   RAND: 0.03,        // 每本功法效果的随机幅度：0.03 = ±3%（按功法固定，每次一样）
-  STAT_STAR: [   // 每星约 ×1.485，10 星 = 1 星的 35 倍
+  STAT_STAR: [   // 功法效果的门派星级倍率（法术不用）：每星约 ×1.485，10 星 = 1 星的 35 倍
     1,       // 1 星
     1.48,    // 2 星
     2.2,     // 3 星
@@ -180,7 +156,6 @@ CFG.gongfa.sect = {
     51.96,   // 11 星（天外天）
     77.12,   // 12 星（天外天）
   ],
-  TIER_MULT: { huang: 1, xuan: 1.3, di: 1.6, tian: 1.9 },   // 效果的阶倍率：黄 玄 地 天
   // 各项单独的总倍率（互不影响）
   EFFECT_GONGFA: 1,  // 功法效果
   EFFECT_PCT: 1,     // 法术伤害倍率
@@ -188,7 +163,7 @@ CFG.gongfa.sect = {
   // ---- 学习消耗（贡献，不受上面的倍率影响）----
   learn: 100,        // 学习贡献的基础值
   // 学习贡献的类别倍率
-  LEARN_TYPE: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1, tijue: 1.1 },
+  LEARN_TYPE: { xinfa: 2, gongjue: 2, zhenjing: 2, mijue: 2, shenfa: 2, dunshu: 2, fajue: 2, zhenjue: 2, spell: 1, tijue: 2.2 },
   LEARN_STAR: [      // 学习贡献的门派星级倍率
     0.5,     // 1 星门派
     5,     // 2 星
@@ -203,16 +178,13 @@ CFG.gongfa.sect = {
     260,   // 11 星（天外天）
     330,   // 12 星（天外天）
   ],
-  LEARN_TIER: { huang: 1, xuan: 1.5, di: 2, tian: 3 },   // 学习贡献的阶倍率：黄 玄 地 天
-  LEARN_AS: "di",    // v93 取消四阶后：功法学习贡献按这一阶的倍率算（法术按黄阶）
   EFFECT_LEARN: 1,   // 学习贡献的总倍率
-  // v93：已取消学习功法的职务限制（TIER_RANK 不再使用）
 };
 
 /* ================= 凡界坊市功法 & 法术 =================
  * 1~5 星，每星 6 个传承（金木水火土雷各一个）；每个传承 8 类功法各 1 本（没有肉身秘诀）+ 本传承属性的法术 1 本；用灵石学习
  * 效果 = 宗门同星级 × PCT%
- * 售价 = price × PRICE_TYPE[类别] × PRICE_STAR[星级-1] × PRICE_TIER[阶] × EFFECT_PRICE（取整；不受效果倍率影响）
+ * 售价 = price × PRICE_TYPE[类别] × PRICE_STAR[星级-1] × EFFECT_PRICE（取整；不受效果倍率影响）
  * 需要的境界：和同星级门派一样（config/sect.js 的 REQ_REALM） */
 CFG.gongfa.shop = {
   PCT: 90,           // 效果 = 宗门同星级功法 / 法术的 90%（伤害倍率、固定伤害、功法效果都按这个）
@@ -220,7 +192,7 @@ CFG.gongfa.shop = {
   // ---- 售价（灵石，不受上面的倍率影响）----
   price: 500,        // 售价的基础值
   // 售价的类别倍率
-  PRICE_TYPE: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1 },
+  PRICE_TYPE: { xinfa: 10, gongjue: 10, zhenjing: 10, mijue: 10, shenfa: 10, dunshu: 10, fajue: 10, zhenjue: 10, tijue: 10, spell: 1 },   // 坊市没有肉身秘诀，tijue 只是占位
   PRICE_STAR: [      // 售价的星级倍率
     1,     // 1 星
     30,    // 2 星
@@ -228,14 +200,12 @@ CFG.gongfa.shop = {
     100,   // 4 星
     180,   // 5 星
   ],
-  PRICE_TIER: { huang: 1, xuan: 3, di: 6, tian: 10 },   // 售价的阶倍率：黄 玄 地 天
-  PRICE_AS: "tian",  // v93 取消四阶后：坊市功法售价按这一阶的倍率算（法术按黄阶）
   EFFECT_PRICE: 1,   // 售价总倍率
 };
 
 /* ================= 天外天功法 & 法术（11、12 星，v106 预留，暂未开放获取） =================
  * 每星 6 个传承（金木水火土雷各一个），每个传承 9 类功法各 1 本 + 本传承属性的法术 1 本（data/gongfa.js 的 DATA.twSources）
- * 效果 = 宗门同星级算法 × PCT%（11、12 星的星级倍率见上面 sect 的 STAR_MULT / STAT_STAR）
+ * 效果 = 宗门同星级算法 × PCT%（11、12 星的星级倍率见上面 sect 的 STAT_STAR）
  * REQ = 需要的境界序号：11 星、12 星 */
 CFG.gongfa.tianwai = {
   PCT: 100,          // 效果 = 宗门同星级算法的 100%
