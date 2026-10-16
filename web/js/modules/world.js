@@ -606,8 +606,8 @@ G.module({
       return parts.join("、") + (lost ? `（背包已满，遗失 ${lost} 件）` : "");
     },
     // 战败损失
-    // v186 探索 / 出窍战败：只丢本次探索收获（物品 + 灵石），不扣身上灵石；历练、秘境 / 灵地照旧
-    exDropAll(x) { return !!x && !x.once && x.mj === undefined; },
+    // v187 历练 / 探索 / 出窍 / 秘境 / 灵地战败：只丢本次收获（物品 + 灵石），不扣身上灵石
+    exDropAll(x) { return !!x; },
     loseStone() { const lost = Math.floor(this.s.stone * CFG.explore.LOSE_STONE); this.s.stone -= lost; return lost; },
 
     /* ---------- 自动探索 ---------- */
