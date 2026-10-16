@@ -410,7 +410,9 @@ G.module({
         log.insertAdjacentHTML("beforeend", this.battleRow(b, x)); log.scrollTop = 1e9; }
       if (!anim) return;
       const fxEl = $("#bt-fx"), me = $("#bt-u" + w), tg = $("#bt-u" + (1 - w)); if (!fxEl || !me || !tg) return this.btHp();
-      const re = (el, c) => { el.classList.remove(c); void el.offsetWidth; el.classList.add(c); };
+      // v160 同一个元素只留一个动作 class（否则 CSS 里后写的动作会盖掉新动作，看起来原地不动）
+      const ALL = ["btv-hit", "btv-dodge", "btv-lunge-l", "btv-pounce-r", "btv-claw-r", "btv-wave-r", "btv-mpounce", "btv-mwave", "btv-cast"];
+      const re = (el, c) => { ALL.forEach(x => el.classList.remove(x)); void el.offsetWidth; el.classList.add(c); };
       const add = (cls, txt, side, ms) => { const n = document.createElement("div"); n.className = cls + " " + (side ? "r" : "l"); if (txt) n.textContent = txt; fxEl.appendChild(n); setTimeout(() => n.remove(), ms || 1200); return n; };
       const el = b.el && !w ? "" : b.el;   // 怪物法术 / 法宝带属性色
       const name = k === 1 ? (w ? (b.el ? DATA.elById[b.el].name + "系法术" : "法术") : (b.sp[sp] || "法术")) : k === 2 ? (w || !b.sp[sp] ? "法宝" : b.sp[sp]) : k === 3 ? (b.sp[sp] || "护盾") : k === 5 ? "金蝉秘法" : "";
@@ -423,12 +425,14 @@ G.module({
         this.btHp();
       };
       // v159 动作：人物普攻 = 冲到对方身边挥剑；人物法术 / 法宝 = 原地挥剑；怪物普攻 = 冲过去扑 / 挥爪（随机）；怪物法术 / 法宝 = 原地前扑 / 挥手（随机）
-      const MV = ["btv-lunge-l", "btv-pounce-r", "btv-claw-r", "btv-mpounce", "btv-mwave"];
-      const mv = c => { MV.forEach(x => x !== c && me.classList.remove(x)); re(me, c); };
+      // 普攻：先算出跑到对方面前要走多远（--dx，像素），再播放动作
+      const mv = c => { if (k === 0) { const im = el => (el.querySelector("img") || el).getBoundingClientRect(), a = im(me), t = im(tg);
+          const dx = w ? (t.right - a.left) - a.width * 0.25 : (t.left - a.right) + a.width * 0.25; me.style.setProperty("--dx", Math.round(dx) + "px"); }
+        re(me, c); if (k !== 0 && (k === 1 || k === 2)) me.classList.add("btv-cast"); };
       if (k === 1 || k === 2) { if (w) mv(Math.random() < 0.5 ? "btv-mpounce" : "btv-mwave"); }
-      if (k === 0) { me.classList.remove("btv-cast"); mv(w ? (Math.random() < 0.5 ? "btv-pounce-r" : "btv-claw-r") : "btv-lunge-l"); setTimeout(hit, 400); }
-      else if (k === 1) { re(me, "btv-cast"); add("btv-orb " + (w ? "go-l" : "go-r") + (el ? " el-" + el : ""), "", w, 700); setTimeout(hit, 520); }
-      else if (k === 2) { re(me, "btv-cast"); add("btv-fb " + (w ? "go-l" : "go-r"), "", w, 800); setTimeout(hit, 600); }
+      if (k === 0) { mv(w ? ["btv-pounce-r", "btv-claw-r", "btv-wave-r"][Math.floor(Math.random() * 3)] : "btv-lunge-l"); setTimeout(hit, 430); }
+      else if (k === 1) { if (!w) re(me, "btv-cast"); add("btv-orb " + (w ? "go-l" : "go-r") + (el ? " el-" + el : ""), "", w, 700); setTimeout(hit, 520); }
+      else if (k === 2) { if (!w) re(me, "btv-cast"); add("btv-fb " + (w ? "go-l" : "go-r"), "", w, 800); setTimeout(hit, 600); }
       else if (k === 3) { add("btv-shield", "", w, 1000); this.btHp(); }
       else if (k === 4) { add("btv-pop gray", "眩晕", w); this.btHp(); }
       else { add("btv-shield gold", "", w, 1000); this.btHp(); }

@@ -356,9 +356,9 @@ body.nologin #app, body.nologin #toast { display: none; }
 .btv-pop.crit{font-size:30px;color:#ff5a00}
 .btv-pop.gray{color:#555;font-size:18px}
 @keyframes btv-up{0%{opacity:0;margin-top:14px}15%{opacity:1;margin-top:0}75%{opacity:1}100%{opacity:0;margin-top:-26px}}
-.btv-lunge-l{animation:btv-lunge-l .75s ease-in-out}
+.btv-lunge-l{animation:btv-lunge-l .8s ease-in-out;z-index:3}
 .btv-lunge-r{animation:btv-lunge-r .5s ease-in-out}
-@keyframes btv-lunge-l{0%,100%{transform:none}40%,70%{transform:translateX(95%)}}
+@keyframes btv-lunge-l{0%,100%{transform:none}35%,72%{transform:translateX(var(--dx,120%))}}
 @keyframes btv-lunge-r{50%{transform:translateX(-80%)}}
 .btv-hit{animation:btv-hit .45s}
 @keyframes btv-hit{0%,100%{transform:none;filter:none}20%{transform:translateX(8px);filter:brightness(1.8) sepia(1) hue-rotate(-40deg) saturate(4)}40%{transform:translateX(-8px)}60%{transform:translateX(5px)}80%{transform:translateX(-3px)}}
@@ -420,17 +420,19 @@ button small .cd{min-width:0}
 .btv-sum{flex:none;padding:4px 10px;background:#efe3c4;color:#5a3b1c;font-size:13px;border-bottom:1px solid #d8c597}   /* v158 实力测试累计伤害 */
 
 /* v159 战斗动作：人物站立持剑，挥剑；怪物扑 / 挥手 */
-.btv-u.l img{max-height:90%;transform-origin:45% 95%}
+.btv-u.l img{max-height:76%;transform-origin:45% 95%}
 .btv-u.r img{transform-origin:50% 95%}
 @keyframes btv-swing{0%,100%{transform:none}35%{transform:rotate(-7deg)}60%{transform:rotate(11deg) translateX(6%)}}
-.btv-lunge-l img{animation:btv-swing-hit .75s ease-in-out}
-@keyframes btv-swing-hit{0%,40%,100%{transform:none}48%{transform:rotate(-8deg)}58%{transform:rotate(13deg) translateX(8%)}}
-.btv-pounce-r{animation:btv-pounce-r .75s ease-in-out}
-@keyframes btv-pounce-r{0%,100%{transform:none}25%{transform:translate(-45%,-14%) rotate(-8deg)}45%,65%{transform:translateX(-95%) rotate(-12deg) scale(1.06)}}
-.btv-claw-r{animation:btv-claw-r .75s ease-in-out}
-@keyframes btv-claw-r{0%,100%{transform:none}40%,70%{transform:translateX(-95%)}}
-.btv-claw-r img{animation:btv-wave .75s ease-in-out}
-@keyframes btv-wave{0%,40%,100%{transform:none}50%{transform:rotate(9deg)}62%{transform:rotate(-14deg) translateX(-6%)}}
+.btv-lunge-l img{animation:btv-swing-hit .8s ease-in-out}
+@keyframes btv-swing-hit{0%,36%,100%{transform:none}45%{transform:rotate(-10deg)}56%{transform:rotate(16deg) translateX(8%)}68%{transform:none}}
+.btv-pounce-r{animation:btv-pounce-r .8s ease-in-out;z-index:3}
+@keyframes btv-pounce-r{0%,100%{transform:none}10%{transform:translateY(4%) scaleY(.92)}30%{transform:translate(calc(var(--dx,-120%) * .55),-22%) rotate(-10deg)}48%{transform:translateX(var(--dx,-120%)) rotate(-16deg) scale(1.1)}58%{transform:translateX(var(--dx,-120%)) rotate(-4deg)}72%{transform:translateX(var(--dx,-120%))}}
+.btv-claw-r,.btv-wave-r{animation:btv-claw-r .8s ease-in-out;z-index:3}
+@keyframes btv-claw-r{0%,100%{transform:none}35%,72%{transform:translateX(var(--dx,-120%))}}
+.btv-claw-r img{animation:btv-claw2 .8s ease-in-out}
+.btv-wave-r img{animation:btv-wave .8s ease-in-out}
+@keyframes btv-claw2{0%,36%,72%,100%{transform:none}44%{transform:rotate(8deg)}52%{transform:rotate(-12deg) translateX(-5%)}60%{transform:rotate(6deg)}66%{transform:rotate(-10deg) translateX(-4%)}}
+@keyframes btv-wave{0%,36%,72%,100%{transform:none}46%{transform:rotate(12deg)}58%{transform:rotate(-18deg) translateX(-7%)}}
 .btv-mpounce{animation:btv-mpounce .6s ease-in-out}
 @keyframes btv-mpounce{0%,100%{transform:none}30%{transform:translate(4%,0) scaleY(.94)}55%{transform:translate(-14%,-8%) rotate(-7deg)}}
 .btv-mwave img{animation:btv-mwave .6s ease-in-out}
