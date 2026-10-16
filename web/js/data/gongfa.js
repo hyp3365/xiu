@@ -277,12 +277,12 @@ DATA.skillInfo = (id, lv) => DATA.isSpell(id) ? DATA.spellInfo(id, lv) : DATA.is
 /* ---------- 宗门秘法 ----------
  * id 规则："w星级:mf:种类"，例如 "w3:mf:expSpeed"。el 只用来选图片，灵根对秘法无效 */
 DATA.mifaKinds = [
-  { id: "mpBattle",  name: "斗灵秘法", label: "战斗法力恢复", unit: "%", sign: "+", el: "shui" },
+  { id: "mpBattle",  name: "斗灵秘法", label: "战斗每步回法力", unit: "点", sign: "+", el: "shui", cfg2: "DOULING" },
   { id: "mpIdle",    name: "养灵秘法", label: "平时法力恢复", unit: "%", sign: "+", el: "shui" },
-  { id: "hpBattle",  name: "斗血秘法", label: "战斗生命恢复", unit: "%", sign: "+", el: "mu" },
+  { id: "hpBattle",  name: "斗血秘法", label: "战斗每步回血", unit: "点", sign: "+", el: "mu", cfg2: "DOUXUE" },
   { id: "hpIdle",    name: "养血秘法", label: "平时生命恢复", unit: "%", sign: "+", el: "mu" },
-  { id: "spStudy",   name: "悟法秘法", label: "法术修炼时间", unit: "秒", sign: "-", el: "lei" },
-  { id: "gfStudy",   name: "悟道秘法", label: "功法修炼时间", unit: "秒", sign: "-", el: "jin" },
+  { id: "spStudy",   name: "悟法秘法", label: "法术修炼时间", unit: "%", sign: "-", el: "lei" },
+  { id: "gfStudy",   name: "悟道秘法", label: "功法修炼时间", unit: "%", sign: "-", el: "jin" },
   { id: "expSpeed",  name: "聚元秘法", label: "修为修炼速度", unit: "", sign: "+", el: "huo" },
   { id: "bodySpeed", name: "炼体秘法", label: "气血修炼速度", unit: "", sign: "+", el: "tu" },
   { id: "explore",   name: "神行秘法", label: "历练探索每步", unit: "秒", sign: "-", el: "jin" },
@@ -305,12 +305,18 @@ DATA.mifaKindById = Object.fromEntries(DATA.mifaKinds.map(k => [k.id, k]));
 DATA.MIFA_PREFIX = ["一元", "两仪", "三才", "四象", "五行", "六合", "七星", "八荒", "九宫", "十方"].map((x, i) => DATA.nmPick(_NM.mifaStar, i + 1, x));
 DATA.MIFA_TIER = { id: "mifa", name: "秘法", idx: 0 };
 DATA.mifaId = (star, kind) => `w${star}:mf:${kind}`;
+// 秘法修到圆满后额外的 %：聚元 / 炼体（修炼速度 %）、斗血 / 斗灵（每步恢复上限 %）
+DATA.mifaFullPct = (kind, star) => {
+  const W = CFG.wudao, arr = kind === "expSpeed" ? W.JUYUAN_PCT : kind === "bodySpeed" ? W.LIANTI_PCT : kind === "hpBattle" ? (W.DOUXUE || {}).PCT : kind === "mpBattle" ? (W.DOULING || {}).PCT : null;
+  return (arr || [])[star - 1] || 0;
+};
+DATA.mifaFullTxt = (kind, pct) => kind === "hpBattle" ? `每步再回生命上限 ${U.num(pct)}%` : kind === "mpBattle" ? `每步再回法力上限 ${U.num(pct)}%` : `再 +${U.num(pct)}%`;
 DATA.isMifa = id => id.split(":")[1] === "mf";
 DATA.mifaLearnCost = star => { const W = CFG.wudao, m = (W.STAR_COST || [])[star - 1] || 1; return { stone: Math.floor(W.LEARN_STONE * m), contrib: Math.floor(W.LEARN_CONTRIB * m) }; };
 DATA.mifaInfo = (id, lv = 1) => {
   const [w, , kind] = id.split(":"), star = +w.slice(1), K = DATA.mifaKindById[kind], W = CFG.wudao;
   if (!K || !(star >= 1 && star <= 10)) return null;
-  const per = K.cfg ? (((W[K.cfg] || {}).STAR || [])[star - 1] || 0) : kind === "explore" && W.SHENXING ? (W.SHENXING[star - 1] || 0) : kind === "danTime" && W.DANHUO ? (W.DANHUO[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : kind === "qiTime" && W.QIHUO ? (W.QIHUO[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : (W.base[kind] || 0) * ((W.STAR_MULT || [])[star - 1] || 1), max = DATA.GONGFA_MAX;
+  const per = K.cfg ? (((W[K.cfg] || {}).STAR || [])[star - 1] || 0) : kind === "explore" && W.SHENXING ? (W.SHENXING[star - 1] || 0) : kind === "gfStudy" && W.WUDAO ? (W.WUDAO[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : kind === "spStudy" && W.WUFA ? (W.WUFA[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : K.cfg2 && W[K.cfg2] ? ((W[K.cfg2].FLAT || [])[star - 1] || 0) : kind === "danTime" && W.DANHUO ? (W.DANHUO[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : kind === "qiTime" && W.QIHUO ? (W.QIHUO[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : (W.base[kind] || 0) * ((W.STAR_MULT || [])[star - 1] || 1), max = DATA.GONGFA_MAX;
   // 神行：修到圆满才生效一次（不乘层数）
   const val = l => kind === "explore" || K.full ? (l >= max ? per : 0) : per * DATA.lvMul(l);
   return { kind: "mf", id, star, mk: K, tier: DATA.MIFA_TIER, lv, el: DATA.elById[K.el], label: K.label,

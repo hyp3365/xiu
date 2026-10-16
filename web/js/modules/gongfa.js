@@ -89,11 +89,12 @@ G.module({
       return b;
     },
     hasGongfa(id) { return !!this.s.gongfa[id]; },
-    // 这一层的修炼时间（秒）= STUDY_MIN − 宗门秘法「悟法 / 悟道」减少的秒数，最少 STUDY_MIN_SEC（修炼秘法本身不减少）
+    // 这一层的修炼时间（秒）= STUDY_MIN × (1 − 宗门秘法「悟法 / 悟道」减少的 %)，最少 STUDY_MIN_SEC（修炼秘法本身不减少）
     studySec(g) {
       if (g.noEl) return Math.max(1, ((g.studyMin || [])[g.lv - 1] || 1) * 60);   // 开局功法书：config/start.js 的 STUDY_MIN
       const m = this.mifaBonus(), red = g.kind === "mf" ? 0 : g.kind === "sp" ? m.spStudy : m.gfStudy;
-      return Math.max(Math.min(CFG.wudao.STUDY_MIN_SEC || 10, DATA.studyMin[g.lv - 1] * 60), DATA.studyMin[g.lv - 1] * 60 - red);
+      const base = DATA.studyMin[g.lv - 1] * 60;
+      return Math.max(Math.min(CFG.wudao.STUDY_MIN_SEC || 10, base), base * (1 - Math.min(100, red) / 100));
     },
     // 是否学会了秘诀（修炼的前提）
     hasMijue() { return Object.keys(this.s.gongfa).some(id => id.split(":")[1] === "mijue"); },
@@ -188,9 +189,9 @@ G.module({
       // 属性数值颜色：没有灵根加成 = 白色，有加成 = 绿色（数值已含加成）
       const cv = v => `<b class="${lg ? "gf-up" : "gf-base"}">${v}</b>`;
       const mfv = v => `${g.mk.sign}${U.num(v)}${g.mk.unit}`;
-      const xp = g.kind === "mf" ? ((CFG.wudao[g.mk.id === "expSpeed" ? "JUYUAN_PCT" : g.mk.id === "bodySpeed" ? "LIANTI_PCT" : ""] || [])[g.star - 1] || 0) : 0;   // 聚元 / 炼体 圆满额外 %
+      const xp = g.kind === "mf" ? DATA.mifaFullPct(g.mk.id, g.star) : 0;   // 聚元 / 炼体 / 斗血 / 斗灵 圆满额外 %
       const desc = g.kind === "mf" && xp
-        ? `${g.label} ${mfv(g.value)}${max ? "" : `，下一层 ${mfv(g.next)}`}，圆满${max ? "" : "后"}再 +${U.num(xp)}%`
+        ? `${g.label} ${mfv(g.value)}${max ? "" : `，下一层 ${mfv(g.next)}`}，圆满${max ? "" : "后"}${DATA.mifaFullTxt(g.mk.id, xp)}`
         : g.kind === "mf"
         ? (g.mk.id === "explore" || g.mk.full ? `${g.label} ${max ? mfv(g.value) : `圆满后 ${mfv(g.perLv)}`}` : `${g.label} ${mfv(g.value)}${max ? "" : `，下一层 ${mfv(g.next)}`}`)
         : g.kind === "sp"

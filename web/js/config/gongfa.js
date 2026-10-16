@@ -31,7 +31,7 @@
  *   境界数组写不满 24 个时，超出的境界用最后一个值。
  *
  * 三、修炼升层（功法、法术、宗门秘法都在「功法」页排队修炼）
- *   每层修炼时间 = STUDY_MIN[当前层-1] 分钟（宗门秘法「悟道 / 悟法」可减少，最少 config/wudao.js 的 STUDY_MIN_SEC 秒）
+ *   每层修炼时间 = STUDY_MIN[当前层-1] 分钟（宗门秘法「悟道 / 悟法」按 % 减少，最少 config/wudao.js 的 STUDY_MIN_SEC 秒）
  *   每 STUDY_STEP 秒（默认 5 秒）扣一次修为 = STUDY_RATE × STUDY_STAR[星级-1] × STUDY_TIER[阶]（取整，至少 1；不乘层数）
  *     宗门秘法没有阶，按 STUDY_TIER = 1 算；另外每次还扣灵石（见 config/wudao.js 的 STUDY_STONE）
  *   一层一共消耗修为 = 每次消耗 × (修炼时间 ÷ STUDY_STEP)，层数越高只是时间越长
