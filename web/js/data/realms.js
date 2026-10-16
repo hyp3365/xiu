@@ -64,3 +64,6 @@ DATA.CRIT_CAP = _P.CRIT_CAP;
 
 // 修炼节奏：每 10 秒结算一次
 DATA.TICK = 10;
+
+// v171 保底伤害：练气一层 MIN_BASE，每层 + MIN_STEP（L = 总层序，0 = 练气一层）
+DATA.minDmg = L => (CFG.battle.MIN_BASE === undefined ? 1 : CFG.battle.MIN_BASE) + (CFG.battle.MIN_STEP === undefined ? 3 : CFG.battle.MIN_STEP) * Math.max(0, L || 0);

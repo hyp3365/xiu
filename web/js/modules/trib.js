@@ -40,7 +40,7 @@ G.module({
     // 劫云劈一次的伤害 [伤害, 是否暴击]
     tribHit(x) {
       const BT = CFG.battle, def = this.stats().def;
-      let d = Math.max(x.atk * BT.MIN_DMG, x.atk - def * BT.DEF_RATE) * (BT.RAND_MIN + Math.random() * (BT.RAND_MAX - BT.RAND_MIN));
+      let d = Math.max(DATA.minDmg(this.s.mortal ? 0 : this.s.L), x.atk - def * BT.DEF_RATE) * (BT.RAND_MIN + Math.random() * (BT.RAND_MAX - BT.RAND_MIN));
       const c = Math.random() * 100 < Math.min(DATA.CRIT_CAP || 100, x.crit);
       return [c ? d * BT.CRIT_MULT : d, c];
     },

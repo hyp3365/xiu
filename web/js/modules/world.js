@@ -107,7 +107,7 @@ G.module({
       const v = x => x * DATA.mobRnd();   // × 随机浮动
       const name = kind === "boss" ? DATA.regionBoss(a, r) : (kind === "elite" ? "精英·" : "") + U.pick(map.monsters);
       return this.addMagic({ name, Lm: R.L, kind, boss: kind === "boss", elite: kind === "elite",
-        hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), mana: v(b.mana), res: v(b.res), manaBr: b.manaBr, crit: b.crit }, kind);
+        hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), mana: v(b.mana), res: v(b.res), manaBr: b.manaBr, L: b.L, crit: b.crit }, kind);
     },
 
     // 给怪物加 属性 / 六系抗性 / 法术 / 法宝（config/mobs.js 的 mobs.magic）
@@ -129,7 +129,7 @@ G.module({
       const st = this.stats(), s = this.s, TEST = !!opt.test;
       const spells = s.spellSlots.slice(0, this.slotCount()).map(id => DATA.spellInfo(id, s.gongfa[id])).filter(Boolean);
       let si = 0, act = null;   // act：这一下出手的方式 { k: 0 普通攻击 / 1 法术 / 2 法宝, sp 法术名序号, f: 0 命中 / 1 被闪避 / 2 暴击 }
-      const BT = CFG.battle, rnd = () => BT.RAND_MIN + Math.random() * (BT.RAND_MAX - BT.RAND_MIN);
+      const BT = CFG.battle, myL = s.mortal ? 0 : s.L, MIN = A => DATA.minDmg(A === st ? myL : (A.L === undefined ? myL : A.L)), rnd = () => BT.RAND_MIN + Math.random() * (BT.RAND_MAX - BT.RAND_MIN);
       // 某系抗性 = 防御 × RES_RATE + 该系抗性（config/battle.js）
       const RR = BT.RES_RATE === undefined ? 1 : BT.RES_RATE, resOf = (D, el) => D.def * RR + ((D.res || {})[el] || 0);
       const roll = (A, D, raw, k, sp) => {
@@ -139,7 +139,7 @@ G.module({
         if (Math.random() * 100 < Math.min(DATA.CRIT_CAP, A.crit)) { d *= BT.CRIT_MULT; act.f = 2; } // 暴击
         return d;
       };
-      const hit = (A, D) => roll(A, D, Math.max(A.atk * BT.MIN_DMG, A.atk - D.def * BT.DEF_RATE), 0);
+      const hit = (A, D) => roll(A, D, Math.max(MIN(A), A.atk - D.def * BT.DEF_RATE), 0);
       // v57：鼎 → 对方速度 / 命中 / 闪避降低（m.deb，剩 left 回合）；印 → 对方眩晕（m.stun 回合）；盾 → 护盾（shield，打光为止）
       const mE = () => m.deb ? Object.assign({}, m, { speed: m.speed * (1 - m.deb.speed / 100), hit: m.hit * (1 - m.deb.hit / 100), dodge: m.dodge * (1 - m.deb.dodge / 100) }) : m;
       let shield = null;
@@ -151,7 +151,7 @@ G.module({
       const spNames = [...spells.map(sp => sp.name), ...fabaos.map(fb => fb.name)];
       // 法宝伤害：攻击 × 伤害%，按「防御×RES_RATE + 该系抗性 − 无视抗性」减免；再加附加伤害 = 主伤害 × %
       const fabaoDmg = fb => {
-        let d = Math.max(st.atk * BT.MIN_DMG, fb.atk * fb.pct / 100 - Math.max(0, resOf(m, fb.el) - fb.ign) * BT.DEF_RATE);
+        let d = Math.max(MIN(st), fb.atk * fb.pct / 100 - Math.max(0, resOf(m, fb.el) - fb.ign) * BT.DEF_RATE);
         let ex = 0; for (const x of fb.extra) ex += d * x.pct / 100;   // 附加伤害：主伤害 × %
         return d + ex + (fb.addDmg || 0);   // v152 强化附加伤害（固定数字）
       };
@@ -168,7 +168,7 @@ G.module({
         if ((usedN[j] || 0) >= ((a.k === 1 ? a.sp.uses : a.fb.uses) || 1)) return null;   // v152 每场战斗使用次数用完
         usedN[j] = (usedN[j] || 0) + 1;
         s.mana -= cost;
-        if (a.k === 1) { const sp = a.sp; return roll(st, mE(), Math.max(st.atk * BT.MIN_DMG, sp.atk * sp.pct / 100 * sp.mul * this.lingenSpell(sp.el.id) - resOf(m, sp.el.id) * BT.DEF_RATE), 1, j); }
+        if (a.k === 1) { const sp = a.sp; return roll(st, mE(), Math.max(MIN(st), sp.atk * sp.pct / 100 * sp.mul * this.lingenSpell(sp.el.id) - resOf(m, sp.el.id) * BT.DEF_RATE), 1, j); }
         const fb = a.fb;
         if (fb.shield) { shield = Object.assign({ el: fb.el }, fb.shield); act = { k: 3, sp: j, f: 0 }; return 0; }
         let d = roll(fb.hit || fb.critAdd ? Object.assign({}, st, { hit: st.hit + (fb.hit || 0), crit: st.crit + (fb.critAdd || 0) }) : st, mE(), fabaoDmg(fb), 2, j);   // 刀 / 锤专属：本次攻击额外命中、暴击
@@ -179,7 +179,7 @@ G.module({
         }
         return d;
       };
-      const est = a => a.k === 1 ? Math.max(st.atk * BT.MIN_DMG, a.sp.atk * a.sp.pct / 100 * a.sp.mul * this.lingenSpell(a.sp.el.id) - resOf(m, a.sp.el.id) * BT.DEF_RATE) : a.fb.shield ? -1 : fabaoDmg(a.fb);
+      const est = a => a.k === 1 ? Math.max(MIN(st), a.sp.atk * a.sp.pct / 100 * a.sp.mul * this.lingenSpell(a.sp.el.id) - resOf(m, a.sp.el.id) * BT.DEF_RATE) : a.fb.shield ? -1 : fabaoDmg(a.fb);
       const costOf = a => a.k === 1 ? a.sp.mana : a.fb.mana;
       const jOf = key => acts.findIndex(a => a.key === key);
       const useJ = acts.map((a, j) => j).filter(j => !off.includes(acts[j].key));
@@ -244,7 +244,7 @@ G.module({
         const c = m[k], P = c && c.mana || [0, 1], cost = c ? (m.manaBr || 0) * P[0] * (P[1] === undefined ? 1 : P[1]) : 0;   // 耗法力 = 修为突破法力 × 比例 × 倍率
         if (!c || m.mana < cost || Math.random() * 100 >= c.chance) return -1;
         m.mana -= cost; k === "spell" ? mSp++ : mFb++;
-        return roll(mE(), st, Math.max(m.atk * BT.MIN_DMG, m.atk * c.pct / 100 - (el ? resOf(st, el) : st.def) * BT.DEF_RATE), k === "spell" ? 1 : 2);
+        return roll(mE(), st, Math.max(MIN(m), m.atk * c.pct / 100 - (el ? resOf(st, el) : st.def) * BT.DEF_RATE), k === "spell" ? 1 : 2);
       };
       const mobHit = () => { let d = mCast("spell", m.el); if (d < 0) d = mCast("fabao", m.el); return d < 0 ? hit(mE(), st) : d; };   // v25：怪物法宝也是属性伤害
       // 每一下记一条：[回合, 谁(0 你 / 1 对方), 方式, 法术名序号, 结果, 伤害, 你的生命, 你的法力, 对方生命, 对方法力]
@@ -764,7 +764,7 @@ G.module({
       const d = this.mjDef(i, k), b = DATA.mobMeet(d, kind), v = x => x * DATA.mobRnd();
       const name = kind === "boss" ? d.bossName : (kind === "elite" ? "精英·" : "") + U.pick(d.monsters);
       return this.addMagic({ name, Lm: d.L, kind, boss: kind === "boss", elite: kind === "elite",
-        hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), mana: v(b.mana), res: v(b.res), manaBr: b.manaBr, crit: b.crit }, kind);
+        hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), mana: v(b.mana), res: v(b.res), manaBr: b.manaBr, L: b.L, crit: b.crit }, kind);
     },
     // 秘境 / 灵地掉落 = 借用地图的药材矿石表（种数个数按 CFG.dropRule.mijing / lingdi，× 自己的 mat）+ extra 额外掉落
     //   秘境借用 drops 那张凡界地图；灵地借用发现地图（这一界的药材矿石表）

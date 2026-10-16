@@ -106,7 +106,7 @@ G.module({
     rankTrialCost(i) { return Math.floor(((CFG.sect.rankTrial.cost || [])[i] || 0) * this.starMul()); },
     makeRankGuard(i) {
       const b = DATA.mobStats(DATA.mobExam(this.sectInfo().star, i), DATA.mobCrit("考官")), v = x => x * DATA.mobRnd();   // config/mobs.js 的 sect
-      return this.addMagic({ name: `${DATA.ranks[i].name}考官`, boss: false, hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), mana: v(b.mana), res: v(b.res), manaBr: b.manaBr, crit: b.crit }, "tower");
+      return this.addMagic({ name: `${DATA.ranks[i].name}考官`, boss: false, hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), mana: v(b.mana), res: v(b.res), manaBr: b.manaBr, L: b.L, crit: b.crit }, "tower");
     },
     challengeRank() {
       const s = this.s, i = s.rank + 1; if (i >= DATA.ranks.length || s.rankPass === i) return;
@@ -348,7 +348,7 @@ G.module({
       const T = CFG.sect.tower, star = this.sectInfo().star, R = (CFG.sect.REQ_REALM || [])[star - 1] || 0;
       const tw = DATA.towerStage(star, floor, this.towerMax());
       if (tw) { const m = {}; for (const k of DATA.REF_KEYS) m[k] = tw[k] * DATA.mobRnd(); m.crit = tw.crit; m.manaBr = tw.manaBr; return this.addMagic(Object.assign(m, { name: `第${floor}层守关者`, boss: false }), "tower"); }
-      const m = DATA.refMob(DATA.refStats(R, T.LAYER || 5, T.GF === undefined ? 5 : T.GF), T.MULT, Math.pow(T.GROW, floor - 1));
+      const m = DATA.refMob(DATA.refStats(R, T.LAYER || 5, T.GF === undefined ? 5 : T.GF), T.MULT, Math.pow(T.GROW, floor - 1)); m.L = R * DATA.LAYERS + (T.LAYER || 5) - 1;
       return this.addMagic(Object.assign(m, { name: `第${floor}层守关者`, boss: false }), "tower");
     },
     // 第 f 层每 10 层的额外奖励是什么：{ kind: "ring", r } / { kind: "rbp", g } / { kind: "mijue" }
@@ -430,7 +430,7 @@ G.module({
     testFight() {
       const t = this.testMobT(), b = DATA.mobRoll(t, DATA.mobCrit("普通"));   // v168 学哪些功法、每本几层随机
       const v = x => x * DATA.mobRnd();   // 和地图普通怪一样每项随机浮动
-      const m = this.addMagic({ name: this.testMobName(), kind: "normal", hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), mana: v(b.mana), res: v(b.res), manaBr: b.manaBr, crit: b.crit }, "normal");
+      const m = this.addMagic({ name: this.testMobName(), kind: "normal", hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), mana: v(b.mana), res: v(b.res), manaBr: b.manaBr, L: b.L, crit: b.crit }, "normal");
       const res = this.battle(m, { test: true });
       this.playBattle(res.detail, "实力测试", "", true, [], false, { test: true, tname: `${DATA.realms[this.testPick().r]}${DATA.layerNames[this.testPick().l - 1]}` });
     },

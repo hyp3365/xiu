@@ -61,7 +61,7 @@ DATA.mobCalc = (t, crit, rnd) => {
   const o = {};
   for (const x of DATA.MOB_KEYS) o[x] = (st[x] + add[x] + bd[x]) * R.k;
   o.manaBr = st.manaBr;   // 修为突破的法力（法术 / 法宝耗法力用，不乘倍率）
-  o.crit = crit || 0; o.layer = lay;
+  o.crit = crit || 0; o.layer = lay; o.L = R.realm * DATA.LAYERS + lay - 1;   // v171 总层序（保底伤害用）
   return o;
 };
 // 显示用（平均值）

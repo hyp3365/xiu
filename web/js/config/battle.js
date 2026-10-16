@@ -7,21 +7,23 @@
  *   历练、秘境、试炼塔、宗门考核、星君挑战都用 battle；雷劫用同样的 MIN_DMG / DEF_RATE / RAND / CRIT_MULT。
  *   出手顺序：速度高者先手（相等时人物先手），双方轮流各出手一次为一回合，最多 MAX_ROUNDS 回合。
  *
- *   普通攻击：原始伤害 = max(攻击 × MIN_DMG, 攻击 − 对方防御 × DEF_RATE)
- *   法术    ：原始伤害 = max(攻击 × MIN_DMG, 攻击 × 法术% + 法术固定伤害 × 灵根加成 − 对方该系抗性 × DEF_RATE)
- *   法宝    ：原始伤害 = max(攻击 × MIN_DMG, 攻击 × 法宝% + 属性伤害 − 减免后该系抗性 × DEF_RATE) + 追加伤害
- *   怪物法术 / 法宝：原始伤害 = max(攻击 × MIN_DMG, 攻击 × pct% − 对方该系抗性 × DEF_RATE)（见 config/mobs.js 的 magic）
+ *   普通攻击：原始伤害 = max(保底伤害（MIN_BASE + 层 × MIN_STEP）, 攻击 − 对方防御 × DEF_RATE)
+ *   法术    ：原始伤害 = max(保底伤害（MIN_BASE + 层 × MIN_STEP）, 攻击 × 法术% + 法术固定伤害 × 灵根加成 − 对方该系抗性 × DEF_RATE)
+ *   法宝    ：原始伤害 = max(保底伤害（MIN_BASE + 层 × MIN_STEP）, 攻击 × 法宝% + 属性伤害 − 减免后该系抗性 × DEF_RATE) + 追加伤害
+ *   怪物法术 / 法宝：原始伤害 = max(保底伤害（MIN_BASE + 层 × MIN_STEP）, 攻击 × pct% − 对方该系抗性 × DEF_RATE)（见 config/mobs.js 的 magic）
  *   其中 某系抗性 = 防御 × RES_RATE + 该系抗性
  *
  *   然后：先判闪避（闪避几率 % = (防守方闪避 − 进攻方命中) ÷ 进攻方命中 × 100 ÷ DODGE_DIV，上限 DODGE_CAP，见 config/player.js）
  *         没闪避 → 伤害 = 原始伤害 × 随机(RAND_MIN ~ RAND_MAX)
  *         再判暴击（几率 = min(暴击%, CRIT_CAP)）→ 暴击时伤害 × CRIT_MULT
- *   雷劫：伤害 = max(攻击 × MIN_DMG, 攻击 − 防御 × DEF_RATE) × 随机(RAND_MIN ~ RAND_MAX)，暴击 × CRIT_MULT；雷劫无法闪避
+ *   雷劫：伤害 = max(保底伤害（MIN_BASE + 层 × MIN_STEP）, 攻击 − 防御 × DEF_RATE) × 随机(RAND_MIN ~ RAND_MAX)，暴击 × CRIT_MULT；雷劫无法闪避
  * ===================================================================== */
 window.CFG = window.CFG || {};
 
 CFG.battle = {
-  MIN_DMG: 0.01,     // 保底伤害 = 攻击 × 0.01（防御再高也至少打这么多）
+  MIN_DMG: 0.01,     // （v171 起不用）
+  MIN_BASE: 1,       // v171 保底伤害（防御再高也至少打这么多）= 练气一层 MIN_BASE，之后每层 + MIN_STEP（看出手方自己的境界层数；凡人 = 练气一层）
+  MIN_STEP: 3,
   DEF_RATE: 0.9,     // 防御 / 抗性抵消比例：伤害 = 攻击 − 防御 × 0.9
   RAND_MIN: 0.9,     // 伤害随机下限（× 0.9）
   RAND_MAX: 1.1,     // 伤害随机上限（× 1.1）
