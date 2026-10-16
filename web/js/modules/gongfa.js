@@ -170,7 +170,9 @@ G.module({
       return Math.max(Math.min(CFG.wudao.STUDY_MIN_SEC || 10, base), base * (1 - Math.min(100, red) / 100));
     },
     // 是否学会了秘诀（修炼的前提）
-    hasMijue() { return Object.keys(this.s.gongfa).some(id => id.split(":")[1] === "mijue"); },
+    hasMijue() { return this.hasGfStat("cultivate"); },
+    // 学会了加某属性的功法（按类型的 stat 判断，同类的第 2、3 本 mijue2 / tijue3 等也算）
+    hasGfStat(stat) { return Object.keys(this.s.gongfa || {}).some(id => { if (DATA.isSpell(id) || id.split(":")[1] === "mf") return false; const g = DATA.gongfaInfo(id, 1); return !!(g && g.type && g.type.stat === stat); }); },
 
     // 本部功法计划达到的层数（当前层 + 正在修炼 + 队列中）
     plannedLv(id) {

@@ -31,7 +31,7 @@ G.module({
   api: {
     // 肉身此刻是否在自动修炼（进度条用）
     bodyActive() { return !!this.s.bodyAuto && this.hasTijue() && !this.exBlocksCult() && !this.bodyMax() && this.s.ling >= 1; },
-    hasTijue() { return Object.keys(this.s.gongfa || {}).some(id => id.split(":")[1] === "tijue"); },
+    hasTijue() { return this.hasGfStat("body"); },   // 任意一本肉身秘诀（tijue / tijue2 / tijue3 …）
     bodyMaxL() { return CFG.body.names.length * DATA.LAYERS - 1; },
     bodyMax() { return this.s.bodyL >= this.bodyMaxL(); },
     // 肉身境界名：凡体 / 淬皮一层
