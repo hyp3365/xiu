@@ -985,7 +985,7 @@ G.module({
           const sub = x.mj !== undefined ? (x.once ? "" : x.queue && x.queue.length ? `一键探索 · 后面还有 ${x.queue.length} 处` : this.mjLabel(x.mk) + "探索") : x.once ? "" : x.cq ? `已完成 ${x.count} / ${x.cq} 次` : `已完成 ${x.count} 次`;
           return `<div class="card"><h3>${x.once ? "历练中" : x.cq ? "出窍探索中" : "自动探索中"} · ${this.exName(x)}<small>${sub}</small></h3>
           <div class="bar tick"><div style="width:${x.step / T * 100}%"></div></div>
-          <div class="row small"><span>第 ${x.step} / ${T} 步 · 剩余 ${U.dur(Math.ceil((T - x.step) * (x.ms || 1000) / 1000))}</span><span>
+          <div class="row small"><span>第 ${U.fix(x.step)} / ${T} 步 · 剩余 ${U.cd(Math.ceil((T - x.step) * (x.ms || 1000) / 1000))}</span><span>
             <button class="sm" onclick="G.setExploreOpen(${!this.exploreOpen})">${this.exploreOpen ? "收起信息" : "探索信息"}</button>
             <button class="sm" onclick="G.stopNow()">停止</button></span></div>
           <p class="desc">本次收获（结束后放入背包）：灵石 ${U.fmt(L.stone)}${mats.length ? "、" + mats.join("、") : ""}</p>

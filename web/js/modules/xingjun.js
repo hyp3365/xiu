@@ -156,7 +156,7 @@ G.module({
       const s = this.s, w = this.xjW(a), o = this.xjOfficeOf(w), H = CFG.xingjun.HOUR || 3600, L = this.xjLast && this.xjW(this.xjLast.map) === w ? this.xjLast : null;
       const next = o ? Math.max(0, Math.ceil((o.T + H * 1000 - this.now()) / 1000)) : 0;
       return `<div class="row small"><span>官位 ${this.xjOffice(o)}</span><span>功德 ${U.fmt(s.merit || 0)} · 本图贡献 ${U.fmt(this.xjGxOf(a))}</span></div>
-        ${o ? `<div class="line"><div>俸禄<small>${this.xjRangeText(this.xjRate(o))} / ${U.dur(H)} · ${U.dur(next)}后结算</small></div><button class="sm" onclick="G.xjResign('${w}')">辞官</button></div>` : ""}
+        ${o ? `<div class="line"><div>俸禄<small>${this.xjRangeText(this.xjRate(o))} / ${U.dur(H)} · ${U.cd(next)}后结算</small></div><button class="sm" onclick="G.xjResign('${w}')">辞官</button></div>` : ""}
         ${L ? `<p class="desc ${L.bad ? "q5" : ""}">${L.title}</p>${L.ev.map((e, i) => `<div class="row small"><span class="${e.c === "bad" ? "q5" : ""}">${e.t}</span>${e.b ? `<button class="sm" onclick="G.xjShowLast(${i})">详情</button>` : ""}</div>`).join("")}` : ""}`;
     },
     // 天宫（界主）

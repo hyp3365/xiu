@@ -63,7 +63,7 @@ G.module({
       let info = "";
       if (f.g >= 0) {
         const T = this.fieldTime(f.g), now = this.now(), H = DATA.herbGrow(f.g), k = 1 + this.plantYieldPct(f.g) / 100, p = f.wait ? 0 : Math.min(100, (now - f.start) / T * 100);
-        info = `<div class="line"><div>剩余时间</div><b>${f.wait ? "灵气不足，等待中" : U.dur(Math.max(0, f.start + T - now) / 1000)}</b></div>
+        info = `<div class="line"><div>剩余时间</div><b>${f.wait ? "灵气不足，等待中" : U.cd(Math.max(0, f.start + T - now) / 1000)}</b></div>
           <div class="bar"><div style="width:${p}%"></div></div>
           <div class="line"><div>产量</div><b>${Math.floor(H.yield[0] * k)}~${Math.floor(H.yield[1] * k)} 株</b></div>
           ${f.next != null ? `<div class="line"><div>本季结束后改种</div><b>${DATA.herbs[f.next]}</b></div>` : ""}`;

@@ -269,7 +269,7 @@ G.module({
     cqLine() {
       const s = this.s, C = CFG.chuqiao, lv = s.cqLv || 0; if (!lv) return "";
       const max = lv >= C.MAX_LV, x = s.cqStudy, c = this.cqStudyCost(lv);
-      const st = x ? `<br>修炼中 · ${x.stalled ? "<b class='q5'>修为不足，暂停中</b>" : `剩余 ${this.countdown(x.total - x.done - Math.max(0, Date.now() - x.at))}`} · 已消耗 ${U.fmt(x.spent || 0)} / ${U.fmt(c.per * c.n)} 修为`
+      const st = x ? `<br>修炼中 · ${x.stalled ? "<b class='q5'>修为不足，暂停中</b>" : `剩余 ${this.countdown(x.total - x.done - Math.max(0, Date.now() - x.at))}`} · 已消耗 ${U.fix(U.fmt(x.spent || 0))} / ${U.fmt(c.per * c.n)} 修为`
         : max ? "" : `<br>下一层：${U.dur(c.sec)} · 每 ${c.step} 秒 ${U.fmt(c.per)} 修为（共 ${U.fmt(c.per * c.n)}）+ ${DATA.smName("lu")} ${c.lu} 个（已有 ${U.fmt(this.smCount("lu"))}）`;
       return `<div class="line"><div>${DATA.li(DATA.iconImg("mifa"))}《${C.NAME}》<span class="tag">${lv}/${C.MAX_LV}层</span>
         <small>出窍探索时可继续修炼 · 每天可出窍 ${this.cqMaxRuns()} 次（今天还剩 ${this.cqLeftToday()} 次）${st}</small></div>
@@ -492,7 +492,7 @@ G.module({
       const a = s.affair, cur = a.task >= 0 ? DATA.affairs[a.task] : null;
       h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "affair", "事务堂")}<small>点任务开始，完成后自动继续，离线也进行</small></h3>` +
         (cur ? (() => { const T = cur.time * 60000, p = Math.min(100, (Date.now() - a.start) / T * 100);
-          return `<div class="row small"><span>执行中：${cur.name}（已完成 ${a.count} 次）</span><span>${U.dur(Math.max(0, a.start + T - Date.now()) / 1000)}</span></div>
+          return `<div class="row small"><span>执行中：${cur.name}（已完成 ${a.count} 次）</span><span>${U.cd(Math.max(0, a.start + T - Date.now()) / 1000)}</span></div>
             <div class="bar tick"><div style="width:${p}%"></div></div>`; })() : `<p class="desc">当前没有执行任务。</p>`) +
         DATA.affairs.map((t, i) => { const lock = t.rank > s.rank, on = a.task === i;
           return `<div class="line"><div>${t.name}<span class="tag">${DATA.ranks[t.rank].name}</span><small>每次 ${U.dur(t.time * 60)} · 贡献 +${U.fmt(this.affairContrib(i))} · 灵石 +${U.fmt(this.affairStone(i))}</small></div>
@@ -509,7 +509,7 @@ G.module({
     } else if (tab === "gfroom") {
       const FG = CFG.sect.freeGfRoom, fg = s.freeGf || {}, fgOn = this.freeGfOn(), fgDone = !fgOn && this.freeUsed(fg) >= FG.daily;
       h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "gfroom", "练功房")}<small>减少功法修炼时间 · 修炼功法时每 5 秒消耗贡献</small></h3>
-        <div class="line"><div>${FG.name}<span class="tag">修炼时间 -${U.num(this.freeGfPct())}%</span><small>${fgOn ? `剩余 ${U.dur(Math.ceil((fg.end - this.now()) / 1000))}` : `每天 ${FG.daily} 次 · 每次 ${FG.minutes} 分钟 · 不消耗贡献`}</small></div>
+        <div class="line"><div>${FG.name}<span class="tag">修炼时间 -${U.num(this.freeGfPct())}%</span><small>${fgOn ? `剩余 ${U.cd(Math.ceil((fg.end - this.now()) / 1000))}` : `每天 ${FG.daily} 次 · 每次 ${FG.minutes} 分钟 · 不消耗贡献`}</small></div>
           <button class="sm ${fgOn ? "on" : ""}" onclick="G.enterFreeGfRoom()" ${fgOn || fgDone ? "disabled" : ""}>${fgOn ? "使用中" : fgDone ? "今日已用" : "进入"}</button></div>` + DATA.gfRooms.map((r, i) => {
         const on = s.gfRoom === i, lock = !on && this.gfRoomLocked(i);
         return `<div class="line"><div>${r.name}<span class="tag">修炼时间 -${U.num(this.gfRoomPct(i))}%</span>${r.rank ? `<span class="tag">${DATA.ranks[r.rank].name}专用</span>` : ""}<small>每 5 秒消耗 ${U.fmt(this.gfRoomCost(i))} 贡献</small></div>
@@ -520,7 +520,7 @@ G.module({
       h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "pool", P.name)}<small>每天 ${P.DAILY} 次 · 每次 ${P.MINUTES} 分钟</small></h3>` + P.list.map((d, i) => {
         const me = on && p.i === i, lock = (d.rank || 0) > s.rank, c = this.poolCost(i), gn = this.poolGainOf(i);
         const gt = Object.keys(gn).map(k => `${{ hp: "生命", atk: "攻击", def: "防御", mana: "法力", hit: "命中", dodge: "闪避", crit: "暴击%", res: "抗性" }[k] || k} +${U.fmt(gn[k])}`).join(" ");
-        return `<div class="line"><div>${d.name}${d.rank ? `<span class="tag">${DATA.ranks[d.rank].name}专用</span>` : ""}<small>${me ? `剩余 ${U.dur(Math.ceil((p.end - this.now()) / 1000) + 59)} · ` : ""}${gt} · 消耗${c.contrib ? `贡献 ${U.fmt(c.contrib)} ` : ""}气血 ${U.fmt(c.hp)}</small></div>
+        return `<div class="line"><div>${d.name}${d.rank ? `<span class="tag">${DATA.ranks[d.rank].name}专用</span>` : ""}<small>${me ? `剩余 ${U.cd(Math.ceil((p.end - this.now()) / 1000) + 59)} · ` : ""}${gt} · 消耗${c.contrib ? `贡献 ${U.fmt(c.contrib)} ` : ""}气血 ${U.fmt(c.hp)}</small></div>
           <button class="sm ${me ? "on" : ""}" onclick="G.enterPool(${i})" ${on || done || lock ? "disabled" : ""}>${me ? "修炼中" : lock ? "职务不足" : done ? "今日已用" : "进入"}</button></div>`;
       }).join("") + `</div>`;
     } else if (tab === "treasury") {

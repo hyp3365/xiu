@@ -126,7 +126,7 @@ G.caveViews.servant = function () {
   const rows = s.servants.map((d, i) => { const o = this.svOwed(d);
     return `<div class="sv-row"><img src="${this.svImg(d)}" alt=""><div class="sv-nm">${this.svName(d)}<small>${d.job ? C.JOB[d.job].name : "空闲"}${o ? ` · <span class="q5">欠俸 ${o} 天</span>` : ""}</small></div><b class="sv-el sv-${d.el}">${C.EL[d.el]}</b><span>资质${d.star}星</span><span>等级${d.lv}级</span><button class="sm" onclick="G.openSv(${i})">管理</button></div>`; }).join("");
   const pickBtn = !p ? `<button class="primary" onclick="G.svStartPick()" ${s.stone < C.PICK_COST || n >= C.MAX ? "disabled" : ""}>选拔道童<small>${n >= C.MAX ? "道童已满" : U.fmt(C.PICK_COST) + " 灵石"}</small></button>`
-    : p.end ? `<button disabled>选拔道童<small>${U.dur(Math.max(0, (p.end - this.now()) / 1000))}</small></button>`
+    : p.end ? `<button disabled>选拔道童<small>${U.cd(Math.max(0, (p.end - this.now()) / 1000))}</small></button>`
     : `<button class="primary" onclick="G.svOpenPick()">选拔道童<small>已选出</small></button>`;
   const jobs = Object.keys(C.JOB).map(k => `<button onclick="G.svOpenJob('${k}')">${C.JOB[k].name}<small>${this.svEffTxt(k, this.servantPct(k))}</small></button>`).join("");
   return `<div class="card"><h3>${DATA.caveName("servant")}<small>道童 ${n} / ${C.MAX}</small></h3>

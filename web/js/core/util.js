@@ -34,4 +34,7 @@ const U = {
     const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60);
     return (d ? d + "天" : "") + (h ? h + "小时" : "") + (m || (!d && !h) ? m + "分钟" : "");
   },
+  // 会随时间变化的数值：放进固定宽度的框里，防止界面跟着跳动（只用于 HTML）
+  cd(sec) { return `<span class="cd">${U.dur(sec)}</span>`; },
+  fix(text) { return `<span class="cdn">${text}</span>`; },
 };
