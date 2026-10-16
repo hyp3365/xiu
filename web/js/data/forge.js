@@ -78,7 +78,8 @@ DATA.fbAttrNames = { uses: "祭出次数", pct: "伤害", elDmg: "额外伤害",
 for (const k in DATA.fbAttrNames) DATA.fbAttrNames[k] = DATA.nmPick(CFG.names.fbAttr, k, DATA.fbAttrNames[k]);
 // v108 法宝一条属性的比例 %：按颜色在 [最小, 最大] 里，位置 p（0~1），保留一位小数
 DATA.fbRange = k => { const F = _FG.fabao; return (F.MAIN || {})[k] || (F.AFFIX || {})[k] || (F.SPECIAL || {})[k]; };
-DATA.fbPct = a => { const R = DATA.fbRange(a.k), r = R && (R[a.c] || R[R.length - 1]); return r ? Math.round((r[0] + (r[1] - r[0]) * (a.p || 0)) * 10) / 10 : 0; };
+DATA.fbPct = a => { const R = DATA.fbRange(a.k), r = R && (R[a.c] || R[R.length - 1]), q = a.k === "shHpMain" || a.k === "shDef" ? 100 : 10;   // v167 盾主属性比例保留两位小数
+  return r ? Math.round((r[0] + (r[1] - r[0]) * (a.p || 0)) * q) / q : 0; };
 // 比例 × 哪个参考属性（不写 = 本身就是 %）
 DATA.FB_REF_OF = { shHpMain: "hp", shHp: "hp", sAtk: "atk", dSAtk: "atk", sHit: "hit" };
 
@@ -123,8 +124,11 @@ DATA.attrBase = (a, g, e) => {
     if (a.k === "sDing") return (_FG.fabao.DING_ROUNDS || [])[a.c] || 1;
     const v = DATA.fbPct(a), ref = DATA.fbRef(g);
     // v165 盾（方案 A，同攻击法宝）：基数 = 自己修为 + 肉身（不超过参考值）+ 功法
-    if (a.k === "shDef") return DATA.capStat(ref.def, "def") * (_FG.fabao.ATK_MULT || 1) * v / 100;
-    if (a.k === "shHpMain" || a.k === "shHp") return DATA.capStat(ref.hp, "hp") * v / 100;
+    // v167 盾主属性：法宝对应境界（参考）生命 / 防御 × SHIELD_MULT（3.8）× %
+    const SM = _FG.fabao.SHIELD_MULT || 1;
+    if (a.k === "shHpMain") return ref.hp * SM * v / 100;
+    if (a.k === "shDef") return ref.def * SM * v / 100;
+    if (a.k === "shHp") return DATA.capStat(ref.hp, "hp") * v / 100;   // 附加护盾值不变（v165 方案 A）
     return DATA.FB_REF_OF[a.k] ? ref[DATA.FB_REF_OF[a.k]] * v / 100 : v;
   }
   const grow = a.k === "crit" ? g + 1 : (A.GROW[g] || 1);
