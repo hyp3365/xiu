@@ -72,6 +72,7 @@ G.module({
           if (f.ding) sum += `<br>击中后对方速度 -${U.num(f.ding.speed)}%、命中 -${U.num(f.ding.hit)}%、闪避 -${U.num(f.ding.dodge)}%，持续 ${f.ding.rounds} 回合`;
           head += `<span class="fb-sum">${sum}</span>`;
         }
+        if (e.slot !== "fabao" && e.enh) head += `<span class="fb-sum">强化 +${e.enh}（${this.enhText(e, e.enh)}）</span><br>`;
         return head + e.attrs.map(a => `<span class="ac${a.c}">${DATA.attrText(a, e)}</span>`).join("<br>");
       }
       const st = this.equipStats(e);
@@ -118,7 +119,7 @@ G.module({
       if (it.t === "rbp") return DATA.ringBpName(it.g, it.r);
       if (it.e.cid) return it.e.name;
       if (it.e.attrs && it.e.slot === "fabao") return `${DATA.JIE[it.e.g]}·${DATA.elById[it.e.el].name}·${DATA.fabaoName(it.e.ft, it.e.g, it.e.name)}${it.e.enh ? ` +${it.e.enh}` : ""}`;
-      if (it.e.attrs) return `${DATA.JIE[it.e.g]}·${it.e.name}`;
+      if (it.e.attrs) return `${DATA.JIE[it.e.g]}·${it.e.name}${it.e.enh ? ` +${it.e.enh}` : ""}`;
       return `${DATA.realms[it.e.g]}·${it.e.name}`;
     },
     sellPrice(it) {
@@ -253,63 +254,34 @@ G.module({
     },
 
     /* ---------- 强化（config/forge.js 的 forge.enhance）：每条属性分别强化 ---------- */
-    canEnhance(e) { return !!(e && e.attrs && (e.slot === "fabao" || e.attrs.some(a => DATA.attrEnhOK(a, e)))); },
-    // v152 法宝强化：整件一个等级，没有上限；只要火髓 + 同属性耀石
-    fbEnhCost(e) { const E = CFG.forge.enhance.fabao, k = 1 + (e.enh || 0) * (E.COST_STEP || 0);
-      return { fire: Math.ceil(((E.FIRE || [])[e.g] || 1) * k), jj: Math.ceil(((E.SPECIAL || [])[e.g] || 0) * k), sk: "ys", sf: this.ysFor(e), mats: [] }; },
-    fbEnhRate(e) { return Math.max(0, this.craftRate("qi", e.g) - (e.enh || 0) * (CFG.forge.enhance.fabao.RATE_DROP || 0) / 100); },
-    drawFbEnhance(e) {
-      const c = this.fbEnhCost(e), per = DATA.fbEnhPer(e), sh = (DATA.fabaoTypes[e.ft] || {}).shield, lb = sh ? "护盾值" : "附加伤害", n = e.enh || 0;
-      this.modal(`<img class="item-img${DATA.eqCls(e)}" src="${DATA.eqIcon(e)}" alt=""><h2 class="q${e.q}${DATA.fbElCls(e)}">强化 · ${this.itemName({ t: "eq", e })}</h2>
-        <p class="desc">${DATA.HX} ${U.fmt(this.fireCount())} · ${DATA.li(DATA.smIcon("ys", this.ysFor(e)))}${DATA.smName("ys", this.ysFor(e))} ${U.fmt(this.smCount("ys", this.ysFor(e)))} · 失败只扣材料，不掉强化等级。法宝升阶时强化等级 −20%（最少 −1）。</p>
-        <div class="line"><div>强化 +${n}<small>${lb} +${U.fmt(n * per)} → +${U.fmt((n + 1) * per)}（每级 +${U.fmt(per)}）<br>
-          <span class="${this.fireCount() >= c.fire ? "" : "q5"}">${DATA.HX} ${c.fire}</span>${c.jj ? `、<span class="${this.smCount(c.sk, c.sf) >= c.jj ? "" : "q5"}">${DATA.li(DATA.smIcon(c.sk, c.sf))}${DATA.smName(c.sk, c.sf)} ${c.jj}</span>` : ""} · 成功率 ${this.ratePct(this.fbEnhRate(e))}</small></div>
-          <button class="sm" onclick="G.doFbEnhance()" ${this.enhHave(c) ? "" : "disabled"}>强化</button></div>
-        <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+    canEnhance(e) { return !!(e && e.attrs); },
+    // v152/v153 强化：整件一个等级，没有上限；只要火髓 + 耀石（法宝同属性，装备 / 戒指任意一种）
+    enhCost(e) { const E = DATA.enhCfg(e), k = 1 + (e.enh || 0) * (E.COST_STEP || 0);
+      return { fire: Math.ceil(((E.FIRE || [])[e.g] || 1) * k), jj: Math.ceil(((E.SPECIAL || [])[e.g] || 0) * k), sk: "ys", sf: this.ysFor(e) }; },
+    enhHave(c) { return this.fireCount() >= c.fire && this.smCount(c.sk, c.sf) >= c.jj; },
+    enhRate(e) { return Math.max(0, this.craftRate("qi", e.g) - (e.enh || 0) * (DATA.enhCfg(e).RATE_DROP || 0) / 100); },
+    // 强化加成文字：n = 强化等级
+    enhText(e, n) {
+      if (e.slot === "fabao") return `${(DATA.fabaoTypes[e.ft] || {}).shield ? "护盾值" : "附加伤害"} +${U.fmt(n * DATA.fbEnhPer(e))}`;
+      return e.attrs.filter(a => a.m && DATA.eqEnhPer(e, a.k) > 0).map(a => `${DATA.attrNames[a.k]} +${U.fmt(n * DATA.eqEnhPer(e, a.k))}`).join("、");
     },
-    doFbEnhance() {
-      const e = this._enhObj; if (!e || e.slot !== "fabao") return;
-      const c = this.fbEnhCost(e);
-      if (!this.enhHave(c)) return this.log("材料不足。", "sys");
-      this.takeFire(c.fire); if (c.jj) this.takeSm(c.sk, c.jj, c.sf);
-      if (Math.random() < this.fbEnhRate(e)) { e.enh = (e.enh || 0) + 1; this.log(`强化成功！${this.itemName({ t: "eq", e })}：${(DATA.fabaoTypes[e.ft] || {}).shield ? "护盾值" : "附加伤害"} +${U.fmt(DATA.fbEnh(e))}`, "gold"); }
-      else this.log(`强化失败，材料已耗尽，${e.name}完好无损。`, "bad");
-      this.after(); this.drawEnhance();
-    },
-    // 第 i 条属性下一次强化的消耗 { fire 火髓, jj 炼宝玄晶, mats 三种矿石 }
-    enhCost(e, i) {
-      const E = DATA.enhCfg(e), a = e.attrs[i], k = 1 + ((a && a.enh) || 0) * (E.COST_STEP || 0);
-      // 耀石个数 = SPECIAL[物品阶] × k；法宝用同属性耀石，装备 / 戒指任意一种（sf = -1）
-      return { fire: Math.ceil((E.FIRE[e.g] || 1) * k), jj: Math.ceil(((E.SPECIAL || [])[e.g] || 0) * k), sk: "ys", sf: this.ysFor(e),
-        mats: DATA.parseMats(E.ORES[e.g] || E.ORES[0]).map(m => Object.assign(m, { n: Math.ceil(m.n * k) })) };
-    },
-    enhHave(c) { return this.fireCount() >= c.fire && this.smCount(c.sk, c.sf) >= c.jj && this.hasMats(c.mats); },
-    // 成功率 0~1 = 炼器成功率 − 这一条已强化次数 × RATE_DROP
-    enhRate(e, i) { return Math.max(0, this.craftRate("qi", e.g) - ((e.attrs[i] && e.attrs[i].enh) || 0) * (DATA.enhCfg(e).RATE_DROP || 0) / 100); },
     openEnhance(src) { const e = this.resetTarget(src); if (!this.canEnhance(e)) return; this._enhObj = e; this.drawEnhance(); },
     drawEnhance() {
       const e = this._enhObj; if (!e) return;
-      if (e.slot === "fabao") return this.drawFbEnhance(e);
-      const E = DATA.enhCfg(e);
+      const c = this.enhCost(e), n = e.enh || 0, ys = this.ysFor(e);
       this.modal(`<img class="item-img${DATA.eqCls(e)}" src="${DATA.eqIcon(e)}" alt=""><h2 class="q${e.q}${DATA.fbElCls(e)}">强化 · ${this.itemName({ t: "eq", e })}</h2>
-        <p class="desc">${DATA.HX} ${U.fmt(this.fireCount())} · ${DATA.li(DATA.smIcon("ys", this.ysFor(e)))}${DATA.smName("ys", this.ysFor(e))} ${U.fmt(this.smCount("ys", this.ysFor(e)))} · 失败只扣材料，不掉强化等级。</p>` +
-        e.attrs.map((a, i) => {
-          if (!DATA.attrEnhOK(a, e)) return `<div class="line"><div><span class="ac${a.c}">${DATA.attrText(a, e)}</span><small>不能强化</small></div></div>`;
-          const n = a.enh || 0, max = n >= E.MAX, c = this.enhCost(e, i), base = DATA.attrBase(a, e.g, e);
-          return `<div class="line"><div><span class="ac${a.c}">${DATA.attrText(a, e)}</span>
-            <small>强化 ${n}/${E.MAX}${max ? " · 已满" : ` → ${U.num(base * DATA.enhMult(a, e, n + 1))} · <span class="${this.fireCount() >= c.fire ? "" : "q5"}">${DATA.HX} ${c.fire}</span>${c.jj ? `、<span class="${this.smCount(c.sk, c.sf) >= c.jj ? "" : "q5"}">${DATA.li(DATA.smIcon(c.sk, c.sf))}${DATA.smName(c.sk, c.sf)} ${c.jj}</span>` : ""}、${this.matsText(c.mats)} · 成功率 ${this.ratePct(this.enhRate(e, i))}`}</small></div>
-            <button class="sm" onclick="G.doEnhance(${i})" ${!max && this.enhHave(c) ? "" : "disabled"}>强化</button></div>`;
-        }).join("") +
-        `<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+        <p class="desc">${DATA.HX} ${U.fmt(this.fireCount())} · ${DATA.li(DATA.smIcon("ys", ys))}${DATA.smName("ys", ys)} ${U.fmt(this.smCount("ys", ys))} · 失败只扣材料，不掉强化等级。升阶时强化等级 −20%（最少 −1）。${e.slot === "fabao" ? "" : "只加主属性，暴击不加。"}</p>
+        <div class="line"><div>强化 +${n}<small>${this.enhText(e, n)} → ${this.enhText(e, n + 1)}<br>
+          <span class="${this.fireCount() >= c.fire ? "" : "q5"}">${DATA.HX} ${c.fire}</span>${c.jj ? `、<span class="${this.smCount(c.sk, c.sf) >= c.jj ? "" : "q5"}">${DATA.li(DATA.smIcon(c.sk, c.sf))}${DATA.smName(c.sk, c.sf)} ${c.jj}</span>` : ""} · 成功率 ${this.ratePct(this.enhRate(e))}</small></div>
+          <button class="sm" onclick="G.doEnhance()" ${this.enhHave(c) ? "" : "disabled"}>强化</button></div>
+        <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
-    doEnhance(i) {
+    doEnhance() {
       const e = this._enhObj; if (!this.canEnhance(e)) return;
-      const a = e.attrs[i]; if (!a || !DATA.attrEnhOK(a, e)) return;
-      const E = DATA.enhCfg(e), c = this.enhCost(e, i);
-      if ((a.enh || 0) >= E.MAX) return;
+      const c = this.enhCost(e);
       if (!this.enhHave(c)) return this.log("材料不足。", "sys");
-      this.takeFire(c.fire); if (c.jj) this.takeSm(c.sk, c.jj, c.sf); c.mats.forEach(m => this.takeMat(m.kind, m.g, m.n));
-      if (Math.random() < this.enhRate(e, i)) { a.enh = (a.enh || 0) + 1; this.log(`强化成功！${this.itemName({ t: "eq", e })}：${DATA.attrText(a, e)}`, "gold"); }
+      this.takeFire(c.fire); if (c.jj) this.takeSm(c.sk, c.jj, c.sf);
+      if (Math.random() < this.enhRate(e)) { e.enh = (e.enh || 0) + 1; this.dirty(); this.log(`强化成功！${this.itemName({ t: "eq", e })}：${this.enhText(e, e.enh)}`, "gold"); }
       else this.log(`强化失败，材料已耗尽，${e.name}完好无损。`, "bad");
       this.after(); this.drawEnhance();
     },

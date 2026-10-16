@@ -93,11 +93,14 @@ DATA.attrPos = a => a.p || 0;
 DATA.rangeMult = (a, g) => { const [lo, hi] = DATA.colorRange(a.c, g); return lo + (hi - lo) * DATA.attrPos(a); };
 // v43 强化：每条属性 a.enh = 强化次数（config/forge.js 的 forge.enhance.equip / fabao）
 DATA.enhCfg = e => CFG.forge.enhance[e && e.slot === "fabao" ? "fabao" : "equip"];
-//   v152 法宝不再按条强化（整件法宝 e.enh 级，见 DATA.fbEnh），旧的每条强化次数不再生效
-DATA.attrEnhOK = (a, e) => !(e && e.slot === "fabao") && ((DATA.enhCfg(e).ADD || {})[a.k] || 0) > 0;
-DATA.enhMult = (a, e, n) => e && e.slot === "fabao" ? 1 : 1 + (n === undefined ? a.enh || 0 : n) * ((DATA.enhCfg(e).ADD || {})[a.k] || 0) / 100;
+//   v152/v153 不再按条强化：整件 e.enh 级（法宝见 DATA.fbEnh，装备 / 戒指见 DATA.eqEnh），旧的每条强化次数不再生效
+DATA.attrEnhOK = () => false;
+DATA.enhMult = () => 1;
+// 装备 / 戒指：强化后这条主属性加多少（固定数值）；不是主属性、PER 里没写（暴击）= 0
+DATA.eqEnhPer = (e, k) => (((CFG.forge.enhance.equip.PER || {})[k]) || [])[e.g] || 0;
+DATA.eqEnh = (a, e) => e && e.slot !== "fabao" && a.m ? (e.enh || 0) * DATA.eqEnhPer(e, a.k) : 0;
 // 一条属性的数值（e = 整件装备，用来区分法宝 / 戒指），含强化
-DATA.attrVal = (a, g, e) => { return DATA.attrBase(a, g, e) * (a.enh ? DATA.enhMult(a, e) : 1); };
+DATA.attrVal = (a, g, e) => DATA.attrBase(a, g, e) + DATA.eqEnh(a, e);
 // 一条属性没强化时的数值
 DATA.attrBase = (a, g, e) => {
   const A = _FG.attr, fb = e && e.slot === "fabao" && e.attrs;
@@ -150,7 +153,7 @@ DATA.rollForged = (slot, g, r, el) => {
 // 升阶：颜色、位置都不变，只改阶和名字（数值按新阶自动变大）
 DATA.upgradeForged = (prev, g) => {
   const e = JSON.parse(JSON.stringify(prev));
-  if (e.slot === "fabao" && e.enh > 0) { const E = CFG.forge.enhance.fabao; e.enh = Math.max(0, e.enh - Math.max(E.DOWN_MIN === undefined ? 1 : E.DOWN_MIN, Math.floor(e.enh * (E.DOWN_PCT || 0) / 100))); }   // v152 法宝升阶：强化等级 −20%，最少 −1
+  if (e.enh > 0) { const E = DATA.enhCfg(e); e.enh = Math.max(0, e.enh - Math.max(E.DOWN_MIN === undefined ? 1 : E.DOWN_MIN, Math.floor(e.enh * (E.DOWN_PCT || 0) / 100))); }   // v152 法宝升阶：强化等级 −20%，最少 −1
   e.g = g;
   e.name = e.slot === "ring" ? DATA.ringNames[e.r] : e.slot === "fabao" ? DATA.fabaoName(e.ft, g) : DATA.forgeNames[e.slot][g];
   return e;
@@ -199,7 +202,7 @@ DATA.attrText = (a, e) => {
       shHpMain: `护盾值 ${v}`, shDef: `防御 ${v}`, shHp: `护盾值 +${v}`, dmgRed: `受到伤害 -${p}%`, uses: `每场战斗祭出次数 +${Math.round(p)}` }[a.k] || DATA.fbAttrNames[a.k] || a.k;
     return `${a.m === 2 ? "专属 " : a.m ? "" : a.k === "elDmg" ? "附加伤害 " : "附加 "}${t}（${col}）`;
   }
-  return `${a.m ? "" : "附加 "}${DATA.attrNames[a.k]} +${v}（${col}${a.enh ? `·强化${a.enh}` : ""}）`;
+  return `${a.m ? "" : "附加 "}${DATA.attrNames[a.k]} +${v}（${col}）`;
 };
 // v107 法宝第 g 阶的参考属性：config/forge.js 的 fabao.REF[阶] 那个境界的人物属性（修为突破 + 肉身突破，不算功法），含 manaBr
 DATA._fbRef = {};
