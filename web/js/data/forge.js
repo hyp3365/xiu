@@ -208,7 +208,7 @@ DATA.attrText = (a, e) => {
       shHpMain: `护盾值 ${v}`, shDef: `防御 ${v}`, shHp: `护盾值 +${v}`, dmgRed: `受到伤害 -${p}%`, uses: `每场战斗祭出次数 +${Math.round(p)}` }[a.k] || DATA.fbAttrNames[a.k] || a.k;
     return `${a.m === 2 ? "专属 " : a.m ? "" : a.k === "elDmg" ? "附加伤害 " : "附加 "}${t}（${col}）`;
   }
-  return `${a.m ? "" : "附加 "}${DATA.attrNames[a.k]} +${v}（${col}${DATA.eqPctOK(a) ? `·${DATA.eqPct(a)}%` : ""}）`;
+  return `${a.m ? "" : "附加 "}${DATA.attrNames[a.k]} +${v}（${col}）`;
 };
 // v107 法宝第 g 阶的参考属性：config/forge.js 的 fabao.REF[阶] 那个境界的人物属性（修为突破 + 肉身突破，不算功法），含 manaBr
 DATA._fbRef = {};

@@ -35,6 +35,7 @@ const U = {
     return (d ? d + "天" : "") + (h ? h + "小时" : "") + (m || (!d && !h) ? m + "分钟" : "");
   },
   // 会随时间变化的数值：放进固定宽度的框里，防止界面跟着跳动（只用于 HTML）
-  cd(sec) { return `<span class="cd">${U.dur(sec)}</span>`; },
+  // v155：框宽按当前文字算（每组数字按 2 位预留），文字占满框，只在单位变化时（如小时→分钟）才变宽窄
+  cd(sec) { const t = U.dur(sec), w = t.replace(/\d+/g, m => "0".repeat(Math.max(2, m.length))).split("").reduce((n, c) => n + (/\d/.test(c) ? 0.6 : 1), 0); return `<span class="cd" style="min-width:${w.toFixed(1)}em">${t}</span>`; },
   fix(text) { return `<span class="cdn">${text}</span>`; },
 };
