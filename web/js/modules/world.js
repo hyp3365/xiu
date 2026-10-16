@@ -103,7 +103,7 @@ G.module({
 
     // 生成怪物：a 地图、r 区域、kind = normal 普通 / elite 精英 / boss 首领（属性见 js/config/ 数值文件 monster.regions）
     makeMob(a, r, kind) {
-      const R = DATA.region(a, r), b = R[kind], map = DATA.maps[a];
+      const R = DATA.region(a, r), b = DATA.mobMeet(R, kind), map = DATA.maps[a];   // v168 每次遇到随机层 / 功法
       const v = x => x * DATA.mobRnd();   // × 随机浮动
       const name = kind === "boss" ? DATA.regionBoss(a, r) : (kind === "elite" ? "精英·" : "") + U.pick(map.monsters);
       return this.addMagic({ name, Lm: R.L, kind, boss: kind === "boss", elite: kind === "elite",
@@ -761,7 +761,7 @@ G.module({
     },
     // 秘境 / 灵地怪物：属性在 js/data/mobs.js 按 config/mobs.js 生成
     makeMjMob(i, kind, k) {
-      const d = this.mjDef(i, k), b = d[kind], v = x => x * DATA.mobRnd();
+      const d = this.mjDef(i, k), b = DATA.mobMeet(d, kind), v = x => x * DATA.mobRnd();
       const name = kind === "boss" ? d.bossName : (kind === "elite" ? "精英·" : "") + U.pick(d.monsters);
       return this.addMagic({ name, Lm: d.L, kind, boss: kind === "boss", elite: kind === "elite",
         hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), mana: v(b.mana), res: v(b.res), manaBr: b.manaBr, crit: b.crit }, kind);

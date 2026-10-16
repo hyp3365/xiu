@@ -411,24 +411,24 @@ G.module({
       for (const w of ["fan", "xian", "ming", "mo", "shen"]) { const M = CFG.mobs[w] || {};
         for (const mp in M) { const c = M[mp]; if (!c || typeof c !== "object") continue;
           for (const d in c) { const n = c[d] && c[d]["普通"]; if (!Array.isArray(n) || n[1] > realm) continue;
-            if (!best || n[1] > best[1] || (n[1] === best[1] && n[2] >= best[2])) best = n; } } }
+            if (!best || n[1] >= best[1]) best = n; } } }   // v168 同境界取最后一行（层是随机范围了）
       return best || [0, 0, 1, 0, 1, 0, 1];
     },
     testPick() { if (!this._tp) { const r = Math.floor((this.s.L || 0) / DATA.LAYERS); this._tp = { r: Math.min(DATA.realms.length - 1, r), l: DATA.LAYERS }; } return this._tp; },
     setTestPick(k, v) { this.testPick()[k] = +v; this.render(); },
-    testMobT() { const p = this.testPick(), row = this.testMobRow(p.r); return [p.r, p.r, p.l, row[3], row[4], row[5], row[6] === undefined ? 1 : row[6]]; },
+    testMobT() { const p = this.testPick(), R = DATA.mobRow(this.testMobRow(p.r)); return [p.r, p.r, p.l, R.star, R.src, R.pct, R.gf, R.k]; },   // v168 8 个数格式
     testMobName() { const p = this.testPick(); return `${DATA.realms[p.r]}${DATA.layerNames[p.l - 1]}·试炼傀儡`; },
     // 怪物学的功法：按宗门分组 [[宗门名, [功法名…]]]
     testMobGf(t) {
-      const out = [], ms = t[3] > 0 ? t[3] : DATA.refStar(t[1]); if (!(t[5] > 0)) return out;
+      const R = DATA.mobRow(t), out = [], ms = t[3] > 0 ? t[3] : DATA.refStar(t[1]); if (!(R.gf[1] > 0)) return out;
       for (const sc of DATA.refSrcList(t[4] > 0 ? t[4] : 1)) { if (sc.star > ms) continue; const l = [];
         for (const ty of DATA.gfTypesOf(sc.src)) for (const ti of DATA.tiers) { if (sc.src === "shop" && ty.sectOnly) continue;
-          const g = DATA.gongfaInfo(DATA.gongfaId(sc.id, ty.id, ti.id), t[5]); if (g) l.push(g.name); }
+          const g = DATA.gongfaInfo(DATA.gongfaId(sc.id, ty.id, ti.id), R.gf[1]); if (g) l.push(g.name); }
         if (l.length) out.push([sc.name, l]); }
       return out;
     },
     testFight() {
-      const t = this.testMobT(), b = DATA.mobStats(t, DATA.mobCrit("普通"));
+      const t = this.testMobT(), b = DATA.mobRoll(t, DATA.mobCrit("普通"));   // v168 学哪些功法、每本几层随机
       const v = x => x * DATA.mobRnd();   // 和地图普通怪一样每项随机浮动
       const m = this.addMagic({ name: this.testMobName(), kind: "normal", hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), mana: v(b.mana), res: v(b.res), manaBr: b.manaBr, crit: b.crit }, "normal");
       const res = this.battle(m, { test: true });
@@ -443,7 +443,7 @@ G.module({
         <div class="line"><div>对手境界</div><div class="sg-btns">${this.selBox("testR", rOpts, p.r, v => this.setTestPick("r", v))}${this.selBox("testL", lOpts, p.l, v => this.setTestPick("l", v))}</div></div>
         <p class="desc">${this.testMobName()}（属性同地图普通怪，战斗时每项 ×${(CFG.mobs.RAND || [1, 1]).join("~")} 随机）<br>${st}</p>
         <p class="desc">法术：每回合 ${M.spell ? M.spell.chance : 0}% 几率，伤害 攻击×${M.spell ? M.spell.pct : 0}%　法宝：每回合 ${M.fabao ? M.fabao.chance : 0}% 几率，伤害 攻击×${M.fabao ? M.fabao.pct : 0}%</p>
-        ${n ? `<details class="desc"><summary>功法：${t[3] > 1 ? `1~${t[3]}` : t[3]}星宗门功法 ${n} 部，各练至第 ${t[5]} 层</summary>${gf.map(([nm, l]) => `<p><b>${nm}</b>：${l.map(x => `${x}（${t[5]}层）`).join("、")}</p>`).join("")}</details>` : `<p class="desc">功法：无</p>`}
+        ${n ? (() => { const R = DATA.mobRow(t), rg = a => a[0] === a[1] ? `${a[0]}` : `${a[0]}~${a[1]}`; return `<details class="desc"><summary>功法：${t[3] > 1 ? `1~${t[3]}` : t[3]}星宗门功法 ${n} 部，每个种类随机学 ${rg(R.pct)}%，每本随机练到 ${rg(R.gf)} 层（显示属性为平均值）</summary>${gf.map(([nm, l]) => `<p><b>${nm}</b>：${l.join("、")}</p>`).join("")}</details>`; })() : `<p class="desc">功法：无</p>`}
         <div class="btns"><button onclick="G.testFight()">开始测试</button></div></div>`;
     },
     challengeTower() {
