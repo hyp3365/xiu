@@ -161,7 +161,7 @@ G.module({
     // v26：出售页（按上面的分类筛选），只有这里能卖东西
     sellPageView(match) {
       const s = this.s, flt = this.bagFilter || "all";
-      const rows = s.bag.map((it, i) => [it, i]).filter(([it]) => match(it)).map(([it, i]) => {
+      const rows = s.bag.map((it, i) => [it, i]).filter(([it]) => match(it) && !it.lq).map(([it, i]) => {
         const p = this.sellPrice(it), n = it.n || 1, q = it.t === "eq" ? it.e.q : it.t === "cu" ? ((this.cuDef(it.name) || {}).q || 0) : 0;
         const src = this.itemIcon(it), img = src ? `<img src="${src}" alt="" style="width:28px;height:28px;vertical-align:middle;margin-right:4px">` : "";
         return `<div class="line"><div>${img}<span class="q${q}">${it.t === "eq" ? this.eqQual(it.e) : ""}${this.itemName(it)}</span>${n > 1 ? ` ×${U.fmt(n)}` : ""}<small>单价 ${U.fmt(p)} 灵石</small></div>
@@ -182,9 +182,18 @@ G.module({
       const it = this.s.bag[i]; if (!it || it.t !== "gfb") return;
       const g = DATA.skillInfo(it.id, 1); if (!g) return;
       if (this.hasGongfa(it.id)) return this.log("已经学会了。", "sys");
+      if (it.lq || !this.lqCan("gf", it.id)) return;   // v173 学习队列：学完才从背包消失
       if (!this.lsCheck(it.id)) return;   // 神识（shenshi.js）
-      this.s.gongfa[it.id] = 1; this.removeAt(i, 1);
-      this.log(`习得《${g.name}》第 1 层，可在功法栏修炼提升。`, "gold"); this.closeModal(); this.after();
+      it.lq = 1; this.lqAdd("gf", { id: it.id, k: "gfb", ms: DATA.gfLearnMin(g.star) * 60000 }); this.closeModal(); this.after();
+    },
+    // v173 背包里功法 / 图纸的学习按钮：学习中显示进度，排队中，学完才从背包消失
+    bagLearnBtn(it, ch, key, on, has, ms) {
+      if (has) return `<button class="primary" disabled>已学会</button>`;
+      const st = it.lq ? this.lqHas(ch, key) : 0;
+      if (st === 1) { const c = this.s[this.lqSlot(ch)], left = Math.max(0, c.end - this.now()); return `<button class="primary" disabled>学习中 ${U.cd(left / 1000)}</button>`; }
+      if (st === 2) return `<button class="primary" disabled>排队中</button>`;
+      if (this.lqFull(ch)) return `<button class="primary" disabled>学习队列已满</button>`;
+      return `<button class="primary" onclick="${on}">${this.s[this.lqSlot(ch)] ? "排队学习" : "学习"}（${U.dur(ms / 1000)}）</button>`;
     },
     /* ---------- 弹窗：点储物格 ---------- */
     openItem(i) {
@@ -213,7 +222,7 @@ G.module({
       } else if (it.t === "bp") {
         const has = this.s.blueprints[it.kind].includes(it.g);
         h += `<p>学习后可在洞府炼器室炼制${DATA.furnaceName(it.kind, it.g)}。<br>材料：${this.matsText(DATA.furnaceMats(it.kind, it.g))}${has ? "<br><span class='q5'>已学会。</span>" : ""}</p>
-          <div class="btns"><button class="primary" onclick="G.learnBlueprint(${i})" ${has ? "disabled" : ""}>学习</button>${sell}</div>`;
+          <div class="btns">${this.bagLearnBtn(it, "forge", `bp|${it.kind}|${it.g}`, `G.learnBlueprint(${i})`, has, this.bagLearnMs("BP_MIN", it.g))}${sell}</div>`;
       } else if (it.t === "ss") {
         const left = this.stoneLeft(it.g);
         h += `<p>使用后储物格 +1。此阶已用 ${CFG.forge.stone.MAX_USE - left} / ${CFG.forge.stone.MAX_USE} 个。</p>
@@ -230,11 +239,11 @@ G.module({
       } else if (it.t === "gfb") {
         const g = DATA.skillInfo(it.id, 1), has = this.hasGongfa(it.id), need = this.ssCost(it.id), left = Math.max(0, this.lsLeft());
         h += `<p>试炼塔秘诀${g && g.label ? ` · ${g.label}每层 +${this.gfValue(g, g.perLv)}` : ""}<br>学习占用神识 ${need}（剩余 ${left}）${has ? "<br><span class='q5'>已学会。</span>" : left < need ? "<br><span class='q5'>神识不足，可在「修炼 → 神识」增加或遗忘功法。</span>" : ""}</p>
-          <div class="btns"><button class="primary" onclick="G.learnGfBook(${i})" ${has ? "disabled" : ""}>学习</button></div>`;
+          <div class="btns">${this.bagLearnBtn(it, "gf", it.id, `G.learnGfBook(${i})`, has, g ? DATA.gfLearnMin(g.star) * 60000 : 0)}</div>`;
       } else if (it.t === "rbp") {
         const has = it.r === undefined ? this.s.forgeKnown.includes(this.forgeKey("ring", it.g)) : this.ringKnown(it.r, it.g);
         h += `<p>学习后可在洞府炼器室把${DATA.JIE[it.g - 1]}${DATA.ringNames[it.r] || "戒指（全部 9 种）"}升为${DATA.JIE[it.g]}（上一阶同种戒指 + 三种矿石）。${has ? "<br><span class='q5'>已学会。</span>" : ""}</p>
-          <div class="btns"><button class="primary" onclick="G.learnRingBp(${i})" ${has ? "disabled" : ""}>学习</button>${sell}</div>`;
+          <div class="btns">${this.bagLearnBtn(it, "forge", this.forgeKey("ring", it.g, it.r), `G.learnRingBp(${i})`, has, this.bagLearnMs("RBP_MIN", it.g))}${sell}</div>`;
       } else if (it.t === "cu") {
         h += this.customItemHtml(i, it, sell);   // 自定义物品，见 custom.js
       } else if (it.t === "mat") {
@@ -382,7 +391,8 @@ G.module({
       this.closeModal(); this.after();
     },
     sellItem(i, n) {
-      const it = this.s.bag[i], p = this.sellPrice(it) * n;
+      const it = this.s.bag[i]; if (!it || it.lq) return;   // v173 学习中 / 排队中的不能卖
+      const p = this.sellPrice(it) * n;
       this.s.stone += p; this.removeAt(i, n);
       this.log(`售出${this.itemName(it)} ×${n}，灵石 +${U.fmt(p)}。`, "sys"); this.closeModal(); this.after();
     },

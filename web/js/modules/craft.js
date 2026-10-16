@@ -107,17 +107,8 @@ G.module({
     craftTick() {
       const s = this.s, now = this.now();
       this.fixCraft();
-      // 丹方学习
-      if (s.danStudy && now >= s.danStudy.end) {
-        const [t, g] = s.danStudy.key.split("|");
-        if (!s.recipes.includes(s.danStudy.key)) s.recipes.push(s.danStudy.key);
-        s.danStudy = null; this.log(`学会丹方《${DATA.danName(t, +g)}》，可在洞府炼丹房炼制。`, "gold");
-      }
-      // 门派炼器室：图谱学习
-      if (s.forgeStudy && now >= s.forgeStudy.end) {
-        if (!s.forgeKnown.includes(s.forgeStudy.key)) s.forgeKnown.push(s.forgeStudy.key);
-        this.log(`学会${this.forgeKeyName(s.forgeStudy.key)}，可在洞府炼器室炼制。`, "gold"); s.forgeStudy = null;
-      }
+      // 丹方学习、图谱 / 图纸学习（v173 学习队列，gongfa.js lqTick）
+      this.lqTick("dan"); this.lqTick("forge");
       // 炼器室：炼好放进背包（背包满就等着），队列自动衔接
       let j, guard = 0;
       while ((j = s.forgeJob) && now >= j.end && guard++ < 1000) {
@@ -169,11 +160,10 @@ G.module({
     learnRecipe(type, g) {
       const s = this.s, key = type + "|" + g, c = DATA.danLearnCost(type, g);
       if (s.recipes.includes(key)) return;
-      if (s.danStudy) return this.log("正在参悟其他丹方，一次只能学一个。", "sys");
+      if (!this.lqCan("dan", key)) return;   // v173 学习队列
       if (DATA.danStar(type, g) > this.sectInfo().star) return this.log(`需要 ${DATA.danStar(type, g)} 星及以上门派才能学习。`, "sys");
       if (s.contrib < c) return this.log("贡献不足。", "sys");
-      s.contrib -= c; s.danStudy = { key, end: this.now() + DATA.danLearnTime(type, g) };
-      this.log(`开始参悟丹方《${DATA.danName(type, g)}》，需 ${U.dur(DATA.danLearnTime(type, g) / 1000)}。`, "good"); this.after();
+      s.contrib -= c; this.lqAdd("dan", { key, k: "dan", ms: DATA.danLearnTime(type, g) }); this.after();
     },
 
     /* ---------- 图纸、炉子（背包物品） ---------- */
@@ -192,8 +182,9 @@ G.module({
       const it = this.s.bag[i]; if (!it || it.t !== "bp") return;
       const bp = this.s.blueprints[it.kind];
       if (bp.includes(it.g)) return this.log("已学会该图纸。", "sys");
-      bp.push(it.g); this.removeAt(i, 1);
-      this.log(`学会${DATA.furnaceName(it.kind, it.g)}图纸，可在洞府炼器室炼制。`, "gold"); this.closeModal(); this.after();
+      if (it.lq) return;   // v173 学习中 / 排队中：学完才从背包消失
+      const key = `bp|${it.kind}|${it.g}`; if (!this.lqCan("forge", key)) return;
+      it.lq = 1; this.lqAdd("forge", { key, k: "bp", kind: it.kind, g: it.g, ms: this.bagLearnMs("BP_MIN", it.g) }); this.closeModal(); this.after();
     },
     // 背包里点炉子「使用」：装进洞府
     installFurnace(i) {
@@ -335,20 +326,21 @@ G.module({
       const s = this.s, it = s.bag[i]; if (!it || it.t !== "rbp") return;
       const key = this.forgeKey("ring", it.g, it.r);
       if (it.r === undefined ? s.forgeKnown.includes(key) : this.ringKnown(it.r, it.g)) return this.log("已学会这张图纸。", "sys");
-      s.forgeKnown.push(key); this.removeAt(i, 1);
-      this.log(`学会${DATA.ringBpName(it.g, it.r)}，可在洞府炼器室把${DATA.JIE[it.g - 1]}${DATA.ringNames[it.r] || "戒指"}升为${DATA.JIE[it.g]}。`, "gold"); this.closeModal(); this.after();
+      if (it.lq || !this.lqCan("forge", key)) return;   // v173 学习队列：学完才从背包消失
+      it.lq = 1; this.lqAdd("forge", { key, k: "rbp", g: it.g, r: it.r, ms: this.bagLearnMs("RBP_MIN", it.g) }); this.closeModal(); this.after();
     },
+    // v173 背包图纸学习时间（毫秒）：config/gongfa.js LEARN_Q 的 BP_MIN / RBP_MIN，不写 = 同阶装备图谱学习时间
+    bagLearnMs(k, g) { const a = (CFG.gongfa.LEARN_Q || {})[k], T = CFG.forge.equip.learnTime; const v = a && a[g] !== undefined ? a[g] : T[Math.min(T.length - 1, Math.max(0, g))]; return (v || 0) * 60000; },
     setForgeLibTier(g) { this.forgeLibTier = g; this.render(); },
     // 学习花费 { c 贡献, min 分钟 }（灵珠图纸不分阶，见 config/array.js 的 CFG.lingzhu）
     forgeLearnOf(kind, g) { if (kind === "lz") return { c: CFG.lingzhu.LEARN_COST, min: CFG.lingzhu.LEARN_TIME }; const C = kind === "eq" ? CFG.forge.equip : CFG.forge.stone; return { c: C.learnCost[g], min: C.learnTime[g] }; },
     learnForge(kind, g, slot) {
       const s = this.s, key = this.forgeKey(kind, g, slot), L = this.forgeLearnOf(kind, g), c = L.c;
       if (s.forgeKnown.includes(key)) return;
-      if (s.forgeStudy) return this.log("正在学习其他图谱，一次只能学一个。", "sys");
+      if (!this.lqCan("forge", key)) return;   // v173 学习队列
       if (kind !== "lz" && g >= this.sectInfo().star) return this.log(`需要 ${g + 1} 星及以上门派才能学习。`, "sys");
       if (s.contrib < c) return this.log("贡献不足。", "sys");
-      s.contrib -= c; s.forgeStudy = { key, end: this.now() + L.min * 60000 };
-      this.log(`开始学习${this.forgeKeyName(key)}，需 ${U.dur(L.min * 60)}。`, "good"); this.after();
+      s.contrib -= c; this.lqAdd("forge", { key, k: "forge", ms: L.min * 60000 }); this.after();
     },
     /* ---------- 灵珠：洞府炼器室炼制（三种矿石 + 对应灵晶，立即炼成放进背包） ---------- */
     lzMats() { return DATA.parseMats(CFG.lingzhu.ORE); },
@@ -573,13 +565,12 @@ G.caveViews.forge = function () {
 G.sectForgeView = function () {
   const s = this.s, star = this.sectInfo().star, g = this.forgeLibTier || 0, st = s.forgeStudy, lock = g >= star;
   let h = "";
-  if (st) { const sk = st.key.split(":")[0], sL = this.forgeLearnOf(sk === "eq" || sk === "lz" ? sk : "ss", +st.key.split(":").pop());
-    h += `<div class="card"><h3>学习中<small>${this.forgeKeyName(st.key)}</small></h3><p class="desc pg">${this.pgFill(Math.max(0, st.end - Date.now()), sL.min * 60000)}<span>剩余 ${U.cd(Math.max(0, st.end - Date.now()) / 1000 + 59)}</span></p></div>`; }
+  h += this.lqCard("forge");   // v173 学习队列
   const line = (kind, sl, name, tag, desc) => {
     const key = this.forgeKey(kind, g, sl), has = s.forgeKnown.includes(key), C = kind === "eq" ? CFG.forge.equip : CFG.forge.stone, c = C.learnCost[g];
     const img = kind === "ss" ? DATA.iconImg("ss") : DATA.iconImg(sl === "fabao" ? "fbs0_0" : "eq_" + sl);
     return `<div class="line"><div>${kind === "eq" ? DATA.eqTierIco(img, g) : DATA.li(img)}${name}<span class="tag">${tag}</span><small>${desc}<br>${U.fmt(c)} 贡献 · 学习 ${U.dur(C.learnTime[g] * 60)}</small></div>
-      <button class="sm" onclick="G.learnForge('${kind}',${g}${sl ? `,'${sl}'` : ""})" ${has || lock || st || s.contrib < c ? "disabled" : ""}>${has ? "已学会" : lock ? `${g + 1}星宗门可学习` : "学习"}</button></div>`;
+      ${has || lock ? `<button class="sm" disabled>${has ? "已学会" : `${g + 1}星宗门可学习`}</button>` : this.lqBtn("forge", key, `G.learnForge('${kind}',${g}${sl ? `,'${sl}'` : ""})`, s.contrib < c)}</div>`;
   };
   h += `<div class="room-grid five">${DATA.JIE.slice(0, DATA.DAN_JIE_N).map((n, i) => `<button class="${g === i ? "active" : ""}" onclick="G.setForgeLibTier(${i})">${n}</button>`).join("")}</div>
     <div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "forge", "炼器室")} · 图谱</h3>` +
@@ -590,7 +581,7 @@ G.sectForgeView = function () {
   const LZ = CFG.lingzhu, lzc = LZ.LEARN_COST;
   h += `<div class="card"><h3>灵珠图纸</h3>` + LZ.NAMES.map((n, ft) => { const has = s.forgeKnown.includes(this.forgeKey("lz", 0, ft));
     return `<div class="line"><div>${DATA.li(DATA.smIcon("lz", ft), "lz-glow")}${DATA.smName("lz", ft)}<small>${this.matsText(this.lzMats())}、${DATA.smName("lj", ft)} ×${LZ.JING}<br>${U.fmt(lzc)} 贡献 · 学习 ${U.dur(LZ.LEARN_TIME * 60)}</small></div>
-      <button class="sm" onclick="G.learnForge('lz',0,${ft})" ${has || st || s.contrib < lzc ? "disabled" : ""}>${has ? "已学会" : "学习"}</button></div>`; }).join("") + `</div>`;
+      ${has ? `<button class="sm" disabled>已学会</button>` : this.lqBtn("forge", this.forgeKey("lz", 0, ft), `G.learnForge('lz',0,${ft})`, s.contrib < lzc)}</div>`; }).join("") + `</div>`;
   return h;
 };
 
@@ -598,8 +589,7 @@ G.sectForgeView = function () {
 G.sectAlchemyView = function () {
   const s = this.s, star = this.sectInfo().star, tier = this.danLibTier || 0, st = s.danStudy;
   let h = "";
-  if (st) { const [t, g] = st.key.split("|");
-    h += `<div class="card"><h3>参悟中<small>《${DATA.danName(t, +g)}》</small></h3><p class="desc pg">${this.pgFill(Math.max(0, st.end - Date.now()), DATA.danLearnTime(t, +g))}<span>剩余 ${U.cd(Math.max(0, st.end - Date.now()) / 1000 + 59)}</span></p></div>`; }
+  h += this.lqCard("dan");   // v173 学习队列
   h += this.danCatBar("danLibCat");
   const cat = this.danLibCat || 0, catName = (CFG.alchemy.CATS || [])[cat] || "", types = Object.keys(DATA.recipes).filter(t => DATA.danCat(t) === cat);
   h += `<div class="room-grid five">${DATA.JIE.slice(0, DATA.DAN_JIE_N).map((n, g) => `<button class="${tier === g ? "active" : ""}" onclick="G.setDanLibTier(${g})">${n}</button>`).join("")}</div>
@@ -608,7 +598,7 @@ G.sectAlchemyView = function () {
       const key = t + "|" + tier, has = s.recipes.includes(key), c = DATA.danLearnCost(t, tier), need = DATA.danStar(t, tier), lock = need > star;
       return `<div class="line"><div>${DATA.li(DATA.danIcon(t))}《${DATA.danName(t, tier)}》<span class="tag">${DATA.recipeEffect(t, tier)}</span>
         <small>${this.matsText(DATA.danRecipe(t, tier))}<br>${U.fmt(c)} 贡献 · 学习 ${U.dur(DATA.danLearnTime(t, tier) / 1000)}</small></div>
-        <button class="sm" onclick="G.learnRecipe('${t}',${tier})" ${has || lock || st || s.contrib < c ? "disabled" : ""}>${has ? "已学会" : lock ? `${need}星宗门可学习` : "学习"}</button></div>`;
+        ${has || lock ? `<button class="sm" disabled>${has ? "已学会" : `${need}星宗门可学习`}</button>` : this.lqBtn("dan", key, `G.learnRecipe('${t}',${tier})`, s.contrib < c)}</div>`;
     }).join("") + `</div>`;
   return h;
 };

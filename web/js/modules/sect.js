@@ -137,7 +137,7 @@ G.module({
     learnGongfa(id) {
       const g = DATA.skillInfo(id);
       if (!g || g.src !== "sect" || this.hasGongfa(id) || this.s.contrib < g.cost) return;
-      if (this.s.gfLearn) return this.log("正在学习其他功法。", "sys");
+      if (!this.lqCan("gf", id)) return;   // v173 学习队列
       if (!this.lsCheck(id)) return;   // 神识（shenshi.js）
       this.s.contrib -= g.cost; this.startGfLearn(id); this.after();
     },
@@ -265,6 +265,7 @@ G.module({
       if (x.done < x.total) return;
       s.cqStudy = null; s.cqLv = Math.min(C.MAX_LV, (s.cqLv || 0) + 1); this.dirty();
       this.log(`${C.NAME}提升至第 ${s.cqLv} 层，每天可出窍探索 ${this.cqMaxRuns()} 次。`, "gold");
+      if (this._off) this._off.gfUp[C.NAME] = s.cqLv;   // v173 离线账本
     },
     // 功法页 · 秘法里的出窍秘法一行
     cqLine() {
@@ -364,7 +365,7 @@ G.module({
     },
     towerNextBook(star) {   // 下一本没给的秘诀 id（修炼秘诀、肉身秘诀轮流），给完 = null
       const M = DATA.towerBookCount(star);
-      for (let k = 1; k <= M; k++) for (const t of DATA.TOWER_TYPES) { const id = DATA.towerBookId(star, k, t); if (id && !this.s.gongfa[id] && !(this.s.gfLearn && this.s.gfLearn.id === id) && !this.s.bag.some(x => x.t === "gfb" && x.id === id)) return id; }   // 已学会 / 背包里有的不再给
+      for (let k = 1; k <= M; k++) for (const t of DATA.TOWER_TYPES) { const id = DATA.towerBookId(star, k, t); if (id && !this.s.gongfa[id] && !this.lqHas("gf", id) && !this.s.bag.some(x => x.t === "gfb" && x.id === id)) return id; }   // 已学会 / 背包里有的不再给
       return null;
     },
     towerBonusText(b) { return !b ? "" : b.kind === "ring" ? DATA.ringName(b.r, 0) : b.kind === "rbp" ? DATA.ringBpName(b.g, b.r)
@@ -521,7 +522,7 @@ G.module({
       const el = this.libEl && this.libEl !== "all" ? this.libEl : x.el;
       const btn = g => this.gfLearnBtn(g, `G.learnGongfa('${g.id}')`, s.contrib < g.cost);
       const sects = DATA.sects.filter(o => o.star === x.star && (el === "all" || o.el === el));
-      h += `<div class="room-grid six">${DATA.elements.map(e => [e.id, e.name]).map(([k, n]) =>
+      h += this.lqCard("gf") + `<div class="room-grid six">${DATA.elements.map(e => [e.id, e.name]).map(([k, n]) =>
           `<button class="${el === k ? "active" : ""}" onclick="G.setLibEl('${k}')">${n}</button>`).join("")}</div>` +
         sects.map(o => `<div class="card"><h3>${o.name}<span class="tag">${DATA.elById[o.el].name}</span></h3>` +
           DATA.gongfaTypes.map(t => {

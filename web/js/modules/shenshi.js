@@ -22,6 +22,7 @@ G.module({
       const s = this.s; let n = 0;
       for (const id in s.gongfa) n += this.ssCost(id);
       if (s.gfLearn && !s.gongfa[s.gfLearn.id]) n += this.ssCost(s.gfLearn.id);   // 正在学习的也算
+      for (const x of (s.lq && s.lq.gf) || []) if (!s.gongfa[x.id]) n += this.ssCost(x.id);   // v173 排队的也算
       return n;
     },
     lsLeft() { return (this.s.lsMax || 0) - this.lsUsed(); },

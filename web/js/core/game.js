@@ -114,7 +114,7 @@ const G = {
     if (n < 1) return;
     const before = { exp: this.s.exp, ling: this.s.ling, stone: this.s.stone, contrib: this.s.contrib || 0, kills: this.s.kills || 0, bag: this.bagCount() };
     // 离线账本：探索结算（world.js giveLoot）、事务堂（sect.js affairReward）往这里记
-    this._off = { exRuns: 0, exStone: 0, exItems: {}, exLost: 0, afN: 0, afStone: 0, afContrib: 0 };
+    this._off = { exRuns: 0, exStone: 0, exItems: {}, exLost: 0, afN: 0, afStone: 0, afContrib: 0, cq: { runs: 0, stone: 0, exItems: {} }, allItems: {}, learn: [], gfUp: {} };   // v173 出窍、学会、功法升层
     this.silent = true;
     const MAX = 3e6; // 安全上限（约 347 天），防止浏览器卡死
     const runs = Math.min(n, MAX);
@@ -134,21 +134,29 @@ const G = {
     const dExp = s.exp - b.exp, dStone = s.stone - b.stone, dContrib = (s.contrib || 0) - b.contrib, dLing = s.ling - b.ling;
     rows.push(`<b>总计</b>`);
     rows.push(`修为 ${sign(dExp)}　灵石 ${sign(dStone)}　灵气 ${sign(dLing)}${s.sect || dContrib ? `　贡献 ${sign(dContrib)}` : ""}`);
-    if (o.exRuns || s.explore) {
-      const it = Object.keys(o.exItems).map(k => `${k}×${f(o.exItems[k])}`).join("、");
+    const items = m => Object.keys(m).map(k => `${k}×${f(m[k])}`).join("、"), kills = (s.kills || 0) - b.kills, cqOn = s.explore && s.explore.cq;
+    if (o.learn.length) { rows.push(`<b>学会</b>`); rows.push(o.learn.join("、")); }   // v173 学了什么
+    const ups = Object.keys(o.gfUp); if (ups.length) { rows.push(`<b>功法升层</b>`); rows.push(ups.map(k => `${k} 第 ${o.gfUp[k]} 层`).join("、")); }
+    if (o.exRuns || (s.explore && !cqOn)) {
       rows.push(`<b>自动探索</b>`);
-      rows.push(`结算 ${o.exRuns} 次，击败 ${f((s.kills || 0) - b.kills)} 只，灵石 +${f(o.exStone)}${it ? "<br>" + it : ""}${o.exLost ? `<br><span class="bad">背包已满，遗失 ${o.exLost} 件</span>` : ""}`);
-      if (s.explore && s.explore.step) rows.push(`当前这次已走 ${s.explore.step} 步，收获在走完后结算`);
-      if (!s.explore && o.exRuns) rows.push(`<span class="bad">离线期间自动探索已停止（生命不足或战败）</span>`);
+      rows.push(`结算 ${o.exRuns} 次${o.cq.runs ? "" : `，击败 ${f(kills)} 只`}，灵石 +${f(o.exStone)}${items(o.exItems) ? "<br>" + items(o.exItems) : ""}`);
     }
+    if (o.cq.runs || cqOn) {   // v173 出窍单独显示
+      rows.push(`<b>元婴出窍</b>`);
+      rows.push(`探索 ${o.cq.runs} 次${o.exRuns ? "" : `，击败 ${f(kills)} 只`}，灵石 +${f(o.cq.stone)}${items(o.cq.exItems) ? "<br>" + items(o.cq.exItems) : ""}`);
+    }
+    if (o.exRuns && o.cq.runs) rows.push(`探索和出窍共击败 ${f(kills)} 只`);
+    if (o.exLost) rows.push(`<span class="bad">背包已满，遗失 ${o.exLost} 件</span>`);
+    if (s.explore && s.explore.step) rows.push(`当前这次已走 ${s.explore.step} 步，收获在走完后结算`);
+    if (!s.explore && (o.exRuns || o.cq.runs)) rows.push(`<span class="bad">离线期间${o.cq.runs && !o.exRuns ? "出窍" : "自动探索"}已结束（次数用完、生命不足或战败）</span>`);
     if (o.afN) { rows.push(`<b>事务堂</b>`); rows.push(`完成 ${f(o.afN)} 轮，灵石 +${f(o.afStone)}，贡献 +${f(o.afContrib)}`); }
-    const other = dStone - o.exStone - o.afStone;
+    const other = dStone - o.exStone - o.cq.stone - o.afStone;
     if (other) rows.push(`<b>其他灵石</b>`, `${sign(other)}（自动补充灵气、种田、炼制等收支）`);
     // 背包新增（探索以外：灵药园收获、炼丹、炼器出炉等）
     const now = this.bagCount(), gain = [];
-    for (const k in now) { const d = now[k] - (b.bag[k] || 0) - (o.exItems[k] || 0); if (d > 0) gain.push(`${k}×${f(d)}`); }
+    for (const k in now) { const d = now[k] - (b.bag[k] || 0) - (o.allItems[k] || 0); if (d > 0) gain.push(`${k}×${f(d)}`); }
     if (gain.length) rows.push(`<b>其他新增物品</b>`, gain.join("、"));
-    const short = [`修为 ${sign(dExp)}`, `灵石 ${sign(dStone)}`]; if (o.exRuns) short.push(`探索 ${o.exRuns} 次`); if (o.afN) short.push(`事务堂 ${o.afN} 轮`);
+    const short = [`修为 ${sign(dExp)}`, `灵石 ${sign(dStone)}`]; if (o.exRuns) short.push(`探索 ${o.exRuns} 次`); if (o.cq.runs) short.push(`出窍 ${o.cq.runs} 次`); if (o.learn.length) short.push(`学会 ${o.learn.join("、")}`); if (o.afN) short.push(`事务堂 ${o.afN} 轮`);
     this.log(`你离开了 ${U.dur(sec)}，离线收益：${short.join("，")}。`, "gold");
     this.lastOffline = rows;
     try { this.modal(`<h2>离线 ${U.dur(sec)}</h2><div class="explore-log">${rows.map(r => `<p>${r}</p>`).join("")}</div><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`); } catch (e) {}

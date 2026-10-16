@@ -18,20 +18,13 @@ G.module({
   id: "gongfa",
   tab: "gongfa",
 
-  defaults: () => ({ gongfa: {}, gfStudy: null, gfQueue: [], gfLearn: null }),   // gfLearn：正在学习（首次习得）{ id, end }
+  defaults: () => ({ gongfa: {}, gfStudy: null, gfQueue: [], gfLearn: null, lq: { gf: [], dan: [], forge: [] } }),   // gfLearn：正在学习（首次习得）{ id, end }
 
   // 每 10 秒结算修炼：按 5 秒一步扣修为、累计进度
   tick() {
     const s = this.s, STEP = DATA.STUDY_STEP * 1000;
     this.cqTick();   // 元婴出窍秘法修炼（sect.js）
-    const L = s.gfLearn;   // v93：学习功法 / 法术需要时间（config/gongfa.js 的 LEARN_MIN）
-    if (L && this.now() >= L.end) {
-      s.gfLearn = null; s.gongfa[L.id] = Math.max(1, s.gongfa[L.id] || 0);
-      const info = DATA.skillInfo(L.id, 1);
-      if (info && info.kind === "sp") this.autoSlotSpell(L.id);   // 法术栏有空位就自动放入（见 bag.js）
-      if (info) this.log(`习得《${info.name}》第 1 层，可在功法栏修炼提升。`, "gold");
-      this.dirty();
-    }
+    this.lqTick("gf");   // v173 学习（首次习得）+ 学习队列
     if (!s.gfStudy) this.nextStudy();
     while (s.gfStudy) {
       const st = s.gfStudy;
@@ -53,6 +46,7 @@ G.module({
       // 完成，升一层
       s.gongfa[st.id] = (s.gongfa[st.id] || 1) + 1;
       const info = DATA.skillInfo(st.id, s.gongfa[st.id]);
+      if (this._off) this._off.gfUp[`《${info.name}》`] = info.lv;   // v173 离线账本
       this.log(`修炼有成，《${info.name}》提升至第 ${info.lv} 层！共消耗修为 ${U.fmt(st.spent)}${st.spentStone ? `、灵石 ${U.fmt(st.spentStone)}` : ""}。`, "gold");
       s.gfStudy = null; this.dirty();
       this.nextStudy(st.at);
@@ -60,19 +54,103 @@ G.module({
   },
 
   api: {
-    // 开始学习（已付过贡献 / 灵石）：等 LEARN_MIN 分钟后习得第 1 层
+    // 开始学习（已付过贡献 / 灵石）：进学习队列，轮到后等 LEARN_MIN 分钟习得第 1 层
     startGfLearn(id) {
       const g = DATA.skillInfo(id); if (!g) return;
-      this.s.gfLearn = { id, end: this.now() + DATA.gfLearnMin(g.star) * 60000 };
-      this.log(`开始学习《${g.name}》。`, "good");
-      this.tickAll(false);   // 时间为 0 时立刻学会
+      this.lqAdd("gf", { id, k: "gf", ms: DATA.gfLearnMin(g.star) * 60000 });
     },
-    // 功法殿 / 坊市的学习按钮
-    gfLearnBtn(g, on, poor, word = "学习") {
-      const L = this.s.gfLearn;
+    // 功法殿 / 坊市 / 功德司的学习按钮
+    gfLearnBtn(g, on, poor) {
       if (this.hasGongfa(g.id)) return `<button class="sm" disabled>已学会</button>`;
-      if (L && L.id === g.id) { const left = Math.max(0, L.end - this.now()); return `<button class="sm pg" disabled>${this.pgFill(left, DATA.gfLearnMin(g.star) * 60000)}<span>学习中 ${U.cd(left / 1000)}</span></button>`; }
-      return `<button class="sm" onclick="${on}" ${L || poor ? "disabled" : ""}>${word}</button>`;
+      return this.lqBtn("gf", g.id, on, poor);
+    },
+
+    /* ---------- v173 学习队列 ----------
+     * 三条队列各自独立：gf 功法 / 法术 / 秘法 / 背包秘诀，dan 丹方，forge 炼器图谱 / 背包图纸
+     * 正在学的放在 s.gfLearn / s.danStudy / s.forgeStudy（{ id 或 key, end, ms, k }），后面排队的在 s.lq[队列]
+     * 点学习就扣费，不能取消；排队最多 CFG.gongfa.LEARN_Q.MAX 个（不算正在学的）；前一个学完，下一个接着开始（离线也是） */
+    lqSlot(ch) { return { gf: "gfLearn", dan: "danStudy", forge: "forgeStudy" }[ch]; },
+    lqMax() { const Q = CFG.gongfa.LEARN_Q || {}; return Q.MAX === undefined ? 5 : Q.MAX; },
+    lqList(ch) { const s = this.s; if (!s.lq) s.lq = {}; return s.lq[ch] || (s.lq[ch] = []); },
+    lqKey(x) { return x.id !== undefined ? x.id : x.key; },
+    // 0 = 没有，1 = 正在学，2 = 排队中
+    lqHas(ch, key) { const c = this.s[this.lqSlot(ch)]; if (c && this.lqKey(c) === key) return 1; return this.lqList(ch).some(x => this.lqKey(x) === key) ? 2 : 0; },
+    lqFull(ch) { return !!this.s[this.lqSlot(ch)] && this.lqList(ch).length >= this.lqMax(); },
+    // 能不能再加一个（不能就提示）
+    lqCan(ch, key) {
+      if (this.lqHas(ch, key)) { this.log("已经在学习 / 排队中了。", "sys"); return false; }
+      if (this.lqFull(ch)) { this.log(`学习队列已满（最多排队 ${this.lqMax()} 个）。`, "sys"); return false; }
+      return true;
+    },
+    lqName(x) {
+      const k = x.k;
+      if (k === "dan" || (!k && x.key && x.key.includes("|"))) { const [t, g] = x.key.split("|"); return `丹方《${DATA.danName(t, +g)}》`; }
+      if (k === "bp") return DATA.furnaceName(x.kind, x.g) + "图纸";
+      if (k === "rbp") return DATA.ringBpName(x.g, x.r);
+      if (x.key !== undefined) return this.forgeKeyName(x.key);
+      const g = DATA.skillInfo(x.id, 1); return g ? `《${g.name}》` : "功法";
+    },
+    // 学习总时间（毫秒）；老存档没记 ms 的按现在的配置算
+    lqMs(ch, x) {
+      if (x.ms !== undefined) return x.ms;
+      if (ch === "gf") { const g = DATA.skillInfo(x.id, 1); return g ? DATA.gfLearnMin(g.star) * 60000 : 0; }
+      if (ch === "dan") { const [t, g] = x.key.split("|"); return DATA.danLearnTime(t, +g); }
+      const p = x.key.split(":"), sk = p[0]; return this.forgeLearnOf(sk === "eq" || sk === "lz" ? sk : "ss", +p[p.length - 1]).min * 60000;
+    },
+    // 加入（调用前已扣费）：空着就马上开始，否则排队
+    lqAdd(ch, x) {
+      const s = this.s, sl = this.lqSlot(ch);
+      if (!s[sl]) { s[sl] = Object.assign({}, x, { end: this.now() + x.ms }); this.log(`开始学习${this.lqName(x)}，需 ${U.dur(x.ms / 1000)}。`, "good"); }
+      else { this.lqList(ch).push(x); this.log(`${this.lqName(x)}已加入学习队列（排第 ${this.lqList(ch).length} 个）。`, "good"); }
+      this.lqTick(ch); this.dirty();
+    },
+    // 到时间就学会，下一个从上一个学完的时刻开始（离线补算也对）
+    lqTick(ch) {
+      const s = this.s, sl = this.lqSlot(ch); let c, guard = 0;
+      while ((c = s[sl]) && this.now() >= c.end && guard++ < 100) {
+        s[sl] = null; this.lqDone(ch, c);
+        const q = this.lqList(ch);
+        if (q.length) { const n = q.shift(); s[sl] = Object.assign({}, n, { end: c.end + this.lqMs(ch, n) }); }
+      }
+    },
+    // 背包里正在学 / 排队的那本（学完才从背包消失）
+    lqBagIdx(c) { return this.s.bag.findIndex(it => it.lq && it.t === c.k && (c.k === "gfb" ? it.id === c.id : it.kind === c.kind && it.g === c.g && it.r === c.r)); },
+    lqDone(ch, c) {
+      const s = this.s, name = this.lqName(c);
+      if (c.k === "gfb" || c.k === "bp" || c.k === "rbp") { const i = this.lqBagIdx(c); if (i >= 0) { const it = s.bag[i]; this.removeAt(i, 1); if (s.bag[i] === it) delete it.lq; } }   // 叠在一起的只用掉一个
+      if (ch === "gf") {
+        s.gongfa[c.id] = Math.max(1, s.gongfa[c.id] || 0);
+        const info = DATA.skillInfo(c.id, 1);
+        if (info && info.kind === "sp") this.autoSlotSpell(c.id);   // 法术栏有空位就自动放入（见 bag.js）
+        this.log(c.k === "mf" ? `习得${name}！之后在「功法 → 秘法」里修炼升层。` : `习得${name}第 1 层，可在功法栏修炼提升。`, "gold");
+      } else if (ch === "dan") {
+        if (!s.recipes.includes(c.key)) s.recipes.push(c.key);
+        this.log(`学会${name}，可在洞府炼丹房炼制。`, "gold");
+      } else if (c.k === "bp") {
+        const bp = s.blueprints[c.kind]; if (!bp.includes(c.g)) bp.push(c.g);
+        this.log(`学会${name}，可在洞府炼器室炼制。`, "gold");
+      } else {
+        if (!s.forgeKnown.includes(c.key)) s.forgeKnown.push(c.key);
+        this.log(`学会${name}，可在洞府炼器室炼制。`, "gold");
+      }
+      if (this._off) this._off.learn.push(name);   // 离线账本
+      this.dirty();
+    },
+    // 学习按钮：正在学 = 进度条，排队中，队列满，空着 = 学习，忙 = 排队
+    lqBtn(ch, key, on, poor) {
+      const h = this.lqHas(ch, key), c = this.s[this.lqSlot(ch)];
+      if (h === 1) { const left = Math.max(0, c.end - this.now()); return `<button class="sm pg" disabled>${this.pgFill(left, this.lqMs(ch, c))}<span>学习中 ${U.cd(left / 1000)}</span></button>`; }
+      if (h === 2) return `<button class="sm" disabled>排队中</button>`;
+      if (this.lqFull(ch)) return `<button class="sm" disabled>队列已满</button>`;
+      return `<button class="sm" onclick="${on}" ${poor ? "disabled" : ""}>${c ? "排队" : "学习"}</button>`;
+    },
+    // 学习队列卡片（没有就空）
+    lqCard(ch) {
+      const c = this.s[this.lqSlot(ch)], q = this.lqList(ch); if (!c) return "";
+      const left = Math.max(0, c.end - this.now());
+      return `<div class="card"><h3>学习队列<small>排队 ${q.length} / ${this.lqMax()} · 已扣费，不能取消</small></h3>
+        <div class="line"><div class="pg">${this.pgFill(left, this.lqMs(ch, c))}<span>${this.lqName(c)}<small>学习中 · 剩余 ${U.cd(left / 1000)}</small></span></div></div>` +
+        q.map((x, i) => `<div class="line"><div>${i + 1}. ${this.lqName(x)}<small>排队中 · 需 ${U.dur(this.lqMs(ch, x) / 1000)}</small></div></div>`).join("") + `</div>`;
     },
     // 所有已学功法的加成合计（法术不算）
     gongfaBonus() {

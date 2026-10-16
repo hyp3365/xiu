@@ -563,9 +563,10 @@ G.module({
     // 把收获放进背包，返回简短描述
     giveLoot(loot) {
       const s = this.s, parts = [], o = this._off;
-      if (o) {   // 离线账本（core/game.js offlineReport）
-        o.exRuns++; o.exStone += loot.stone;
-        const add = (k, n) => { o.exItems[k] = (o.exItems[k] || 0) + n; };
+      if (o) {   // 离线账本（core/game.js offlineReport）；v173 出窍单独记
+        const cq = s.explore && s.explore.cq, L = cq ? o.cq : o;
+        if (cq) { o.cq.runs++; o.cq.stone += loot.stone; } else { o.exRuns++; o.exStone += loot.stone; }
+        const add = (k, n) => { L.exItems[k] = (L.exItems[k] || 0) + n; o.allItems[k] = (o.allItems[k] || 0) + n; };
         for (const k in loot.mats) { const x = loot.mats[k]; add(DATA.matFull(x.kind, x.g), x.n); }
         loot.pills.forEach(p => add(`${DATA.realms[p.g]}·${DATA.pills[p.t].name}`, 1));
         loot.equips.forEach(e => add(this.itemName({ t: "eq", e }), 1));
@@ -925,7 +926,7 @@ G.module({
       if (!g || g.src !== "shop" || this.hasGongfa(id)) return;
       if (!this.realmOK(g.sect.reqRealm)) return this.log(`境界不足，需要${DATA.realmLabel(g.sect.reqRealm)}。`, "sys");
       if (this.s.stone < g.cost) return this.log("灵石不足。", "sys");
-      if (this.s.gfLearn) return this.log("正在学习其他功法。", "sys");
+      if (!this.lqCan("gf", id)) return;   // v173 学习队列
       if (!this.lsCheck(id)) return;   // 神识（shenshi.js）
       this.s.stone -= g.cost; this.startGfLearn(id); this.after();
     },
@@ -934,7 +935,7 @@ G.module({
       const g = DATA.skillInfo(id), s = this.s;
       if (!g || (g.src !== "jshop" && g.src !== "gd") || this.hasGongfa(id)) return;
       if (!this.realmOK(g.sect.reqRealm)) return this.log(`境界不足，需要${DATA.realmLabel(g.sect.reqRealm)}。`, "sys");
-      if (s.gfLearn) return this.log("正在学习其他功法。", "sys");
+      if (!this.lqCan("gf", id)) return;   // v173 学习队列
       if (!this.lsCheck(id)) return;   // 神识（shenshi.js）
       if (g.src === "gd") { if ((s.merit || 0) < g.cost) return this.log("功德不足。", "sys"); s.merit -= g.cost; }
       else {
@@ -967,7 +968,7 @@ G.module({
       const dans = gd ? this.sgDanList(a).map(d => { const r = DATA.dans[d.type], poor = (s.merit || 0) < d.cost;
         return `<div class="line"><div><img class="mi" src="${DATA.danIcon(d.type)}" alt="">${DATA.danName(d.type, d.g, 1)}<small>永久${r.label} +${U.num(DATA.danVal(d.type, d.g))} · 已服 ${DATA.danLimit(d.type, d.g) - this.danLeft(d.type, d.g)} / ${DATA.danLimit(d.type, d.g)} · ${U.fmt(d.cost)} 功德</small></div>
           ${lock ? `<button class="sm" disabled>境界不足</button>` : `<div class="sg-btns"><button class="sm" onclick="G.buySgDan(${a},'${d.type}',1)" ${poor ? "disabled" : ""}>购买</button><button class="sm" onclick="G.buySgDan(${a},'${d.type}',10)" ${poor ? "disabled" : ""}>×10</button></div>`}</div>`; }).join("") : "";
-      return `<div class="card"><h3>${o.name}<small>${gd ? `功德 ${U.fmt(s.merit || 0)}` : `灵石 ${U.fmt(s.stone)} · 本图贡献 ${U.fmt(this.xjGxOf(a))}`}</small></h3>${rows}</div>${dans ? `<div class="card"><h3>上古丹</h3>${dans}</div>` : ""}`;
+      return this.lqCard("gf") + `<div class="card"><h3>${o.name}<small>${gd ? `功德 ${U.fmt(s.merit || 0)}` : `灵石 ${U.fmt(s.stone)} · 本图贡献 ${U.fmt(this.xjGxOf(a))}`}</small></h3>${rows}</div>${dans ? `<div class="card"><h3>上古丹</h3>${dans}</div>` : ""}`;
     },
     // 管理员：网页里更新游戏（服务器拉取 GitHub 最新代码，完成后刷新页面）
     async webUpdate() {
@@ -1009,7 +1010,7 @@ G.module({
           const desc = g.kind === "sp" ? `${g.el.name}系 · ${this.spellDmgTxt(g)} · 耗法力 ${U.fmt(g.mana)}` : `每层${g.label} +${U.num(g.perLv)}${g.label2 ? ` · ${g.label2} +${U.num(g.perLv2)}` : ""}`;
           return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.kind === "sp" ? "法术" : g.type.name}</span><small>${desc} · ${U.fmt(g.cost)} 灵石 · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>
             ${lock && !has ? `<button class="sm" disabled>境界不足</button>` : this.gfLearnBtn(g, `G.buyGongfa('${g.id}')`, s.stone < g.cost)}</div>`; };
-        return tabs + `<div class="room-grid">${Array.from({ length: N }, (_, i) => `<button class="${star === i + 1 ? "active" : ""}" onclick="G.setShopStar(${i + 1})">${i + 1}星</button>`).join("")}</div>` +
+        return tabs + this.lqCard("gf") + `<div class="room-grid">${Array.from({ length: N }, (_, i) => `<button class="${star === i + 1 ? "active" : ""}" onclick="G.setShopStar(${i + 1})">${i + 1}星</button>`).join("")}</div>` +
           srcs.map(o => `<div class="card"><h3>${o.name}<span class="tag">${DATA.elById[o.el].name}</span></h3>` +
             DATA.gfTypesOf("shop").filter(ty => !ty.sectOnly).map(ty => line(DATA.gongfaInfo(DATA.gongfaId(o.id, ty.id)))).join("") +
             line(DATA.spellInfo(DATA.spellId(o.id, o.el))) + `</div>`).join("");
