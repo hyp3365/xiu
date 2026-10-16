@@ -415,3 +415,4 @@ button small .cd{min-width:0}
 /* v149 修炼页 自动修炼 / 神识 / 修炼肉身 一行三个 */
 .btns button.b3{flex:1 1 0;min-width:0;white-space:nowrap;padding-left:4px;padding-right:4px}
 .line>div.pg{flex:1}   /* v155 进度框占满一行 */
+.fb-bad{color:#e05a4f}   /* v157 法宝属性不合（红字） */
