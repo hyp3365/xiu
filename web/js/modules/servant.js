@@ -38,11 +38,17 @@ G.module({
     svSalary(d) { const S = CFG.servant.SALARY; return Math.round(this.svGeo(S.LV1, S.MAX, d.lv)); },   // 只看等级，不看资质
     svOwed(d) { return Math.max(0, Math.round((Date.parse(this.bjDay()) - Date.parse(d.paid || this.bjDay())) / 864e5)); },
     // 某差事的效果 %（所有派去的道童相加）
-    svStage(d) { const C = CFG.servant; return Math.min(C.STAGES, Math.ceil(d.lv / (C.MAX_LV / C.STAGES))); },
+    // 效果曲线：x = (等级−1)/(满级−1)，占比 = x^p；p 让第 50 级正好占 HALF_PCT %
+    svCurve(lv) {
+      const C = CFG.servant, M = C.MAX_LV; if (M <= 1) return 1;
+      const h = Math.min(99, Math.max(1, C.HALF_PCT || 50)) / 100, xh = (Math.min(50, M) - 1) / (M - 1);
+      const p = xh > 0 && xh < 1 ? Math.log(h) / Math.log(xh) : 1;
+      return Math.pow((Math.min(lv, M) - 1) / (M - 1), p);
+    },
     svEff(d, job) {
       const C = CFG.servant, J = C.JOB[job]; if (!J) return 0;
-      if (J.LV1 !== undefined) return Math.round(this.svGeo(J.LV1, J.MAX, d.lv) * 100) / 100;   // 阵法辅助：每级平稳增长（保留 2 位小数）
-      return J.MAX * this.svStage(d) / C.STAGES;
+      const a = J.LV1 || 0;
+      return Math.round((a + (J.MAX - a) * this.svCurve(d.lv)) * 100) / 100;   // 每级都提升（保留 2 位小数）
     },
     svEffTxt(job, v) { return job === "zhen" ? `聚灵 +${U.num(v)}%` : `${job === "cult" ? "+" : "−"}${U.num(v)}%`; },
     servantPct(job) { return (this.s.servants || []).filter(d => d.job === job).reduce((t, d) => t + this.svEff(d, job), 0); },
@@ -103,7 +109,7 @@ G.module({
       const cand = L.map((d, i) => [d, i]).filter(([d]) => J.els.includes(d.el) && d.job !== job);
       this.modal(`<h2>${J.name}<small> ${this.svEffTxt(job, this.servantPct(job))}</small></h2>${slots}
         <h3 style="margin-top:8px">选择道童</h3>
-        ${cand.length ? cand.map(([d, i]) => `<div class="line"><div class="sv-li"><img src="${this.svImg(d)}" alt="">${this.svName(d)} ${d.lv}级${d.job ? `<small>${C.JOB[d.job].name}中</small>` : ""}</div><button class="sm primary" onclick="G.svSetJob(${i},'${job}','${job}')">派遣</button></div>`).join("") : `<p>没有可派遣的${J.els.map(e => C.EL[e]).join("、")}属性道童。</p>`}
+        ${cand.length ? cand.map(([d, i]) => `<div class="line"><div class="sv-li"><img src="${this.svImg(d)}" alt="">${this.svName(d)} · ${C.EL[d.el]} · ${d.lv}级${d.job ? `<small>${C.JOB[d.job].name}中</small>` : ""}</div><button class="sm primary" onclick="G.svSetJob(${i},'${job}','${job}')">派遣</button></div>`).join("") : `<p>没有可派遣的${J.els.map(e => C.EL[e]).join("、")}属性道童。</p>`}
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
     svSetJob(i, job, back) {
