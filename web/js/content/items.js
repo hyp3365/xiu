@@ -37,12 +37,12 @@ ITEMS.shop = [
   { kind: "pill", type: "juqi" , price: 100 },
   { kind: "pill", type: "juling", price: 400 },
   { kind: "pill", type: "peiyuan", price: 900 },
-  { kind: "eq", slot: "helmet", price: 600 },
-  { kind: "eq", slot: "armor", price: 600 },
-  { kind: "eq", slot: "weapon", price: 600 },
-  { kind: "eq", slot: "legs", price: 600 },
-  { kind: "eq", slot: "boots", price: 600 },
-  { kind: "eq", slot: "pendant", price: 600 },
+  { kind: "eq", slot: "helmet", price: 5000 },
+  { kind: "eq", slot: "armor", price: 5000 },
+  { kind: "eq", slot: "weapon", price: 5000 },
+  { kind: "eq", slot: "legs", price: 5000 },
+  { kind: "eq", slot: "boots", price: 5000 },
+  { kind: "eq", slot: "pendant", price: 5000 },
 ];
 
 /* ---------------- 3. 宗门宝库 · 杂物 ----------------

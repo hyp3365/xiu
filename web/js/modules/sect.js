@@ -413,8 +413,8 @@ G.module({
     testMobGf(t) {
       const R = DATA.mobRow(t), out = [], ms = t[3] > 0 ? t[3] : DATA.refStar(t[1]); if (!(R.gf[1] > 0)) return out;
       for (const sc of DATA.refSrcList(t[4] > 0 ? t[4] : 1)) { if (sc.star > ms) continue; const l = [];
-        for (const ty of DATA.gfTypesOf(sc.src)) for (const ti of DATA.tiers) { if (sc.src === "shop" && ty.sectOnly) continue;
-          const g = DATA.gongfaInfo(DATA.gongfaId(sc.id, ty.id, ti.id), R.gf[1]); if (g) l.push(g.name); }
+        for (const ty of DATA.gfTypesOf(sc.src)) { if (sc.src === "shop" && ty.sectOnly) continue;
+          const g = DATA.gongfaInfo(DATA.gongfaId(sc.id, ty.id), R.gf[1]); if (g) l.push(g.name); }
         if (l.length) out.push([sc.name, l]); }
       return out;
     },

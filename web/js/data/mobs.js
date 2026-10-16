@@ -32,8 +32,8 @@ DATA.mobBooks = (realm, star, src) => {
   if (DATA._mobBooks[key]) return DATA._mobBooks[key];
   const o = {};
   for (const sc of DATA.refSrcList(src)) { if (sc.star > ms) continue;
-    for (const t of DATA.gfTypesOf(sc.src)) for (const ti of DATA.tiers) { if (sc.src === "shop" && t.sectOnly) continue;
-      (o[t.id] = o[t.id] || []).push({ id: DATA.gongfaId(sc.id, t.id, ti.id), stat: t.stat, stat2: t.stat2 }); } }
+    for (const t of DATA.gfTypesOf(sc.src)) { if (sc.src === "shop" && t.sectOnly) continue;
+      (o[t.id] = o[t.id] || []).push({ id: DATA.gongfaId(sc.id, t.id), stat: t.stat, stat2: t.stat2 }); } }
   return DATA._mobBooks[key] = o;
 };
 DATA._mobGfv = {};

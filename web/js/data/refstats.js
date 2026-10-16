@@ -23,9 +23,9 @@ DATA.refStats = (realm, layer, gf, star, src) => {
   if (gf > 0) {
     for (const sc of DATA.refSrcList(sr)) {
       if (sc.star > ms) continue;
-      for (const t of DATA.gfTypesOf(sc.src)) for (const ti of DATA.tiers) {
+      for (const t of DATA.gfTypesOf(sc.src)) {
         if (sc.src === "shop" && t.sectOnly) continue;
-        const g = DATA.gongfaInfo(DATA.gongfaId(sc.id, t.id, ti.id), gf);
+        const g = DATA.gongfaInfo(DATA.gongfaId(sc.id, t.id), gf);
         if (g && o[t.stat] !== undefined) o[t.stat] += g.value;
         if (g && t.stat2 && o[t.stat2] !== undefined) o[t.stat2] += g.value2;
       }

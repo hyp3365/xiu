@@ -8,7 +8,7 @@
  * - 修炼升层需要时间，修炼期间每 5 秒消耗一次修为（修为不够就暂停，等有修为再继续）
  * - 修炼队列最多 15 个，当前这部练完自动开始下一个；离线也会继续
  * 存档字段：
- *   gongfa:  { "s1_0:mijue:huang": 3, "s1_0:sp:huo:huang": 1, ... }  已学 → 层数
+ *   gongfa:  { "s1_0:mijue": 3, "s1_0:sp:huo": 1, ... }  已学 → 层数
  *   gfStudy: { id, total, done, at, per, spent } | null
  *            正在修炼：总时长、已修炼时长（毫秒）、上次结算时间、每 5 秒消耗、已消耗修为
  *   gfQueue: [id, ...]   排队中的（同一部可排多次，每次升一层）
@@ -274,7 +274,7 @@ G.module({
         : `${g.label} ${cv("+" + this.gfValue(g, g.value * this.lingenGongfa(g.el.id)))}${lgTxt}${max ? "" : `，下一层 ${cv("+" + this.gfValue(g, g.next * this.lingenGongfa(g.el.id)))}`}` +
           (g.label2 ? `；${g.label2} ${cv("+" + this.gfValue(g, g.value2 * this.lingenGongfa(g.el.id)))}${max ? "" : `，下一层 ${cv("+" + this.gfValue(g, g.next2 * this.lingenGongfa(g.el.id)))}`}` : "");
       const sec = max ? 0 : this.studySec(g), n = Math.ceil(sec / DATA.STUDY_STEP), per = max ? 0 : DATA.studyPer(g), sp = max ? 0 : g.stonePer || 0;
-      return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》${g.noEl ? "" : `<span class="tag">${g.star}星</span>`}${g.kind === "mf" || g.noEl ? "" : `<span class="tag">${g.el.name}</span>`}${g.noEl ? "" : `<span class="tag">${g.tier.name}</span>`}<span class="tag">${g.lv}/${MX}层</span>
+      return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》${g.noEl ? "" : `<span class="tag">${g.star}星</span>`}${g.kind === "mf" || g.noEl ? "" : `<span class="tag">${g.el.name}</span>`}<span class="tag gf-lv">第${g.lv}层</span>
         <small>${desc}${max ? "" : `<br>下一层：${U.dur(sec)} · 每5秒 ${U.fmt(per)} 修为${sp ? ` + ${U.fmt(sp)} 灵石` : ""}（共 ${U.fmt(per * n)}${sp ? ` 修为、${U.fmt(sp * n)} 灵石` : ""}）`}${plan > g.lv ? `<br>已排至第 ${plan} 层` : ""}</small></div>
         ${max ? `<button class="sm" disabled>圆满</button>` :
           `<button class="sm" onclick="G.studyGongfa('${g.id}')" ${full || s.gfQueue.length >= DATA.GF_QUEUE ? "disabled" : ""}>${full ? "已排满" : "修炼"}</button>`}</div>`;
@@ -306,7 +306,7 @@ G.module({
                     { key: "spell", title: "法术", sub: "放入背包法术栏后战斗中施放", items: all.filter(g => g.kind === "sp") },
                     { key: "mifa", title: "秘法", sub: "宗门悟道室学习 · 修炼消耗修为和灵石", items: all.filter(g => g.kind === "mf") }];
     // 先按等级，同等级再按星级；同星级 天 → 黄
-    const sortFn = (a, b) => (P.lvUp ? a.lv - b.lv : b.lv - a.lv) || (P.starUp ? a.star - b.star : b.star - a.star) || b.tier.idx - a.tier.idx;
+    const sortFn = (a, b) => (P.lvUp ? a.lv - b.lv : b.lv - a.lv) || (P.starUp ? a.star - b.star : b.star - a.star);
     // v195「全部」：不分类型，一张卡片按排序显示（元婴出窍秘法放最前）
     const body = filter === "all" ? (all.length || s.cqLv ? `<div class="card"><h3>全部功法<small>${all.length + (s.cqLv ? 1 : 0)} 部</small></h3>${s.cqLv ? this.cqLine() : ""}${all.sort(sortFn).map(g => this.skillLine(g)).join("")}</div>` : "") :
       groups.filter(gr => gr.key === filter).map(gr => {

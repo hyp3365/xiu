@@ -77,7 +77,7 @@ CFG.pills = {
 CFG.price = {
   PILL_PRICE_STEP: 1.2,   // 修炼丹每高一品质，坊市售价 × 1.2：售价 = price × 1.2^品质序号
   PILL_SELL: 0.3,         // 修炼丹出售价 = 坊市售价 × 0.3（向下取整）
-  SHOP_EQUIP: 15,         // 坊市装备默认售价（灵石）：content/items.js 的 ITEMS.shop 里没写 price 时用这个
+  SHOP_EQUIP: 5000,       // 坊市装备默认售价（灵石）：content/items.js 的 ITEMS.shop 里没写 price 时用这个
 };
 
 // ---------- 坊市 ----------

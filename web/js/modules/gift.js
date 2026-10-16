@@ -5,8 +5,8 @@
  * 所有玩家：设置 → 礼包码兑换。每个账号每个礼包码只能兑换一次；兑换次数用完就失效。
  * 礼包里的物品格式 { c: 类别, ... }：
  *   stone / contrib / merit {n}         灵石 / 贡献 / 功德
- *   gf {src, type, tier}                功法（来源 = 门派 / 坊市 / 试炼塔）
- *   sp {src, tier}                      法术（门派本属性）
+ *   gf {src, type}                      功法（来源 = 门派 / 坊市 / 试炼塔）
+ *   sp {src}                            法术（门派本属性）
  *   mf {star, kind}                     秘法
  *   fabao {ft, el, g, n}                法宝（形状、属性、阶）
  *   eq {slot, g, n}                     装备（slot = 部位，戒指写 "ring:种类序号"）
@@ -90,8 +90,8 @@ G.module({
           case "stone": return `灵石 ${U.fmt(it.n)}`;
           case "contrib": return `贡献 ${U.fmt(it.n)}`;
           case "merit": return `功德 ${U.fmt(it.n)}`;
-          case "gf": { const g = DATA.gongfaInfo(DATA.gongfaId(it.src, it.type, it.tier)); return `功法《${g.name}》`; }
-          case "sp": { const o = DATA.sectById[it.src]; return `法术《${DATA.spellInfo(DATA.spellId(it.src, o.el, it.tier)).name}》`; }
+          case "gf": { const g = DATA.gongfaInfo(DATA.gongfaId(it.src, it.type)); return `功法《${g.name}》`; }
+          case "sp": { const o = DATA.sectById[it.src]; return `法术《${DATA.spellInfo(DATA.spellId(it.src, o.el)).name}》`; }
           case "mf": return `秘法《${DATA.mifaInfo(DATA.mifaId(it.star, it.kind)).name}》`;
           case "fabao": return `${DATA.JIE[it.g]}·${DATA.elById[it.el].name}·${DATA.fabaoName(it.ft, it.g)}${n}`;
           case "eq": { const [sl, r] = String(it.slot).split(":"); return (sl === "ring" ? DATA.ringName(+r, it.g) : DATA.forgeEqName(sl, it.g)) + n; }
@@ -113,7 +113,7 @@ G.module({
         case "contrib": s.contrib = (s.contrib || 0) + n; return true;
         case "merit": s.merit = (s.merit || 0) + n; return true;
         case "gf": case "sp": case "mf": {
-          const id = it.c === "gf" ? DATA.gongfaId(it.src, it.type, it.tier) : it.c === "sp" ? DATA.spellId(it.src, DATA.gfSrcById[it.src].el, it.tier) : DATA.mifaId(it.star, it.kind);
+          const id = it.c === "gf" ? DATA.gongfaId(it.src, it.type) : it.c === "sp" ? DATA.spellId(it.src, DATA.gfSrcById[it.src].el) : DATA.mifaId(it.star, it.kind);
           if (!DATA.skillInfo(id)) return false;
           if (!s.gongfa[id]) { s.gongfa[id] = 1; if (it.c === "sp") this.autoSlotSpell(id); }
           return true;

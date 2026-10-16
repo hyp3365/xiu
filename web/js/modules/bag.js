@@ -415,7 +415,7 @@ G.module({
     // 点法术栏：显示详细，可卸下
     openSpellSlot(i) {
       const id = this.s.spellSlots[i], g = id && DATA.spellInfo(id, this.s.gongfa[id]); if (!g) return;
-      this.modal(`<h2 class="q${g.tier.idx + 1}">《${g.name}》</h2><p>${g.el.name}系 · ${g.lv} 层<br>伤害 = ${this.spellDmgTxt(g)}<br>耗法力 ${U.fmt(g.mana)} · 每场战斗最多 ${g.uses} 次</p>
+      this.modal(`<h2 class="q1">《${g.name}》</h2><p>${g.el.name}系 · ${g.lv} 层<br>伤害 = ${this.spellDmgTxt(g)}<br>耗法力 ${U.fmt(g.mana)} · 每场战斗最多 ${g.uses} 次</p>
         <div class="btns"><button onclick="G.unslotSpell(${i})">卸下</button><button onclick="G.openSpellPick(${i})">更换</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
   },
@@ -440,7 +440,7 @@ G.module({
       for (let i = 0; i < DATA.SLOT_MAX; i++) {
         const id = s.spellSlots[i];
         if (i >= n && !id) h += `<div class="slot-eq lock"><b>法术</b><span class="nm">${DATA.realmLabel(DATA.slotRealm(i))}开启</span></div>`;
-        else if (id) { const g = DATA.spellInfo(id, s.gongfa[id]); h += `<div class="slot-eq q${g.tier.idx + 1}" onclick="G.openSpellSlot(${i})"><img class="si" src="${DATA.skillIcon(g)}" alt=""><span class="nm">${g.name}</span></div>`; }
+        else if (id) { const g = DATA.spellInfo(id, s.gongfa[id]); h += `<div class="slot-eq q1" onclick="G.openSpellSlot(${i})"><img class="si" src="${DATA.skillIcon(g)}" alt=""><span class="nm">${g.name}</span></div>`; }
         else h += `<div class="slot-eq" onclick="G.openSpellPick()"><b>法术</b></div>`;
       }
       top = `<div class="card"><h3>法术<small>已开启 ${n} / ${DATA.SLOT_MAX} 格 · 点法术看详细</small></h3><div class="equip bagslots">${h}</div></div>`;
