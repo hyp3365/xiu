@@ -31,8 +31,8 @@ G.module({
     caveViews: {},
     arrayFactor() { return DATA.array.factor(this.s.array.lv); },
     // 每 10 秒聚灵量（只由等级决定，开关不影响）
-    gatherAmount() { return DATA.array.gather(this.s.array.lv) + this.gatherServant() + this.gatherLz(); },
-    gatherServant() { return this.servantPct ? this.servantPct("zhen") : 0; },   // 道童阵法辅助 +固定聚灵
+    gatherAmount() { return DATA.array.gather(this.s.array.lv) + this.gatherLz() + this.gatherServant(); },
+    gatherServant() { return (DATA.array.gather(this.s.array.lv) + this.gatherLz()) * (this.servantPct ? this.servantPct("zhen") : 0) / 100; },   // 道童阵法辅助：聚灵 +%
     gatherLz() { return (this.s.lzSlot || []).reduce((t, z) => t + (z ? z.v : 0), 0); },   // 灵珠格聚灵
     lingCap() { const sp = this.speed(); return Math.max(100, sp.gather * DATA.LING_CAP_GATHER + sp.total * DATA.LING_CAP_SPEED); },
     lingPerStone() { return DATA.array.STONE_LING; }, // 固定数值
