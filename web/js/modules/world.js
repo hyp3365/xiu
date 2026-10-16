@@ -237,7 +237,9 @@ G.module({
         if (tgtJc && act.f !== 1) { d = 0; act.x = (act.x || 0) | 128; }
         return d;
       };
-      const hp0 = s.hp, mana0 = s.mana, meFirst = st.speed >= m.speed;
+      // v174 本场速度随机 95%~105%（双方各自），谁快谁先出手
+      const SR = BT.SPEED_RAND || [100, 100], sRnd = () => (SR[0] + Math.random() * (SR[1] - SR[0])) / 100, spMe = sRnd(), spMob = sRnd();
+      const hp0 = s.hp, mana0 = s.mana, meFirst = st.speed * spMe >= m.speed * spMob;
       // 怪物出手：先判法术，再判法宝（都按 防御×RES_RATE + 该系抗性 减免），都没有就普通攻击
       let mSp = 0, mFb = 0;
       const mCast = (k, el) => {
@@ -319,7 +321,7 @@ G.module({
         // 连星秘法：这回合有几率再出手一次（[10] 标记 8）
         const meT = () => { me(); if (mhp > 0 && php > 0 && Math.random() * 100 < lxMe) me(true); };
         const himT = () => { him(); if (act.k !== 4 && mhp > 0 && php > 0 && Math.random() * 100 < lxMob) him(true); };
-        if (st.speed >= mE().speed) { meT(); if (mhp > 0) himT(); }   // 每回合按当前速度定先手（鼎会降低对方速度）
+        if (st.speed * spMe >= mE().speed * spMob) { meT(); if (mhp > 0) himT(); }   // 每回合按当前速度定先手（鼎会降低对方速度）
         else { himT(); if (php > 0) meT(); }
         if (m.deb && --m.deb.left <= 0) m.deb = null;
         if (meJc) meJc--; if (mobJc) mobJc--;

@@ -5,7 +5,7 @@
  *
  * 【伤害公式】（代码：js/modules/world.js 的 battle；雷劫在 js/modules/cultivate.js 的 advanceTrib）
  *   历练、秘境、试炼塔、宗门考核、星君挑战都用 battle；雷劫用同样的 MIN_DMG / DEF_RATE / RAND / CRIT_MULT。
- *   出手顺序：速度高者先手（相等时人物先手），双方轮流各出手一次为一回合，最多 MAX_ROUNDS 回合。
+ *   出手顺序：每场战斗双方速度各 × 95%~105% 随机（SPEED_RAND），速度高者先手（相等时人物先手），双方轮流各出手一次为一回合，最多 MAX_ROUNDS 回合。
  *
  *   普通攻击：原始伤害 = max(保底伤害（MIN_BASE + 层 × MIN_STEP）, 攻击 − 对方防御 × DEF_RATE)
  *   法术    ：原始伤害 = max(保底伤害（MIN_BASE + 层 × MIN_STEP）, 攻击 × 法术% + 法术固定伤害 × 灵根加成 − 对方该系抗性 × DEF_RATE)
@@ -13,7 +13,7 @@
  *   怪物法术 / 法宝：原始伤害 = max(保底伤害（MIN_BASE + 层 × MIN_STEP）, 攻击 × pct% − 对方该系抗性 × DEF_RATE)（见 config/mobs.js 的 magic）
  *   其中 某系抗性 = 防御 × RES_RATE + 该系抗性
  *
- *   然后：先判闪避（闪避几率 % = (防守方闪避 − 进攻方命中) ÷ 进攻方命中 × 100 ÷ DODGE_DIV，上限 DODGE_CAP，见 config/player.js）
+ *   然后：先判命中（命中率 % = 70 + (命中 − 对方闪避) ÷ 对方闪避 × 100 ÷ 3，限制 20 ~ 95，见下面 HIT_*），没命中 = 闪避
  *         没闪避 → 伤害 = 原始伤害 × 随机(RAND_MIN ~ RAND_MAX)
  *         再判暴击（几率 = min(暴击%, CRIT_CAP)）→ 暴击时伤害 × CRIT_MULT
  *   雷劫：伤害 = max(保底伤害（MIN_BASE + 层 × MIN_STEP）, 攻击 − 防御 × DEF_RATE) × 随机(RAND_MIN ~ RAND_MAX)，暴击 × CRIT_MULT；雷劫无法闪避
@@ -30,6 +30,11 @@ CFG.battle = {
   CRIT_MULT: 2,      // 暴击伤害倍率（× 2）
   MAX_ROUNDS: 100,
   TEST_ROUNDS: 500,   // v158 宗门「实力测试」最多打几回合（不扣生命，可随时关闭）   // 一场战斗最多回合数，打满还没击败对方算失败（雷劫不受此限）
+  // v174 命中：初始命中率 HIT_BASE %；命中比对方闪避每高 HIT_STEP %（按对方闪避算的相对差），命中率 + HIT_ADD %，低则同样降低；
+  //   上限 HIT_MAX %、下限 HIT_MIN %；小数参与判定不取整。人物、怪物双方都这样算（DODGE_DIV / DODGE_CAP 不再使用）
+  HIT_BASE: 70, HIT_STEP: 3, HIT_ADD: 1, HIT_MAX: 95, HIT_MIN: 20,
+  // v174 速度：每场战斗开始时双方速度各自 × 随机(SPEED_RAND[0] ~ SPEED_RAND[1]) %，速度快的先出手
+  SPEED_RAND: [95, 105],
   TOWER_HP_MIN: 0.3, // 生命低于上限这个比例（30%）不能挑战试炼塔、宗门晋升考验
 };
 

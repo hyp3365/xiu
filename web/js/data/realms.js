@@ -57,7 +57,10 @@ DATA.GROW = _P.GROW;
 DATA.playerBase = _P.base;
 DATA.playerFixed = _P.fixed;
 // 闪避几率 % = (防守方闪避 - 进攻方命中) ÷ 进攻方命中 × 100 ÷ DODGE_DIV，最低 0，最高 DODGE_CAP
-DATA.dodgeChance = (hit, dodge) => Math.min(_P.DODGE_CAP, Math.max(0, (dodge - hit) / Math.max(1, hit) * 100 / _P.DODGE_DIV));
+// v174 命中率 % = HIT_BASE + (命中 − 对方闪避) ÷ 对方闪避 × 100 ÷ HIT_STEP × HIT_ADD，限制在 HIT_MIN ~ HIT_MAX，保留小数不取整（config/battle.js）
+DATA.hitChance = (hit, dodge) => { const B = CFG.battle, d = Math.max(1, dodge || 0), diff = ((hit || 0) - d) / d * 100;
+  return Math.min(B.HIT_MAX, Math.max(B.HIT_MIN, B.HIT_BASE + diff / B.HIT_STEP * B.HIT_ADD)); };
+DATA.dodgeChance = (hit, dodge) => 100 - DATA.hitChance(hit, dodge);   // 闪避几率 = 100 − 命中率
 DATA.CRIT_CAP = _P.CRIT_CAP;
 
 
