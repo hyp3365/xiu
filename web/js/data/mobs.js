@@ -11,7 +11,9 @@
 DATA.MOB_KIND = { normal: "普通", elite: "精英", boss: "首领" };
 DATA.MOB_KEYS = ["hp", "atk", "def", "speed", "hit", "dodge", "mana", "res"];
 // 遇到时的随机倍率
-DATA.mobRnd = () => { const R = CFG.mobs.RAND || [1, 1]; return R[0] + Math.random() * (R[1] - R[0]); };
+// v180 RAND 每种属性单独：{ atk: [a, b], hp: [a, b], 其他: [a, b] }（旧写法 [a, b] 也认）
+DATA.mobRandOf = k => { const R = CFG.mobs.RAND || [1, 1]; return Array.isArray(R) ? R : R[k] || R["其他"] || [1, 1]; };
+DATA.mobRnd = k => { const R = DATA.mobRandOf(k); return R[0] + Math.random() * (R[1] - R[0]); };
 // 肉身突破 n 次的合计加成（同 modules/body.js bodyBonus）
 DATA.mobBody = n => { const o = {}; for (const k of DATA.MOB_KEYS) o[k] = DATA.bodyStat(n, k); return o; };
 // v168 一行怪物数据统一成对象。两种写法都认：

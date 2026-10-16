@@ -104,10 +104,10 @@ G.module({
     // 生成怪物：a 地图、r 区域、kind = normal 普通 / elite 精英 / boss 首领（属性见 js/config/ 数值文件 monster.regions）
     makeMob(a, r, kind) {
       const R = DATA.region(a, r), b = DATA.mobMeet(R, kind), map = DATA.maps[a];   // v168 每次遇到随机层 / 功法
-      const v = x => x * DATA.mobRnd();   // × 随机浮动
+      const v = (x, k) => x * DATA.mobRnd(k);   // × 随机浮动
       const name = kind === "boss" ? DATA.regionBoss(a, r) : (kind === "elite" ? "精英·" : "") + U.pick(map.monsters);
       return this.addMagic({ name, Lm: R.L, kind, boss: kind === "boss", elite: kind === "elite",
-        hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), mana: v(b.mana), res: v(b.res), manaBr: b.manaBr, L: b.L, crit: b.crit }, kind);
+        hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: v(b.res, "res"), manaBr: b.manaBr, L: b.L, crit: b.crit }, kind);
     },
 
     // 给怪物加 属性 / 六系抗性 / 法术 / 法宝（config/mobs.js 的 mobs.magic）
@@ -764,10 +764,10 @@ G.module({
     },
     // 秘境 / 灵地怪物：属性在 js/data/mobs.js 按 config/mobs.js 生成
     makeMjMob(i, kind, k) {
-      const d = this.mjDef(i, k), b = DATA.mobMeet(d, kind), v = x => x * DATA.mobRnd();
+      const d = this.mjDef(i, k), b = DATA.mobMeet(d, kind), v = (x, k) => x * DATA.mobRnd(k);
       const name = kind === "boss" ? d.bossName : (kind === "elite" ? "精英·" : "") + U.pick(d.monsters);
       return this.addMagic({ name, Lm: d.L, kind, boss: kind === "boss", elite: kind === "elite",
-        hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), mana: v(b.mana), res: v(b.res), manaBr: b.manaBr, L: b.L, crit: b.crit }, kind);
+        hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: v(b.res, "res"), manaBr: b.manaBr, L: b.L, crit: b.crit }, kind);
     },
     // 秘境 / 灵地掉落 = 借用地图的药材矿石表（种数个数按 CFG.dropRule.mijing / lingdi，× 自己的 mat）+ extra 额外掉落
     //   秘境借用 drops 那张凡界地图；灵地借用发现地图（这一界的药材矿石表）

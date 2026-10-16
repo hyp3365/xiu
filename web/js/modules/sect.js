@@ -105,8 +105,8 @@ G.module({
     /* ---------- 晋升考验（config/sect.js 的 sect.rankTrial） ---------- */
     rankTrialCost(i) { return Math.floor(((CFG.sect.rankTrial.cost || [])[i] || 0) * this.starMul()); },
     makeRankGuard(i) {
-      const b = DATA.mobStats(DATA.mobExam(this.sectInfo().star, i), DATA.mobCrit("考官")), v = x => x * DATA.mobRnd();   // config/mobs.js 的 sect
-      return this.addMagic({ name: `${DATA.ranks[i].name}考官`, boss: false, hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), mana: v(b.mana), res: v(b.res), manaBr: b.manaBr, L: b.L, crit: b.crit }, "tower");
+      const b = DATA.mobStats(DATA.mobExam(this.sectInfo().star, i), DATA.mobCrit("考官")), v = (x, k) => x * DATA.mobRnd(k);   // config/mobs.js 的 sect
+      return this.addMagic({ name: `${DATA.ranks[i].name}考官`, boss: false, hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: v(b.res, "res"), manaBr: b.manaBr, L: b.L, crit: b.crit }, "tower");
     },
     challengeRank() {
       const s = this.s, i = s.rank + 1; if (i >= DATA.ranks.length || s.rankPass === i) return;
@@ -348,7 +348,7 @@ G.module({
     makeTowerGuard(floor) {
       const T = CFG.sect.tower, star = this.sectInfo().star, R = (CFG.sect.REQ_REALM || [])[star - 1] || 0;
       const tw = DATA.towerStage(star, floor, this.towerMax());
-      if (tw) { const m = {}; for (const k of DATA.REF_KEYS) m[k] = tw[k] * DATA.mobRnd(); m.crit = tw.crit; m.manaBr = tw.manaBr; return this.addMagic(Object.assign(m, { name: `第${floor}层守关者`, boss: false }), "tower"); }
+      if (tw) { const m = {}; for (const k of DATA.REF_KEYS) m[k] = tw[k] * DATA.mobRnd(k); m.crit = tw.crit; m.manaBr = tw.manaBr; return this.addMagic(Object.assign(m, { name: `第${floor}层守关者`, boss: false }), "tower"); }
       const m = DATA.refMob(DATA.refStats(R, T.LAYER || 5, T.GF === undefined ? 5 : T.GF), T.MULT, Math.pow(T.GROW, floor - 1)); m.L = R * DATA.LAYERS + (T.LAYER || 5) - 1;
       return this.addMagic(Object.assign(m, { name: `第${floor}层守关者`, boss: false }), "tower");
     },
@@ -424,8 +424,10 @@ G.module({
     },
     testFight() {
       const t = this.testMobT(), kd = this.testPick().k, b = DATA.mobRoll(t, DATA.mobCrit(DATA.MOB_KIND[kd]));   // v168 学哪些功法、每本几层随机
-      const v = x => x * DATA.mobRnd();   // 和地图普通怪一样每项随机浮动
-      const m = this.addMagic({ name: this.testMobName(), kind: kd, boss: kd === "boss", elite: kd === "elite", hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), mana: v(b.mana), res: v(b.res), manaBr: b.manaBr, L: b.L, crit: b.crit }, kd);
+      const v = (x, k) => x * DATA.mobRnd(k);   // 和地图普通怪一样每项随机浮动
+      const p = this.testPick(), a = Math.floor(p.a / 4), r = p.a % 4, mp = DATA.maps[a];   // v180 名字 / 图同地图里的怪（图按名字找）
+      const nm = kd === "boss" ? DATA.regionBoss(a, r) : (kd === "elite" ? "精英·" : "") + U.pick(mp.monsters);
+      const m = this.addMagic({ name: nm, a, kind: kd, boss: kd === "boss", elite: kd === "elite", hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: v(b.res, "res"), manaBr: b.manaBr, L: b.L, crit: b.crit }, kd);
       const res = this.battle(m, { test: true });
       this.playBattle(res.detail, "实力测试", "", true, [], false, { test: true, tname: this.testMobName() });
     },
@@ -436,7 +438,7 @@ G.module({
       const st = [["生命", b.hp], ["攻击", b.atk], ["防御", b.def], ["速度", b.speed], ["命中", b.hit], ["闪避", b.dodge], ["法力", b.mana], ["抗性", b.res]].map(([k, v]) => `${k} ${U.fmt(v)}`).join("　") + `　暴击 ${U.num(b.crit)}%`;
       return `<div class="card"><h3>实力测试<small>不扣生命，可随时关闭</small></h3>
         <div class="line"><div>对手</div><div class="sg-btns">${this.selBox("testA", this.testMapOpts(), p.a, v => this.setTestPick("a", +v))}${this.selBox("testK", kOpts, p.k, v => this.setTestPick("k", v))}</div></div>
-        <p class="desc">${this.testMobName()}：${DATA.realms[R.realm] || ""}${R.lay[0] === R.lay[1] ? DATA.layerNames[R.lay[0] - 1] : `${rg(R.lay)}层随机`}（属性为平均值，战斗时每项 ×${(CFG.mobs.RAND || [1, 1]).join("~")} 随机）<br>${st}</p>
+        <p class="desc">${this.testMobName()}：${DATA.realms[R.realm] || ""}${R.lay[0] === R.lay[1] ? DATA.layerNames[R.lay[0] - 1] : `${rg(R.lay)}层随机`}（属性为平均值，战斗时攻击 ×${DATA.mobRandOf("atk").join("~")}、生命 ×${DATA.mobRandOf("hp").join("~")}、其他 ×${DATA.mobRandOf("def").join("~")} 随机）<br>${st}</p>
         <p class="desc">法术：每回合 ${M.spell ? M.spell.chance : 0}% 几率，伤害 攻击×${M.spell ? M.spell.pct : 0}%　法宝：每回合 ${M.fabao ? M.fabao.chance : 0}% 几率，伤害 攻击×${M.fabao ? M.fabao.pct : 0}%</p>
         ${n ? (() => { return `<details class="desc"><summary>功法：${t[3] > 1 ? `1~${t[3]}` : t[3]}星宗门功法 ${n} 部，每个种类随机学 ${rg(R.pct)}%，每本随机练到 ${rg(R.gf)} 层（显示属性为平均值）</summary>${gf.map(([nm, l]) => `<p><b>${nm}</b>：${l.join("、")}</p>`).join("")}</details>`; })() : `<p class="desc">功法：无</p>`}
         <div class="btns"><button onclick="G.testFight()">开始测试</button></div></div>`;
