@@ -43,4 +43,12 @@ const U = {
     const ld = h => h.replace(/^(\s*)<div class="line">/, '$1<div class="line ld">');
     return list.filter(x => !x[0]).map(x => x[1]).concat(list.filter(x => x[0]).map(x => ld(x[1]))).join("");
   },
+  // v195 多张卡片的学习列表：cards = [{ head: 卡片标题 html, rows: [[已学会?, html], ...] }]
+  //   每张卡片只放没学会的（全学会的卡片不显示），所有已学会的统一放到最后一张「已学会」卡片里（变灰）
+  doneCards(cards, title = "已学会") {
+    const done = [];
+    const h = cards.map(c => { const todo = c.rows.filter(x => !x[0]); c.rows.forEach(x => { if (x[0]) done.push(x); });
+      return todo.length ? `<div class="card">${c.head}${todo.map(x => x[1]).join("")}</div>` : ""; }).join("");
+    return h + (done.length ? `<div class="card"><h3>${title}<small>${done.length} 项</small></h3>${U.doneLast(done)}</div>` : "");
+  },
 };

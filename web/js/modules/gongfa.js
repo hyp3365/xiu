@@ -307,7 +307,9 @@ G.module({
                     { key: "mifa", title: "秘法", sub: "宗门悟道室学习 · 修炼消耗修为和灵石", items: all.filter(g => g.kind === "mf") }];
     // 先按等级，同等级再按星级；同星级 天 → 黄
     const sortFn = (a, b) => (P.lvUp ? a.lv - b.lv : b.lv - a.lv) || (P.starUp ? a.star - b.star : b.star - a.star) || b.tier.idx - a.tier.idx;
-    const body = groups.filter(gr => filter === "all" || gr.key === filter).map(gr => {
+    // v195「全部」：不分类型，一张卡片按排序显示（元婴出窍秘法放最前）
+    const body = filter === "all" ? (all.length || s.cqLv ? `<div class="card"><h3>全部功法<small>${all.length + (s.cqLv ? 1 : 0)} 部</small></h3>${s.cqLv ? this.cqLine() : ""}${all.sort(sortFn).map(g => this.skillLine(g)).join("")}</div>` : "") :
+      groups.filter(gr => gr.key === filter).map(gr => {
       if (gr.key === "mifa" && s.cqLv) { gr.items.sort(sortFn); return `<div class="card"><h3>${gr.title}<small>${gr.sub}</small></h3>${this.cqLine()}${gr.items.map(g => this.skillLine(g)).join("")}</div>`; }   // 元婴出窍秘法
       if (!gr.items.length) return filter === "all" ? "" : `<div class="card"><p class="desc">${hide ? "没有未满级的" : "尚未学会任何"}${gr.title}。</p></div>`;
       gr.items.sort(sortFn);
