@@ -359,14 +359,15 @@ G.module({
       const bp = this._bp = { b, title, txt, win, logs: logs || [[txt, win ? "gold" : "bad"]], acts: b.log.slice(), shown: 0, t0: Date.now(), done: false, replay: !!replay, test: !!opt.test, sum: [0, 0], hp: [b.me[0], b.mob[0]] };
       this._lockModal = true;
       const v = DATA.IMG_V, mi = this.battleMobImg(b);
-      this.modal(`<div class="btv">
-        <div class="btv-title">${title}</div>
+      // v161 名字不放在人物 / 怪物脚下，怪物名字放标题后面（opt.tname 可改标题里显示的名字）
+      this.modal(`<div class="btv" style="--bs:${CFG.battle.ANIM_SLOW || 1}">
+        <div class="btv-title">${title} · ${opt.tname || b.name}</div>
         <div class="btv-stage" style="background-image:url(img/bt_bg.webp?v=${v})">
           <div class="btv-hp l"><div class="btv-bar"><i id="bt-hp0"></i></div><span id="bt-hpt0"></span></div>
           <div class="btv-zhan">战</div>
           <div class="btv-hp r"><div class="btv-bar"><i id="bt-hp1"></i></div><span id="bt-hpt1"></span></div>
-          <div class="btv-u l" id="bt-u0"><img src="img/bt_hero.webp?v=${v}" alt=""><div class="btv-nm">${this.s.name || "你"}</div></div>
-          <div class="btv-u r" id="bt-u1"><img src="${mi.src}" onerror="this.onerror=null;this.src='${mi.alt}'" alt=""><div class="btv-nm">${b.name}</div></div>
+          <div class="btv-u l" id="bt-u0"><div class="btv-hero"><img class="btv-body" src="img/bt_hero.webp?v=${v}" alt=""><img class="btv-sword" src="img/bt_sword.webp?v=${v}" alt=""></div></div>
+          <div class="btv-u r" id="bt-u1"><img src="${mi.src}" onerror="this.onerror=null;this.src='${mi.alt}'" alt=""></div>
           <div class="btv-fx" id="bt-fx"></div>
         </div>
         ${opt.test ? `<div class="btv-sum" id="bt-sum"></div>` : ""}
@@ -413,7 +414,8 @@ G.module({
       // v160 同一个元素只留一个动作 class（否则 CSS 里后写的动作会盖掉新动作，看起来原地不动）
       const ALL = ["btv-hit", "btv-dodge", "btv-lunge-l", "btv-pounce-r", "btv-claw-r", "btv-wave-r", "btv-mpounce", "btv-mwave", "btv-cast"];
       const re = (el, c) => { ALL.forEach(x => el.classList.remove(x)); void el.offsetWidth; el.classList.add(c); };
-      const add = (cls, txt, side, ms) => { const n = document.createElement("div"); n.className = cls + " " + (side ? "r" : "l"); if (txt) n.textContent = txt; fxEl.appendChild(n); setTimeout(() => n.remove(), ms || 1200); return n; };
+      const SL = CFG.battle.ANIM_SLOW || 1;   // v161 动画放慢倍数
+      const add = (cls, txt, side, ms) => { ms = (ms || 1200) * SL; const n = document.createElement("div"); n.className = cls + " " + (side ? "r" : "l"); if (txt) n.textContent = txt; fxEl.appendChild(n); setTimeout(() => n.remove(), ms || 1200); return n; };
       const el = b.el && !w ? "" : b.el;   // 怪物法术 / 法宝带属性色
       const name = k === 1 ? (w ? (b.el ? DATA.elById[b.el].name + "系法术" : "法术") : (b.sp[sp] || "法术")) : k === 2 ? (w || !b.sp[sp] ? "法宝" : b.sp[sp]) : k === 3 ? (b.sp[sp] || "护盾") : k === 5 ? "金蝉秘法" : "";
       if (name) add("btv-skill", name, w);
@@ -430,9 +432,9 @@ G.module({
           const dx = w ? (t.right - a.left) - a.width * 0.25 : (t.left - a.right) + a.width * 0.25; me.style.setProperty("--dx", Math.round(dx) + "px"); }
         re(me, c); if (k !== 0 && (k === 1 || k === 2)) me.classList.add("btv-cast"); };
       if (k === 1 || k === 2) { if (w) mv(Math.random() < 0.5 ? "btv-mpounce" : "btv-mwave"); }
-      if (k === 0) { mv(w ? ["btv-pounce-r", "btv-claw-r", "btv-wave-r"][Math.floor(Math.random() * 3)] : "btv-lunge-l"); setTimeout(hit, 430); }
-      else if (k === 1) { if (!w) re(me, "btv-cast"); add("btv-orb " + (w ? "go-l" : "go-r") + (el ? " el-" + el : ""), "", w, 700); setTimeout(hit, 520); }
-      else if (k === 2) { if (!w) re(me, "btv-cast"); add("btv-fb " + (w ? "go-l" : "go-r"), "", w, 800); setTimeout(hit, 600); }
+      if (k === 0) { mv(w ? ["btv-pounce-r", "btv-claw-r", "btv-wave-r"][Math.floor(Math.random() * 3)] : "btv-lunge-l"); setTimeout(hit, 430 * SL); }
+      else if (k === 1) { if (!w) re(me, "btv-cast"); add("btv-orb " + (w ? "go-l" : "go-r") + (el ? " el-" + el : ""), "", w, 700); setTimeout(hit, 520 * SL); }
+      else if (k === 2) { if (!w) re(me, "btv-cast"); add("btv-fb " + (w ? "go-l" : "go-r"), "", w, 800); setTimeout(hit, 600 * SL); }
       else if (k === 3) { add("btv-shield", "", w, 1000); this.btHp(); }
       else if (k === 4) { add("btv-pop gray", "眩晕", w); this.btHp(); }
       else { add("btv-shield gold", "", w, 1000); this.btHp(); }

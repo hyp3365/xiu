@@ -432,7 +432,7 @@ G.module({
       const v = x => x * DATA.mobRnd();   // 和地图普通怪一样每项随机浮动
       const m = this.addMagic({ name: this.testMobName(), kind: "normal", hp: v(b.hp), atk: v(b.atk), def: v(b.def), speed: v(b.speed), hit: v(b.hit), dodge: v(b.dodge), mana: v(b.mana), res: v(b.res), manaBr: b.manaBr, crit: b.crit }, "normal");
       const res = this.battle(m, { test: true });
-      this.playBattle(res.detail, "实力测试", "", true, [], false, { test: true });
+      this.playBattle(res.detail, "实力测试", "", true, [], false, { test: true, tname: `${DATA.realms[this.testPick().r]}${DATA.layerNames[this.testPick().l - 1]}` });
     },
     testView() {
       const p = this.testPick(), t = this.testMobT(), b = DATA.mobStats(t, DATA.mobCrit("普通")), gf = this.testMobGf(t), M = (CFG.mobs.magic || {}).normal || {};

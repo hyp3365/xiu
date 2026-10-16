@@ -40,5 +40,6 @@ CFG.battle.RES_RATE = 1;   // 防御计入抗性的比例（1 = 防御全额算�
 // 雷劫：每 ROUND_SEC 秒打一回合
 CFG.battle.ROUND_SEC = 2;   // 秒
 // 战斗过程画面（探索详情、试炼塔、晋升考验、星君）：每 ACT_SEC 秒播放一次出手（结果已算好，只是播放）
-CFG.battle.ACT_SEC = 1;     // 秒
+CFG.battle.ACT_SEC = 1.6;   // 秒
+CFG.battle.ANIM_SLOW = 1.6; // v161 战斗动作动画放慢倍数（1 = 原速，越大越慢）
 CFG.battle.SKIP_SEC = 3;    // 试炼塔等现场战斗几秒后可以跳过（看详情随时可跳过）

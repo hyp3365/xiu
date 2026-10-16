@@ -351,23 +351,24 @@ body.nologin #app, body.nologin #toast { display: none; }
 .btv-nm{margin-top:2px;padding:1px 12px;background:linear-gradient(#fbf3dc,#e7d3a5);border:1px solid #b89a63;border-radius:10px;color:#8a2b1c;font-size:13px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .btv-fx{position:absolute;inset:0;pointer-events:none}
 .btv-fx .l{left:22%}.btv-fx .r{left:76%}
-.btv-skill{position:absolute;top:24%;transform:translateX(-50%);color:#d8261b;font-size:20px;font-weight:bold;white-space:nowrap;text-shadow:0 0 4px #fff,0 0 8px #fff;animation:btv-up 1.2s ease-out forwards}
-.btv-pop{position:absolute;top:40%;transform:translateX(-50%);color:#e0281c;font-size:24px;font-weight:bold;white-space:nowrap;text-shadow:0 0 3px #fff,1px 1px 0 #fff;animation:btv-up 1.2s ease-out forwards}
+.btv-skill{position:absolute;top:24%;transform:translateX(-50%);color:#d8261b;font-size:20px;font-weight:bold;white-space:nowrap;text-shadow:0 0 4px #fff,0 0 8px #fff;animation:btv-up calc(1.2s * var(--bs,1)) ease-out forwards}
+.btv-pop{position:absolute;top:40%;transform:translateX(-50%);color:#e0281c;font-size:24px;font-weight:bold;white-space:nowrap;text-shadow:0 0 3px #fff,1px 1px 0 #fff;animation:btv-up calc(1.2s * var(--bs,1)) ease-out forwards}
 .btv-pop.crit{font-size:30px;color:#ff5a00}
 .btv-pop.gray{color:#555;font-size:18px}
 @keyframes btv-up{0%{opacity:0;margin-top:14px}15%{opacity:1;margin-top:0}75%{opacity:1}100%{opacity:0;margin-top:-26px}}
-.btv-lunge-l{animation:btv-lunge-l .8s ease-in-out;z-index:3}
-.btv-lunge-r{animation:btv-lunge-r .5s ease-in-out}
+.btv-lunge-l{animation:btv-lunge-l calc(.8s * var(--bs,1)) ease-in-out;z-index:3}
+.btv-lunge-r{animation:btv-lunge-r calc(.5s * var(--bs,1)) ease-in-out}
 @keyframes btv-lunge-l{0%,100%{transform:none}35%,72%{transform:translateX(var(--dx,120%))}}
 @keyframes btv-lunge-r{50%{transform:translateX(-80%)}}
-.btv-hit{animation:btv-hit .45s}
+.btv-hit{animation:btv-hit calc(.45s * var(--bs,1))}
 @keyframes btv-hit{0%,100%{transform:none;filter:none}20%{transform:translateX(8px);filter:brightness(1.8) sepia(1) hue-rotate(-40deg) saturate(4)}40%{transform:translateX(-8px)}60%{transform:translateX(5px)}80%{transform:translateX(-3px)}}
-.btv-dodge{animation:btv-dodge .5s}
+.btv-dodge{animation:btv-dodge calc(.5s * var(--bs,1))}
 @keyframes btv-dodge{50%{transform:translateX(-18px);opacity:.35}}
 .btv-u.r.btv-dodge{animation-name:btv-dodge-r}
 @keyframes btv-dodge-r{50%{transform:translateX(18px);opacity:.35}}
-.btv-cast img{animation:btv-cast .6s}
-.btv-u.l.btv-cast img{animation:btv-swing .6s ease-in-out,btv-cast .6s}
+.btv-cast img{animation:btv-cast calc(.6s * var(--bs,1))}
+.btv-u.l.btv-cast .btv-body{animation:btv-cast calc(.6s * var(--bs,1))}
+.btv-u.l.btv-cast .btv-sword{animation:btv-slash calc(.6s * var(--bs,1)) ease-in-out}
 @keyframes btv-cast{50%{filter:drop-shadow(0 0 14px #ffd36b) drop-shadow(0 0 24px #ffb43a) brightness(1.3)}}
 .btv-orb{position:absolute;top:52%;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:radial-gradient(#fff,#ffe37a 35%,#ff9a2a 70%,transparent 72%);box-shadow:0 0 18px 8px #ffb43acc}
 .btv-orb.el-jin{background:radial-gradient(#fff,#ffe9a0 35%,#d8b13a 70%,transparent 72%);box-shadow:0 0 18px 8px #f3d36bcc}
@@ -375,16 +376,16 @@ body.nologin #app, body.nologin #toast { display: none; }
 .btv-orb.el-shui{background:radial-gradient(#fff,#9fd8ff 35%,#2e7fd9 70%,transparent 72%);box-shadow:0 0 18px 8px #4aa3ffcc}
 .btv-orb.el-huo{background:radial-gradient(#fff,#ffb27a 35%,#e8401c 70%,transparent 72%);box-shadow:0 0 18px 8px #ff6a2acc}
 .btv-orb.el-tu{background:radial-gradient(#fff,#e9c99a 35%,#a8742e 70%,transparent 72%);box-shadow:0 0 18px 8px #c9954acc}
-.btv-orb.go-r{animation:btv-go-r .55s ease-in forwards}
-.btv-orb.go-l{animation:btv-go-l .55s ease-in forwards}
+.btv-orb.go-r{animation:btv-go-r calc(.55s * var(--bs,1)) ease-in forwards}
+.btv-orb.go-l{animation:btv-go-l calc(.55s * var(--bs,1)) ease-in forwards}
 @keyframes btv-go-r{0%{left:24%;transform:scale(.4)}100%{left:76%;transform:scale(1.3)}}
 @keyframes btv-go-l{0%{left:76%;transform:scale(.4)}100%{left:24%;transform:scale(1.3)}}
 .btv-fb{position:absolute;top:46%;width:56px;height:10px;margin:-5px 0 0 -28px;background:linear-gradient(90deg,#8b5a1a,#ffe9a8 30%,#fff 60%,#ffd36b);clip-path:polygon(0 30%,78% 0,100% 50%,78% 100%,0 70%);filter:drop-shadow(0 0 6px #ffd36b) drop-shadow(0 0 12px #ffb43a)}
-.btv-fb.go-r{animation:btv-fb-r .65s ease-in forwards}
-.btv-fb.go-l{animation:btv-fb-l .65s ease-in forwards}
+.btv-fb.go-r{animation:btv-fb-r calc(.65s * var(--bs,1)) ease-in forwards}
+.btv-fb.go-l{animation:btv-fb-l calc(.65s * var(--bs,1)) ease-in forwards}
 @keyframes btv-fb-r{0%{left:24%;top:30%;transform:rotate(-30deg) scale(.6)}50%{top:20%;transform:rotate(0) scale(1.1)}100%{left:76%;top:52%;transform:rotate(25deg) scale(1.2)}}
 @keyframes btv-fb-l{0%{left:76%;top:30%;transform:rotate(210deg) scale(.6)}50%{top:20%;transform:rotate(180deg) scale(1.1)}100%{left:24%;top:52%;transform:rotate(155deg) scale(1.2)}}
-.btv-shield{position:absolute;top:58%;width:42%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;border:2px solid #9fd8ffcc;background:radial-gradient(transparent 55%,#9fd8ff66);box-shadow:0 0 16px #9fd8ff;animation:btv-sh 1s ease-out forwards}
+.btv-shield{position:absolute;top:58%;width:42%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;border:2px solid #9fd8ffcc;background:radial-gradient(transparent 55%,#9fd8ff66);box-shadow:0 0 16px #9fd8ff;animation:btv-sh calc(1s * var(--bs,1)) ease-out forwards}
 .btv-shield.gold{border-color:#ffd36bcc;background:radial-gradient(transparent 55%,#ffd36b66);box-shadow:0 0 16px #ffd36b}
 @keyframes btv-sh{0%{opacity:0;transform:translate(-50%,-50%) scale(.6)}30%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.1)}}
 .btv-log{flex:1;min-height:0;overflow-y:auto;padding:8px 12px;background:#f3ebd6;font-size:15px;line-height:1.6}
@@ -423,18 +424,27 @@ button small .cd{min-width:0}
 .btv-u.l img{max-height:76%;transform-origin:45% 95%}
 .btv-u.r img{transform-origin:50% 95%}
 @keyframes btv-swing{0%,100%{transform:none}35%{transform:rotate(-7deg)}60%{transform:rotate(11deg) translateX(6%)}}
-.btv-lunge-l img{animation:btv-swing-hit .8s ease-in-out}
+.btv-lunge-l .btv-sword{animation:btv-slash-hit calc(.8s * var(--bs,1)) ease-in-out}
 @keyframes btv-swing-hit{0%,36%,100%{transform:none}45%{transform:rotate(-10deg)}56%{transform:rotate(16deg) translateX(8%)}68%{transform:none}}
-.btv-pounce-r{animation:btv-pounce-r .8s ease-in-out;z-index:3}
+.btv-pounce-r{animation:btv-pounce-r calc(.8s * var(--bs,1)) ease-in-out;z-index:3}
 @keyframes btv-pounce-r{0%,100%{transform:none}10%{transform:translateY(4%) scaleY(.92)}30%{transform:translate(calc(var(--dx,-120%) * .55),-22%) rotate(-10deg)}48%{transform:translateX(var(--dx,-120%)) rotate(-16deg) scale(1.1)}58%{transform:translateX(var(--dx,-120%)) rotate(-4deg)}72%{transform:translateX(var(--dx,-120%))}}
-.btv-claw-r,.btv-wave-r{animation:btv-claw-r .8s ease-in-out;z-index:3}
+.btv-claw-r,.btv-wave-r{animation:btv-claw-r calc(.8s * var(--bs,1)) ease-in-out;z-index:3}
 @keyframes btv-claw-r{0%,100%{transform:none}35%,72%{transform:translateX(var(--dx,-120%))}}
-.btv-claw-r img{animation:btv-claw2 .8s ease-in-out}
-.btv-wave-r img{animation:btv-wave .8s ease-in-out}
+.btv-claw-r img{animation:btv-claw2 calc(.8s * var(--bs,1)) ease-in-out}
+.btv-wave-r img{animation:btv-wave calc(.8s * var(--bs,1)) ease-in-out}
 @keyframes btv-claw2{0%,36%,72%,100%{transform:none}44%{transform:rotate(8deg)}52%{transform:rotate(-12deg) translateX(-5%)}60%{transform:rotate(6deg)}66%{transform:rotate(-10deg) translateX(-4%)}}
 @keyframes btv-wave{0%,36%,72%,100%{transform:none}46%{transform:rotate(12deg)}58%{transform:rotate(-18deg) translateX(-7%)}}
-.btv-mpounce{animation:btv-mpounce .6s ease-in-out}
+.btv-mpounce{animation:btv-mpounce calc(.6s * var(--bs,1)) ease-in-out}
 @keyframes btv-mpounce{0%,100%{transform:none}30%{transform:translate(4%,0) scaleY(.94)}55%{transform:translate(-14%,-8%) rotate(-7deg)}}
-.btv-mwave img{animation:btv-mwave .6s ease-in-out}
+.btv-mwave img{animation:btv-mwave calc(.6s * var(--bs,1)) ease-in-out}
 @keyframes btv-mwave{0%,100%{transform:none}35%{transform:rotate(8deg)}60%{transform:rotate(-12deg) translateX(-5%)}}
-.btv-mwave.btv-cast img{animation:btv-mwave .6s ease-in-out,btv-cast .6s}
+.btv-mwave.btv-cast img{animation:btv-mwave calc(.6s * var(--bs,1)) ease-in-out,btv-cast calc(.6s * var(--bs,1))}
+
+/* v161 名字不显示，人物 / 怪物往下；人物空手 + 单独的剑，攻击时挥剑 */
+.btv-nm{display:none}
+.btv-u{bottom:0}
+.btv-u.l .btv-hero{position:relative;height:80%;aspect-ratio:269/560}
+.btv-u.l .btv-hero .btv-body{position:absolute;inset:0;width:100%;height:100%;max-height:none;filter:drop-shadow(0 4px 6px #0006)}
+.btv-u.l .btv-hero .btv-sword{position:absolute;left:24.4%;top:52.4%;width:94%;height:auto;max-height:none;max-width:none;transform-origin:12.3% 50%;transform:rotate(40deg);filter:drop-shadow(0 2px 3px #0005)}
+@keyframes btv-slash{0%,100%{transform:rotate(40deg)}40%{transform:rotate(-110deg)}62%{transform:rotate(75deg)}80%{transform:rotate(40deg)}}
+@keyframes btv-slash-hit{0%,34%,100%{transform:rotate(40deg)}46%{transform:rotate(-110deg)}58%{transform:rotate(80deg)}72%{transform:rotate(40deg)}}
