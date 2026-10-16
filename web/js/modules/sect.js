@@ -516,14 +516,14 @@ G.module({
       const sects = DATA.sects.filter(o => o.star === x.star && (el === "all" || o.el === el));
       h += this.lqCard("gf") + `<div class="room-grid six">${DATA.elements.map(e => [e.id, e.name]).map(([k, n]) =>
           `<button class="${el === k ? "active" : ""}" onclick="G.setLibEl('${k}')">${n}</button>`).join("")}</div>` +
-        sects.map(o => `<div class="card"><h3>${o.name}<span class="tag">${DATA.elById[o.el].name}</span></h3>` +
+        sects.map(o => `<div class="card"><h3>${o.name}<span class="tag">${DATA.elById[o.el].name}</span></h3>` + U.doneLast(
           DATA.gongfaTypes.map(t => {
             const g = DATA.gongfaInfo(DATA.gongfaId(o.id, t.id));
-            return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${t.name}</span><small>每层${g.label} +${this.gfValue(g, g.perLv)}${g.label2 ? ` · ${g.label2} +${this.gfValue(g, g.perLv2)}` : ""} · ${U.fmt(g.cost)} 贡献 · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>${btn(g)}</div>`;
-          }).join("") + (() => {
+            return [this.hasGongfa(g.id), `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${t.name}</span><small>每层${g.label} +${this.gfValue(g, g.perLv)}${g.label2 ? ` · ${g.label2} +${this.gfValue(g, g.perLv2)}` : ""} · ${U.fmt(g.cost)} 贡献 · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>${btn(g)}</div>`];
+          }).concat([(() => {
             const g = DATA.spellInfo(DATA.spellId(o.id, o.el));
-            return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">法术</span><small>${this.spellDmgTxt(g)} · 耗法力 ${U.fmt(g.mana)} · ${U.fmt(g.cost)} 贡献 · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>${btn(g)}</div>`;
-          })() + `</div>`).join("");
+            return [this.hasGongfa(g.id), `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">法术</span><small>${this.spellDmgTxt(g)} · 耗法力 ${U.fmt(g.mana)} · ${U.fmt(g.cost)} 贡献 · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>${btn(g)}</div>`];
+          })()])) + `</div>`).join("");
     } else if (tab === "affair") {
       const a = s.affair, cur = a.task >= 0 ? DATA.affairs[a.task] : null;
       h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "affair", "事务堂")}<small>点任务开始，完成后自动继续，离线也进行</small></h3>` +
@@ -564,30 +564,30 @@ G.module({
       h += `<div class="sub-tabs">${[["pill", "杂物"], ["herb", DATA.matKinds.herb], ["ore", DATA.matKinds.ore], ["seed", "种子"], ["bp", "图纸"]].map(([k, n]) =>
         `<button class="${tt === k ? "active" : ""}" onclick="G.setTreasuryTab('${k}')">${n}</button>`).join("")}</div>`;
       if (tt === "pill") {
-        h += `<div class="card"><h3>杂物<small>以贡献兑换 · 炉子放进背包后点「使用」</small></h3>` + this.treasuryList().map((it, i) => {
-          if (!it) return "";
+        h += `<div class="card"><h3>杂物<small>以贡献兑换 · 炉子放进背包后点「使用」</small></h3>` + U.doneLast(this.treasuryList().map((it, i) => {
+          if (!it) return [0, ""];
           if (it.kind === "chuqiao") {
             const C = CFG.chuqiao, has = !!s.cqLv, c = this.cqCost(), rl = !this.realmOK(C.REALM), sl = C.STAR > x.star;
-            return `<div class="line"><div>${DATA.li(DATA.iconImg("mifa"))}<span class="q4">${C.NAME}</span>
+            return [has, `<div class="line"><div>${DATA.li(DATA.iconImg("mifa"))}<span class="q4">${C.NAME}</span>
               <small>出窍探索时可继续修炼 · 学会后在「功法 → 秘法」修炼升层 · 需${DATA.realmLabel(C.REALM)} · ${U.fmt(c)} 贡献</small></div>
-              <button class="sm" onclick="G.exchange(${i})" ${has || rl || sl || s.contrib < c ? "disabled" : ""}>${has ? "已学会" : sl ? `${C.STAR}星宗门可兑换` : rl ? "境界不足" : "兑换"}</button></div>`;
+              <button class="sm" onclick="G.exchange(${i})" ${has || rl || sl || s.contrib < c ? "disabled" : ""}>${has ? "已学会" : sl ? `${C.STAR}星宗门可兑换` : rl ? "境界不足" : "兑换"}</button></div>`];
           }
           const c = this.treasuryCost(it), lock = (it.star || 1) > x.star;
           const desc = it.kind === "furnace" ? `${it.fk === "dan" ? "炼丹" : "炼器"}时间 -${DATA.furnaceBonus(it.fk, it.g)}% · `
             : "";
           const img = it.kind === "furnace" ? DATA.furnaceIcon(it.fk) : it.kind === "pill" ? DATA.pillIcon(it.type) : DATA.iconImg("stone");
-          return `<div class="line"><div>${DATA.li(img)}${this.treasuryName(it)}<small>${desc}${U.fmt(c)} 贡献</small></div>
-            <button class="sm" onclick="G.exchange(${i})" ${lock || s.contrib < c ? "disabled" : ""}>${lock ? `${it.star}星宗门可兑换` : "兑换"}</button></div>`;
-        }).join("") + `</div>`;
+          return [0, `<div class="line"><div>${DATA.li(img)}${this.treasuryName(it)}<small>${desc}${U.fmt(c)} 贡献</small></div>
+            <button class="sm" onclick="G.exchange(${i})" ${lock || s.contrib < c ? "disabled" : ""}>${lock ? `${it.star}星宗门可兑换` : "兑换"}</button></div>`];
+        })) + `</div>`;
       } else if (tt === "seed") {
         h += `<div class="card"><h3>灵药种子<small>每种兑换一次</small></h3>` + this.treasuryMatList("herb").map(({ g, lock }) => { const n = DATA.herbs[g], c = DATA.seedCost(g), has = s.seeds.includes(g);
           return `<div class="line"><div>${DATA.li(DATA.matImg("herb", g))}${n}种子<small>${U.fmt(c)} 贡献 · ${U.dur(DATA.growTime(g) / 1000)}成熟</small></div>
             <button class="sm" onclick="G.exchangeSeed(${g})" ${has || lock || s.contrib < c ? "disabled" : ""}>${has ? "已拥有" : lock ? `${lock}星宗门可兑换` : "兑换"}</button></div>`; }).join("") + `</div>`;
       } else if (tt === "bp") {
-        h += DATA.FURNACE_KINDS.map(k => `<div class="card"><h3>${DATA.furnaces[k].name}图纸<small>放进背包后点「学习」</small></h3>` + DATA.JIE.slice(0, DATA.DAN_JIE_N).map((jn, g) => {
+        h += DATA.FURNACE_KINDS.map(k => `<div class="card"><h3>${DATA.furnaces[k].name}图纸<small>放进背包后点「学习」</small></h3>` + U.doneLast(DATA.JIE.slice(0, DATA.DAN_JIE_N).map((jn, g) => {
           const c = DATA.blueprintCost(k, g), has = s.blueprints[k].includes(g) || s.bag.some(it => it.t === "bp" && it.kind === k && it.g === g), need = DATA.blueprintStar(k, g), lock = need > x.star;
-          return `<div class="line"><div>${DATA.li(DATA.iconImg("bp"))}${DATA.furnaceName(k, g)}图纸<small>${U.fmt(c)} 贡献</small></div>
-            <button class="sm" onclick="G.exchangeBlueprint('${k}',${g})" ${has || lock || s.contrib < c ? "disabled" : ""}>${has ? (s.blueprints[k].includes(g) ? "已学会" : "在背包") : lock ? `${need}星宗门可兑换` : "兑换"}</button></div>`; }).join("") + `</div>`).join("");
+          return [s.blueprints[k].includes(g), `<div class="line"><div>${DATA.li(DATA.iconImg("bp"))}${DATA.furnaceName(k, g)}图纸<small>${U.fmt(c)} 贡献</small></div>
+            <button class="sm" onclick="G.exchangeBlueprint('${k}',${g})" ${has || lock || s.contrib < c ? "disabled" : ""}>${has ? (s.blueprints[k].includes(g) ? "已学会" : "在背包") : lock ? `${need}星宗门可兑换` : "兑换"}</button></div>`]; })) + `</div>`).join("");
       } else {
         h += `<div class="card"><h3>${DATA.matKinds[tt]}<small>贡献 ${U.fmt(s.contrib)}</small></h3>
           <div class="line"><div>兑换数量</div><input id="tr-n" type="number" min="1" value="${this.trN || 1}" oninput="G.trN=+this.value" style="width:110px"></div>` +

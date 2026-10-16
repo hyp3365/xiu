@@ -474,3 +474,8 @@ button small .cd{min-width:0}
 .btv-u.r{cursor:pointer}
 .btv-info{position:absolute;left:4%;right:4%;top:14%;z-index:5;background:rgba(20,16,10,.92);border:1px solid #a8864a;border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.6;color:#eee}
 .btv-info b{color:#f0c060}.btv-info p{margin:0}.btv-info small{opacity:.6}
+
+/* v193 学习列表：已学会的排到最后并变灰 */
+.line.ld { color: #8a8a8a; }
+.line.ld small, .line.ld .tag, .line.ld b { color: #8a8a8a; }
+.line.ld img, .line.ld .tag { opacity: .55; }

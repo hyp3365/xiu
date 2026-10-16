@@ -49,15 +49,15 @@ G.sectWudaoView = function () {
   const s = this.s, x = this.sectInfo(), c = DATA.mifaLearnCost(x.star), tot = this.mifaBonus();
   const fmt = (K, v) => `${K.sign}${U.num(v)}${K.unit}`;
   return this.lqCard("gf") + `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "wudao", "悟道室")} · ${x.star}星宗门秘法<small>灵石 ${U.fmt(s.stone)} · 贡献 ${U.fmt(s.contrib)}</small></h3>` +
-    DATA.mifaKinds.map(K => {
+    U.doneLast(DATA.mifaKinds.map(K => {
       const id = DATA.mifaId(x.star, K.id), lv = s.gongfa[id] || 0, g = DATA.mifaInfo(id, Math.max(1, lv));
       const eff = K.id === "explore" ? `圆满后每步 -${U.num(g.perLv)} 秒` : K.id === "pojun" ? `圆满后 ${fmt(K, g.perLv)}，无视防御 ${U.num(((CFG.wudao.POJUN || {}).IGNORE || [])[x.star - 1] || 0)}%` : K.full ? `圆满后 ${fmt(K, g.perLv)}` : `每层 ${fmt(K, g.perLv)}`;
       const xp = DATA.mifaFullPct(K.id, x.star);   // 聚元 / 炼体 / 斗血 / 斗灵 圆满额外 %
       const effTxt = xp ? `${eff}，圆满${DATA.mifaFullTxt(K.id, xp)}` : eff;
-      return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${x.star}星</span>${lv ? `<span class="tag">${lv}/${DATA.GONGFA_MAX}层</span>` : ""}
+      return [!!lv, `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${x.star}星</span>${lv ? `<span class="tag">${lv}/${DATA.GONGFA_MAX}层</span>` : ""}
         <small>${K.label} · ${effTxt}${lv ? "" : ` · ${U.fmt(c.stone)} 灵石 + ${U.fmt(c.contrib)} 贡献 · 学习 ${U.dur(this.mifaLearnMs(x.star) / 1000)}`}</small></div>
-        ${lv ? `<button class="sm" disabled>已学会</button>` : this.lqBtn("gf", id, `G.learnMifa('${K.id}')`, s.stone < c.stone || s.contrib < c.contrib)}</div>`;
-    }).join("") +
+        ${lv ? `<button class="sm" disabled>已学会</button>` : this.lqBtn("gf", id, `G.learnMifa('${K.id}')`, s.stone < c.stone || s.contrib < c.contrib)}</div>`];
+    })) +
     `<p class="desc">同星级门派共用这套秘法。学会后在「功法 → 秘法」里修炼升层（每 5 秒消耗修为和灵石），离开门派也一直有效。</p></div>
     <div class="card"><h3>秘法总加成</h3><div class="stats">${DATA.mifaKinds.map(K => `<div><span>${K.label}</span>${fmt(K, tot[K.id])}</div>`).join("")}<div><span>战斗每步回血上限</span>+${U.num(tot.hpBattlePct)}%</div><div><span>战斗每步回法力上限</span>+${U.num(tot.mpBattlePct)}%</div><div><span>破军无视防御</span>${U.num(tot.pojunIgn)}%</div><div><span>金蝉伤害降低</span>${tot.jinchan ? U.num(tot.jinchanCut) + "%" : "-"}</div></div></div>`;
 };
