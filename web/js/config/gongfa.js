@@ -163,7 +163,7 @@ CFG.gongfa.sect = {
   // ---- 学习消耗（贡献，不受上面的倍率影响）----
   learn: 100,        // 学习贡献的基础值
   // 学习贡献的类别倍率
-  LEARN_TYPE: { xinfa: 2, gongjue: 2, zhenjing: 2, mijue: 2, shenfa: 2, dunshu: 2, fajue: 2, zhenjue: 2, spell: 1, tijue: 2.2 },
+  LEARN_TYPE: { xinfa: 2, gongjue: 2, zhenjing: 2, mijue: 2, shenfa: 2, dunshu: 2, fajue: 2, zhenjue: 2, spell: 2, tijue: 2 },
   LEARN_STAR: [      // 学习贡献的门派星级倍率
     0.5,     // 1 星门派
     5,     // 2 星
