@@ -11,7 +11,7 @@
  *   法术伤害 = 威力 - (对方防御 + 对方该属性抗性) × DEF_RATE；普通攻击、法宝只算防御。
  *   怪物也有法力、六系抗性、法术和法宝（见 config/mobs.js 的 mobs.magic）。
  *   一次探索中获得的东西先记下，走完后一起放进背包；
- *   生命够（≥ 三成）就继续下一次，不够就停止；探索时不能修炼；离线也继续。
+ *   生命够（≥ 三成）就继续下一次，不够就原地休养到满血再自动继续（v186）；探索时不能修炼；离线也继续。
  *   探索信息栏显示每一步发生的事，每秒刷新。
  * 秘境（config/mijing.js）：历练探索时有几率发现；每处每天进一次，先历练通过才能自动探索；探索中 x.mj = 秘境序号、x.queue = 一键探索还没走的秘境。
  * 灵地（config/lingdi.js）：和秘境共用同一套（mjXxx 函数多一个参数 k = "ld"）；探索中 x.mk = "ld"、x.mj = 灵地序号；存档 s.ld。
@@ -46,7 +46,7 @@ G.module({
               ${lock ? `<button class="sm" disabled>需${DATA.realmLabel(DATA.mapReq(sel))}</button>` : !unl || !this.regionOpen(sel, r) ? `<button class="sm" disabled>未开启</button>` : `<div><button class="sm ${x && x.once ? "on" : ""}" onclick="G.toggleExplore(${sel},${r},true)" ${s.explore && s.explore.cq ? "disabled" : ""}>${x && x.once ? "停止" : "历练"}</button>
               <button class="sm ${x && !x.once && !x.cq ? "on" : ""}" onclick="G.toggleExplore(${sel},${r})" ${ok && !(s.explore && s.explore.cq) ? "" : "disabled"}>${x && !x.once && !x.cq ? "停止" : "探索"}</button>
               <button class="sm ${x && x.cq ? "on" : ""}" onclick="G.openChuqiao(${sel},${r})" ${x && x.cq || ok && s.cqLv && !(s.explore && s.explore.cq) ? "" : "disabled"}>${x && x.cq ? "停止" : "出窍"}</button></div>`}</div>`;
-          }).join("") + (map.w === "fan" ? this.kuangLine(sel) : "") + `<p class="desc">历练、探索期间无法修炼；生命低于三成停止。</p></div>`;
+          }).join("") + (map.w === "fan" ? this.kuangLine(sel) : "") + `<p class="desc">历练、探索期间无法修炼；生命低于三成会原地休养，恢复满后自动继续。</p></div>`;
     },
     /* ---------- 凡界灵矿（config/explore.js 的 KUANG）：不用历练，不遇怪，只挖灵石；探索中 x.kuang = 1、x.reg = -1 ---------- */
     kuangName(a) { return (CFG.explore.KUANG.NAME || "{map}灵矿").replace("{map}", DATA.maps[a].name); },
@@ -606,6 +606,8 @@ G.module({
       return parts.join("、") + (lost ? `（背包已满，遗失 ${lost} 件）` : "");
     },
     // 战败损失
+    // v186 探索 / 出窍战败：只丢本次探索收获（物品 + 灵石），不扣身上灵石；历练、秘境 / 灵地照旧
+    exDropAll(x) { return !!x && !x.once && x.mj === undefined; },
     loseStone() { const lost = Math.floor(this.s.stone * CFG.explore.LOSE_STONE); this.s.stone -= lost; return lost; },
 
     /* ---------- 自动探索 ---------- */
@@ -617,8 +619,9 @@ G.module({
       if (!this.regionOpen(a, r)) return;
       if (!once && !this.isTrained(a, r)) return this.log("需先在此区域历练通过，才能自动探索。", "sys");
       if (s.explore) this.stopExplore("更换");
-      if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("生命不足三成，先休养片刻（每 10 秒恢复 1%）。", "sys");
+      if (once && s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("生命不足三成，先休养片刻（每 10 秒恢复 1%）。", "sys");
       s.explore = { map: a, reg: r, once: !!once, start: this.now(), step: 0, count: 0, loot: this.newLoot(), ev: [], last: "", plan: this.makePlan(), ms: this.exploreMs() };
+      if (!once && s.hp < this.stats().hp * DATA.EXPLORE_STOP) { s.explore.rest = 1; this.log("生命不足三成，先原地休养，恢复满后自动开始。", "sys"); }
       s.lastRun = null;
       this.exploreOpen = true;
       this.log(`开始在${DATA.regionName(a, r)}${once ? "历练" : "自动探索"}（期间无法修炼）。`, "sys");
@@ -645,10 +648,10 @@ G.module({
       if (n < 1) return;
       this.closeModal();
       if (s.explore) this.stopExplore("更换");
-      if (r >= 0 && s.hp < this.stats().hp * DATA.EXPLORE_STOP) return this.log("生命不足三成，先休养片刻（每 10 秒恢复 1%）。", "sys");
       this.cqUse(n);   // 开始先扣次数，停止时返还没走的（stopExplore）
       s.explore = { map: a, reg: r, once: false, cq: n, start: this.now(), step: 0, count: 0, loot: this.newLoot(), ev: [], last: "", plan: r < 0 ? this.kuangPlan() : this.makePlan(), ms: this.exploreMs() };
       if (r < 0) s.explore.kuang = 1;   // 灵矿
+      if (r >= 0 && s.hp < this.stats().hp * DATA.EXPLORE_STOP) { s.explore.rest = 1; this.log("生命不足三成，先原地休养，恢复满后自动开始出窍。", "sys"); }
       s.lastRun = null;
       this.exploreOpen = true;
       this.log(`元婴出窍，前往${r < 0 ? this.kuangName(a) : DATA.regionName(a, r)}探索 ${n} 次（期间可以继续修炼）。`, "sys");
@@ -659,7 +662,7 @@ G.module({
     cqBusy() { if (this.s.explore && this.s.explore.cq) { this.log("正在元婴出窍，请先停止出窍。", "sys"); return true; } return false; },
     stopExplore(why) {
       const x = this.s.explore; if (!x) return;
-      if (x.cq) { const back = Math.max(0, x.cq - x.count - 1); this.cqRefund(back); if (back) why += `，返还 ${back} 次出窍`; }   // 正在进行的这次扣除，剩下的返还
+      if (x.cq) { const back = Math.max(0, x.cq - x.count - (x.rest ? 0 : 1)); this.cqRefund(back); if (back) why += `，返还 ${back} 次出窍`; }   // 正在进行的这次扣除，剩下的返还
       const got = this.giveLoot(x.loot);
       this.log(`${why}，${x.mj !== undefined ? `离开${this.exName(x)}` : `共完成 ${x.count} 次探索`}${got ? "，本次收获 " + got : ""}。`, "sys");
       this.s.explore = null;
@@ -683,7 +686,7 @@ G.module({
         m.a = a;
         const res = this.battle(m), tag = `${m.boss ? "【首领】" : m.elite ? "【精英】" : ""}${m.name}`;
         if (res.win) { this.s.kills++; t = `遭遇${tag}，${res.rounds}回合击败，获得 ${this.rollMonsterLoot(x.loot, m, a, mj, mk)}`; c = m.boss ? "gold" : ""; }
-        else if (res.lose) { t = `遭遇${tag}，${res.timeout ? `${res.rounds} 回合未能击败，力竭重伤` : `第 ${res.rounds} 回合不敌重伤`}，遗失灵石 ${U.fmt(this.loseStone())}。${res.why}`; c = "bad"; }
+        else if (res.lose) { t = `遭遇${tag}，${res.timeout ? `${res.rounds} 回合未能击败，力竭重伤` : `第 ${res.rounds} 回合不敌重伤`}，${this.exDropAll(x) ? "本次探索收获全部遗失" : `遗失灵石 ${U.fmt(this.loseStone())}`}。${res.why}`; c = "bad"; }
         else { t = `遭遇${tag}，缠斗 ${res.rounds} 回合，各自退去`; }
         bd = res.detail;
       } else t = U.pick(DATA.exploreIdle);
@@ -709,6 +712,11 @@ G.module({
       let x = s.explore; const T = this.exCfg(x).TIME;
       let changed = false;
       if (!x.ms) x.ms = this.exploreMs();
+      if (x.rest) {   // v186 探索 / 出窍：生命不足时原地休养，恢复满后自动继续
+        if (s.hp < this.stats().hp - 1e-6) return;
+        x.rest = 0; x.start = this.now(); x.step = 0; x.loot = this.newLoot(); x.ev = []; x.plan = this.exPlan(x);
+        this.log(`生命已恢复满，继续${x.cq ? "出窍探索" : "自动探索"}。`, "sys"); changed = true;
+      }
       while (s.explore && this.now() >= x.start + (x.step + 1) * x.ms) {
         changed = true;
         // 战败：先把战败那一步显示出来，再等一步的时间才结算「探索失败」
@@ -718,6 +726,7 @@ G.module({
         if (x.step >= T || lost) {
           // 结算本次
           x.count++;
+          if (lost && this.exDropAll(x)) x.loot = this.newLoot();   // v186 战败：本次收获全部遗失
           const got = this.giveLoot(x.loot);
           x.last = `${x.once ? "历练" : x.mj !== undefined ? "探索" : `第 ${x.count} 次探索`}${lost ? `（第 ${x.step} 步战败，提前结束）` : ""}：${got || "一无所获"}`;
           this.log(x.mj !== undefined ? this.exName(x) + x.last : x.last, lost ? "bad" : "gold");
@@ -736,11 +745,9 @@ G.module({
             this.log(`出窍探索 ${x.count} 次已完成，元婴归窍。`, "gold");
             s.explore = null; break;
           }
-          if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) {
-            const back = x.cq ? Math.max(0, x.cq - x.count) : 0; this.cqRefund(back);   // 出窍：已完成的扣掉，剩下的返还
-            this.log(`生命不足三成，自动探索停止（共探索 ${x.count} 次${back ? `，返还 ${back} 次出窍` : ""}）。`, "bad");
-            s.lastRun.title += "；生命不足三成，自动探索停止";
-            s.explore = null; break;
+          if (s.hp < this.stats().hp * DATA.EXPLORE_STOP) {   // v186 不再停止：原地休养到满血再继续
+            this.log(`生命不足三成，原地休养，恢复满后自动继续（已探索 ${x.count} 次）。`, "bad");
+            x.rest = 1; x.step = 0; x.loot = this.newLoot(); x.ev = []; break;
           }
           x.start = x.start + (x.step + (lost ? 1 : 0)) * x.ms; x.ms = this.exploreMs(); x.step = 0; x.loot = this.newLoot(); x.ev = []; x.plan = this.exPlan(x);
           s.lastRun = null; // 开始新一次：不保留上一次的记录
@@ -1066,10 +1073,10 @@ G.module({
           if (L.hx) mats.push(`${DATA.HX}×${U.fmt(L.hx)}`);
           for (const k in L.sm || {}) { const p = DATA.smParse(k); mats.push(`${DATA.smName(p.k, p.ft, p.tier)}×${U.fmt(L.sm[k])}`); }
           for (const n in L.cu || {}) mats.push(`${n}×${U.fmt(L.cu[n])}`);
-          const sub = x.mj !== undefined ? (x.once ? "" : x.queue && x.queue.length ? `一键探索 · 后面还有 ${x.queue.length} 处` : this.mjLabel(x.mk) + "探索") : x.once ? "" : x.cq ? `已完成 ${x.count} / ${x.cq} 次` : `已完成 ${x.count} 次`;
+          const sub = x.mj !== undefined ? (x.once ? "" : x.queue && x.queue.length ? `一键探索 · 后面还有 ${x.queue.length} 处` : this.mjLabel(x.mk) + "探索") : x.once ? "" : x.cq ? `已完成 ${x.count} / ${x.cq} 次` : `已完成 ${x.count} 次`, hpP = Math.min(100, s.hp / this.stats().hp * 100);
           return `<div class="card"><h3>${x.once ? "历练中" : x.cq ? "出窍探索中" : "自动探索中"} · ${this.exName(x)}<small>${sub}</small></h3>
-          <div class="bar tick"><div style="width:${x.step / T * 100}%"></div></div>
-          <div class="row small"><span>第 ${U.fix(x.step)} / ${T} 步 · 剩余 ${U.cd(Math.ceil((T - x.step) * (x.ms || 1000) / 1000))}</span><span>
+          <div class="bar tick"><div style="width:${x.rest ? hpP : x.step / T * 100}%"></div></div>
+          <div class="row small"><span>${x.rest ? `休养中 · 生命 ${U.fix(Math.floor(hpP) + "%")}，满后自动继续` : `第 ${U.fix(x.step)} / ${T} 步 · 剩余 ${U.cd(Math.ceil((T - x.step) * (x.ms || 1000) / 1000))}`}</span><span>
             <button class="sm" onclick="G.setExploreOpen(${!this.exploreOpen})">${this.exploreOpen ? "收起信息" : "探索信息"}</button>
             <button class="sm" onclick="G.stopNow()">停止</button></span></div>
           <p class="desc">本次收获（结束后放入背包）：灵石 ${U.fmt(L.stone)}${mats.length ? "、" + mats.join("、") : ""}</p>
