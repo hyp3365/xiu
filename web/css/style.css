@@ -469,3 +469,8 @@ button small .cd{min-width:0}
 /* v170 人物不挥剑：攻击 / 法术 / 法宝 = 抖动 + 放大，结束恢复原大小 */
 .btv-u.l.btv-hact{animation:btv-hact calc(.8s * var(--bs,1)) ease-in-out;transform-origin:50% 100%;z-index:3}
 @keyframes btv-hact{0%,100%{transform:none}18%{transform:scale(1.2)}26%{transform:scale(1.2) translateX(-5px)}34%{transform:scale(1.2) translateX(5px)}42%{transform:scale(1.2) translateX(-5px)}50%{transform:scale(1.2) translateX(5px)}58%{transform:scale(1.2) translateX(-3px)}66%{transform:scale(1.2) translateX(3px)}78%{transform:scale(1.2)}}
+
+/* v181 战斗画面点怪物看属性 */
+.btv-u.r{cursor:pointer}
+.btv-info{position:absolute;left:4%;right:4%;top:14%;z-index:5;background:rgba(20,16,10,.92);border:1px solid #a8864a;border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.6;color:#eee}
+.btv-info b{color:#f0c060}.btv-info p{margin:0}.btv-info small{opacity:.6}

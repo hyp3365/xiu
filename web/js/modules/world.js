@@ -333,7 +333,10 @@ G.module({
       // 战斗说明（显示在探索信息里）
       const why = `你出战时生命 ${U.fmt(hp0)}，共造成 ${U.fmt(dealt)} 伤害（对方剩余生命 ${U.fmt(Math.max(0, mhp))}/${U.fmt(m.hp)}），承受 ${U.fmt(taken)} 伤害；对方攻击 ${U.fmt(m.atk)} 防御 ${U.fmt(m.def)}${m.el ? `，${DATA.elById[m.el].name}属性，施法术 ${mSp} 次、法宝 ${mFb} 次` : ""}`;
       const detail = { name: m.name, el: m.el || "", a: m.a, sp: spNames, first: meFirst ? 0 : 1, log, mf: m.mf.slice(),
-        me: [R(hp0), R(st.hp), R(mana0), R(st.mana)], mob: [R(m.hp), R(m.hp), R(m.maxMana || 0), R(m.maxMana || 0)] };
+        me: [R(hp0), R(st.hp), R(mana0), R(st.mana)], mob: [R(m.hp), R(m.hp), R(m.maxMana || 0), R(m.maxMana || 0)],
+        // v181 这场战斗怪物的准确属性（战斗画面点怪物查看）
+        ms: { hp: m.hp, atk: m.atk, def: m.def, speed: m.speed, hit: m.hit, dodge: m.dodge, mana: m.maxMana || 0, crit: m.crit || 0, res: Object.assign({}, m.res || {}),
+          sp: m.spell ? [m.spell.chance, m.spell.pct] : null, fb: m.fabao ? [m.fabao.chance, m.fabao.pct] : null } };
       const win = mhp <= 0 && php > 0;   // 打满 MAX_ROUNDS 回合没击败对方也算失败（timeout）
       return { win, lose: !win, timeout: !win && php > 0, rounds, why, detail };
     },
@@ -383,6 +386,19 @@ G.module({
     //   现场战斗（试炼塔等）SKIP_SEC 秒后可跳过，replay（看详情）随时可跳过
     //   结果提示（log）等战斗播放完才出：logs = [[文字, 颜色], …]，不传则用 txt（胜 gold / 败 bad）
     //   opt.test（v158 实力测试）：不自动结束、随时可关闭，显示累计伤害
+    // v181 点怪物：显示这场战斗怪物的准确属性（再点一次关闭）
+    btMobInfo() {
+      const el = document.getElementById("bt-info"), b = this._bp && this._bp.b; if (!el || !b) return;
+      if (el.style.display !== "none") { el.style.display = "none"; return; }
+      const m = b.ms; if (!m) { el.innerHTML = "<p>没有这场战斗的怪物属性</p>"; el.style.display = ""; return; }
+      const f = U.fmt, rs = DATA.elements.map(e => `${e.name}${U.fmt(m.res[e.id] || 0)}`).join("　");
+      el.innerHTML = `<b>${b.name}${b.el && DATA.elById[b.el] ? `（${DATA.elById[b.el].name}属性）` : ""}</b>
+        <p>生命 ${f(m.hp)}　攻击 ${f(m.atk)}　防御 ${f(m.def)}</p><p>速度 ${f(m.speed)}　命中 ${f(m.hit)}　闪避 ${f(m.dodge)}</p>
+        <p>法力 ${f(m.mana)}　暴击 ${U.num(m.crit)}%</p><p>抗性：${rs}</p>
+        ${m.sp ? `<p>法术：每回合 ${m.sp[0]}% 几率，攻击×${m.sp[1]}%</p>` : ""}${m.fb ? `<p>法宝：每回合 ${m.fb[0]}% 几率，攻击×${m.fb[1]}%</p>` : ""}
+        ${b.mf && b.mf.length ? `<p>秘法：${b.mf.map(k => (DATA.mifaKindById[k] || {}).name || k).join("、")}</p>` : ""}<small>点击关闭</small>`;
+      el.style.display = "";
+    },
     playBattle(b, title, txt, win, logs, replay, opt = {}) {
       if (this._bp && this._bp.timer) clearInterval(this._bp.timer);
       if (this._bp) this.battleDone(this._bp);
@@ -397,8 +413,9 @@ G.module({
           <div class="btv-zhan">战</div>
           <div class="btv-hp r"><div class="btv-bar"><i id="bt-hp1"></i></div><span id="bt-hpt1"></span></div>
           <div class="btv-u l" id="bt-u0"><div class="btv-hero"><img class="btv-body" src="img/bt_hero.webp?v=${v}" alt=""><div class="btv-arm"><img class="btv-sword" src="img/bt_sword.webp?v=${v}" alt=""><img class="btv-hand" src="img/bt_hand.webp?v=${v}" alt=""></div></div></div>
-          <div class="btv-u r" id="bt-u1"><img src="${mi.src}" onerror="this.onerror=null;this.src='${mi.alt}'" alt=""></div>
+          <div class="btv-u r" id="bt-u1" onclick="G.btMobInfo()"><img src="${mi.src}" onerror="this.onerror=null;this.src='${mi.alt}'" alt=""></div>
           <div class="btv-fx" id="bt-fx"></div>
+          <div class="btv-info" id="bt-info" style="display:none" onclick="G.btMobInfo()"></div>
         </div>
         ${opt.test ? `<div class="btv-sum" id="bt-sum"></div>` : ""}
         <div class="btv-log" id="bt-log">${opt.head || ""}<p class="bt-gray"><span class="bt-m">${b.name}</span>上阵${b.el ? `（${DATA.elById[b.el].name}属性）` : ""}，${b.first ? `<span class="bt-m">${b.name}</span>先手` : `<span class="bt-p">你</span>先手`}。</p></div>
