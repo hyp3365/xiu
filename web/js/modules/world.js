@@ -407,7 +407,7 @@ G.module({
       const v = DATA.IMG_V, mi = this.battleMobImg(b);
       // v161 名字不放在人物 / 怪物脚下，怪物名字放标题后面（opt.tname 可改标题里显示的名字）
       this.modal(`<div class="btv" style="--bs:${CFG.battle.ANIM_SLOW || 1}">
-        <div class="btv-title">${title} · ${opt.tname || b.name}</div>
+        <div class="btv-title">${title}${opt.tname === "" ? "" : ` · ${opt.tname || b.name}`}</div>
         <div class="btv-stage" style="background-image:url(img/bt_bg.webp?v=${v})">
           <div class="btv-hp l"><div class="btv-bar"><i id="bt-hp0"></i></div><span id="bt-hpt0"></span></div>
           <div class="btv-zhan">战</div>

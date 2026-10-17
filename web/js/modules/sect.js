@@ -469,7 +469,7 @@ G.module({
         txt = `${res.rounds}回合击败${star}星试炼塔第 ${f} 层守关者，获得 ${this.towerReward(f)}。`;
       } else { txt = `挑战试炼塔第 ${f} 层失败${res.timeout ? "（回合耗尽，未能击败）" : ""}。`; }
       this.after();
-      this.playBattle(res.detail, `试炼塔 · 第 ${f} 层`, txt, res.win);   // 见 world.js
+      this.playBattle(res.detail, `试炼塔 · 第 ${f} 层`, txt, res.win, null, false, { tname: "" });   // v228 标题不再显示守关者名字   // 见 world.js
     },
 
     /* ---------- 宗门秘境 ---------- */
