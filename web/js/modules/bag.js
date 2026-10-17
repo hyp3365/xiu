@@ -348,14 +348,14 @@ G.module({
       const L = this._locks || (this._locks = []), cost = DATA.resetCost(e, L.length);
       const wash = e.slot === "fabao", nm = "洗练";
       this.modal(`<h2 class="q${e.q}${DATA.fbElCls(e)}">${DATA.HX}${nm} · ${this.itemName({ t: "eq", e })}</h2>
-        <p class="desc">点属性锁定 / 解锁，锁定的属性不变。每锁定一条，${DATA.HX}消耗翻一倍。</p>` +
+        <p class="desc">点属性锁定 / 解锁，锁定的属性不变。每锁定一条，${DATA.HX}消耗多一份。</p>` +
         e.attrs.map((a, i) => `<div class="line"><div><span class="ac${a.c}">${DATA.attrText(a, e)}</span></div>
           <button class="sm ${L.includes(i) ? "active" : ""}" onclick="G.toggleLock(${i})">${L.includes(i) ? "已锁定" : "锁定"}</button></div>`).join("") +
         `<p>消耗${DATA.HX} <b>${cost}</b>（拥有 ${this.fireCount()}）</p>
         ${wash ? `<p class="desc">炼制、购买得到的法宝属性最高绿色，紫色、金色只能洗练得到。</p>` : ""}
         <div class="btns"><button class="primary" onclick="G.doReset()" ${this.fireCount() >= cost && this.canWash(e, L) ? "" : "disabled"}>${nm}</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
-    // v164 全部锁定时，附加属性没满（< reset.AFFIX_MAX）也能洗练：再洗出新的附加属性补到满
+    // v164 全部锁定时，附加属性没满（< 附加属性上限）也能洗练：再洗出新的附加属性补到满
     canWash(e, L) { return L.length < e.attrs.length || DATA.washRange(e, L)[1] > 0; },
     toggleLock(i) { const L = this._locks || (this._locks = []), j = L.indexOf(i); j >= 0 ? L.splice(j, 1) : L.push(i); this.drawReset(); },
     doReset() {

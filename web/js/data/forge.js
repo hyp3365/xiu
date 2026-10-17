@@ -150,13 +150,13 @@ DATA.rollForged = (slot, g, r, el) => {
     const elv = el && DATA.elById[el] ? el : U.pick(DATA.elements).id;
     const W = DATA.fabaoNewW(), attrs = (T.shield ? ["shHpMain", "shDef"] : ["pct"]).map(k => DATA.rollAttr(k, 1, undefined, W));
     for (const k of T.special || []) attrs.push(DATA.rollAttr(k, 2, undefined, W));
-    const n = U.weighted(F.AFFIX_COUNT) + 1, pool = DATA.fbPool(T);
+    const n = DATA.affixRollN(F.AFFIX_COUNT, g), pool = DATA.fbPool(T);
     for (let i = 0; i < n; i++) attrs.push(DATA.fbAffix(U.pick(DATA.fbPoolLeft(pool, attrs)), W));   // v164 祭出次数最多一条
     return { slot, g, ft, el: elv, name: DATA.fabaoName(ft, g), enh: 0, q: DATA.bestQ(attrs), attrs };
   }
   if (slot === "ring" && r === undefined) r = Math.floor(Math.random() * DATA.ringNames.length);
   const main = (slot === "ring" ? _FG.ring.main[r] : A.main[slot] || []).slice(0, 2), W = DATA.equipNewW(), attrs = main.map(k => DATA.rollAttr(k, 1, undefined, W));
-  const pool = A.pool.filter(k => !main.includes(k)), n = Math.min(pool.length, U.weighted(A.AFFIX_COUNT) + 1);
+  const pool = A.pool.filter(k => !main.includes(k)), n = Math.min(pool.length, DATA.affixRollN(A.AFFIX_COUNT, g));
   for (let i = 0; i < n; i++) { const j = Math.floor(Math.random() * pool.length); attrs.push(DATA.rollAttr(pool.splice(j, 1)[0], 0, undefined, W)); }
   const e = { slot, g, name: slot === "ring" ? DATA.ringNames[r] : DATA.forgeNames[slot][g], q: DATA.bestQ(attrs), attrs };
   if (slot === "ring") e.r = r;
@@ -171,11 +171,16 @@ DATA.upgradeForged = (prev, g) => {
   return e;
 };
 // 火髓洗练：locks = 锁定的属性序号；没锁的重新随机
-DATA.resetCost = (e, nLock) => Math.ceil((_FG.reset.FIRE[e.g] || 1) * Math.pow(_FG.reset.LOCK_MULT || 2, nLock));
-// v44：没锁的附加属性重新随机条数 —— 锁定的附加属性 + 新随机的 ≤ reset.AFFIX_MAX（5），新随机的至少 1 条（锁满了就 0 条）
+DATA.resetCost = (e, nLock) => { const R = _FG.reset, b = R.FIRE[e.g] || R.FIRE[R.FIRE.length - 1] || 1;   // v224 每锁一条 + 基础 × LOCK_ADD
+  return Math.ceil(b * (1 + nLock * (R.LOCK_ADD === undefined ? 1 : R.LOCK_ADD))); };
+// v224 附加属性上限（按物品阶）：reset.AFFIX_MAX 可写一个数或按阶的数组
+DATA.affixMax = g => { const M = _FG.reset.AFFIX_MAX; return Array.isArray(M) ? (M[g] !== undefined ? M[g] : M[M.length - 1]) : (M || 5); };
+// 新物品附加属性条数：按权重随机，超过上限的不算（权重第 1 个 = 1 条）
+DATA.affixRollN = (W, g) => { const mx = DATA.affixMax(g), w = W.slice(0, Math.max(1, mx)); return U.weighted(w.some(x => x > 0) ? w : w.map(() => 1)) + 1; };
+// v44：没锁的附加属性重新随机条数 —— 锁定的附加属性 + 新随机的 ≤ 附加属性上限（v224 按阶，DATA.affixMax），新随机的至少 1 条（锁满了就 0 条）
 //   新条数在 [1, AFFIX_MAX − 锁定的附加属性] 里按 reset.COUNT_WEIGHT 随机
 DATA.washRange = (e, locks) => {
-  const R = _FG.reset, MX = R.AFFIX_MAX || 5, lockedAff = e.attrs.filter((a, i) => !a.m && locks.includes(i)).length;
+  const MX = DATA.affixMax(e.g), lockedAff = e.attrs.filter((a, i) => !a.m && locks.includes(i)).length;
   const hi = Math.max(0, MX - lockedAff); return [Math.min(1, hi), hi];
 };
 DATA.rerollForged = (e, locks) => {
