@@ -93,3 +93,10 @@ DATA.danTier = (type, g) => { const f = Math.min(5, Math.floor((g || 0) * 6 / 10
 DATA.danCls = (type, g) => ` eqt eqt${DATA.danTier(type, g)}`;
 DATA.qlCls = sectId => { const Q = CFG.sect.qingling, o = DATA.sectById[sectId], st = o ? o.star : 1, f = Math.min(5, Math.floor(((Q.TIER[st - 1] || 1) - 1) * 6 / 10));
   return ` eqt eqt${(Q.CAT[st - 1] || 0) > 0 ? 6 + f : f}`; };
+// v217 高阶丹药流光：品质 ≥ 4 的丹药图标外面包一层（css .dsh），圆形流光，越高级越亮越快
+//   kind：mi 背包格子 / li 列表小图 / big 详情大图；cls = danCls / qlCls 的结果
+DATA.danImg = (src, cls, kind) => {
+  const m = /eqt(\d+)/.exec(cls || ""), tr = m ? +m[1] : 0;
+  const img = kind === "li" ? `<img class="li${cls}" src="${src}" alt="" loading="lazy">` : `<img class="${kind === "big" ? "item-img" : "mi"}${cls}" src="${src}" alt="">`;
+  return tr >= 4 ? `<span class="dsh dsh-${kind} dsh${tr}">${img}</span>` : img;
+};

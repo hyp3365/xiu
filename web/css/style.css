@@ -515,3 +515,16 @@ button small .cd{min-width:0}
 .wd-run { margin-top: 8px; } .wd-run div { width: 0; animation: wd-run linear forwards; } @keyframes wd-run { from { width: 0; } to { width: 100%; } }
 .wd-stage.fx .ys-aura { animation: ys-burst 1.6s ease-out infinite; }
 .cult-sbtn { display: flex; flex-direction: column; gap: 4px; } .cult-sbtn button.sm { width: 76px; padding: 4px 0; text-align: center; }
+
+/* v217 高阶丹药流光（DATA.danImg）：圆形图标上斜扫一道光，品质越高越亮越快 */
+.dsh{position:relative;display:inline-block;border-radius:50%;vertical-align:middle;line-height:0}
+.dsh img{margin:0!important;width:100%!important;height:auto}
+.dsh::after{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;background-size:250% 100%;animation:eqShine 3.2s linear infinite;
+  background-image:linear-gradient(115deg,transparent 34%,rgba(255,255,255,.28) 48%,transparent 60%)}
+.dsh6::after,.dsh7::after{animation-duration:2.8s;background-image:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.42) 47%,rgba(200,160,255,.25) 53%,transparent 64%)}
+.dsh8::after,.dsh9::after{animation-duration:2.3s;background-image:linear-gradient(115deg,transparent 28%,rgba(255,240,190,.55) 46%,rgba(255,180,90,.3) 54%,transparent 66%)}
+.dsh10::after,.dsh11::after{animation-duration:1.8s;background-image:linear-gradient(115deg,transparent 24%,rgba(255,255,255,.65) 44%,rgba(255,215,110,.5) 52%,rgba(160,230,255,.3) 58%,transparent 72%)}
+.cell .dsh-mi{width:58%;margin-bottom:1px}
+.dsh-li{float:left;width:34px;height:34px;margin:0 6px 0 0}
+.dsh-big{display:block;width:72px;height:72px;margin:0 auto 6px}
+@media (prefers-reduced-motion:reduce){.dsh::after{animation:none}}

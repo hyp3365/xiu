@@ -205,7 +205,7 @@ G.module({
         : `<button onclick="G.sellItem(${i},1)">出售（${U.fmt(this.sellPrice(it))}）</button>`;
       const cq = it.t === "cu" ? ((this.cuDef(it.name) || {}).q || 0) : 0;
       const big = it.t === "mat" ? "" : this.itemIcon(it);
-      let h = (big ? `<img class="item-img${it.t === "eq" ? DATA.eqCls(it.e) : it.t === "dan" ? DATA.danCls(it.type, it.g) : it.t === "ql" ? DATA.qlCls(it.sect) : ""}" src="${big}" alt="">` : "") + `<h2 class="q${it.t === "eq" ? it.e.q : cq}${it.t === "eq" ? DATA.fbElCls(it.e) : ""}">${this.itemName(it)}${it.n ? " ×" + it.n : ""}</h2>`;
+      let h = (big ? (it.t === "dan" || it.t === "ql" ? DATA.danImg(big, it.t === "dan" ? DATA.danCls(it.type, it.g) : DATA.qlCls(it.sect), "big") : `<img class="item-img${it.t === "eq" ? DATA.eqCls(it.e) : ""}" src="${big}" alt="">`) : "") + `<h2 class="q${it.t === "eq" ? it.e.q : cq}${it.t === "eq" ? DATA.fbElCls(it.e) : ""}">${this.itemName(it)}${it.n ? " ×" + it.n : ""}</h2>`;
       if (it.t === "pill") {
         const ok = this.canUsePill(it.g);
         h += `<p>修炼速度 +${Math.round(DATA.pillPct(it.type, it.g))}%，持续 ${DATA.pills[it.type].dur} 次修炼。<br>只有${DATA.realmLabel(it.g)}可服用。
@@ -475,8 +475,8 @@ G.module({
       if (!it) { if (flt !== "all") continue; cells += `<div class="cell"></div>`; }
       // 格子里只显示名字和类型，点击才看品质、境界、效果
       else if (it.t === "pill") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 3))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.pillIcon(it.type)}" alt="">${DATA.pills[it.type].name}<span class="n">${it.n}</span></div>`;
-      else if (it.t === "dan") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}${DATA.danCls(it.type, it.g)}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.danIcon(it.type)}" alt="">${it.sg ? DATA.sgDanBase(it.type) : DATA.dans[it.type].name}<span class="n">${it.n}</span></div>`;
-      else if (it.t === "ql") cells += `<div class="cell q4${DATA.qlCls(it.sect)}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("dan_ql")}" alt="">${DATA.qlName(it.sect)}<span class="n">${it.n}</span></div>`;
+      else if (it.t === "dan") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}${DATA.danCls(it.type, it.g)}" onclick="G.openItem(${i})">${DATA.danImg(DATA.danIcon(it.type), DATA.danCls(it.type, it.g), "mi")}${it.sg ? DATA.sgDanBase(it.type) : DATA.dans[it.type].name}<span class="n">${it.n}</span></div>`;
+      else if (it.t === "ql") cells += `<div class="cell q4${DATA.qlCls(it.sect)}" onclick="G.openItem(${i})">${DATA.danImg(DATA.iconImg("dan_ql"), DATA.qlCls(it.sect), "mi")}${DATA.qlName(it.sect)}<span class="n">${it.n}</span></div>`;
       else if (it.t === "mat") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.matImg(it.kind, it.g)}" alt="">${it.name}<span class="n">${U.fmt(it.n)}</span></div>`;
       else if (it.t === "fu") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.furnaceIcon(it.kind)}" alt="">${DATA.furnaceName(it.kind, it.g)}${it.n > 1 ? `<span class="n">${it.n}</span>` : ""}</div>`;
       else if (it.t === "bp") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("bp")}" alt="">${DATA.furnaceName(it.kind, it.g)}</div>`;
