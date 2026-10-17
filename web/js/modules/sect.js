@@ -43,8 +43,9 @@ G.module({
   }),
 
   // 每 10 秒：事务堂任务到时间就结算一次，并自动开始下一次（离线也会补算）
-  tick() {
+  tick(offline) {
     this.freeRoomDaily(); this.poolTick();
+    if (!offline) this.autoTaskCheck();   // v229 每天北京时间 0:05 自动执行任务（修炼设置）
     const s = this.s, a = s.affair;
     if (!s.sect || !a || a.task === undefined || a.task < 0) return;
     const t = DATA.affairs[a.task]; if (!t) { a.task = -1; return; }
@@ -251,6 +252,38 @@ G.module({
       const fc = s.freeCult, fg = s.freeGf;
       if (fc && fc.day && fc.day !== day && fc.left > 0) { Object.assign(fc, { day, used: 1, left: CFG.sect.freeRoom.times }); this.dirty(); }
       if (fg && fg.day && fg.day !== day && fg.end > mid) { Object.assign(fg, { day, used: 1, end: mid + CFG.sect.freeGfRoom.minutes * 60000 }); this.dirty(); }
+    },
+    /* ---------- v229 自动执行任务（修炼设置里开关）：每天北京时间 0:05 后执行一次；离线错过的话下次上线执行 ---------- */
+    autoTask() {
+      return this.s.autoTask || (this.s.autoTask = { day: "", free: false, gf: false, pool: false, poolI: 0, xiulian: false, shenhun: false, zhandou: false, ex: false, exT: "", cq: false, cqT: "" });
+    },
+    autoTaskCheck() {
+      const A = this.autoTask(), day = this.bjDay(), t = new Date(this.now() + 8 * 3600000);
+      if (A.day === day || t.getUTCHours() * 60 + t.getUTCMinutes() < 5) return;
+      A.day = day; this.runAutoTask(); this.dirty();
+    },
+    runAutoTask() {
+      const s = this.s, A = this.autoTask(), log = m => this.log("【自动任务】" + m, "sys");
+      if (s.sect) {
+        if (A.free && !this.freeCultOn() && this.freeUsed(s.freeCult) < CFG.sect.freeRoom.daily) this.enterFreeRoom();
+        if (A.gf && !this.freeGfOn() && this.freeUsed(s.freeGf) < CFG.sect.freeGfRoom.daily) this.enterFreeGfRoom();
+        if (A.pool && !this.poolOn()) this.enterPool(A.poolI || 0);
+      } else if (A.free || A.gf || A.pool) log("未加入宗门，跳过宗门任务。");
+      this._autoQuiet = true;
+      try { for (const d of ["xiulian", "shenhun", "zhandou"]) if (A[d] && this.wdCheck(d)) this.wudaoDone(d); } finally { this._autoQuiet = false; }
+      const go = (tgt, cq) => { const p = (tgt || "").split(":").map(Number); if (!tgt) return log("没有选择地图。");
+        if (cq) { const r = tgt[0] === "k" ? -1 : p[2];
+          if (s.explore) return log("正在探索 / 出窍，跳过自动出窍。");
+          if (!s.cqLearn || this.cqLeftToday() <= 0 || !this.realmOK(CFG.chuqiao.REALM)) return log("出窍条件不足或今天次数已用完。");
+          if (r < 0 ? !this.mapOpen(p[1]) : !this.isTrained(p[1], r)) return log("所选地方还不能出窍。");
+          this.startChuqiao(p[1], r, this.cqLeftToday());
+        } else { if (s.explore) return log("正在探索 / 出窍，跳过自动探索。");
+          if (!this.isTrained(p[1], p[2])) return log("所选区域还没历练通过。");
+          this.toggleExplore(p[1], p[2], false); }
+      };
+      if (A.cq) go(A.cqT, true);            // 出窍期间可以继续修炼，先出窍
+      if (A.ex) go(A.exT, false);           // 正在出窍就跳过探索（两者不能同时）
+      this.after();
     },
     enterFreeRoom() {
       const s = this.s, C = CFG.sect.freeRoom;

@@ -617,10 +617,10 @@ G.module({
         <div class="line"><div>出窍次数<small>1 ~ ${max}</small></div><input id="cq-n" type="number" min="1" max="${max}" value="${max}" style="width:110px"></div>
         <div class="btns"><button class="primary" onclick="G.startChuqiao(${a},${r})">出窍</button><button onclick="G.closeModal()">取消</button></div>`);
     },
-    startChuqiao(a, r) {
-      const s = this.s, max = this.cqLeftToday(), n = Math.min(max, Math.floor(+($("#cq-n") && $("#cq-n").value) || 0));
+    startChuqiao(a, r, nAuto) {   // nAuto：自动任务直接给次数（不弹窗）
+      const s = this.s, max = this.cqLeftToday(), n = Math.min(max, Math.floor(nAuto || +($("#cq-n") && $("#cq-n").value) || 0));
       if (n < 1) return;
-      this.closeModal();
+      if (!nAuto) this.closeModal();
       if (s.explore) this.stopExplore("更换");
       this.cqUse(n);   // 开始先扣次数，停止时返还没走的（stopExplore）
       s.explore = { map: a, reg: r, once: false, cq: n, start: this.now(), step: 0, count: 0, loot: this.newLoot(), ev: [], last: "", plan: r < 0 ? this.kuangPlan() : this.makePlan(), ms: this.exploreMs() };

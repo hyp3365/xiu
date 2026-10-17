@@ -96,6 +96,7 @@ G.module({
       this.wdModal(D0, rows.map(([a, b]) => `<div class="line"><div>${a}</div><b class="q4">${b}</b></div>`).join(""));
     },
     wdModal(D0, rows) {
+      if (this._autoQuiet) return;   // 自动任务悟道不弹窗
       const T = _WR.TEXTS || [];
       this.modal(`<h2>${D0.name}</h2><p class="desc wd-tip">${T.length ? T[Math.floor(Math.random() * T.length)] : ""}</p>${rows}
         <div class="btns"><button class="primary" onclick="G.closeModal()">确定</button></div>`);
