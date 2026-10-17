@@ -144,7 +144,7 @@ G.module({
         <div class="line"><div>灵石高于</div><input id="cs-high" type="number" min="0" value="${c.high}" style="width:130px" onchange="G.cultSetSave()"></div>
         <div class="line"><div>前往</div><select id="cs-tgt" onchange="G.cultSetSave()">${T.length ? T.map(([v, n]) => `<option value="${v}"${v === c.tgt ? " selected" : ""}>${n}</option>`).join("") : `<option value="">暂无可去的地方</option>`}</select></div>
         <div class="line"><div>聚灵阵灵气不足时自动用灵石补充</div><button class="sm ${a.autoRefill ? "on" : ""}" onclick="G.toggleRefill();G.openCultSet()">${a.autoRefill ? "开" : "关"}</button></div>
-        <h3 style="margin-top:14px">自动执行任务<small> · 每天北京时间 0:05（没在线就下次上线时执行）</small></h3>
+        <h3 style="margin-top:14px">自动执行任务</h3>
         ${this.autoTaskHtml(T)}
         <div class="btns"><button class="primary" onclick="G.closeModal()">确定</button></div>`);
       if (!c.tgt && T.length) c.tgt = T[0][0];
@@ -152,21 +152,29 @@ G.module({
     // v229 自动执行任务（逻辑见 modules/sect.js runAutoTask）
     autoTaskHtml(T) {
       const A = this.autoTask(), sw = k => `<button class="sm ${A[k] ? "on" : ""}" onclick="G.autoTaskSet('${k}')">${A[k] ? "开" : "关"}</button>`;
-      const sel = (id, list, v) => `<select id="${id}" onchange="G.autoTaskSet()">${list.length ? list.map(([x, n]) => `<option value="${x}"${String(x) === String(v) ? " selected" : ""}>${n}</option>`).join("") : `<option value="">暂无</option>`}</select>`;
-      const P = CFG.sect.pool.list.map((d, i) => [i, d.name]), W = ((CFG.wudaoRoom || {}).daos || []);
+      // v232 选择不用系统下拉框：点按钮弹出游戏风格的选择列表（atPick）
+      const sel = (k, list, v) => { const c = list.find(([x]) => String(x) === String(v)) || list[0]; return `<button class="sm" style="margin-left:8px" onclick="G.atPick('${k}')">${c ? c[1] : "暂无"} ▾</button>`; };
+      const P = this.atList("poolI"), W = ((CFG.wudaoRoom || {}).daos || []);
       const dn = id => (W.find(d => d.id === id) || {}).name || id;
       return `<div class="line"><div>${CFG.sect.freeRoom.name}</div>${sw("free")}</div>
         <div class="line"><div>${CFG.sect.freeGfRoom.name}</div>${sw("gf")}</div>
-        <div class="line"><div>${CFG.sect.pool.name}${sel("at-pool", P, A.poolI)}</div>${sw("pool")}</div>
+        <div class="line"><div>${CFG.sect.pool.name}${sel("poolI", P, A.poolI)}</div>${sw("pool")}</div>
         <div class="line"><div>${dn("xiulian")}悟道</div>${sw("xiulian")}</div>
         <div class="line"><div>${dn("shenhun")}悟道</div>${sw("shenhun")}</div>
         <div class="line"><div>${dn("zhandou")}悟道</div>${sw("zhandou")}</div>
-        <div class="line"><div>自动出窍${sel("at-cq", T, A.cqT)}</div>${sw("cq")}</div>`;
+        <div class="line"><div>自动出窍${sel("cqT", this.atList("cqT"), A.cqT)}</div>${sw("cq")}</div>`;
     },
+    atList(k) { return k === "poolI" ? CFG.sect.pool.list.map((d, i) => [i, d.name]) : this.cultTargets(); },
+    atPick(k) {
+      const A = this.autoTask(), L = this.atList(k), cur = A[k] === "" || A[k] === undefined ? (L[0] || [])[0] : A[k];
+      this.modal(`<h2>${k === "poolI" ? CFG.sect.pool.name : "自动出窍"}</h2>
+        ${L.length ? L.map(([x, n], i) => `<div class="line"><div>${n}</div><button class="sm ${String(x) === String(cur) ? "on" : ""}" onclick="G.atPickSet('${k}',${i})">${String(x) === String(cur) ? "已选" : "选择"}</button></div>`).join("") : `<p class="desc">暂无可选</p>`}
+        <div class="btns"><button onclick="G.openCultSet()">返回</button></div>`);
+    },
+    atPickSet(k, i) { const it = this.atList(k)[i]; if (it) this.autoTask()[k] = it[0]; this.openCultSet(); this.after(); },
     autoTaskSet(k) {
-      const A = this.autoTask(), v = id => $(id) && $(id).value;
-      if (v("#at-pool") !== undefined && v("#at-pool") !== "") A.poolI = +v("#at-pool");
-      if (v("#at-cq")) A.cqT = v("#at-cq");
+      const A = this.autoTask(), L = this.atList("cqT");
+      if (A.cqT === "" && L.length) A.cqT = L[0][0];   // 没选过地图就用第一个
       if (k) { A[k] = !A[k]; this.openCultSet(); }
       this.after();
     },
