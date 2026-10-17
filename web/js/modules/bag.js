@@ -36,7 +36,7 @@ G.module({
     // 法宝栏、法术栏当前开启格数：每个大境界 1 格
     // 背包排序：先按类型（修炼丹 → 属性丹 → 药材 → 矿石 → 装备），同类型再按品阶从低到高
     sortBag() {
-      const order = it => it.t === "pill" ? 0 : it.t === "dan" ? 1 : it.t === "mat" ? (it.kind === "herb" ? 2 : 3) : it.t === "fu" ? 4 : it.t === "bp" || it.t === "ss" || it.t === "rbp" || it.t === "hx" || it.t === "sm" ? 5 : it.t === "eq" ? (it.e.slot === "fabao" ? 7 : 6) : it.t === "cu" ? 8 : 9;
+      const order = it => it.t === "pill" ? 0 : it.t === "dan" || it.t === "ql" ? 1 : it.t === "mat" ? (it.kind === "herb" ? 2 : 3) : it.t === "fu" ? 4 : it.t === "bp" || it.t === "ss" || it.t === "rbp" || it.t === "hx" || it.t === "sm" ? 5 : it.t === "eq" ? (it.e.slot === "fabao" ? 7 : 6) : it.t === "cu" ? 8 : 9;
       const grade = it => it.t === "eq" ? it.e.g * 10 + it.e.q : it.g || 0;
       const sub = it => it.t === "pill" || it.t === "dan" ? it.type : it.t === "eq" ? it.e.slot : it.kind || "";
       this.s.bag.sort((a, b) => order(a) - order(b) || grade(a) - grade(b) || (sub(a) < sub(b) ? -1 : sub(a) > sub(b) ? 1 : 0));
@@ -108,6 +108,7 @@ G.module({
     itemName(it) {
       if (it.t === "pill") return `${DATA.realms[it.g]}·${DATA.pills[it.type].name}`;
       if (it.t === "dan") return DATA.danName(it.type, it.g, it.sg);
+      if (it.t === "ql") return DATA.qlName(it.sect);   // v213 宗主清灵丹
       if (it.t === "mat") return DATA.matFull(it.kind, it.g);
       if (it.t === "fu") return DATA.furnaceName(it.kind, it.g);
       if (it.t === "bp") return DATA.furnaceName(it.kind, it.g) + "图纸";
@@ -127,7 +128,7 @@ G.module({
       if (it.t === "dan") return DATA.danPrice(it.type, it.g);
       if (it.t === "mat") return DATA.matPrice(it.kind, it.g);
       if (it.t === "cu") { const d = this.cuDef(it.name); return d ? d.sell || 0 : 0; }
-      if (it.t === "ss" || it.t === "book" || it.t === "gfb") return 0;
+      if (it.t === "ss" || it.t === "book" || it.t === "gfb" || it.t === "ql") return 0;
       if (it.t === "hx") return CFG.forge.reset.SELL || 0;
       if (it.t === "sm") { const v = (CFG.mijing.items[it.k] || {}).sell || 0; return Array.isArray(v) ? v[it.ft || 0] || 0 : v; }
       if (it.t === "rbp") return CFG.forge.ring.bpSell[it.g] || 0;
@@ -144,6 +145,7 @@ G.module({
         case "mat": return DATA.matImg(it.kind, it.g);
         case "pill": return DATA.pillIcon(it.type);
         case "dan": return DATA.danIcon(it.type);
+        case "ql": return DATA.iconImg("dan_ql");
         case "fu": return DATA.furnaceIcon(it.kind);
         case "ss": return DATA.iconImg("ss");
         case "hx": return DATA.iconImg("hx");
@@ -214,6 +216,11 @@ G.module({
         h += `<p>服用后永久 ${d.label} +${U.num(DATA.danVal(it.type, it.g))}。<br>此阶已服 ${DATA.danLimit(it.type, it.g) - left} / ${DATA.danLimit(it.type, it.g)} 枚。</p>
           <div class="btns"><button class="primary" onclick="G.eatDan(${i},1)" ${left > 0 ? "" : "disabled"}>服用</button>
           <button onclick="G.eatDan(${i},${it.n})" ${left > 0 && it.n > 1 ? "" : "disabled"}>全部服用</button>${sell}</div>`;
+      } else if (it.t === "ql") {
+        const o = DATA.sectById[it.sect], lim = DATA.qlLimit(it.sect), used = (this.s.qlEaten || {})[it.sect] || 0, left = Math.max(0, lim - used);
+        h += `<p>${o ? o.name : ""}宗主专属丹药，服用后永久 ${DATA.qlTxt(it.sect)}。<br>已服 ${used} / ${lim} 颗。</p>
+          <div class="btns"><button class="primary" onclick="G.eatQl(${i},1)" ${left > 0 ? "" : "disabled"}>服用</button>
+          <button onclick="G.eatQl(${i},${it.n})" ${left > 0 && it.n > 1 ? "" : "disabled"}>全部服用</button>${sell}</div>`;
       } else if (it.t === "fu") {
         const own = this.s.furnaces[it.kind].includes(it.g);
         h += `<p>${this.furnaceDesc(it.kind, it.g)}。<br>使用后装进洞府${DATA.isDanFu(it.kind) ? "炼丹房" : "炼器室"}，可随时更换。${own ? "<br><span class='q5'>洞府里已有同阶炉子。</span>" : ""}</p>
@@ -455,7 +462,7 @@ G.module({
 
     this.sortBag();
     // v26：储物格分类（全部 丹药 药材 矿石）+ 出售页
-    const flt = this.bagFilter || "all", match = it => flt === "all" || (flt === "dan" ? it.t === "pill" || it.t === "dan" : it.t === "mat" && it.kind === flt);
+    const flt = this.bagFilter || "all", match = it => flt === "all" || (flt === "dan" ? it.t === "pill" || it.t === "dan" || it.t === "ql" : it.t === "mat" && it.kind === flt);
     const ftabs = `<div class="bag-tabs">${[["all", "全部"], ["dan", "丹药"], ["herb", DATA.matKinds.herb], ["ore", DATA.matKinds.ore]].map(([k, t]) =>
       `<button class="${flt === k && !this.bagSell ? "active" : ""}" onclick="G.setBagFilter('${k}')">${t}</button>`).join("")}
       <button class="sell ${this.bagSell ? "active" : ""}" onclick="G.openSellPage()">出售</button></div>`;
@@ -469,6 +476,7 @@ G.module({
       // 格子里只显示名字和类型，点击才看品质、境界、效果
       else if (it.t === "pill") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 3))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.pillIcon(it.type)}" alt="">${DATA.pills[it.type].name}<span class="n">${it.n}</span></div>`;
       else if (it.t === "dan") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.danIcon(it.type)}" alt="">${it.sg ? DATA.sgDanBase(it.type) : DATA.dans[it.type].name}<span class="n">${it.n}</span></div>`;
+      else if (it.t === "ql") cells += `<div class="cell q4" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("dan_ql")}" alt="">${DATA.qlName(it.sect)}<span class="n">${it.n}</span></div>`;
       else if (it.t === "mat") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.matImg(it.kind, it.g)}" alt="">${it.name}<span class="n">${U.fmt(it.n)}</span></div>`;
       else if (it.t === "fu") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.furnaceIcon(it.kind)}" alt="">${DATA.furnaceName(it.kind, it.g)}${it.n > 1 ? `<span class="n">${it.n}</span>` : ""}</div>`;
       else if (it.t === "bp") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("bp")}" alt="">${DATA.furnaceName(it.kind, it.g)}</div>`;

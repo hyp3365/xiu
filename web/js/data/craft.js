@@ -73,3 +73,17 @@ DATA.fieldCost = i => Math.floor(_GA.OPEN_COST * Math.pow(_GA.OPEN_RATE, i)); //
 DATA.herbGrow = g => _GA.herbs[DATA.herbs[g]] || { grow: 60, yield: [1, 1], ling: 0, seed: 100 };
 DATA.growTime = g => DATA.herbGrow(g).grow * 60000;
 DATA.seedCost = g => DATA.herbGrow(g).seed;
+
+/* ---------- v213 宗主清灵丹（config/sect.js 的 qingling）：每个门派一种，数值 = 同星级对应属性丹一枚 ---------- */
+DATA.qlName = sectId => { const o = DATA.sectById[sectId]; return (o ? o.name : "") + CFG.sect.qingling.NAME; };
+DATA.qlLimit = sectId => { const o = DATA.sectById[sectId]; return o ? CFG.sect.qingling.LIMIT[o.star - 1] || 0 : 0; };
+DATA._qlV = {};
+DATA.qlVals = sectId => {
+  if (DATA._qlV[sectId]) return DATA._qlV[sectId];
+  const Q = CFG.sect.qingling, o = DATA.sectById[sectId], out = {}; if (!o) return out;
+  const cat = Q.CAT[o.star - 1] || 0, g = (Q.TIER[o.star - 1] || 1) - 1;
+  for (const k of Q.STATS) { const t = Object.keys(DATA.dans).find(x => (DATA.dans[x].cat || 0) === cat && DATA.danStat(x) === k); out[k] = t ? DATA.danVal(t, g) || 0 : 0; }
+  return DATA._qlV[sectId] = out;
+};
+DATA.QL_LABEL = { hp: "生命", atk: "攻击", def: "防御", mana: "法力", hit: "命中", dodge: "闪避", speed: "速度" };
+DATA.qlTxt = sectId => { const v = DATA.qlVals(sectId); return Object.keys(v).map(k => `${DATA.QL_LABEL[k] || k} +${U.num(v[k])}`).join("、"); };

@@ -36,6 +36,10 @@ G.module({
     poolGain: {},     // 练体池累计加的肉身属性                 // 免费练功房：今天用了几次、本次结束时间
     cqLearn: 0,       // 1 = 已学会元婴出窍秘法（每天次数 = 神识强度 ssPow）
     cqDay: "", cqUsed: 0,   // 元婴出窍：今天已用次数
+    qlDay: "",        // v213 宗主清灵丹：上次领取日期
+    qlEaten: {},      // 各门派清灵丹已服用颗数 { 门派id: 颗数 }
+    ccDay: "",        // v213 宗门传承：上次领悟日期
+    ccGot: {},        // 各门派已领悟的传承功法 { 门派id: [功法id…] }（门派之间互不通用）
   }),
 
   // 每 10 秒：事务堂任务到时间就结算一次，并自动开始下一次（离线也会补算）
@@ -129,6 +133,54 @@ G.module({
       const n = this.salary();
       this.s.salaryDay = this.today(); this.s.stone += n;
       this.log(`领取${DATA.ranks[this.s.rank].name}俸禄，灵石 +${U.fmt(n)}。`, "good"); this.after();
+    },
+
+    /* ---------- v213 宗主专属：清灵丹、宗门传承（config/sect.js 的 qingling / chuancheng） ---------- */
+    isMaster() { return !!this.s.sect && this.s.rank === DATA.ranks.length - 1; },
+    claimQl() {
+      const s = this.s; if (!this.isMaster() || s.qlDay === this.today()) return;
+      if (!this.bagAdd(x => x.t === "ql" && x.sect === s.sect, k => ({ t: "ql", sect: s.sect, n: k }), 1, "背包已满，领取失败。")) return;
+      s.qlDay = this.today(); this.log(`领取宗主俸禄：${DATA.qlName(s.sect)} ×1。`, "good"); this.after();
+    },
+    eatQl(i, n) {
+      const s = this.s, it = s.bag[i]; if (!it || it.t !== "ql") return;
+      s.qlEaten = s.qlEaten || {};
+      const used = s.qlEaten[it.sect] || 0; n = Math.min(n, it.n, DATA.qlLimit(it.sect) - used);
+      if (n <= 0) return this.log(`${DATA.qlName(it.sect)}已达服用上限。`, "sys");
+      s.qlEaten[it.sect] = used + n;
+      const v = DATA.qlVals(it.sect);
+      this.log(`服下${DATA.qlName(it.sect)} ×${n}，${Object.keys(v).map(k => `${DATA.QL_LABEL[k] || k} +${U.num(v[k] * n)}`).join("、")}。`, "good");
+      this.removeAt(i, n); this.closeModal(); this.after();
+    },
+    qlBonus() {   // 所有门派清灵丹加的属性（danBonus 里加上）
+      const b = {}, E = this.s.qlEaten || {};
+      for (const sid in E) { const v = DATA.qlVals(sid); for (const k in v) b[k] = (b[k] || 0) + v[k] * E[sid]; }
+      return b;
+    },
+    ccGotOf(sid = this.s.sect) { return (this.s.ccGot || {})[sid] || []; },
+    ccLeft() { const got = this.ccGotOf(); return DATA.ccIds(this.s.sect).filter(id => !got.includes(id)); },
+    ccWudao() {   // 领悟：每天 1 次，随机一本没领悟过的
+      const s = this.s; if (!this.isMaster() || s.ccDay === this.today()) return;
+      const left = this.ccLeft(); if (!left.length) return this.log("本门传承功法已全部领悟。", "sys");
+      const id = left[Math.floor(Math.random() * left.length)];
+      s.ccGot = s.ccGot || {}; s.ccGot[s.sect] = [...this.ccGotOf(), id]; s.ccDay = this.today();
+      this.log(`静坐宗门大殿，领悟传承功法《${DATA.skillInfo(id).name}》！`, "gold"); this.after();
+    },
+    learnCc(id) {
+      const s = this.s, g = DATA.skillInfo(id);
+      if (!g || g.src !== "cc" || !this.isMaster() || g.sect.sectId !== s.sect || !this.ccGotOf().includes(id) || this.hasGongfa(id) || s.contrib < g.cost) return;
+      if (!this.lqCan("gf", id)) return;
+      if (!this.lsCheck(id)) return;
+      s.contrib -= g.cost; this.startGfLearn(id); this.after();
+    },
+    ccCard() {
+      const s = this.s, all = DATA.ccIds(s.sect), got = this.ccGotOf(), left = all.length - got.length, done = s.ccDay === this.today();
+      const head = `<div class="line"><div>领悟传承<small>每天 1 次，随机领悟一本 · 已领悟 ${got.length} / ${all.length}</small></div>
+        <button class="sm" onclick="G.ccWudao()" ${done || !left ? "disabled" : ""}>${!left ? "已全部领悟" : done ? "今日已领悟" : "领悟"}</button></div>`;
+      const rows = U.doneLast(got.map(id => { const g = DATA.skillInfo(id), has = this.hasGongfa(id);
+        const eff = g.kind === "sp" ? `${this.spellDmgTxt(g)} · 耗法力 ${U.fmt(g.mana)}` : `每层${g.label} +${this.gfValue(g, g.perLv)}`;
+        return [has, `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.kind === "sp" ? "法术" : g.type.name}</span><small>${eff} · ${U.fmt(g.cost)} 贡献 · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>${this.gfLearnBtn(g, `G.learnCc('${g.id}')`, s.contrib < g.cost)}</div>`]; }));
+      return `<div class="card"><h3>${DATA.GF_CATS.cc}<small>宗主专属</small></h3>${head}${rows}</div>`;
     },
 
     /* ---------- 功法殿 ---------- */
@@ -463,11 +515,14 @@ G.module({
       h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "hall", "宗门大殿")}<small>当前：${DATA.ranks[s.rank].name}</small></h3>
         <div class="line"><div>每日俸禄<small>${U.fmt(this.salary())} 灵石</small></div>
         <button class="sm" onclick="G.claimSalary()" ${got ? "disabled" : ""}>${got ? "今日已领" : "领取"}</button></div>
+        ${this.isMaster() ? `<div class="line"><div>宗主俸禄 · ${DATA.qlName(s.sect)}<small>每天 1 颗 · ${DATA.qlTxt(s.sect)} · 已服 ${(s.qlEaten || {})[s.sect] || 0} / ${DATA.qlLimit(s.sect)}</small></div>
+        <button class="sm" onclick="G.claimQl()" ${s.qlDay === this.today() ? "disabled" : ""}>${s.qlDay === this.today() ? "今日已领" : "领取"}</button></div>` : ""}
         ${next < 0 ? `<p class="desc">你已是一宗之主。</p>` : `<div class="line"><div>晋升【${DATA.ranks[next].name}】
           <small>需${DATA.realmLabel(this.rankReqRealm(next))} · ${U.fmt(this.rankCost(next))} 贡献 · ${s.rankPass === next ? "已通过考验" : "需先通过考验"}</small></div>
           <button class="sm" onclick="G.promote()" ${s.rankPass !== next || !this.realmOK(this.rankReqRealm(next)) || s.contrib < this.rankCost(next) ? "disabled" : ""}>晋升</button></div>
           <div class="line"><div>晋升考验 · ${DATA.ranks[next].name}考官<small>每次消耗 ${U.fmt(this.rankTrialCost(next))} 贡献 · 战斗胜利后才能晋升</small></div>
           <button class="sm ${s.rankPass === next ? "on" : ""}" onclick="G.challengeRank()" ${s.rankPass === next || !this.realmOK(this.rankReqRealm(next)) || s.contrib < this.rankTrialCost(next) ? "disabled" : ""}>${s.rankPass === next ? "已通过" : "考验"}</button></div>`}</div>
+        ${this.isMaster() ? this.ccCard() : ""}
         <div class="card"><h3>职务一览</h3>${DATA.ranks.map((r, i) => `<div class="line"><div>${r.name}<small>俸禄 ${U.fmt(Math.floor(r.daily * this.starMul() * this.rankMul(i)))} 灵石 · 晋升 ${U.fmt(this.rankCost(i))} 贡献</small></div>${i === s.rank ? "<b>当前</b>" : i < s.rank ? "<small>已历</small>" : ""}</div>`).join("")}</div>
         <div class="btns"><button onclick="G.leaveSect()" ${s.contrib < this.leaveCost() ? "disabled" : ""}>叛出门派（贡献 ${U.fmt(this.leaveCost())}）</button></div>`;
     } else if (tab === "lib") {

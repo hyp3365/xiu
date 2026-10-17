@@ -60,7 +60,15 @@ DATA.gfSources = {
   gd: { name: "功德司", cfg: () => DATA.gfDerive((_GF.gd || {}).PCT) },
   tower: { name: "试炼塔", cfg: () => Object.assign(DATA.gfDerive((_GF.tower || {}).PCT), { learn: 0 }) },   // 试炼塔秘诀：宗门同星级 × PCT%
   tianwai: { name: "天外天", cfg: () => DATA.gfDerive((_GF.tianwai || {}).PCT) },   // v106：天外天 11、12 星（暂未开放获取）
+  cc: { name: "宗门传承", cfg: () => { const C = CFG.sect.chuancheng || {}, S = _GF.sect;   // v213 宗门传承：宗门同星级 × PCT%，学习贡献 × LEARN
+    return Object.assign(DATA.gfDerive(C.PCT), { EFFECT_LEARN: (S.EFFECT_LEARN === undefined ? 1 : S.EFFECT_LEARN) * (C.LEARN || 1) }); } },
 };
+/* v213 功法六大类（显示用；名字在 config/names.js 的 gfCat）：来源类型 → 大类 */
+DATA.GF_CAT_OF = { sect: "sect", shop: "shop", jshop: "shop", gd: "gd", tower: "tower", wdroom: "wd", cc: "cc", tianwai: "tianwai" };
+DATA.GF_CATS = { sect: "宗门功法", shop: "坊市功法", gd: "功德司功法", tower: "试炼塔功法", wd: "悟道功法", cc: "宗门传承功法", tianwai: "天外天功法" };
+for (const k in DATA.GF_CATS) DATA.GF_CATS[k] = DATA.nmPick(_NM.gfCat, k, DATA.GF_CATS[k]);
+DATA.gfCat = g => g && g.kind !== "mf" && g.src ? DATA.GF_CAT_OF[g.src] || "" : "";   // 秘法、开局功法不算
+DATA.gfCatName = g => DATA.GF_CATS[DATA.gfCat(g)] || "";
 
 for (const k in DATA.gfSources) DATA.gfSources[k].name = DATA.nmPick(_NM.gfSource, k, DATA.gfSources[k].name);
 
@@ -87,6 +95,7 @@ DATA.sectWords = sect => {
 };
 // 功法名：门派前缀 + 随机词 + 类别后缀（每个类别 / 第几本用不同的词）
 DATA.gongfaName = (sect, type) => {
+  if (sect.src === "cc") { const C = CFG.sect.chuancheng; return sect.name + C.WORD + (C.NAME[type.id] || type.suffix); }   // 宗门传承
   if (sect.src === "wdroom") return `${CFG.wudaoRoom.xiulian.NAME[type.id] || type.suffix}·第${DATA.cnNum(sect.juan)}卷`;   // 悟道室秘诀
   if (sect.book) return `${sect.prefix}${type.suffix}·第${sect.book}卷`;   // 试炼塔秘诀
   if (sect.plain) return sect.prefix + DATA.nmPick(_NM.jieGfSuffix, type.id, type.suffix);   // 仙魔冥神坊市、功德司：地图名 + 后缀（config/names.js 的 jieGfSuffix）
@@ -95,6 +104,7 @@ DATA.gongfaName = (sect, type) => {
 };
 // 法术名：门派前缀 + 随机词 + 后缀（用本属性的词）
 DATA.spellName = (sect, el) => {
+  if (sect.src === "cc") return sect.name + CFG.sect.chuancheng.WORD + CFG.sect.chuancheng.SPELL;   // 宗门传承法术
   const w = DATA.sectWords(sect), d = (DATA.elements.indexOf(el) - DATA.elements.indexOf(DATA.elById[sect.el]) + 6) % 6;
   return sect.prefix + w[(28 + (d * 4) % 12) % w.length] + DATA.spellSuffix;
 };
@@ -134,8 +144,13 @@ DATA.TW_GF_PREFIX.forEach((list, i) => list.forEach((prefix, n) => {
   DATA.twSources.push({ id, src: "tianwai", star, prefix, name: prefix + DATA.nmPick(_NM, "shopGfSuffix", "传承"), el: DATA.elements[n].id,
     reqRealm: ((_GF.tianwai || {}).REQ || [20, 22])[i] });
 }));
+/* ---------- v213：宗门传承的「来源」（每个门派一个，id cc_门派id；只有本门派宗主能领悟） ---------- */
+DATA.ccSources = DATA.sects.map(x => ({ id: "cc_" + x.id, src: "cc", sectId: x.id, star: x.star, prefix: x.prefix, name: x.name, el: x.el, reqRealm: x.reqRealm }));
+DATA.ccSrcOf = sectId => DATA.gfSrcById["cc_" + sectId];
+// 某门派全部传承功法 id：功法 + 一本本属性法术
+DATA.ccIds = sectId => { const o = DATA.ccSrcOf(sectId); return o ? [...(CFG.sect.chuancheng.TYPES || []).map(t => DATA.gongfaId(o.id, t)), DATA.spellId(o.id, o.el)] : []; };
 // 所有来源：门派（src = "sect"）+ 坊市 + 试炼塔 + 天外天
-DATA.gfSrcById = Object.assign({}, ...DATA.sects.map(x => ({ [x.id]: x })), ...DATA.shopSources.map(x => ({ [x.id]: x })), ...DATA.twSources.map(x => ({ [x.id]: x })), ...DATA.towerSources.map(x => ({ [x.id]: x })), ...DATA.towerBooks.map(x => ({ [x.id]: x })));
+DATA.gfSrcById = Object.assign({}, ...DATA.sects.map(x => ({ [x.id]: x })), ...DATA.shopSources.map(x => ({ [x.id]: x })), ...DATA.twSources.map(x => ({ [x.id]: x })), ...DATA.towerSources.map(x => ({ [x.id]: x })), ...DATA.towerBooks.map(x => ({ [x.id]: x })), ...DATA.ccSources.map(x => ({ [x.id]: x })));
 DATA.gfSrc = sid => DATA.gfSrcById[sid] || (DATA.wdSrc ? DATA.wdSrc(sid) : null);   // 悟道室秘诀的来源现算（modules/wudaoshi.js）
 DATA.srcType = o => o.src || "sect";
 DATA.srcCfg = o => DATA.gfSources[DATA.srcType(o)].cfg();
@@ -156,7 +171,7 @@ DATA.gfCalc = (o, typeId, key, eff) => {
   const C = DATA.srcCfg(o), tm = (C.TYPE_MULT || {})[DATA.gfTypeKey(typeId)], e = C[eff];
   if (!C.TOTAL || C.TOTAL[key] === undefined || typeId === "spell") return 0;   // v121：只按 TOTAL 分配（v125 起秘诀、肉身秘诀也是）
   const ek = e === undefined ? 1 : e / (_GF.sect[eff] === undefined ? 1 : _GF.sect[eff]);   // 坊市 / 功德司 = 宗门 × PCT%
-  return DATA.gfUnit(key) * (C.STAT_STAR[o.star - 1] || 0) * (tm === undefined ? 1 : tm) * ek * (o.mult || DATA.gfRand(o.id + ":" + typeId));   // 悟道秘诀：固定倍率 o.mult
+  return DATA.gfUnit(key) * (C.STAT_STAR[o.star - 1] || 0) * (tm === undefined ? 1 : tm) * ek * (o.mult || DATA.gfRand((o.src === "cc" ? o.sectId : o.id) + ":" + typeId));   // 宗门传承：随机倍率同本门同类功法 → 正好 PCT%   // 悟道秘诀：固定倍率 o.mult
 };
 
 // 层数倍率：第 lv 层效果 = 每层效果 × LV_MULT[lv-1]（没写就是 lv）

@@ -442,6 +442,7 @@ G.module({
     danBonus() {
       const b = { atk: 0, def: 0, hp: 0, mana: 0, hit: 0, dodge: 0, crit: 0, speed: 0, res: 0 };   // speed、res（六系抗性）是 v41 魔丹 / 冥丹加的
       for (const key in this.s.danEaten) { const [t, g] = key.split("|"), k = DATA.danStat(t); if (k in b && DATA.dans[t]) b[k] += (DATA.danVal(t, +g) || 0) * this.s.danEaten[key]; }
+      const q = this.qlBonus ? this.qlBonus() : {}; for (const k in q) if (k in b) b[k] += q[k];   // v213 宗主清灵丹
       return b;
     },
 
