@@ -87,3 +87,9 @@ DATA.qlVals = sectId => {
 };
 DATA.QL_LABEL = { hp: "生命", atk: "攻击", def: "防御", mana: "法力", hit: "命中", dodge: "闪避", speed: "速度" };
 DATA.qlTxt = sectId => { const v = DATA.qlVals(sectId); return Object.keys(v).map(k => `${DATA.QL_LABEL[k] || k} +${U.num(v[k])}`).join("、"); };
+
+/* v216 丹药品质外观（同装备 css .eqt0 ~ .eqt11）：凡丹 一阶~十阶 → 0~5，仙冥魔神丹 → 6~11，越高级效果越好 */
+DATA.danTier = (type, g) => { const f = Math.min(5, Math.floor((g || 0) * 6 / 10)); return (DATA.danCat(type) || 0) > 0 ? 6 + f : f; };
+DATA.danCls = (type, g) => ` eqt eqt${DATA.danTier(type, g)}`;
+DATA.qlCls = sectId => { const Q = CFG.sect.qingling, o = DATA.sectById[sectId], st = o ? o.star : 1, f = Math.min(5, Math.floor(((Q.TIER[st - 1] || 1) - 1) * 6 / 10));
+  return ` eqt eqt${(Q.CAT[st - 1] || 0) > 0 ? 6 + f : f}`; };

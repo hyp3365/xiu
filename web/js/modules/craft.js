@@ -479,7 +479,7 @@ G.caveViews.alchemy = function () {
     (list.length ? list.map(t => {
       const rec = DATA.danRecipe(t, tier), ok = fu >= tier && this.hasMats(rec) && !(a && s.alchQueue.length >= CFG.alchemy.QUEUE);
       const eaten = !DATA.dans[t] ? "" : ` · 已服 ${DATA.danLimit(t, tier) - this.danLeft(t, tier)}/${DATA.danLimit(t, tier)}`;
-      return `<div class="line"><div>${DATA.li(DATA.danIcon(t))}${DATA.danName(t, tier)}<span class="tag">${DATA.recipeEffect(t, tier)}</span>
+      return `<div class="line"><div>${DATA.li(DATA.danIcon(t), DATA.danCls(t, tier).trim())}${DATA.danName(t, tier)}<span class="tag">${DATA.recipeEffect(t, tier)}</span>
         <small>${this.matsText(rec)} · 每枚 ${U.dur(this.danPer(t, tier) / 1000)} · 成功率 ${this.ratePct(this.craftRate(fk, tier))}${eaten}</small></div>
         <div><button class="sm" onclick="G.startAlch('${t}',${tier},1)" ${ok ? "" : "disabled"}>${a ? "排1" : "炼1"}</button>
         <button class="sm" onclick="G.startAlch('${t}',${tier},0)" ${ok ? "" : "disabled"}>全部</button></div></div>`;
@@ -592,7 +592,7 @@ G.sectAlchemyView = function () {
     <div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "alchemy", "炼丹房")} · ${catName}丹方</h3>` +
     U.doneLast(types.map(t => {
       const key = t + "|" + tier, has = s.recipes.includes(key), c = DATA.danLearnCost(t, tier), need = DATA.danStar(t, tier), lock = need > star;
-      return [has, `<div class="line"><div>${DATA.li(DATA.danIcon(t))}《${DATA.danName(t, tier)}》<span class="tag">${DATA.recipeEffect(t, tier)}</span>
+      return [has, `<div class="line"><div>${DATA.li(DATA.danIcon(t), DATA.danCls(t, tier).trim())}《${DATA.danName(t, tier)}》<span class="tag">${DATA.recipeEffect(t, tier)}</span>
         <small>${this.matsText(DATA.danRecipe(t, tier))}<br>${U.fmt(c)} 贡献 · 学习 ${U.dur(DATA.danLearnTime(t, tier) / 1000)}</small></div>
         ${has || lock ? `<button class="sm" disabled>${has ? "已学会" : `${need}星宗门可学习`}</button>` : this.lqBtn("dan", key, `G.learnRecipe('${t}',${tier})`, s.contrib < c)}</div>`];
     })) + `</div>`;
