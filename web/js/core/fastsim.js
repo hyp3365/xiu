@@ -37,6 +37,8 @@
       const ids = this.modules.filter(m => m.tick).map(m => m.id);
       if (ids.length !== FAST_MODULES.length || ids.some((id, k) => id !== FAST_MODULES[k])) return -Infinity;
       if (s.explore || s.trib) return -Infinity;               // 探索 / 渡劫：逐个结算
+      const cs = s.cultSet;                                       // 修炼设置：快要自动去探索时逐个结算
+      if (cs && cs.on && cs.tgt && s.auto && s.stone < cs.low) return -Infinity;
       if (!s.gfStudy && s.gfQueue && s.gfQueue.length) return -Infinity;
       // 北京时间下一个 0 点（免费修炼室 / 练功房重置、道童俸禄）
       const last = tk - DATA.TICK * 1000;
@@ -97,6 +99,7 @@
       const bodyOn = !!s.bodyAuto && this.hasTijue() && !this.exBlocksCult() && !this.bodyMax();
       const BSP = bodyOn ? this.bodySpeed().total : 0, BR = Math.max(0.0001, CFG.body.LING_RATE || 1);
       // 灵药园等灵气的田
+      const CS = s.cultSet, CSL = CS && CS.on && CS.tgt && s.auto ? CS.low : -Infinity;
       const waitNeed = (s.fields || []).filter(f => f.g >= 0 && f.wait).map(f => DATA.herbGrow(f.g).ling);
       const waitMin = waitNeed.length ? Math.min(...waitNeed) : Infinity;
       // 道童自动发俸禄：灵石够了就是事件
@@ -155,6 +158,8 @@
           const g = Math.min(BSP, Math.floor((L + BRED) / BR));
           if (g > 0) { L -= Math.max(0, g * BR - BRED); be += g; }
         }
+        // 修炼设置：灵石掉到下限以下 → 事件（可能要自动去探索）
+        if (sn < CSL) break;
         // 11. garden：等灵气的田灵气够了 → 事件
         if (L >= waitMin) break;
         // 12. servant：灵石够发俸禄 → 事件

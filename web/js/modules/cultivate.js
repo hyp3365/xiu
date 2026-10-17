@@ -22,11 +22,14 @@ G.module({
     autoPill: { juqi: false, juling: false, peiyuan: false }, // 自动服丹开关
     lackWarned: false,
     trib: null,       // 正在进行（或刚结束未关闭）的渡劫（modules/trib.js）
+    // 修炼设置：自动修炼中，灵石 < low 且灵气不足 → 去 tgt（"k:地图" 灵矿 / "e:地图:区域" 自动探索）；灵石 > high → 停止探索回来修炼
+    cultSet: { on: false, low: 1000, high: 10000, tgt: "", went: false },
   }),
 
   tick(offline) {
     const s = this.s;
     if (s.trib) this.advanceTrib(); // 渡劫（离线也会算完）
+    this.cultSetCheck();
     if (!this.isCultivating()) return;
     if (!this.hasMijue() || this.exBlocksCult()) return; // 未学秘诀 / 探索中（出窍除外）：不能修炼
 
@@ -100,6 +103,55 @@ G.module({
       const arrPct = (arr - 1) * 100, mfPct = this.mifaBonus().expSpeedPct || 0, svPct = this.servantPct("cult");   // 聚元秘法圆满额外 %、道童辅助修炼 %
       return { base, arr, pill, room, mifa, mfPct, svPct, total: base * (1 + (arrPct + pill + room + mfPct + svPct) / 100),
         gather: this.gatherAmount() };                                     // 每 10 秒聚灵（开关不影响）
+    },
+
+    /* ---------- 修炼设置：灵石不够自动去探索 / 挖矿，够了回来修炼 ---------- */
+    cultLack() { return this.s.ling < this.speed().total - this.wdRed("exp"); },   // 灵气不够修炼一次
+    cultTargets() {   // [[值, 名称]]：开放的灵矿 + 历练通过的区域
+      const out = [];
+      DATA.maps.forEach((m, a) => {
+        if (!this.mapOpen(a)) return;
+        out.push([`k:${a}`, this.kuangName(a)]);
+        for (let r = 0; r < DATA.regionCount; r++) if (this.isTrained(a, r)) out.push([`e:${a}:${r}`, DATA.regionName(a, r)]);
+      });
+      return out;
+    },
+    cultSetCheck() {
+      const s = this.s, c = s.cultSet; if (!c || !c.on || !c.tgt || !s.auto) return;
+      const x = s.explore, p = c.tgt.split(":").map(Number), kuang = c.tgt[0] === "k";
+      const mine = x && !x.cq && !x.once && x.map === p[1] && (kuang ? x.kuang : !x.kuang && x.reg === p[2]);
+      if (mine && c.went) {
+        if (s.stone + ((x.loot || {}).stone || 0) > c.high) {
+          c.went = false; this.stopExplore("灵石已够，停止探索");
+          this.log("开始修炼。", "sys"); this._lastTick = Date.now(); this.dirty();
+        }
+        return;
+      }
+      if (x) return;   // 别的探索 / 出窍中：不管
+      if (s.stone < c.low && this.cultLack() && this.hasMijue()) {
+        if (!this.cultTargets().some(t => t[0] === c.tgt)) return;
+        if (kuang) this.toggleKuang(p[1]); else this.toggleExplore(p[1], p[2], false);
+        if (this.s.explore) { c.went = true; this.exploreOpen = false; this.log("灵石不足且灵气不够修炼，自动前往探索。", "sys"); }
+      }
+    },
+    openCultSet() {
+      const s = this.s, c = s.cultSet, T = this.cultTargets(), a = s.array;
+      this.modal(`<h2>修炼设置</h2>
+        <p class="desc">自动修炼时，灵石低于下限且灵气不足，自动去探索或挖矿；灵石高于上限，停止探索回来修炼。</p>
+        <div class="line"><div>自动探索 / 挖矿</div><button class="sm ${c.on ? "on" : ""}" onclick="G.cultSetSave('on')">${c.on ? "开" : "关"}</button></div>
+        <div class="line"><div>灵石低于</div><input id="cs-low" type="number" min="0" value="${c.low}" style="width:130px" onchange="G.cultSetSave()"></div>
+        <div class="line"><div>灵石高于</div><input id="cs-high" type="number" min="0" value="${c.high}" style="width:130px" onchange="G.cultSetSave()"></div>
+        <div class="line"><div>前往</div><select id="cs-tgt" onchange="G.cultSetSave()">${T.length ? T.map(([v, n]) => `<option value="${v}"${v === c.tgt ? " selected" : ""}>${n}</option>`).join("") : `<option value="">暂无可去的地方</option>`}</select></div>
+        <div class="line"><div>聚灵阵灵气不足时自动用灵石补充</div><button class="sm ${a.autoRefill ? "on" : ""}" onclick="G.toggleRefill();G.openCultSet()">${a.autoRefill ? "开" : "关"}</button></div>
+        <div class="btns"><button class="primary" onclick="G.closeModal()">确定</button></div>`);
+      if (!c.tgt && T.length) c.tgt = T[0][0];
+    },
+    cultSetSave(k) {
+      const c = this.s.cultSet, v = id => $(id) && $(id).value;
+      c.low = Math.max(0, Math.floor(+v("#cs-low") || 0)); c.high = Math.max(0, Math.floor(+v("#cs-high") || 0));
+      if (v("#cs-tgt")) c.tgt = v("#cs-tgt");
+      if (k === "on") { c.on = !c.on; c.went = false; this.openCultSet(); }
+      this.after();
     },
 
     toggleAuto() {
@@ -203,7 +255,8 @@ G.module({
     <div class="card">
       <h3>${this.realmName()}<small>${this.needTrib() ? "下次突破需渡劫" : ""}</small></h3>
       <div class="row small"><span>修炼速度 <b class="q4">${U.num(sp.total)}</b> 修为 / 10秒</span>
-        <button class="sm ${boost ? "on" : ""}" onclick="G.openBoost()">修炼加成${sp.pill ? ` · 丹药+${Math.round(sp.pill)}%` : ""}</button></div>
+        <div class="cult-sbtn"><button class="sm ${s.cultSet && s.cultSet.on ? "on" : ""}" onclick="G.openCultSet()">修炼设置</button>
+        <button class="sm ${boost ? "on" : ""}" onclick="G.openBoost()">修炼加成</button></div></div>
       <div class="row small"><span>本次修炼</span><span>${!this.isCultivating() ? "未修炼" : block ? `<b class='q5'>${block}</b>` : `${s.auto ? "自动修炼中" : "修炼中"} · <b id="tick-left"></b>`}</span></div>
       <div class="bar tick"><div id="tick-bar"></div></div>
       <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>

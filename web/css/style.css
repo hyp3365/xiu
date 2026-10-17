@@ -514,3 +514,4 @@ button small .cd{min-width:0}
 .wd-card + .card .ys-need { margin-top: 8px; }
 .wd-run { margin-top: 8px; } .wd-run div { width: 0; animation: wd-run linear forwards; } @keyframes wd-run { from { width: 0; } to { width: 100%; } }
 .wd-stage.fx .ys-aura { animation: ys-burst 1.6s ease-out infinite; }
+.cult-sbtn { display: flex; flex-direction: column; gap: 4px; } .cult-sbtn button.sm { width: 76px; padding: 4px 0; text-align: center; }
