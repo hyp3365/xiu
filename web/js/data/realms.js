@@ -55,11 +55,13 @@ DATA.bodyStat = (n, k) => DATA.brSum(_R.BODY_GAIN, n, "rs")[k] || 0;
 // 人物属性：base = 凡人基础（再加修为突破合计，见 DATA.realmStat）；fixed 不随境界
 DATA.playerFixed = _P.fixed;
 // 命中率：见 config/battle.js 的 HIT_*（v183 按整档加减）
-DATA.hitChance = (hit, dodge) => { const B = CFG.battle, d = Math.max(0, dodge || 0), diff = ((hit || 0) - d) / Math.max(1, d + (B.HIT_PAD || 0)) * 100;   // 相对差 = (命中 − 闪避) ÷ (闪避 + HIT_PAD)
+DATA.hitChance = (hit, dodge, k) => { const B = CFG.battle, d = Math.max(0, dodge || 0), diff = ((hit || 0) - d) / Math.max(1, d + (B.HIT_PAD || 0)) * 100;   // 相对差 = (命中 − 闪避) ÷ (闪避 + HIT_PAD)
   // v183 按整档算：高 每满 HIT_UP_STEP % +HIT_UP_ADD %；低 每满 HIT_DN_STEP % −HIT_DN_ADD %（不满一档不变）
   const add = diff >= 0 ? Math.floor(diff / B.HIT_UP_STEP + 1e-9) * B.HIT_UP_ADD : -Math.floor(-diff / B.HIT_DN_STEP + 1e-9) * B.HIT_DN_ADD;
-  return Math.min(B.HIT_MAX, Math.max(B.HIT_MIN, B.HIT_BASE + add)); };
-DATA.dodgeChance = (hit, dodge) => 100 - DATA.hitChance(hit, dodge);   // 闪避几率 = 100 − 命中率
+  // v220 k：0 普通攻击 / 1 法术（+ SPELL_HIT_ADD）/ 2 法宝（+ FABAO_HIT_ADD），加完仍不超过 HIT_MAX
+  const bonus = k === 1 ? (B.SPELL_HIT_ADD || 0) : k === 2 ? (B.FABAO_HIT_ADD || 0) : 0;
+  return Math.min(B.HIT_MAX, Math.max(B.HIT_MIN, B.HIT_BASE + add) + bonus); };
+DATA.dodgeChance = (hit, dodge, k) => 100 - DATA.hitChance(hit, dodge, k);   // 闪避几率 = 100 − 命中率
 DATA.CRIT_CAP = _P.CRIT_CAP;
 
 

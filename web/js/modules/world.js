@@ -134,7 +134,7 @@ G.module({
       const RR = BT.RES_RATE === undefined ? 1 : BT.RES_RATE, resOf = (D, el) => D.def * RR + ((D.res || {})[el] || 0);
       const roll = (A, D, raw, k, sp) => {
         act = { k, sp, f: 0 };
-        if (Math.random() * 100 < DATA.dodgeChance(A.hit, D.dodge)) { act.f = 1; return 0; } // 闪避（看命中与闪避之比）
+        if (Math.random() * 100 < DATA.dodgeChance(A.hit, D.dodge, k)) { act.f = 1; return 0; } // 闪避（看命中与闪避之比；v220 法术 / 法宝另加命中率）
         let d = raw * rnd();
         if (Math.random() * 100 < Math.min(DATA.CRIT_CAP, A.crit)) { d *= BT.CRIT_MULT; act.f = 2; } // 暴击
         return d;
