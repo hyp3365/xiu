@@ -81,7 +81,7 @@ CFG.gongfa = {
   ],
 
   // 每个宗门每类功法几本（只有宗门功法，坊市、功德司等都是 1 本）：没写 = 1 本。同星级每本效果有 ±RAND 的随机
-  BOOKS: { xinfa: 3, gongjue: 3, zhenjing: 3, fajue: 3, tijue: 3, mijue: 3 },
+  BOOKS: { xinfa: 2, gongjue: 2, zhenjing: 3, fajue: 3, tijue: 2, mijue: 2 },
 
   // 层数倍率：第 n 层效果 = 每层效果 × LV_MULT[n-1]（只用到前 MAX 个，多写的不生效）
   LV_MULT: [
