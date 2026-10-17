@@ -60,12 +60,13 @@ G.module({
     }
 
     // 4. 灵气转修为
-    const gain = Math.min(Math.floor(s.ling) + red, sp);
+    // 每点修为的灵气 = (速度 − 减少量) ÷ 速度；灵气不够时按比例只修一部分（没灵气就修不了）
+    const per = Math.max(0, sp - red) / Math.max(1e-9, sp), gain = per > 0 ? Math.min(sp, Math.floor(s.ling / per)) : sp;
     if (gain <= 0) {           // 没有灵气，本次修炼不生效
       if (!s.lackWarned) { this.log("灵气耗尽，无法修炼。请开启聚灵阵或用灵石补充灵气。", "bad"); s.lackWarned = true; }
       return;
     }
-    s.ling -= Math.max(0, gain - red); s.exp += gain;
+    s.ling = Math.max(0, s.ling - gain * per); s.exp += gain;
     if (gain < sp * 0.999) {
       if (!s.lackWarned) { this.log("灵气不足，修炼受阻。请开启聚灵阵或用灵石补充灵气。", "bad"); s.lackWarned = true; }
     } else s.lackWarned = false;
@@ -82,7 +83,7 @@ G.module({
     // 有灵气（或开了自动补充且有灵石）才能修炼
     // 探索、历练中不能修炼；元婴出窍探索时可以继续修炼
     exBlocksCult() { return !!(this.s.explore && !this.s.explore.cq); },
-    canCultivate() { return this.hasMijue() && !this.exBlocksCult() && (this.s.ling >= 1 || (this.s.array.autoRefill && this.s.stone >= 1)); },
+    canCultivate() { return this.hasMijue() && !this.exBlocksCult() && (this.s.ling >= 1 || (this.s.array.autoRefill && this.s.stone >= 1) || this.wdRed("exp") >= this.speed().total); },
     // 不能修炼的原因（能修炼返回空）
     cultivateBlock() {
       if (!this.hasMijue()) return "未学秘诀，无法修炼（门派功法殿学习）";

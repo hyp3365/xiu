@@ -23,9 +23,9 @@ G.module({
       const per = this.lingPerStone(), pay = Math.min(Math.ceil((sp * rate - red - s.ling) / per), Math.floor(s.stone));
       s.stone -= pay; s.ling += pay * per;
     }
-    const gain = Math.min(sp, Math.floor((s.ling + red) / rate));
+    const per = Math.max(0, sp * rate - red) / Math.max(1e-9, sp), gain = per > 0 ? Math.min(sp, Math.floor(s.ling / per)) : sp;   // 每点肉身修为的灵气，按比例
     if (gain <= 0) return;
-    s.ling -= Math.max(0, gain * rate - red); s.bodyExp += gain;
+    s.ling = Math.max(0, s.ling - gain * per); s.bodyExp += gain;
   },
 
   api: {

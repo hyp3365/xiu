@@ -144,10 +144,10 @@
           if (freeOn) { if (--fl <= 0) break; }   // 免费修炼室次数用完：事件
           else if (roomOn) { if (ct >= roomC) ct -= roomC; else break; }   // 贡献不足离开修炼室：事件
           if (L < SP - RED && refill && sn >= 1) { const pay = Math.min(Math.ceil((SP - RED - L) / RATE), Math.floor(sn)); sn -= pay; L += pay * RATE; }
-          const gain = Math.min(Math.floor(L) + RED, SP);
+          const PER = Math.max(0, SP - RED) / Math.max(1e-9, SP), gain = PER > 0 ? Math.min(SP, Math.floor(L / PER)) : SP;
           if (gain <= 0) { if (!lk) lk = true; }
           else {
-            L -= Math.max(0, gain - RED); ex += gain;
+            L = Math.max(0, L - gain * PER); ex += gain;
             if (gain < SP * 0.999) { if (!lk) lk = true; } else lk = false;
             if (bl.length) { bl2 = bl.slice(); for (let k = 0; k < bl2.length; k++) if (bl2[k] > 0 && --bl2[k] === 0) ended = true; }   // 药力耗尽：算完这一次就停
           }
@@ -155,8 +155,8 @@
         // 7. body：肉身修炼
         if (bodyOn) {
           if (L < BSP * BR - BRED && refill && sn >= 1) { const pay = Math.min(Math.ceil((BSP * BR - BRED - L) / RATE), Math.floor(sn)); sn -= pay; L += pay * RATE; }
-          const g = Math.min(BSP, Math.floor((L + BRED) / BR));
-          if (g > 0) { L -= Math.max(0, g * BR - BRED); be += g; }
+          const BPER = Math.max(0, BSP * BR - BRED) / Math.max(1e-9, BSP), g = BPER > 0 ? Math.min(BSP, Math.floor(L / BPER)) : BSP;
+          if (g > 0) { L = Math.max(0, L - g * BPER); be += g; }
         }
         // 修炼设置：灵石掉到下限以下 → 事件（可能要自动去探索）
         if (sn < CSL) break;
