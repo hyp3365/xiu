@@ -142,7 +142,7 @@ G.module({
         <div class="line"><div>自动探索 / 挖矿</div><button class="sm ${c.on ? "on" : ""}" onclick="G.cultSetSave('on')">${c.on ? "开" : "关"}</button></div>
         <div class="line"><div>灵石低于</div><input id="cs-low" type="number" min="0" value="${c.low}" style="width:130px" onchange="G.cultSetSave()"></div>
         <div class="line"><div>灵石高于</div><input id="cs-high" type="number" min="0" value="${c.high}" style="width:130px" onchange="G.cultSetSave()"></div>
-        <div class="line"><div>前往</div><select id="cs-tgt" onchange="G.cultSetSave()">${T.length ? T.map(([v, n]) => `<option value="${v}"${v === c.tgt ? " selected" : ""}>${n}</option>`).join("") : `<option value="">暂无可去的地方</option>`}</select></div>
+        <div class="line"><div>前往</div><button class="sm" onclick="G.atPick('tgt')">${(T.find(t => t[0] === c.tgt) || T[0] || [0, "暂无可去的地方"])[1]} ▾</button></div>
         <div class="line"><div>聚灵阵灵气不足时自动用灵石补充</div><button class="sm ${a.autoRefill ? "on" : ""}" onclick="G.toggleRefill();G.openCultSet()">${a.autoRefill ? "开" : "关"}</button></div>
         <h3 style="margin-top:14px">自动执行任务</h3>
         ${this.autoTaskHtml(T)}
@@ -166,12 +166,12 @@ G.module({
     },
     atList(k) { return k === "poolI" ? CFG.sect.pool.list.map((d, i) => [i, d.name]) : this.cultTargets(); },
     atPick(k) {
-      const A = this.autoTask(), L = this.atList(k), cur = A[k] === "" || A[k] === undefined ? (L[0] || [])[0] : A[k];
-      this.modal(`<h2>${k === "poolI" ? CFG.sect.pool.name : "自动出窍"}</h2>
+      const A = k === "tgt" ? this.s.cultSet : this.autoTask(), L = this.atList(k), cur = A[k] === "" || A[k] === undefined ? (L[0] || [])[0] : A[k];
+      this.modal(`<h2>${k === "poolI" ? CFG.sect.pool.name : k === "tgt" ? "前往" : "自动出窍"}</h2>
         ${L.length ? L.map(([x, n], i) => `<div class="line"><div>${n}</div><button class="sm ${String(x) === String(cur) ? "on" : ""}" onclick="G.atPickSet('${k}',${i})">${String(x) === String(cur) ? "已选" : "选择"}</button></div>`).join("") : `<p class="desc">暂无可选</p>`}
         <div class="btns"><button onclick="G.openCultSet()">返回</button></div>`);
     },
-    atPickSet(k, i) { const it = this.atList(k)[i]; if (it) this.autoTask()[k] = it[0]; this.openCultSet(); this.after(); },
+    atPickSet(k, i) { const it = this.atList(k)[i]; if (it) (k === "tgt" ? this.s.cultSet : this.autoTask())[k] = it[0]; this.openCultSet(); this.after(); },
     autoTaskSet(k) {
       const A = this.autoTask(), L = this.atList("cqT");
       if (A.cqT === "" && L.length) A.cqT = L[0][0];   // 没选过地图就用第一个
@@ -181,7 +181,6 @@ G.module({
     cultSetSave(k) {
       const c = this.s.cultSet, v = id => $(id) && $(id).value;
       c.low = Math.max(0, Math.floor(+v("#cs-low") || 0)); c.high = Math.max(0, Math.floor(+v("#cs-high") || 0));
-      if (v("#cs-tgt")) c.tgt = v("#cs-tgt");
       if (k === "on") { c.on = !c.on; c.went = false; this.openCultSet(); }
       this.after();
     },
