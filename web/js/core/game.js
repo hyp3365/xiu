@@ -82,14 +82,15 @@ const G = {
   save(force) {
     if (this._stopped) return;
     this.s.last = Date.now();
-    localStorage.setItem("xiu_local_" + API.user, JSON.stringify(this.s)); // 本地备份
+    this._saveStr = JSON.stringify(this.s);   // 只转换一次：本地备份和上传服务器用同一份
+    localStorage.setItem("xiu_local_" + API.user, this._saveStr); // 本地备份
     this._dirtySave = true;
     if (force || Date.now() - this._lastUpload > 30000) this.upload();
   },
   async upload() {
     if (!API.token || !this._dirtySave) return;
     this._dirtySave = false; this._lastUpload = Date.now();
-    try { await API.upload(this.s); this.setSync("已同步"); }
+    try { await API.upload(this._saveStr || JSON.stringify(this.s)); this.setSync("已同步"); }
     catch (e) {
       if (e.status === 409) return this.kicked();
       this._dirtySave = true; this.setSync("同步失败"); if (/登录/.test(e.message)) this.relogin();
@@ -251,8 +252,8 @@ const G = {
     setInterval(() => { if (this.s && this.s.trib) this.advanceTrib(); if (this.tribOpen) this.showTrib(); }, 1000); // 雷劫每秒一回合
     setInterval(() => { if ((this.tab === "gongfa" && this.s.gfStudy) || (this.tab === "sect" && (this.sectTab === "affair" || this.sectTab === "alchemy" || (this.sectTab === "gfroom" && this.freeGfOn()))) || (this.tab === "world" && this.s.explore) || this.tab === "cave" || this.s.gfLearn || this.s.danStudy || this.s.forgeStudy) this.render(); }, 1000);
     // 切到后台 / 关闭页面时立即上传
-    document.addEventListener("visibilitychange", () => { if (document.hidden && !this._stopped) { this.save(); API.beacon(this.s); } else if (!document.hidden && !this._stopped) { this.loop(); this.save(true); } });
-    window.addEventListener("pagehide", () => { if (!this._stopped) API.beacon(this.s); });
+    document.addEventListener("visibilitychange", () => { if (document.hidden && !this._stopped) { this.save(); API.beacon(this._saveStr); } else if (!document.hidden && !this._stopped) { this.loop(); this.save(true); } });
+    window.addEventListener("pagehide", () => { if (!this._stopped) { this.save(); API.beacon(this._saveStr); } });
   },
 
   init() {

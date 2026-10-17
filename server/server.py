@@ -9,8 +9,8 @@
   POST /api/register  {"username","password"}   注册，返回 {"token"}
   POST /api/login     {"username","password"}   登录，返回 {"token"}
   GET  /api/save      Header X-Token             读取存档，返回 {"data", "updated"}
-  POST /api/save      Header X-Token X-Sess {"data"}  保存存档（data 为 null 表示删档）；X-Sess 不是最后进入游戏的会话号 → 409
-                      也支持 body 里带 "token"（网页关闭时 sendBeacon 用）
+  POST /api/save      Header X-Token X-Sess，请求体 = 存档 JSON（null 表示删档）；X-Sess 不是最后进入游戏的会话号 → 409
+                      网页关闭时 sendBeacon 不能带 Header：令牌、会话号放地址 /api/save?t=令牌&s=会话号
   GET  /api/admin         管理员信息：{admin, version, log}（log = 上次网页更新的输出）
   POST /api/admin/update  管理员：从 GitHub 更新游戏（等于在服务器上运行 sudo xiu-update）
   GET  /api/admin/gifts     管理员：礼包码列表 {list:[{code, items, uses, used, created}]}
@@ -53,12 +53,39 @@ REPO_DIR = os.environ.get("XIU_DIR", "/opt/xiu")
 UPDATE_LOG = os.path.join(os.path.dirname(DB_PATH), "update.log")
 
 
+_dblock = threading.RLock()
+_conn = None
+
+
+class _DB:
+    """全程共用一个 SQLite 连接（不再每个请求开关一次，省 CPU）；同一时间只给一个请求用，退出时自动提交。"""
+    def __enter__(self):
+        global _conn
+        _dblock.acquire()
+        try:
+            if _conn is None:
+                _conn = sqlite3.connect(DB_PATH, timeout=10, check_same_thread=False)
+                _conn.row_factory = sqlite3.Row
+                _conn.execute("PRAGMA synchronous=NORMAL")   # 配合 WAL：少刷盘，断电最多丢最后一次写入
+                _conn.execute("PRAGMA cache_size=-2000")     # 缓存最多约 2MB，省内存
+                _conn.execute("PRAGMA temp_store=MEMORY")
+        except Exception:
+            _dblock.release()
+            raise
+        return _conn
+
+    def __exit__(self, et, ev, tb):
+        try:
+            if et:
+                _conn.rollback()
+            else:
+                _conn.commit()
+        finally:
+            _dblock.release()
+
+
 def db():
-    """每次请求开一个连接（SQLite 很轻量）。"""
-    conn = sqlite3.connect(DB_PATH, timeout=10)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA synchronous=NORMAL")   # 配合 WAL：少刷盘，断电最多丢最后一次写入
-    return conn
+    return _DB()
 
 
 def init_db():
@@ -240,7 +267,41 @@ class Handler(BaseHTTPRequestHandler):
         return self.send_raw(200, '{"data":%s,"updated":%d,"sid":"%s"}' % (row["data"], row["updated"], sid))
 
     # ---------- POST ----------
+    def post_save(self):
+        """上传存档：请求体就是存档 JSON 本身（null = 删档），直接原样存进数据库，不解析再编码（省 CPU、省内存）。
+        令牌 / 会话号放在 Header X-Token / X-Sess，sendBeacon 不能带 Header 时放地址里 ?t=令牌&s=会话号。"""
+        n = int(self.headers.get("Content-Length") or 0)
+        if n > MAX_BODY:
+            self.rfile.read(n)
+            return self.send(400, {"error": "存档过大"})
+        raw = (self.rfile.read(n) if n else b"").strip()
+        q = dict(x.split("=", 1) for x in self.path.partition("?")[2].split("&") if "=" in x)
+        token = self.headers.get("X-Token") or q.get("t")
+        sid = self.headers.get("X-Sess") or q.get("s")
+        if raw == b"null":
+            save = None
+        elif raw[:1] == b"{" and raw[-1:] == b"}":
+            try:
+                save = raw.decode("utf-8")
+            except UnicodeDecodeError:
+                return self.send(400, {"error": "存档格式错误"})
+        else:
+            return self.send(400, {"error": "存档格式错误"})
+        with _lock, db() as c:
+            uid = user_by_token(c, token)
+            if not uid:
+                return self.send(401, {"error": "请重新登录"})
+            cur = c.execute("SELECT sid FROM sessions WHERE user_id=?", (uid,)).fetchone()
+            if cur and cur["sid"] != sid:
+                return self.send(409, {"error": "账号已在其他设备进入游戏"})
+            c.execute("INSERT INTO saves(user_id,data,updated) VALUES(?,?,?) "
+                      "ON CONFLICT(user_id) DO UPDATE SET data=excluded.data, updated=excluded.updated",
+                      (uid, save, int(time.time())))
+        return self.send(200, {"ok": True})
+
     def do_POST(self):
+        if self.route() == "save":
+            return self.post_save()
         try:
             data = self.body()
         except Exception as e:
@@ -270,21 +331,6 @@ class Handler(BaseHTTPRequestHandler):
                         return self.send(401, {"error": "账号或密码错误"})
                     uid = row["id"]
                 return self.send(200, {"token": new_token(c, uid)})
-
-        if r == "save":
-            token = self.headers.get("X-Token") or data.get("token")
-            with _lock, db() as c:
-                uid = user_by_token(c, token)
-                if not uid:
-                    return self.send(401, {"error": "请重新登录"})
-                cur = c.execute("SELECT sid FROM sessions WHERE user_id=?", (uid,)).fetchone()
-                if cur and cur["sid"] != (self.headers.get("X-Sess") or data.get("sid")):
-                    return self.send(409, {"error": "账号已在其他设备进入游戏"})
-                save = data.get("data")
-                c.execute("INSERT INTO saves(user_id,data,updated) VALUES(?,?,?) "
-                          "ON CONFLICT(user_id) DO UPDATE SET data=excluded.data, updated=excluded.updated",
-                          (uid, None if save is None else json.dumps(save, ensure_ascii=False, separators=(",", ":")), int(time.time())))
-            return self.send(200, {"ok": True})
 
         if r == "password":
             old = str(data.get("old", "")); new = str(data.get("new", ""))
@@ -391,4 +437,6 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     init_db()
     print(f"XiuServer listening on {HOST}:{PORT}, db={DB_PATH}", flush=True)
-    ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
+    srv = ThreadingHTTPServer((HOST, PORT), Handler)
+    srv.daemon_threads = True   # 请求线程跟着主进程走，不留残余线程
+    srv.serve_forever()
