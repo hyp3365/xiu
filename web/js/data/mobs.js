@@ -51,7 +51,7 @@ DATA.mobBooks = (realm, star, cat) => {
 DATA._mobGfv = {};
 DATA.mobGfVal = (id, lv) => { const k = id + ":" + lv; if (!(k in DATA._mobGfv)) { const g = lv > 0 ? DATA.gongfaInfo(id, lv) : null; DATA._mobGfv[k] = g ? [g.value || 0, g.value2 || 0] : [0, 0]; } return DATA._mobGfv[k]; };
 const _mobRi = r => r[0] + Math.floor(Math.random() * (r[1] - r[0] + 1));
-// 算属性：rnd = true 每次遇到随机（层、学哪些功法、每本几层）；false = 显示用的平均值
+// 算属性：rnd = true 每次遇到随机（层、学%、功法层）；false = 显示用的平均值
 DATA.mobCalc = (t, crit, rnd) => {
   const R = DATA.mobRow(t), lay = Math.max(1, Math.min(DATA.LAYERS, rnd ? _mobRi(R.lay) : Math.round((R.lay[0] + R.lay[1]) / 2)));
   const st = DATA.refStats(R.realm, lay, 0, R.star, 1), bd = DATA.mobBody(R.realm * DATA.LAYERS + lay), add = {};
@@ -59,15 +59,12 @@ DATA.mobCalc = (t, crit, rnd) => {
   for (const C of R.cats) {   // 每类来源各按自己的学% 和功法层算
     const B = DATA.mobBooks(R.realm, R.star, C.c);
     for (const ty in B) {
-      const list = B[ty], pct = rnd ? C.pct[0] + Math.random() * (C.pct[1] - C.pct[0]) : (C.pct[0] + C.pct[1]) / 2;
-      if (rnd) {   // 每个种类各学 pct% 本（随机挑），每本随机练到 功法层 [最小, 最大]
-        const pick = list.slice(), n = Math.min(list.length, Math.round(list.length * pct / 100));
-        for (let i = 0; i < n; i++) { const b = pick.splice(Math.floor(Math.random() * pick.length), 1)[0], v = DATA.mobGfVal(b.id, _mobRi(C.gf));
-          if (add[b.stat] !== undefined) add[b.stat] += v[0]; if (b.stat2 && add[b.stat2] !== undefined) add[b.stat2] += v[1]; }
-      } else {     // 平均：全部功法 × pct%，层数取两头平均
-        for (const b of list) { const v0 = DATA.mobGfVal(b.id, C.gf[0]), v1 = DATA.mobGfVal(b.id, C.gf[1]), f = pct / 100 / 2;
-          if (add[b.stat] !== undefined) add[b.stat] += (v0[0] + v1[0]) * f; if (b.stat2 && add[b.stat2] !== undefined) add[b.stat2] += (v0[1] + v1[1]) * f; }
-      }
+      // v225 不再随机挑整本：每个种类 = 全部功法 × 学% （1% × 12 本 = 0.12 本的属性），层数按功法层算
+      //   遇到时（rnd）：学% 在范围内随机、功法层在范围内随机取整（这一类所有功法同一层）；显示用：学% 取平均、功法层两头平均
+      const list = B[ty], f = (rnd ? C.pct[0] + Math.random() * (C.pct[1] - C.pct[0]) : (C.pct[0] + C.pct[1]) / 2) / 100;
+      const g0 = rnd ? (C.gl === undefined ? C.gl = _mobRi(C.gf) : C.gl) : C.gf[0], g1 = rnd ? g0 : C.gf[1];
+      for (const b of list) { const v0 = DATA.mobGfVal(b.id, g0), v1 = DATA.mobGfVal(b.id, g1);
+        if (add[b.stat] !== undefined) add[b.stat] += (v0[0] + v1[0]) / 2 * f; if (b.stat2 && add[b.stat2] !== undefined) add[b.stat2] += (v0[1] + v1[1]) / 2 * f; }
     }
   }
   const o = {};
@@ -78,7 +75,7 @@ DATA.mobCalc = (t, crit, rnd) => {
 };
 // 显示用（平均值）
 DATA.mobStats = (t, crit) => DATA.mobCalc(t, crit, false);
-// v168 每次遇到：层、学哪些功法、每本几层都随机
+// v168 每次遇到随机：层、学%、功法层（v225 功法按 全部 × 学% 算，不再随机挑书）
 DATA.mobRoll = (t, crit) => DATA.mobCalc(t, crit, true);
 // 按名字取，名字对不上时按顺序取（地图改了名也不会丢）
 DATA.mobPick = (obj, name, i) => { if (!obj) return null; if (obj[name]) return obj[name]; const v = Object.values(obj); return v[i] || null; };
@@ -127,7 +124,8 @@ DATA.towerPart = (star, floor, max) => {   // 返回 { own: 本星这一层的�
   const step = (n) => Math.max(1, Math.min(n, Math.ceil(p * n - 1e-9)));
   const r0 = (CFG.sect.REQ_REALM || [])[star - 1] !== undefined ? CFG.sect.REQ_REALM[star - 1] : (star - 1) * RN;
   const j = step(LN), realm = Math.min(DATA.realms.length - 1, r0 + Math.floor((j - 1) / DATA.LAYERS)), lay = (j - 1) % DATA.LAYERS + 1;
-  const pct = step(T.PCT_MAX || 50), gf = step(T.GF_MAX || 5), SN = T.STAGES || 50, sg = step(SN);
+  const gf = step(T.GF_MAX || 5), SN = T.STAGES || 50, sg = step(SN);
+  const pct = T.PCT_START !== undefined ? T.PCT_START + (sg - 1) * (T.PCT_ADD || 0) : step(T.PCT_MAX || 50);   // v225 学习比例：第 1 段 PCT_START %，每段 + PCT_ADD %
   const mul = ((T.MUL === undefined ? 100 : T.MUL) + (sg - 1) * (T.MUL_ADD || 0)) / 100;   // v222 第 1 段 MUL %，每段 + MUL_ADD %
   const Lof = (r, l) => r * DATA.LAYERS + l;
   const cur = DATA.refStats(realm, lay, 0, star, 1), bd = DATA.mobBody(Lof(realm, lay));
