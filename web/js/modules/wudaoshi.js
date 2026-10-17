@@ -43,25 +43,42 @@ G.module({
       if (!this.addSm("wdg", n)) return;
       s.merit -= c * n; this.log(`购得${DATA.smName("wdg")} ×${n}。`, "good"); this.after();
     },
+    // 点「开始悟道」：读条 TIME 秒，结束后结算并弹出结果
+    wdCheck(dao) {
+      const s = this.s, D0 = _WR.daos.find(d => d.id === dao); if (!D0) return null;
+      if (!D0.open) return this.log(`${D0.name}暂未开放。`, "sys"), null;
+      if (this.wdLeft(dao) <= 0) return this.log(`${D0.name}今天已经悟过了，明天再来。`, "sys"), null;
+      const need = DATA.wdStageFruit(DATA.wdStage(((s.wd || {}).n || {})[dao] || 0).k);
+      if (this.smCount("wdg") < need) return this.log(`${DATA.smName("wdg")}不足，需要 ${need} 个。`, "sys"), null;
+      return { D0, need };
+    },
     wudao(dao) {
-      const s = this.s, D0 = _WR.daos.find(d => d.id === dao); if (!D0) return;
-      if (!D0.open) return this.log(`${D0.name}暂未开放。`, "sys");
-      if (this.wdLeft(dao) <= 0) return this.log(`${D0.name}今天已经悟过了，明天再来。`, "sys");
-      const w = s.wd || (s.wd = { n: {}, day: {} }), n = w.n[dao] || 0, st = DATA.wdStage(n), need = DATA.wdStageFruit(st.k);
-      if (this.smCount("wdg") < need) return this.log(`${DATA.smName("wdg")}不足，需要 ${need} 个。`, "sys");
+      if (this._wdRun || !this.wdCheck(dao)) return;
+      const ms = (_WR.TIME || 0) * 1000;
+      this._wdRun = { dao, end: Date.now() + ms }; this.render();
+      setTimeout(() => { this._wdRun = null; this.wudaoDone(dao); }, ms);
+    },
+    wudaoDone(dao) {
+      const s = this.s, c = this.wdCheck(dao); if (!c) return this.render();
+      const D0 = c.D0, need = c.need, w = s.wd || (s.wd = { n: {}, day: {} }), n = w.n[dao] || 0, st = DATA.wdStage(n);
       this.takeSm("wdg", need);
       w.n[dao] = n + 1; w.day[dao] = this.today();
       const P = _WR.xiulian.EXP_PCT, pct = P[0] + Math.random() * (P[1] - P[0]), gain = Math.max(1, Math.round(this.needExp() * pct / 100));
       s.exp += gain;
-      let msg = `${D0.name}悟道一次，修为 +${U.fmt(gain)}（${pct.toFixed(1)}%）`;
+      let msg = `${D0.name}悟道一次，修为 +${U.fmt(gain)}`, book = "";
       const t = st.t + 1, ev = DATA.wdEvery(st.k);
       if (t % ev === 0 && t / ev <= _WR.xiulian.BOOKS) {
         const id = DATA.wdBookId(st.k, t / ev - 1), nm = `《${DATA.gongfaInfo(id, 1).name}》`;
-        if (this.bagFull()) msg += `，悟得${nm}（背包已满，未能放入）`;
-        else { s.bag.push({ t: "gfb", id, n: 1 }); msg += `，悟得${nm}（已放入背包）`; }
+        if (this.bagFull()) book = `悟得${nm}（背包已满，未能放入）`;
+        else { s.bag.push({ t: "gfb", id, n: 1 }); book = `悟得${nm}（已放入背包）`; }
+        msg += "，" + book;
       }
       this._wdFx = Date.now();
       this.log(msg + "。", "gold"); this.dirty(); this.after();
+      const T = _WR.TEXTS || [];
+      this.modal(`<h2>${D0.name}</h2><p class="desc wd-tip">${T.length ? T[Math.floor(Math.random() * T.length)] : ""}</p>
+        <div class="line"><div>修为</div><b class="q4">+${U.fmt(gain)}</b></div>${book ? `<div class="line"><div>${book}</div></div>` : ""}
+        <div class="btns"><button class="primary" onclick="G.closeModal()">确定</button></div>`);
     },
   },
 });
@@ -69,22 +86,18 @@ G.module({
 /* 洞府 · 悟道室页面 */
 G.caveViews.wudao = function () {
   const s = this.s, w = s.wd || { n: {}, day: {} }, cur = _WR.daos.find(d => d.id === this.wdDao) || _WR.daos[0];
-  const fx = this._wdFx && Date.now() - this._wdFx < 1500 ? " fx" : "";
+  const fx = this._wdRun || (this._wdFx && Date.now() - this._wdFx < 1500) ? " fx" : "";
   const daoBtn = d => { const st = DATA.wdStage(w.n[d.id] || 0);
     return `<button class="wd-dao${cur.id === d.id ? " on" : ""}${d.open ? "" : " off"}" onclick="G.setWdDao('${d.id}')"><b>${d.name}</b>
-      <small>${d.open ? `第${st.k}阶段 · 剩余 ${this.wdLeft(d.id)} 次` : "暂未开放"}</small></button>`; };
+      <small>${d.open ? `剩余 ${this.wdLeft(d.id)} 次` : "暂未开放"}</small></button>`; };
   let body;
   if (!cur.open) body = `<p class="desc wd-tip">${cur.desc}</p><p class="desc wd-tip">暂未开放，敬请期待。</p><div class="btns"><button disabled>开始悟道</button></div>`;
   else {
-    const st = DATA.wdStage(w.n[cur.id] || 0), need = DATA.wdStageFruit(st.k), have = this.smCount("wdg"), left = this.wdLeft(cur.id), ev = DATA.wdEvery(st.k);
-    const nb = Math.floor(st.t / ev), nextId = nb < _WR.xiulian.BOOKS ? DATA.wdBookId(st.k, nb) : null, toNext = (nb + 1) * ev - st.t;
-    const P = _WR.xiulian.EXP_PCT, M = _WR.xiulian.MULT, star = Math.min(st.k, _WR.xiulian.MAX_STAR);
-    body = `<div class="row small"><span>第${st.k}阶段</span><span>${st.t} / ${st.N} 次</span></div>
-      <div class="bar"><div style="width:${st.t / st.N * 100}%"></div></div>
-      <div class="ys-need"><img src="${DATA.smIcon("wdg")}" alt=""><b class="${have >= need ? "" : "q5"}">${U.fmt(have)}/${need}</b></div>
-      <p class="desc wd-tip">${cur.desc}<br>每次得修为：当前境界升级所需的 ${P[0]}%~${P[1]}%${nextId ? `<br>再悟道 ${toNext} 次得《${DATA.gongfaInfo(nextId, 1).name}》（${star}星秘诀 × ${M[0]}~${M[1]} 倍）` : ""}</p>
-      <div class="btns"><button class="primary" onclick="G.wudao('${cur.id}')" ${left > 0 && have >= need ? "" : "disabled"}>开始悟道</button></div>
-      <p class="desc wd-tip">每天仅可感悟 ${_WR.DAILY} 次 · ${DATA.smName("wdg")}在四界功德司购买</p>`;
+    const st = DATA.wdStage(w.n[cur.id] || 0), need = DATA.wdStageFruit(st.k), have = this.smCount("wdg"), left = this.wdLeft(cur.id), run = this._wdRun;
+    body = `<div class="ys-need"><img src="${DATA.smIcon("wdg")}" alt=""><b class="${have >= need ? "" : "q5"}">${U.fmt(have)}/${need}</b></div>
+      <p class="desc wd-tip">${cur.desc}</p>
+      ${run ? `<div class="bar wd-run"><div style="animation-duration:${_WR.TIME}s;animation-delay:-${Math.max(0, _WR.TIME - (run.end - Date.now()) / 1000).toFixed(2)}s"></div></div><div class="btns"><button class="primary" disabled>悟道中……</button></div>`
+        : `<div class="btns"><button class="primary" onclick="G.wudao('${cur.id}')" ${left > 0 && have >= need ? "" : "disabled"}>开始悟道</button></div>`}`;
   }
   return `<div class="card wd-card"><h3>${DATA.caveName("wudao")}</h3><p class="desc">${_WR.DESC}</p>
     <div class="ys-stage wd-stage${fx}"><div class="ys-aura"></div><img class="ys-hero" src="img/wd_hero.webp?v=${DATA.IMG_V}" alt=""></div>

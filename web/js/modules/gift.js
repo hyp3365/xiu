@@ -56,7 +56,7 @@ G.module({
         if (c === "ore") list.push(...CFG.mijing.items.ys.names.map((n, i) => [1000 + i, n]));   // v152 耀石放在矿石里：g = 1000 + 属性序号
         return [{ k: "g", label: "名称", opts: list }, N];
       }
-      if (c === "tc") return [{ k: "name", label: "名称", opts: this.giftSpecial().filter(n => DATA.matByName[n]).map(n => [n, n]) }, N];
+      if (c === "tc") return [{ k: "name", label: "名称", opts: [...this.giftSpecial().filter(n => DATA.matByName[n]).map(n => [n, n]), [DATA.smName("wdg"), DATA.smName("wdg")]] }, N];   // 悟道果也放在特产里
       if (c === "dan") {
         const items = [...Object.keys(DATA.pills).map(t => ["p:" + t, DATA.pills[t].name]),
           ...Object.keys(DATA.dans).map(t => ["d:" + t, DATA.recipes[t].name])];
@@ -124,7 +124,7 @@ G.module({
           return this.addMat(it.c, DATA.matName(it.c, it.g), it.g, n);
         case "lj": case "lz": return this.addSm(it.c, n, it.ft);
         case "hx": return this.addFire(n);
-        case "tc": { const m = DATA.matByName[it.name]; return !!m && this.addMat(m.kind, it.name, m.g, n); }
+        case "tc": { if (it.name === DATA.smName("wdg")) return this.addSm("wdg", n); const m = DATA.matByName[it.name]; return !!m && this.addMat(m.kind, it.name, m.g, n); }
         case "dan": { const [k, t] = it.item.split(":"); return k === "p" ? this.addPill(t, it.g, n) : this.addDan(t, it.g, n); }
         case "bp": { const [k, t] = it.item.split(":");
           return k === "f" ? rep(() => this.addBlueprintItem(t, it.g)) : rep(() => { if (this.bagFull()) return false; s.bag.push({ t: "rbp", r: +t, g: it.g }); return true; }); }
