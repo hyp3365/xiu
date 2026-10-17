@@ -24,6 +24,7 @@ DATA.array = {
   STONE_LING: _A.STONE_LING,
   LING_STONE: _A.LING_STONE,
   factor: lv => 1 + Math.round(DATA.segSum(_A, "SPEED", lv) * 1e6) / 1e8,
+  flat: lv => DATA.segSum(_A, "GATHER_FLAT", lv),   // 固定聚灵（不吃任何加成）
   gather: lv => { let t = _A.GATHER_BASE; for (let l = 1; l <= Math.min(lv, _A.MAX); l++) t += DATA.gatherLv(_A, l); return t; },
   cost: lv => DATA.segCost(_A, lv + 1),
 };
