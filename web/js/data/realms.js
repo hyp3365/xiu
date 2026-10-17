@@ -33,7 +33,7 @@ const _R = CFG.realm, _P = CFG.player;
 // 境界突破表（config/realm.js）：一行一个境界，没写的境界沿用上面最近一行；T = 要突破到的总层序（0 = 第一境界一层）
 DATA.brRow = (rows, r) => { let o = null; for (const x of rows || []) if (x[0] <= r && (!o || x[0] >= o[0])) o = x; return o; };
 // 突破到第 T 层需要的修为 / 气血 = 该境界一层需要 + 每层增加 × 层(0~9)
-DATA.brNeed = (rows, T) => { const x = DATA.brRow(rows, Math.floor(Math.max(0, T) / DATA.LAYERS)); return x ? x[1] + (x[2] || 0) * (Math.max(0, T) % DATA.LAYERS) : 0; };
+DATA.brNeed = (rows, T) => { const x = DATA.brRow(rows, Math.floor(Math.max(0, T) / DATA.LAYERS)); return x ? Math.round(x[1] + ((x[2] || x[1]) - x[1]) / (DATA.LAYERS - 1) * (Math.max(0, T) % DATA.LAYERS)) : 0; };   // [境界, 一层需要, 十层需要]，中间每层平均加
 DATA.needExp = L => DATA.brNeed(_R.EXP, L + 1);   // 第 L 层 → 第 L+1 层
 DATA.MORTAL_EXP = DATA.brNeed(_R.EXP, 0);          // 凡人 → 练气一层
 // 突破 n 层（第 0 ~ n-1 层）增加的属性合计（缓存）
