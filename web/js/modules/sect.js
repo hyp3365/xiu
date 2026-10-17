@@ -257,7 +257,7 @@ G.module({
     autoTask() {
       return this.s.autoTask || (this.s.autoTask = { day: "", free: false, gf: false, pool: false, poolI: 0, xiulian: false, shenhun: false, zhandou: false, ex: false, exT: "", cq: false, cqT: "" });
     },
-    autoTaskAny() { const A = this.s.autoTask; return !!A && ["free", "gf", "pool", "xiulian", "shenhun", "zhandou", "ex", "cq"].some(k => A[k]); },
+    autoTaskAny() { const A = this.s.autoTask; return !!A && ["free", "gf", "pool", "xiulian", "shenhun", "zhandou", "cq"].some(k => A[k]); },
     autoTaskCheck() {
       if (!this.autoTaskAny()) return;
       const A = this.autoTask(), day = this.bjDay(), t = new Date(this.now() + 8 * 3600000);
@@ -283,8 +283,7 @@ G.module({
           if (!this.isTrained(p[1], p[2])) return log("所选区域还没历练通过。");
           this.toggleExplore(p[1], p[2], false); }
       };
-      if (A.cq) go(A.cqT, true);            // 出窍期间可以继续修炼，先出窍
-      if (A.ex) go(A.exT, false);           // 正在出窍就跳过探索（两者不能同时）
+      if (A.cq) go(A.cqT, true);            // v231 去掉了自动探索，只剩自动出窍
       this.after();
     },
     enterFreeRoom() {

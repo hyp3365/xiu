@@ -151,7 +151,7 @@ G.module({
     },
     // v229 自动执行任务（逻辑见 modules/sect.js runAutoTask）
     autoTaskHtml(T) {
-      const A = this.autoTask(), E = T.filter(t => t[0][0] === "e"), sw = k => `<button class="sm ${A[k] ? "on" : ""}" onclick="G.autoTaskSet('${k}')">${A[k] ? "开" : "关"}</button>`;
+      const A = this.autoTask(), sw = k => `<button class="sm ${A[k] ? "on" : ""}" onclick="G.autoTaskSet('${k}')">${A[k] ? "开" : "关"}</button>`;
       const sel = (id, list, v) => `<select id="${id}" onchange="G.autoTaskSet()">${list.length ? list.map(([x, n]) => `<option value="${x}"${String(x) === String(v) ? " selected" : ""}>${n}</option>`).join("") : `<option value="">暂无</option>`}</select>`;
       const P = CFG.sect.pool.list.map((d, i) => [i, d.name]), W = ((CFG.wudaoRoom || {}).daos || []);
       const dn = id => (W.find(d => d.id === id) || {}).name || id;
@@ -161,13 +161,11 @@ G.module({
         <div class="line"><div>${dn("xiulian")}悟道</div>${sw("xiulian")}</div>
         <div class="line"><div>${dn("shenhun")}悟道</div>${sw("shenhun")}</div>
         <div class="line"><div>${dn("zhandou")}悟道</div>${sw("zhandou")}</div>
-        <div class="line"><div>自动探索${sel("at-ex", E, A.exT)}</div>${sw("ex")}</div>
         <div class="line"><div>自动出窍${sel("at-cq", T, A.cqT)}</div>${sw("cq")}</div>`;
     },
     autoTaskSet(k) {
       const A = this.autoTask(), v = id => $(id) && $(id).value;
       if (v("#at-pool") !== undefined && v("#at-pool") !== "") A.poolI = +v("#at-pool");
-      if (v("#at-ex")) A.exT = v("#at-ex");
       if (v("#at-cq")) A.cqT = v("#at-cq");
       if (k) { A[k] = !A[k]; this.openCultSet(); }
       this.after();
