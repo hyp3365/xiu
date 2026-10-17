@@ -190,15 +190,15 @@ CFG.gongfa.shop = {
   PCT: 90,           // 效果 = 宗门同星级功法 / 法术的 90%（伤害倍率、固定伤害、功法效果都按这个）
 
   // ---- 售价（灵石，不受上面的倍率影响）----
-  price: 500,        // 售价的基础值
+  price: 2000,        // 售价的基础值
   // 售价的类别倍率
-  PRICE_TYPE: { xinfa: 10, gongjue: 10, zhenjing: 10, mijue: 10, shenfa: 10, dunshu: 10, fajue: 10, zhenjue: 10, tijue: 10, spell: 1 },   // 坊市没有肉身秘诀，tijue 只是占位
+  PRICE_TYPE: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, tijue: 1, spell: 1 },   // 坊市没有肉身秘诀，tijue 只是占位
   PRICE_STAR: [      // 售价的星级倍率
     1,     // 1 星
-    30,    // 2 星
-    60,    // 3 星
-    100,   // 4 星
-    180,   // 5 星
+    5,    // 2 星
+    20,    // 3 星
+    50,   // 4 星
+    150,   // 5 星
   ],
   EFFECT_PRICE: 1,   // 售价总倍率
 };
@@ -217,7 +217,7 @@ CFG.gongfa.tianwai = {
  * 效果 = 宗门同星级 × PCT%；学习消耗 灵石 STONE[星级-6] × TYPE[类别] + 本图贡献 GX[星级-6] × TYPE[类别] */
 CFG.gongfa.jshop = {
   PCT: 105,          // 效果 = 宗门同星级功法的 130%
-  STONE: [3000000, 3300000, 3600000, 3900000, 4200000],   // 学习灵石：6 星 ~ 10 星
+  STONE: [600000, 1000000, 1500000, 2200000, 100000000],   // 学习灵石：6 星 ~ 10 星
   GX: [6000, 6000, 6000, 6000, 6000],                        // 学习消耗本图贡献：6 星 ~ 10 星
   TYPE: { tijue: 1.1 },   // 类别倍率（没写 = 1）
 };
