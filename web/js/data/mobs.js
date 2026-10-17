@@ -120,15 +120,15 @@ DATA.mobJz = a => (DATA.maps[a].mob || {})["界主"] || DATA.MOB_NONE;
 })();
 
 // ---------- 试炼塔守关者（v221，config/mobs.js 的 tower）：按「第几层 ÷ 总层数」算境界、宗门功法学习比例、功法层、阶段倍率 ----------
-//   2 星及以上 = 上一星塔顶的全部属性 + 本星塔多出来的境界 / 肉身属性 + 本星宗门功法，本星部分 × 阶段倍率
+//   逢 10 层 × BOSS（v222）；2 星及以上 = 上一星塔顶（不含 BOSS 倍）的全部属性 + 本星塔多出来的境界 / 肉身属性 + 本星宗门功法，本星部分 × 阶段倍率
 DATA._tower = {};
 DATA.towerPart = (star, floor, max) => {   // 返回 { own: 本星这一层的属性（已 × 倍率）, base: 上一星塔顶, realm, lay, pct, gf, mul }
   const T = CFG.mobs.tower || {}, RN = T.REALMS || 2, LN = RN * DATA.LAYERS, f = Math.max(1, Math.min(max, floor)), p = f / max;
   const step = (n) => Math.max(1, Math.min(n, Math.ceil(p * n - 1e-9)));
   const r0 = (CFG.sect.REQ_REALM || [])[star - 1] !== undefined ? CFG.sect.REQ_REALM[star - 1] : (star - 1) * RN;
   const j = step(LN), realm = Math.min(DATA.realms.length - 1, r0 + Math.floor((j - 1) / DATA.LAYERS)), lay = (j - 1) % DATA.LAYERS + 1;
-  const pct = step(T.PCT_MAX || 50), gf = step(T.GF_MAX || 5), SN = T.STAGES || 10, sg = step(SN), M = T.MUL || [100, 120];
-  const mul = (SN <= 1 ? M[1] : M[0] + (M[1] - M[0]) * (sg - 1) / (SN - 1)) / 100;
+  const pct = step(T.PCT_MAX || 50), gf = step(T.GF_MAX || 5), SN = T.STAGES || 50, sg = step(SN);
+  const mul = ((T.MUL === undefined ? 100 : T.MUL) + (sg - 1) * (T.MUL_ADD || 0)) / 100;   // v222 第 1 段 MUL %，每段 + MUL_ADD %
   const Lof = (r, l) => r * DATA.LAYERS + l;
   const cur = DATA.refStats(realm, lay, 0, star, 1), bd = DATA.mobBody(Lof(realm, lay));
   let pre = null, pbd = null, base = null;
@@ -152,7 +152,9 @@ DATA.towerStage = (star, floor, max) => {
   const key = star + ":" + floor + ":" + max;
   if (!DATA._tower[key]) {
     const T = CFG.mobs.tower || {}, P = DATA.towerPart(star, floor, max), crit = T.CRIT !== undefined ? T.CRIT : DATA.mobCrit("考官");
-    DATA._tower[key] = Object.assign({}, P.total, { crit, L: P.L, realm: P.realm, layer: P.lay, pct: P.pct, gf: P.gf, mul: P.mul });
+    const B = T.BOSS || [0, 1], boss = B[0] > 0 && floor % B[0] === 0 ? B[1] : 1, o = Object.assign({}, P.total);   // v222 逢 10 层 × BOSS
+    for (const k of DATA.MOB_KEYS) o[k] *= boss;
+    DATA._tower[key] = Object.assign(o, { crit, L: P.L, realm: P.realm, layer: P.lay, pct: P.pct, gf: P.gf, mul: P.mul, boss });
   }
   return DATA._tower[key];
 };
