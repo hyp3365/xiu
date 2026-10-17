@@ -354,11 +354,11 @@ G.module({
     /* ---------- 试炼塔（v25：1~10 星，层数见 config/sect.js 的 sect.trial） ---------- */
     towerFloor() { return this.s.towers[this.sectInfo().star] || 0; },
     towerMax() { return DATA.towerMax(this.sectInfo().star); },
-    // 守关者属性：config/mobs.js 的 tower 按三个阶段算（每段从「起」渐变到「止」），见 DATA.towerStage
+    // 守关者属性：config/mobs.js 的 tower（v221 按层数公式算，2 星起叠加上一星塔顶），见 DATA.towerStage
     makeTowerGuard(floor) {
       const tw = DATA.towerStage(this.sectInfo().star, floor, this.towerMax()), m = {};
       for (const k of DATA.REF_KEYS) m[k] = tw[k] * DATA.mobRnd(k);
-      m.crit = tw.crit; m.manaBr = tw.manaBr;
+      m.crit = tw.crit; m.manaBr = tw.manaBr; m.L = tw.L;
       return this.addMagic(Object.assign(m, { name: `第${floor}层守关者`, boss: false }), "tower");
     },
     // 第 f 层每 10 层的额外奖励是什么：{ kind: "ring", r } / { kind: "rbp", g } / { kind: "mijue" }
