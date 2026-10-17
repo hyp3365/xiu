@@ -481,9 +481,11 @@ button small .cd{min-width:0}
 .tag.gf-lv { color: #6fd46f; border-color: #3f8f3f; }
 
 /* v199 神识 · 养神：人物打坐动画 */
-.ys-card { height: calc(50vh - 16px); display: flex; flex-direction: column; box-sizing: border-box; }
+#view:has(.ys-card) { display: flex; flex-direction: column; overflow: hidden; }
+.ys-card { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; box-sizing: border-box; }
 .ys-card .btns { margin-top: 4px; }
-.ls-card { min-height: calc(50vh - 16px); box-sizing: border-box; }
+.ls-card { flex: 1 1 0; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; box-sizing: border-box; margin-bottom: 0; }
+.ls-card .btns { margin-top: auto; padding-top: 6px; }
 .ys-stage { position: relative; flex: 1; min-height: 120px; overflow: hidden; border-radius: 8px; margin: -4px -4px 8px;
   background: radial-gradient(ellipse at 50% 45%, #6b4a7a 0%, #3a2440 55%, #1e1424 100%); }
 .ys-hero { position: absolute; left: 50%; bottom: 6%; height: 86%; max-width: 70%; object-fit: contain; transform: translateX(-50%); animation: ys-float 4s ease-in-out infinite; filter: drop-shadow(0 0 10px #fff3c880); }
