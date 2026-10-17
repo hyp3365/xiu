@@ -87,10 +87,9 @@ G.shenshiView = function () {
       <div class="ys-wisps">${wisps}</div><div class="ys-aura"></div>
       <img class="ys-hero" src="img/ys_hero.webp?v=${DATA.IMG_V}" alt=""></div>
     <div class="ys-need"><img src="${DATA.smIcon("yd")}" alt=""><b class="${have >= need ? "" : "q5"}">${U.fmt(have)}/${U.fmt(need)}</b></div>
-    <p class="desc" style="text-align:center">每天可元婴出窍次数 = 神识强度${s.cqLearn ? "" : "（需先在宗门宝库兑换元婴出窍秘法）"}；每养神 ${(CFG.shenshi.YANGSHEN || {}).EVERY || 10} 次，所需养神丹 +1</p>
     <div class="btns"><button class="primary" onclick="G.yangshen()" ${have >= need ? "" : "disabled"}>养神</button></div></div>
-  <div class="card"><h3>灵识点</h3>
-    <div class="stats"><div><span>剩余灵识点</span>${left < 0 ? `<b class="q5">${left}</b>` : left}</div><div><span>总灵识点</span>${s.lsMax} / ${cap}</div></div>
+  <div class="card ls-card"><h3>灵识点</h3>
+    <div class="stats"><div><span>剩余灵识点</span>${left < 0 ? `<b class="q5">${left}</b>` : left}</div><div><span>总灵识点</span>${s.lsMax}</div></div>
     <p class="desc" style="margin-top:6px">学会攻击、防御、修炼速度、肉身修炼速度类功法和宗门秘法会占用灵识点（1 星 1 点 … 10 星 10 点），灵识点不够不能学习；功法页「遗忘」可归还。已占用 ${used}。</p>
     <div class="row small" style="margin-top:6px"><span>下一点灵识点</span><span>${next === null ? "已达上限" : `${U.fmt(next)} 灵石`}</span></div>
     <div class="btns">${room > 0 ? btn(1) + (room > 1 ? btn(10) : "") : `<button disabled>灵识点已达上限</button>`}
