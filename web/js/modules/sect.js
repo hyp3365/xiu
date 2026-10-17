@@ -361,27 +361,32 @@ G.module({
       m.crit = tw.crit; m.manaBr = tw.manaBr; m.L = tw.L;
       return this.addMagic(Object.assign(m, { name: `第${floor}层守关者`, boss: false }), "tower");
     },
-    // 第 f 层每 10 层的额外奖励是什么：{ kind: "ring", r } / { kind: "rbp", g } / { kind: "mijue" }
+    // 第 f 层的额外奖励：{ kind: "mijue", id } 试炼塔秘诀 / { kind: "ring", r } / { kind: "rbp", g } / { kind: "extra" }（v223）
     towerBonus(star, f) {
-      const T = CFG.sect.trial, E = T.EVERY || 10;
+      const T = CFG.sect.trial, E = T.EVERY || 10, bk = DATA.towerBookAt(star, f);
+      if (bk) return { kind: "mijue", id: bk };
       if (f % E) return null;
       const k = f / E, r = (T.RING || [])[star - 1];
       if (r !== undefined && r >= 0 && DATA.ringNames[r]) {
         if (k === 1) return { kind: "ring", r };       // 第 10 层：一阶戒指
         if (k <= 10) return { kind: "rbp", r, g: k - 1 }; // 第 20~100 层：二阶 ~ 十阶图纸
       }
-      return { kind: "mijue" };
+      return { kind: "extra" };
     },
-    towerNextBook(star) {   // 下一本没给的秘诀 id（修炼秘诀、肉身秘诀轮流），给完 = null
-      const M = DATA.towerBookCount(star);
-      for (let k = 1; k <= M; k++) for (const t of DATA.TOWER_TYPES) { const id = DATA.towerBookId(star, k, t); if (id && !this.s.gongfa[id] && !this.lqHas("gf", id) && !this.s.bag.some(x => x.t === "gfb" && x.id === id)) return id; }   // 已学会 / 背包里有的不再给
-      return null;
+    towerDesc(star) {   // v223 塔的奖励说明
+      const T = CFG.sect.trial, r = (T.RING || [])[star - 1], M = T.MIJUE || {}, i = star - 1, ev = (M.EVERY || [])[i] || 0, last = (M.LAST || [])[i] || 0, out = [];
+      if (r !== undefined && r >= 0 && DATA.ringNames[r]) out.push(`第 10 层奖励${DATA.ringName(r, 0)}，第 20~100 层依次奖励它的二阶~十阶升级图纸`);
+      if (ev > 0 && ((M.PCT || [])[i] || 0) > 0) out.push(`每 ${ev} 层奖励一本试炼塔秘诀`);
+      if (last > 0) out.push(`登顶奖励一本试炼塔秘诀`);
+      out.push(`其余每 ${T.EVERY || 10} 层奖励${DATA.HX} / 耀石 / 功德随机一种`);
+      return "本塔" + out.join("，") + "。";
     },
+    towerHasBook(id) { return !!(this.s.gongfa[id] || this.lqHas("gf", id) || this.s.bag.some(x => x.t === "gfb" && x.id === id)); },
     towerBonusText(b) { return !b ? "" : b.kind === "ring" ? DATA.ringName(b.r, 0) : b.kind === "rbp" ? DATA.ringBpName(b.g, b.r)
-      : this.towerNextBook(this.sectInfo().star) ? "试炼塔秘诀一本" : `${DATA.HX} / 耀石 / 功德 随机一种`; },
+      : b.kind === "mijue" ? `《${DATA.gongfaInfo(b.id, 1).name}》` : `${DATA.HX} / 耀石 / 功德 随机一种`; },
     // 试炼塔秘诀：每次给下一本，放进背包（在背包里学习，占用神识；之后在「功法」页修炼升层）；给完后 火髓 / 耀石 / 功德 随机一种（config/sect.js 的 trial.EXTRA）
-    giveTowerMijue(star) {
-      const s = this.s, id = this.towerNextBook(star);
+    giveTowerMijue(star, id) {   // v223 id = 这一层的秘诀（已有或没写 = 改给 火髓 / 耀石 / 功德）
+      const s = this.s; if (id && this.towerHasBook(id)) id = null;
       if (id) { const nm = `《${DATA.gongfaInfo(id, 1).name}》`; if (this.bagFull()) return `${nm}（背包已满，未能放入）`; s.bag.push({ t: "gfb", id, n: 1 }); this.dirty(); return `${nm}（已放入背包）`; }
       const X = CFG.sect.trial.EXTRA || {}, kinds = ["fire", "ys", "merit"].filter(k => X[k]), k = kinds[U.rand(0, kinds.length - 1)];
       if (!k) return "";
@@ -410,7 +415,7 @@ G.module({
         else if (this.bagFull()) out.push(this.giveTowerMijue(star));
         else { s.bag.push({ t: "rbp", r: b.r, g: b.g }); out.push(DATA.ringBpName(b.g, b.r)); }
       }
-      else if (b) out.push(this.giveTowerMijue(star));
+      else if (b) out.push(this.giveTowerMijue(star, b.kind === "mijue" ? b.id : null));
       return out.join("，");
     },
     // 点「挑战」：立即算出结果，打开战斗画面逐回合播放（3 秒后可跳过）
@@ -625,7 +630,7 @@ G.module({
         ${done ? `<p class="desc">你已登顶试炼塔！</p>` : `<div class="line"><div>第 ${f} 层守关者<small>首通：贡献 +${U.fmt(DATA.towerReward(f, star))}、${DATA.HX} ×${F.fire[star - 1] || 0}、灵石 +${U.fmt(Math.floor((F.stone || 0) * this.starMul() * f))}、药材 ×${F.herb[star - 1] || 0}、矿石 ×${F.ore[star - 1] || 0}</small></div>
         <button class="sm" onclick="G.challengeTower()">挑战</button></div>`}
         ${bonus ? `<p class="desc">第 ${nb} 层额外奖励：${this.towerBonusText(bonus)}</p>` : ""}
-        <p class="desc">进度按门派星级记录，换门派不会重置。${(T.RING || [])[star - 1] >= 0 && DATA.ringNames[T.RING[star - 1]] ? `本塔第 10 层奖励${DATA.ringName(T.RING[star - 1], 0)}，第 20~100 层依次奖励它的二阶~十阶升级图纸，之后每 10 层奖励一本试炼塔秘诀（共 ${DATA.towerBookCount(star)} 本）。` : `本塔每 10 层奖励一本试炼塔秘诀（共 ${DATA.towerBookCount(star)} 本）。`}</p></div>`;
+        <p class="desc">进度按门派星级记录，换门派不会重置。${this.towerDesc(star)}</p></div>`;
       h += this.testView();
     } else if (tab === "secret") {
       const c = DATA.secretCost(x.star);
