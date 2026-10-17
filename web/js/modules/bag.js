@@ -78,6 +78,7 @@ G.module({
       this.s.bag.push({ t: "pill", type, g, n }); return true;
     },
     addMat(kind, name, g, n = 1) {
+      if (kind === "sm") return this.addSm(g, n);   // 秘境专用材料（退回养神露等）
       const it = this.s.bag.find(x => x.t === "mat" && x.name === name && x.g === g);
       if (it) { it.n += n; return true; }
       if (this.bagFull()) { if (!this.silent) this.log("背包已满，材料遗失了。", "bad"); return false; }
@@ -223,7 +224,7 @@ G.module({
           <div class="btns"><button class="primary" onclick="G.learnBook(${i})" ${has ? "disabled" : ""}>学习</button></div>`;
       } else if (it.t === "gfb") {
         const g = DATA.skillInfo(it.id, 1), has = this.hasGongfa(it.id), need = this.ssCost(it.id), left = Math.max(0, this.lsLeft());
-        h += `<p>试炼塔秘诀${g && g.label ? ` · ${g.label}每层 +${this.gfValue(g, g.perLv)}` : ""}<br>学习占用神识 ${need}（剩余 ${left}）${has ? "<br><span class='q5'>已学会。</span>" : left < need ? "<br><span class='q5'>神识不足，可在「修炼 → 神识」增加或遗忘功法。</span>" : ""}</p>
+        h += `<p>试炼塔秘诀${g && g.label ? ` · ${g.label}每层 +${this.gfValue(g, g.perLv)}` : ""}<br>学习占用灵识点 ${need}（剩余 ${left}）${has ? "<br><span class='q5'>已学会。</span>" : left < need ? "<br><span class='q5'>灵识点不足，可在「修炼 → 神识」增加或遗忘功法。</span>" : ""}</p>
           <div class="btns">${this.bagLearnBtn(it, "gf", it.id, `G.learnGfBook(${i})`, has, g ? DATA.gfLearnMin(g.star) * 60000 : 0)}</div>`;
       } else if (it.t === "rbp") {
         const has = it.r === undefined ? this.s.forgeKnown.includes(this.forgeKey("ring", it.g)) : this.ringKnown(it.r, it.g);
@@ -289,7 +290,7 @@ G.module({
       this.s.bag.push({ t: "hx", n }); return true;
     },
     takeFire(n) { const i = this.s.bag.findIndex(x => x.t === "hx"); if (i < 0 || this.s.bag[i].n < n) return false; this.removeAt(i, n); return true; },
-    /* ---------- 秘境专用材料：空间晶核 kj、养神灵露 lu、耀石 ys（ft = 属性序号 0~5；-1 = 任意一种） ---------- */
+    /* ---------- 秘境专用材料：空间晶核 kj、养神露 lu、耀石 ys（ft = 属性序号 0~5；-1 = 任意一种） ---------- */
     ysFor(e) { return e && e.slot === "fabao" ? DATA.elIdx(e.el) : -1; },   // 强化 / 炼制用哪种耀石
     smFind(k, ft) { return this.s.bag.findIndex(x => x.t === "sm" && x.k === k && (!DATA.SM_GRADED.includes(k) || (x.ft || 0) === (ft || 0))); },
     smCount(k, ft) {

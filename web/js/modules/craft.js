@@ -85,10 +85,12 @@ G.module({
 
     /* ---------- 材料 ---------- */
     countMat(kind, g) {
+      if (kind === "sm") return this.smCount(g);   // 秘境专用材料（养神露）
       const name = DATA.matName(kind, g);
       return this.s.bag.reduce((a, it) => a + (it.t === "mat" && it.kind === kind && it.name === name ? it.n : 0), 0);
     },
     takeMat(kind, g, n) {
+      if (kind === "sm") return void this.takeSm(g, n);
       const name = DATA.matName(kind, g);
       for (let i = this.s.bag.length - 1; i >= 0 && n > 0; i--) {
         const it = this.s.bag[i];
@@ -428,6 +430,7 @@ G.module({
 
     /* ---------- 属性丹：背包、服用 ---------- */
     addDan(type, g, n = 1, sg) {
+      if (DATA.recipeItem(type)) return this.addSm(DATA.recipeItem(type), n);   // 养神丹 → 专用材料
       if (DATA.isSpeedRecipe(type)) return this.addPill(type, DATA.pillGrade(type, g), n); // 修炼速度丹 → 背包修炼丹（品质 = 阶，仙界修炼丹 + REALM0）
       const it = this.s.bag.find(x => x.t === "dan" && x.type === type && x.g === g && !x.sg === !sg);
       if (it) { it.n += n; return true; }
@@ -478,12 +481,12 @@ G.caveViews.alchemy = function () {
         return `<div class="line"><div>队列 ${i + 1}：${DATA.danName(q.type, q.g)} ×${q.n}<small>需 ${U.dur(ms / 1000)} · 约 ${U.cd(aAcc / 1000 + 59)} 后完成</small></div><button class="sm" onclick="G.cancelAlchQ(${i})">取消</button></div>`; }).join("") +
       `<p class="desc">队列 ${s.alchQueue.length} / ${CFG.alchemy.QUEUE}，炼完自动开下一炉。</p></div>`;
   }
-  const list = Object.keys(DATA.recipes).filter(t => DATA.danCat(t) === cat && s.recipes.includes(t + "|" + tier));
+  const list = Object.keys(DATA.recipes).filter(t => DATA.danCat(t) === cat && DATA.recipeHas(t, tier) && s.recipes.includes(t + "|" + tier));
   h += `<div class="card"><h3>炼丹<small>${fu >= 0 ? `可炼一阶~${DATA.JIE[fu]}` : `需要${DATA.furnaceKinds[fk]}`} · 已学丹方 ${s.recipes.length}</small></h3>
     <div class="room-grid five">${DATA.JIE.slice(0, DATA.DAN_JIE_N).map((n, g) => `<button class="${tier === g ? "active" : ""}" onclick="G.setDanTier(${g})">${n}</button>`).join("")}</div>` +
     (list.length ? list.map(t => {
       const rec = DATA.danRecipe(t, tier), ok = fu >= tier && this.hasMats(rec) && !(a && s.alchQueue.length >= CFG.alchemy.QUEUE);
-      const eaten = DATA.isSpeedRecipe(t) ? "" : ` · 已服 ${DATA.danLimit(t, tier) - this.danLeft(t, tier)}/${DATA.danLimit(t, tier)}`;
+      const eaten = !DATA.dans[t] ? "" : ` · 已服 ${DATA.danLimit(t, tier) - this.danLeft(t, tier)}/${DATA.danLimit(t, tier)}`;
       return `<div class="line"><div>${DATA.li(DATA.danIcon(t))}${DATA.danName(t, tier)}<span class="tag">${DATA.recipeEffect(t, tier)}</span>
         <small>${this.matsText(rec)} · 每枚 ${U.dur(this.danPer(t, tier) / 1000)} · 成功率 ${this.ratePct(this.craftRate(fk, tier))}${eaten}</small></div>
         <div><button class="sm" onclick="G.startAlch('${t}',${tier},1)" ${ok ? "" : "disabled"}>${a ? "排1" : "炼1"}</button>
@@ -592,7 +595,7 @@ G.sectAlchemyView = function () {
   let h = "";
   h += this.lqCard("dan");   // v173 学习队列
   h += this.danCatBar("danLibCat");
-  const cat = this.danLibCat || 0, catName = (CFG.alchemy.CATS || [])[cat] || "", types = Object.keys(DATA.recipes).filter(t => DATA.danCat(t) === cat);
+  const cat = this.danLibCat || 0, catName = (CFG.alchemy.CATS || [])[cat] || "", types = Object.keys(DATA.recipes).filter(t => DATA.danCat(t) === cat && DATA.recipeHas(t, tier));
   h += `<div class="room-grid five">${DATA.JIE.slice(0, DATA.DAN_JIE_N).map((n, g) => `<button class="${tier === g ? "active" : ""}" onclick="G.setDanLibTier(${g})">${n}</button>`).join("")}</div>
     <div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "alchemy", "炼丹房")} · ${catName}丹方</h3>` +
     U.doneLast(types.map(t => {

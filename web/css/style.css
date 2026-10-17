@@ -479,3 +479,22 @@ button small .cd{min-width:0}
 
 /* v196 功法层数：绿色「第N层」 */
 .tag.gf-lv { color: #6fd46f; border-color: #3f8f3f; }
+
+/* v199 神识 · 养神：人物打坐动画 */
+.ys-stage { position: relative; height: 300px; overflow: hidden; border-radius: 8px; margin: -4px -4px 8px;
+  background: radial-gradient(ellipse at 50% 45%, #6b4a7a 0%, #3a2440 55%, #1e1424 100%); }
+.ys-hero { position: absolute; left: 50%; bottom: 6%; width: 78%; max-width: 340px; transform: translateX(-50%); animation: ys-float 4s ease-in-out infinite; filter: drop-shadow(0 0 10px #fff3c880); }
+.ys-aura { position: absolute; left: 50%; top: 14%; width: 46%; aspect-ratio: 1; transform: translateX(-50%); border-radius: 50%;
+  background: radial-gradient(circle, #fff6d0aa 0%, #e8d6ff55 40%, transparent 70%); animation: ys-pulse 3s ease-in-out infinite; }
+.ys-wisps i { position: absolute; bottom: -20px; width: 14px; height: 22px; border-radius: 50% 50% 45% 45%;
+  background: radial-gradient(ellipse at 50% 40%, #e8f6ff 0%, #8fc8ff 45%, #4a8fe066 75%, transparent 100%); box-shadow: 0 0 10px #8fc8ff; opacity: 0; animation: ys-rise 7s linear infinite; }
+.ys-pow { position: absolute; left: 8px; top: 8px; z-index: 2; padding: 4px 10px; border-radius: 6px; background: #0008; border: 1px solid #c9a96a; text-align: center; line-height: 1.2; }
+.ys-pow span { display: block; font-size: 11px; color: #d8c8a8; } .ys-pow b { font-size: 18px; color: #ffe08a; }
+.ys-stage.fx .ys-aura { animation: ys-burst 1.2s ease-out; } .ys-stage.fx .ys-pow b { animation: ys-pop .8s ease-out; }
+.ys-need { width: 84px; margin: 0 auto 4px; padding: 6px 4px 4px; border: 1px solid #8a7550; border-radius: 8px; background: #0004; text-align: center; }
+.ys-need img { width: 56px; height: 56px; display: block; margin: 0 auto; } .ys-need b { font-size: 13px; }
+@keyframes ys-float { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -10px); } }
+@keyframes ys-pulse { 0%, 100% { opacity: .55; transform: translateX(-50%) scale(.92); } 50% { opacity: 1; transform: translateX(-50%) scale(1.06); } }
+@keyframes ys-rise { 0% { transform: translateY(0) scale(.7); opacity: 0; } 15% { opacity: .9; } 85% { opacity: .7; } 100% { transform: translateY(-320px) translateX(12px) scale(1.1); opacity: 0; } }
+@keyframes ys-burst { 0% { transform: translateX(-50%) scale(.9); opacity: 1; } 50% { transform: translateX(-50%) scale(1.8); opacity: 1; } 100% { transform: translateX(-50%) scale(1); opacity: .6; } }
+@keyframes ys-pop { 0% { transform: scale(1); } 40% { transform: scale(1.5); color: #fff; } 100% { transform: scale(1); } }

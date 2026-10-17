@@ -45,7 +45,7 @@ G.module({
             return `<div class="line"><div>${d}域<small>首领 ${DATA.regionBoss(sel, r)} · ${ok ? "已通过历练" : "未历练"}</small></div>
               ${lock ? `<button class="sm" disabled>需${DATA.realmLabel(DATA.mapReq(sel))}</button>` : !unl || !this.regionOpen(sel, r) ? `<button class="sm" disabled>未开启</button>` : `<div><button class="sm ${x && x.once ? "on" : ""}" onclick="G.toggleExplore(${sel},${r},true)" ${s.explore && s.explore.cq ? "disabled" : ""}>${x && x.once ? "停止" : "历练"}</button>
               <button class="sm ${x && !x.once && !x.cq ? "on" : ""}" onclick="G.toggleExplore(${sel},${r})" ${ok && !(s.explore && s.explore.cq) ? "" : "disabled"}>${x && !x.once && !x.cq ? "停止" : "探索"}</button>
-              <button class="sm ${x && x.cq ? "on" : ""}" onclick="G.openChuqiao(${sel},${r})" ${x && x.cq || ok && s.cqLv && !(s.explore && s.explore.cq) ? "" : "disabled"}>${x && x.cq ? "停止" : "出窍"}</button></div>`}</div>`;
+              <button class="sm ${x && x.cq ? "on" : ""}" onclick="G.openChuqiao(${sel},${r})" ${x && x.cq || ok && s.cqLearn && !(s.explore && s.explore.cq) ? "" : "disabled"}>${x && x.cq ? "停止" : "出窍"}</button></div>`}</div>`;
           }).join("") + (map.w === "fan" ? this.kuangLine(sel) : "") + `<p class="desc">历练、探索期间无法修炼；生命低于三成会原地休养，恢复满后自动继续。</p></div>`;
     },
     /* ---------- 凡界灵矿（config/explore.js 的 KUANG）：不用历练，不遇怪，只挖灵石；探索中 x.kuang = 1、x.reg = -1 ---------- */
@@ -54,7 +54,7 @@ G.module({
       const s = this.s, K = CFG.explore.KUANG, x = s.explore && s.explore.kuang && s.explore.map === a ? s.explore : null, cq = s.explore && s.explore.cq;
       return `<div class="line"><div>${this.kuangName(a)}<small>${K.DESC}</small></div>
         ${!this.realmOK(DATA.mapReq(a)) ? `<button class="sm" disabled>需${DATA.realmLabel(DATA.mapReq(a))}</button>` : !this.mapOpen(a) ? `<button class="sm" disabled>未开启</button>` : `<div><button class="sm ${x && !x.cq ? "on" : ""}" onclick="G.toggleKuang(${a})" ${cq ? "disabled" : ""}>${x && !x.cq ? "停止" : "探索"}</button>
-        <button class="sm ${x && x.cq ? "on" : ""}" onclick="G.openChuqiao(${a},-1)" ${x && x.cq || s.cqLv && !cq ? "" : "disabled"}>${x && x.cq ? "停止" : "出窍"}</button></div>`}</div>`;
+        <button class="sm ${x && x.cq ? "on" : ""}" onclick="G.openChuqiao(${a},-1)" ${x && x.cq || s.cqLearn && !cq ? "" : "disabled"}>${x && x.cq ? "停止" : "出窍"}</button></div>`}</div>`;
     },
     kuangPlan() { return "k".repeat(CFG.explore.KUANG.TIME); },
     // 每步灵石 = 当前地图北域一次探索平均灵石 ÷ TIME × 随机(0.5 ~ 1.5)（随机取整）
@@ -606,14 +606,14 @@ G.module({
       const s = this.s, C = CFG.chuqiao, x = s.explore;
       if (x && x.cq && x.map === a && (x.reg || 0) === r) { this.stopExplore("结束出窍"); return this.after(); }
       if (this.cqBusy()) return;
-      if (!s.cqLv) return this.log(`需先在宗门宝库兑换${C.NAME}。`, "sys");
+      if (!s.cqLearn) return this.log(`需先在宗门宝库兑换${C.NAME}。`, "sys");
       if (this.cqLeftToday() <= 0) return this.log("今天的出窍次数已用完。", "sys");
       if (!this.realmOK(C.REALM)) return this.log(`出窍需要${DATA.realmLabel(C.REALM)}。`, "sys");
       if (r >= 0 && !this.isTrained(a, r)) return this.log("需先在此区域历练通过，才能出窍探索。", "sys");
       if (r < 0 ? !this.mapOpen(a) : !this.regionOpen(a, r)) return;
       const max = this.cqLeftToday();
       this.modal(`<h2>元婴出窍 · ${r < 0 ? this.kuangName(a) : DATA.regionName(a, r)}</h2>
-        <p>${C.NAME}第 ${s.cqLv} 层，今天还能出窍探索 ${max} 次；出窍期间可以继续修炼。开始时先扣次数，中途停止只扣已完成和正在进行的，剩下的返还。</p>
+        <p>神识强度 ${s.ssPow || 0}，今天还能出窍探索 ${max} 次；出窍期间可以继续修炼。开始时先扣次数，中途停止只扣已完成和正在进行的，剩下的返还。</p>
         <div class="line"><div>出窍次数<small>1 ~ ${max}</small></div><input id="cq-n" type="number" min="1" max="${max}" value="${max}" style="width:110px"></div>
         <div class="btns"><button class="primary" onclick="G.startChuqiao(${a},${r})">出窍</button><button onclick="G.closeModal()">取消</button></div>`);
     },
@@ -803,7 +803,7 @@ G.module({
       const s = this.s, st = this.mjState(k), d = this.mjDef(i, k); st.used[i] = (st.used[i] || 0) + 1;
       const n = { map: -1, reg: 0, mj: i, once: !!once, queue: queue || [], start: x ? x.start + x.step * x.ms : this.now(), step: 0, count: 0, loot: this.newLoot(), ev: [], last: "", plan: this.makePlan(this.mjCfg(k)), ms: this.exploreMs() };
       if (k === "ld") n.mk = "ld";
-      else if (d.realm === CFG.chuqiao.LU_MJ_REALM && CFG.chuqiao.LU_DROP > 0) this.lootAdd(n.loot, DATA.smName("lu"), CFG.chuqiao.LU_DROP);   // 元婴期秘境必定掉落养神灵露
+      else if (d.realm === CFG.chuqiao.LU_MJ_REALM && CFG.chuqiao.LU_DROP > 0) this.lootAdd(n.loot, DATA.smName("lu"), CFG.chuqiao.LU_DROP);   // 元婴期秘境必定掉落养神露
       s.explore = n; s.lastRun = x ? s.lastRun : null;
       this.log(`进入${this.mjLabel(k)}「${d.name}」${once ? "历练" : "探索"}（期间无法修炼）。`, "sys");
     },

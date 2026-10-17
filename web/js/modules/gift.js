@@ -59,7 +59,7 @@ G.module({
       if (c === "tc") return [{ k: "name", label: "名称", opts: this.giftSpecial().filter(n => DATA.matByName[n]).map(n => [n, n]) }, N];
       if (c === "dan") {
         const items = [...Object.keys(DATA.pills).map(t => ["p:" + t, DATA.pills[t].name]),
-          ...Object.keys(DATA.recipes).filter(t => !DATA.isSpeedRecipe(t)).map(t => ["d:" + t, DATA.recipes[t].name])];
+          ...Object.keys(DATA.dans).map(t => ["d:" + t, DATA.recipes[t].name])];
         const it = a.item || items[0][0], gs = it[0] === "p" ? DATA.realms.map((n, i) => [i, DATA.realmLabel(i)]) : (DATA.recipes[it.slice(2)].val || []).map((_, i) => [i, DATA.JIE[i]]);
         return [{ k: "item", label: "丹药", opts: items }, { k: "g", label: it[0] === "p" ? "品质" : "阶", opts: gs }, N];
       }

@@ -13,11 +13,12 @@ const _AL = CFG.alchemy, _FU = CFG.furnace, _GA = CFG.garden;
 DATA.matByName = {};
 DATA.herbs.forEach((n, g) => DATA.matByName[n] = { kind: "herb", g });
 DATA.ores.forEach((n, g) => DATA.matByName[n] = { kind: "ore", g });
-DATA.matName = (kind, g) => (kind === "herb" ? DATA.herbs : DATA.ores)[g];
+DATA.matName = (kind, g) => kind === "sm" ? DATA.smName(g) : (kind === "herb" ? DATA.herbs : DATA.ores)[g];
 // 显示名：药材、矿石都不显示品阶
 DATA.matFull = (kind, g) => DATA.matName(kind, g);
 // [[名字, 数量], ...] → [{ kind, g, n }]，名字写错会在控制台报错
 DATA.parseMats = list => list.map(([name, n]) => {
+  const sm = !DATA.matByName[name] && DATA.smByName(name); if (sm) return { kind: "sm", g: sm.k, n };   // 秘境专用材料（养神露等），g = 代号
   const m = DATA.matByName[name];
   if (!m) { console.error("js/config/ 数值文件 里有不存在的材料名：" + name); return { kind: "herb", g: 0, n: 1e15 }; }
   return { kind: m.kind, g: m.g, n };
@@ -26,10 +27,12 @@ DATA.parseMats = list => list.map(([name, n]) => {
 /* ---------- 丹方 / 属性丹 / 修炼速度丹 ---------- */
 DATA.recipes = _AL.recipes;                                         // 全部丹方（含修炼速度丹）
 DATA.dans = {};                                                      // 只含属性丹 { atk: {name, label, val[], ...} }
-for (const t in _AL.recipes) if (!_AL.recipes[t].speed) DATA.dans[t] = _AL.recipes[t];
+for (const t in _AL.recipes) if (!_AL.recipes[t].speed && !_AL.recipes[t].item) DATA.dans[t] = _AL.recipes[t];
+DATA.recipeItem = type => (_AL.recipes[type] || {}).item;           // 炼出来是专用材料（养神丹 yd）
+DATA.recipeHas = (type, g) => !!(_AL.recipes[type] && _AL.recipes[type].herbs[g]);   // 这一阶有没有（养神丹只有一阶）
 // v41：丹方分类（0 凡丹 1 仙丹 2 冥丹 3 魔丹 4 神丹）、学习需要的门派星级、加成的属性
 DATA.danCat = type => (_AL.recipes[type] && _AL.recipes[type].cat) || 0;
-DATA.danStar = (type, g) => ((_AL.CAT_STAR || [])[DATA.danCat(type)] || 1) + Math.floor(g / (_AL.STAR_TIERS || 1));
+DATA.danStar = (type, g) => (_AL.recipes[type] || {}).star || ((_AL.CAT_STAR || [])[DATA.danCat(type)] || 1) + Math.floor(g / (_AL.STAR_TIERS || 1));
 DATA.danStat = type => (_AL.recipes[type] && _AL.recipes[type].stat) || type;
 // v42：仙冥魔神丹（cat ≥ 1）用炼丹仙炉、炼丹仙师；修炼丹的品质 = 阶 + REALM0
 DATA.danFu = type => DATA.danCat(type) ? "xdan" : "dan";
@@ -39,9 +42,9 @@ DATA.isSpeedRecipe = type => !!(_AL.recipes[type] && _AL.recipes[type].speed);
 // 一阶破军丹；修炼速度丹显示为 一阶聚气丹（练气期）
 // 上古丹名（不含阶）：上古 + 原名去掉「丹」+ 分类名（config/alchemy.js 的 SHANGGU）
 DATA.sgDanBase = type => ((_AL.SHANGGU || {}).PREFIX || "上古") + _AL.recipes[type].name.replace(/丹$/, "") + (_AL.CATS[DATA.danCat(type)] || "丹");
-DATA.danName = (type, g, sg) => DATA.JIE[g] + (sg ? DATA.sgDanBase(type) : _AL.recipes[type].name) + (DATA.isSpeedRecipe(type) ? `（${DATA.realmLabel(DATA.pillGrade(type, g))}）` : "");
+DATA.danName = (type, g, sg) => DATA.recipeItem(type) ? _AL.recipes[type].name : DATA.JIE[g] + (sg ? DATA.sgDanBase(type) : _AL.recipes[type].name) + (DATA.isSpeedRecipe(type) ? `（${DATA.realmLabel(DATA.pillGrade(type, g))}）` : "");
 // 丹方效果说明
-DATA.recipeEffect = (type, g) => DATA.isSpeedRecipe(type) ? `修炼速度+${Math.round(DATA.pillPct(type, DATA.pillGrade(type, g)))}%` : `${_AL.recipes[type].label}+${U.num(_AL.recipes[type].val[g])}`;
+DATA.recipeEffect = (type, g) => DATA.recipeItem(type) ? "养神用" : DATA.isSpeedRecipe(type) ? `修炼速度+${Math.round(DATA.pillPct(type, DATA.pillGrade(type, g)))}%` : `${_AL.recipes[type].label}+${U.num(_AL.recipes[type].val[g])}`;
 DATA.danVal = (type, g) => _AL.recipes[type].val[g];
 DATA.danLimit = (type, g) => _AL.recipes[type].limit[g];
 DATA.danRecipe = (type, g) => DATA.parseMats(_AL.recipes[type].herbs[g]);

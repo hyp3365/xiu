@@ -249,7 +249,7 @@ const G = {
     // 倒计时刷新（只在有倒计时的页面）
     setInterval(() => { if (this.s && this.s.explore) this.advanceExplore(); }, 1000); // 自动探索每秒走一步
     setInterval(() => { if (this.s && this.s.trib) this.advanceTrib(); if (this.tribOpen) this.showTrib(); }, 1000); // 雷劫每秒一回合
-    setInterval(() => { if ((this.tab === "gongfa" && (this.s.gfStudy || this.s.cqStudy)) || (this.tab === "sect" && (this.sectTab === "affair" || this.sectTab === "alchemy" || (this.sectTab === "gfroom" && this.freeGfOn()))) || (this.tab === "world" && this.s.explore) || this.tab === "cave" || this.s.gfLearn || this.s.danStudy || this.s.forgeStudy) this.render(); }, 1000);
+    setInterval(() => { if ((this.tab === "gongfa" && this.s.gfStudy) || (this.tab === "sect" && (this.sectTab === "affair" || this.sectTab === "alchemy" || (this.sectTab === "gfroom" && this.freeGfOn()))) || (this.tab === "world" && this.s.explore) || this.tab === "cave" || this.s.gfLearn || this.s.danStudy || this.s.forgeStudy) this.render(); }, 1000);
     // 切到后台 / 关闭页面时立即上传
     document.addEventListener("visibilitychange", () => { if (document.hidden && !this._stopped) { this.save(); API.beacon(this.s); } else if (!document.hidden && !this._stopped) { this.loop(); this.save(true); } });
     window.addEventListener("pagehide", () => { if (!this._stopped) API.beacon(this.s); });

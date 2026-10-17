@@ -40,7 +40,7 @@ DATA.forgeNames.fabao = DATA.JIE.map(() => DATA.slots.fabao);        // 门派�
 DATA.elIdx = el => Math.max(0, DATA.elements.findIndex(x => x.id === el));   // 属性序号（金木水火土雷 = 0~5）
 // 法宝名字（config/names.js 的 fabaoName[形状][阶]），没写就用形状名
 DATA.fabaoName = (ft, g, def) => { const L = (CFG.names.fabaoName || {})[ft]; return (L && L[g]) || def || (DATA.fabaoTypes[ft] || {}).name || "法宝"; };
-// 秘境专用材料（config/mijing.js 的 items）：背包里 { t: "sm", k, ft, n }，k = kj 空间晶核 / lu 养神灵露 / ys 耀石（ft = 属性序号 0~5）
+// 秘境专用材料（config/mijing.js 的 items）：背包里 { t: "sm", k, ft, n }，k = kj 空间晶核 / lu 养神露 / ys 耀石（ft = 属性序号 0~5）
 //   ft = -1 表示「任意一种耀石」（装备、戒指炼制和强化用；扣的时候先扣最多的那种）
 //   lj 灵晶、lz 灵珠也分属性（ft = 0~4 金木水火土）；灵珠的设置在 config/array.js 的 CFG.lingzhu
 if (CFG.lingzhu) CFG.mijing.items.lz = { name: "灵珠", names: CFG.lingzhu.NAMES, sell: CFG.lingzhu.SELL, desc: CFG.lingzhu.DESC };
@@ -270,7 +270,7 @@ DATA.fabaoInfo = (e, own) => {
  *   img/icons/pill_丹药id.png 修炼丹、dan_类型.png 属性丹、fu_dan / fu_qi.png 炉子、ss.png 空间石
  *   fbs形状_属性.png 法宝（7 种形状 × 6 种属性）、sm_ys属性.png 耀石、mifa.png 秘法、seed.png 种子、stone.png 灵石、cu_misc.png 自定义物品
  *   hx.png 火髓、bp.png 图纸 */
-DATA.IMG_V = 7;
+DATA.IMG_V = 8;
 DATA.matImg = (kind, g) => `img/mats/${kind}${g}.png?v=${DATA.IMG_V}`;
 DATA.iconImg = n => `img/icons/${n}.png?v=${DATA.IMG_V}`;
 DATA.ICON_EQ = ["helmet", "armor", "weapon", "legs", "boots", "pendant", "ring"];
@@ -285,7 +285,7 @@ DATA.eqIcon = e => {
 DATA.PILL_ICONS = ["juqi", "juling", "peiyuan", "taixu", "jiuxuan", "hongmeng"];
 DATA.pillIcon = type => DATA.iconImg("pill_" + (DATA.PILL_ICONS.includes(type) ? type : DATA.PILL_ICONS[Math.max(0, Object.keys(DATA.pills).indexOf(type)) % 3]));
 // 属性丹（修炼速度丹用修炼丹的图）、炉子
-DATA.danIcon = type => DATA.isSpeedRecipe(type) ? DATA.pillIcon(type) : DATA.iconImg("dan_" + type);
+DATA.danIcon = type => DATA.recipeItem(type) ? DATA.smIcon(DATA.recipeItem(type)) : DATA.isSpeedRecipe(type) ? DATA.pillIcon(type) : DATA.iconImg("dan_" + type);
 DATA.furnaceIcon = kind => DATA.iconImg("fu_" + kind);
 // 列表里的小图：DATA.li(图片地址)
 DATA.li = (src, cls) => src ? `<img class="li${cls ? " " + cls : ""}" src="${src}" alt="" loading="lazy">` : "";

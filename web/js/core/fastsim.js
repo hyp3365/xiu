@@ -36,7 +36,7 @@
       // 只在这些模块有 tick 时加速
       const ids = this.modules.filter(m => m.tick).map(m => m.id);
       if (ids.length !== FAST_MODULES.length || ids.some((id, k) => id !== FAST_MODULES[k])) return -Infinity;
-      if (s.explore || s.trib || s.cqStudy) return -Infinity;               // 探索 / 渡劫 / 出窍秘法：逐个结算
+      if (s.explore || s.trib) return -Infinity;               // 探索 / 渡劫：逐个结算
       if (!s.gfStudy && s.gfQueue && s.gfQueue.length) return -Infinity;
       // 北京时间下一个 0 点（免费修炼室 / 练功房重置、道童俸禄）
       const last = tk - DATA.TICK * 1000;

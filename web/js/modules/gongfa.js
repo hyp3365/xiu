@@ -23,7 +23,6 @@ G.module({
   // 每 10 秒结算修炼：按 5 秒一步扣修为、累计进度
   tick() {
     const s = this.s, STEP = DATA.STUDY_STEP * 1000;
-    this.cqTick();   // 元婴出窍秘法修炼（sect.js）
     this.lqTick("gf");   // v173 学习（首次习得）+ 学习队列
     if (!s.gfStudy) this.nextStudy();
     while (s.gfStudy) {
@@ -283,7 +282,7 @@ G.module({
 
   view() {
     const s = this.s, ids = Object.keys(s.gongfa), filter = this.gfFilter || "all";
-    if (!ids.length && !s.cqLv) return `<div class="card"><h3>功法</h3><p class="desc">你尚未习得任何功法。拜入门派后在功法殿用贡献学习，或在世界 · 坊市用灵石购买。<br>注意：至少学会一部秘诀才能修炼。</p></div>`;
+    if (!ids.length) return `<div class="card"><h3>功法</h3><p class="desc">你尚未习得任何功法。拜入门派后在功法殿用贡献学习，或在世界 · 坊市用灵石购买。<br>注意：至少学会一部秘诀才能修炼。</p></div>`;
 
     // 分类按钮 + 「修炼队列」按钮（修炼中的功法、排队情况都在这里看）
     const qn = (s.gfStudy ? 1 : 0) + s.gfQueue.length;
@@ -308,9 +307,8 @@ G.module({
     // 先按等级，同等级再按星级；同星级 天 → 黄
     const sortFn = (a, b) => (P.lvUp ? a.lv - b.lv : b.lv - a.lv) || (P.starUp ? a.star - b.star : b.star - a.star);
     // v195「全部」：不分类型，一张卡片按排序显示（元婴出窍秘法放最前）
-    const body = filter === "all" ? (all.length || s.cqLv ? `<div class="card"><h3>全部功法<small>${all.length + (s.cqLv ? 1 : 0)} 部</small></h3>${s.cqLv ? this.cqLine() : ""}${all.sort(sortFn).map(g => this.skillLine(g)).join("")}</div>` : "") :
+    const body = filter === "all" ? (all.length ? `<div class="card"><h3>全部功法<small>${all.length} 部</small></h3>${all.sort(sortFn).map(g => this.skillLine(g)).join("")}</div>` : "") :
       groups.filter(gr => gr.key === filter).map(gr => {
-      if (gr.key === "mifa" && s.cqLv) { gr.items.sort(sortFn); return `<div class="card"><h3>${gr.title}<small>${gr.sub}</small></h3>${this.cqLine()}${gr.items.map(g => this.skillLine(g)).join("")}</div>`; }   // 元婴出窍秘法
       if (!gr.items.length) return filter === "all" ? "" : `<div class="card"><p class="desc">${hide ? "没有未满级的" : "尚未学会任何"}${gr.title}。</p></div>`;
       gr.items.sort(sortFn);
       return `<div class="card"><h3>${gr.title}<small>${gr.sub}</small></h3>${gr.items.map(g => this.skillLine(g)).join("")}</div>`;
