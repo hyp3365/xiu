@@ -1,8 +1,8 @@
 /* =====================================================================
- * 模块：门派 · 悟道室 · 宗门秘法
+ * 模块：门派 · 秘法殿 · 宗门秘法
  * ---------------------------------------------------------------------
  * 秘法 1 ~ 10 星，同星级门派共用一套（每星 9 部，见 config/wudao.js、data/gongfa.js 的 mifaKinds）。
- * 在本门悟道室首次学习（灵石 + 贡献），学会即第 1 层，之后在「功法」页修炼升层（修为 + 灵石）。
+ * 在本门秘法殿首次学习（灵石 + 贡献），学会即第 1 层，之后在「功法」页修炼升层（修为 + 灵石）。
  * 学会的秘法离开门派也一直有效。
  * 存档：和功法放在一起 gongfa { "w3:mf:expSpeed": 层数 }
  * ===================================================================== */
@@ -44,11 +44,11 @@ G.module({
   },
 });
 
-/* 门派 · 悟道室页面（sect.js 调用） */
+/* 门派 · 秘法殿页面（sect.js 调用） */
 G.sectWudaoView = function () {
   const s = this.s, x = this.sectInfo(), c = DATA.mifaLearnCost(x.star), tot = this.mifaBonus();
   const fmt = (K, v) => `${K.sign}${U.num(v)}${K.unit}`;
-  return this.lqCard("gf") + `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "wudao", "悟道室")} · ${x.star}星宗门秘法<small>灵石 ${U.fmt(s.stone)} · 贡献 ${U.fmt(s.contrib)}</small></h3>` +
+  return this.lqCard("gf") + `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "wudao", "秘法殿")} · ${x.star}星宗门秘法<small>灵石 ${U.fmt(s.stone)} · 贡献 ${U.fmt(s.contrib)}</small></h3>` +
     U.doneLast(DATA.mifaKinds.map(K => {
       const id = DATA.mifaId(x.star, K.id), lv = s.gongfa[id] || 0, g = DATA.mifaInfo(id, Math.max(1, lv));
       const eff = K.id === "explore" ? `圆满后每步 -${U.num(g.perLv)} 秒` : K.id === "pojun" ? `圆满后 ${fmt(K, g.perLv)}，无视防御 ${U.num(((CFG.wudao.POJUN || {}).IGNORE || [])[x.star - 1] || 0)}%` : K.full ? `圆满后 ${fmt(K, g.perLv)}` : `每层 ${fmt(K, g.perLv)}`;

@@ -453,7 +453,7 @@ G.module({
     // ---------- 已入门 ----------
     const x = this.sectInfo(), tab = this.sectTab || "hall";
     const TABS = [["hall", "宗门大殿"], ["lib", "功法殿"], ["affair", "事务堂"], ["room", "修炼室"], ["gfroom", "练功房"], ["pool", "练体池"], ["treasury", "宗门宝库"],
-                  ["alchemy", "炼丹房"], ["forge", "炼器室"], ["wudao", "悟道室"], ["tower", "试炼塔"], ["secret", "宗门秘境"]]
+                  ["alchemy", "炼丹房"], ["forge", "炼器室"], ["wudao", "秘法殿"], ["tower", "试炼塔"], ["secret", "宗门秘境"]]
       .map(([k, n]) => [k, DATA.nmPick(CFG.names.sectHall, k, n)]);   // 名字在 config/names.js 的 sectHall
     let h = `<div class="card"><h3>${x.name} <span class="tag">${x.star}星</span><span class="tag">${DATA.elById[x.el].name}</span><small>${DATA.ranks[s.rank].name} · 贡献 ${U.fmt(s.contrib)}</small></h3></div>
       <div class="room-grid">${TABS.map(([k, n]) => `<button class="${tab === k ? "active" : ""}" onclick="G.setSectTab('${k}')">${n}</button>`).join("")}</div>`;

@@ -303,7 +303,7 @@ G.module({
     const all = ids.map(id => DATA.skillInfo(id, s.gongfa[id])).filter(Boolean).filter(g => !hide || g.lv < (g.max || DATA.GONGFA_MAX));
     const groups = [...DATA.gongfaTypes.filter(t => !t.base).map(t => ({ key: t.id, title: t.name, sub: t.label, items: all.filter(g => g.kind === "gf" && (g.type.base || g.type.id) === t.id) })),
                     { key: "spell", title: "法术", sub: "放入背包法术栏后战斗中施放", items: all.filter(g => g.kind === "sp") },
-                    { key: "mifa", title: "秘法", sub: "宗门悟道室学习 · 修炼消耗修为和灵石", items: all.filter(g => g.kind === "mf") }];
+                    { key: "mifa", title: "秘法", sub: "宗门秘法殿学习 · 修炼消耗修为和灵石", items: all.filter(g => g.kind === "mf") }];
     // 先按等级，同等级再按星级；同星级 天 → 黄
     const sortFn = (a, b) => (P.lvUp ? a.lv - b.lv : b.lv - a.lv) || (P.starUp ? a.star - b.star : b.star - a.star);
     // v195「全部」：不分类型，一张卡片按排序显示（元婴出窍秘法放最前）

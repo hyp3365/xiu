@@ -966,7 +966,9 @@ G.module({
       const dans = gd ? this.sgDanList(a).map(d => { const r = DATA.dans[d.type], poor = (s.merit || 0) < d.cost;
         return `<div class="line"><div><img class="mi" src="${DATA.danIcon(d.type)}" alt="">${DATA.danName(d.type, d.g, 1)}<small>永久${r.label} +${U.num(DATA.danVal(d.type, d.g))} · 已服 ${DATA.danLimit(d.type, d.g) - this.danLeft(d.type, d.g)} / ${DATA.danLimit(d.type, d.g)} · ${U.fmt(d.cost)} 功德</small></div>
           ${lock ? `<button class="sm" disabled>境界不足</button>` : `<div class="sg-btns"><button class="sm" onclick="G.buySgDan(${a},'${d.type}',1)" ${poor ? "disabled" : ""}>购买</button><button class="sm" onclick="G.buySgDan(${a},'${d.type}',10)" ${poor ? "disabled" : ""}>×10</button></div>`}</div>`; }).join("") : "";
-      return this.lqCard("gf") + `<div class="card"><h3>${o.name}<small>${gd ? `功德 ${U.fmt(s.merit || 0)}` : `灵石 ${U.fmt(s.stone)} · 本图贡献 ${U.fmt(this.xjGxOf(a))}`}</small></h3>${rows}</div>${dans ? `<div class="card"><h3>上古丹</h3>${dans}</div>` : ""}`;
+      const fruit = gd ? (c => `<div class="card"><h3>${DATA.smName("wdg")}</h3><div class="line"><div>${DATA.li(DATA.smIcon("wdg"))}${DATA.smName("wdg")}<small>洞府悟道室悟道用 · ${c} 功德/个 · 已有 ${U.fmt(this.smCount("wdg"))}</small></div>
+        <div class="sg-btns"><button class="sm" onclick="G.buyWdFruit(1)" ${(s.merit || 0) < c ? "disabled" : ""}>购买</button><button class="sm" onclick="G.buyWdFruit(10)" ${(s.merit || 0) < c * 10 ? "disabled" : ""}>×10</button></div></div></div>`)(CFG.wudaoRoom.FRUIT_MERIT) : "";
+      return this.lqCard("gf") + fruit + `<div class="card"><h3>${o.name}<small>${gd ? `功德 ${U.fmt(s.merit || 0)}` : `灵石 ${U.fmt(s.stone)} · 本图贡献 ${U.fmt(this.xjGxOf(a))}`}</small></h3>${rows}</div>${dans ? `<div class="card"><h3>上古丹</h3>${dans}</div>` : ""}`;
     },
     // 管理员：网页里更新游戏（服务器拉取 GitHub 最新代码，完成后刷新页面）
     async webUpdate() {
@@ -1025,7 +1027,7 @@ G.module({
     const s = this.s, wid = this.worldId || "fan", wt = wid === "fan" ? this.worldTab || "explore" : "explore";   // v47：仙冥魔神没有 历练/坊市/设置 页签
     // 六界选择
     const worlds = `<div class="room-grid">${DATA.worlds.map(w =>
-      `<button class="${wid === w.id ? "active" : ""}" onclick="G.setWorld('${w.id}')">${w.name}${this.worldOpen(w.id) || (CFG.worldMaps || {})[w.id] ? "" : "<small>未开放</small>"}</button>`).join("")}</div>`;
+      `<button class="${wid === w.id ? "active" : ""}" onclick="G.setWorld('${w.id}')">${w.name}${this.worldOpen(w.id) || (CFG.worldMaps || {})[w.id] ? "" : "<small>未开放</small>"}</button>`).join("")}<button onclick="G.log('机缘暂未开放，敬请期待。','sys')">机缘<small>未开放</small></button></div>`;   // 机缘：先只有按钮
     const W = DATA.worlds.find(w => w.id === wid);
     if (!this.worldOpen(wid)) return worlds + `<div class="card"><h3>${W.name}</h3><p class="desc">${W.desc}</p>${(CFG.worldMaps || {})[wid] ? "" : `<p class="desc">界壁未开，以你如今的修为尚无法踏足。</p>`}</div>`;
     const tabs = wid !== "fan" ? worlds : worlds + `<div class="sub-tabs">

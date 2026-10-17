@@ -11,7 +11,7 @@
  * 【法术】每个门派有 金木水火土雷 六系法术，每系一本。
  *   伤害 = 法术攻击 × SPELL_LV_PCT[层]% × 倍率；法力消耗按星级对应境界（config/gongfa.js 的 REF / MANA_*）
  *
- * 【宗门秘法】悟道室学习，同星级门派共用，1~10 星每星 9 部（config/wudao.js），id "w星级:mf:种类"
+ * 【宗门秘法】秘法殿学习，同星级门派共用，1~10 星每星 9 部（config/wudao.js），id "w星级:mf:种类"
  *
  * 【来源类型】功法内部标记来源：sect 宗门功法（功法殿，贡献）、shop 凡界坊市功法（坊市，灵石）、
  *   jshop 仙魔冥神坊市功法（灵石 + 本图贡献）、gd 仙魔冥神功德司功法（功德），后两种见 data/jiegf.js
@@ -87,6 +87,7 @@ DATA.sectWords = sect => {
 };
 // 功法名：门派前缀 + 随机词 + 类别后缀（每个类别 / 第几本用不同的词）
 DATA.gongfaName = (sect, type) => {
+  if (sect.src === "wdroom") return `${CFG.wudaoRoom.xiulian.NAME[type.id] || type.suffix}·第${DATA.cnNum(sect.juan)}卷`;   // 悟道室秘诀
   if (sect.book) return `${sect.prefix}${type.suffix}·第${sect.book}卷`;   // 试炼塔秘诀
   if (sect.plain) return sect.prefix + DATA.nmPick(_NM.jieGfSuffix, type.id, type.suffix);   // 仙魔冥神坊市、功德司：地图名 + 后缀（config/names.js 的 jieGfSuffix）
   const w = DATA.sectWords(sect);
@@ -135,6 +136,7 @@ DATA.TW_GF_PREFIX.forEach((list, i) => list.forEach((prefix, n) => {
 }));
 // 所有来源：门派（src = "sect"）+ 坊市 + 试炼塔 + 天外天
 DATA.gfSrcById = Object.assign({}, ...DATA.sects.map(x => ({ [x.id]: x })), ...DATA.shopSources.map(x => ({ [x.id]: x })), ...DATA.twSources.map(x => ({ [x.id]: x })), ...DATA.towerSources.map(x => ({ [x.id]: x })), ...DATA.towerBooks.map(x => ({ [x.id]: x })));
+DATA.gfSrc = sid => DATA.gfSrcById[sid] || (DATA.wdSrc ? DATA.wdSrc(sid) : null);   // 悟道室秘诀的来源现算（modules/wudaoshi.js）
 DATA.srcType = o => o.src || "sect";
 DATA.srcCfg = o => DATA.gfSources[DATA.srcType(o)].cfg();
 
@@ -154,7 +156,7 @@ DATA.gfCalc = (o, typeId, key, eff) => {
   const C = DATA.srcCfg(o), tm = (C.TYPE_MULT || {})[DATA.gfTypeKey(typeId)], e = C[eff];
   if (!C.TOTAL || C.TOTAL[key] === undefined || typeId === "spell") return 0;   // v121：只按 TOTAL 分配（v125 起秘诀、肉身秘诀也是）
   const ek = e === undefined ? 1 : e / (_GF.sect[eff] === undefined ? 1 : _GF.sect[eff]);   // 坊市 / 功德司 = 宗门 × PCT%
-  return DATA.gfUnit(key) * (C.STAT_STAR[o.star - 1] || 0) * (tm === undefined ? 1 : tm) * ek * DATA.gfRand(o.id + ":" + typeId);
+  return DATA.gfUnit(key) * (C.STAT_STAR[o.star - 1] || 0) * (tm === undefined ? 1 : tm) * ek * (o.mult || DATA.gfRand(o.id + ":" + typeId));   // 悟道秘诀：固定倍率 o.mult
 };
 
 // 层数倍率：第 lv 层效果 = 每层效果 × LV_MULT[lv-1]（没写就是 lv）
@@ -190,7 +192,7 @@ DATA.startGfInfo = (lv = 1) => {
 };
 DATA.gongfaInfo = (id, lv = 1) => {
   if (id === DATA.START_GF) return DATA.startGfInfo(lv);
-  const p = id.split(":"), sect = DATA.gfSrcById[p[0]], type = DATA.gongfaTypes.find(x => x.id === p[1]);
+  const p = id.split(":"), sect = DATA.gfSrc(p[0]), type = DATA.gongfaTypes.find(x => x.id === p[1]);
   if (p.length !== 2 || !sect || !type || (type.base && (sect.src || "sect") !== "sect")) return null;
   const per = DATA.gfCalc(sect, type.id, type.stat, "EFFECT_GONGFA"), per2 = type.stat2 ? DATA.gfCalc(sect, type.id, type.stat2, "EFFECT_GONGFA") : 0;
   const el = DATA.elById[(sect.els || {})[type.id] || sect.el];   // 仙魔冥神坊市、功德司：每本单独的属性

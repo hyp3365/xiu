@@ -503,3 +503,12 @@ button small .cd{min-width:0}
 @keyframes ys-rise { 0% { transform: translateY(0) scale(.7); opacity: 0; } 15% { opacity: .9; } 85% { opacity: .7; } 100% { transform: translateY(-260px) translateX(12px) scale(1.1); opacity: 0; } }
 @keyframes ys-burst { 0% { transform: translateX(-50%) scale(.9); opacity: 1; } 50% { transform: translateX(-50%) scale(1.8); opacity: 1; } 100% { transform: translateX(-50%) scale(1); opacity: .6; } }
 @keyframes ys-pop { 0% { transform: scale(1); } 40% { transform: scale(1.5); color: #fff; } 100% { transform: scale(1); } }
+/* 洞府 · 悟道室 */
+.wd-stage { height: 230px; flex: none; margin: 6px -4px 8px; background: radial-gradient(ellipse at 50% 70%, #5a3f5a 0%, #2a1e2c 70%); }
+.wd-stage .ys-hero { height: 94%; max-width: 90%; bottom: 2%; filter: drop-shadow(0 0 8px #f0d8ff60); }
+.wd-daos { display: flex; gap: 6px; }
+.wd-dao { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 6px 2px; line-height: 1.3; }
+.wd-dao.on { border-color: #e8c66a; box-shadow: 0 0 6px #e8c66a80; } .wd-dao.off { opacity: .6; }
+.wd-dao small { font-size: 11px; color: #b8a888; }
+.wd-tip { text-align: center; margin-top: 6px; }
+.wd-card + .card .ys-need { margin-top: 8px; }

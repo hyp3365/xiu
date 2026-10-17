@@ -1,0 +1,93 @@
+/* =====================================================================
+ * 模块：洞府 · 悟道室（数值在 config/wudaoshi.js）
+ * ---------------------------------------------------------------------
+ * 修炼之道：每天一次，消耗悟道果，得修为（当前境界升级需要的 2%~5%），按阶段给悟道秘诀（进背包）。
+ * 神魂之道、战斗之道：暂未开放。
+ * 悟道秘诀 id "wd阶段_序号:mijue|tijue"（序号 0~9），来源在 DATA.wdSrc 现算。
+ * 存档：wd = { n: { 道id: 已悟道次数 }, day: { 道id: 上次悟道的日期 } }
+ * ===================================================================== */
+const _WR = CFG.wudaoRoom;
+// 修炼之道：第 k 阶段（从 1 起）的次数、悟道果、每几次给一本
+DATA.wdStageTimes = k => _WR.xiulian.TIMES + _WR.xiulian.ADD * (k - 1);
+DATA.wdStageFruit = k => _WR.xiulian.FRUIT + _WR.xiulian.FRUIT_ADD * (k - 1);
+DATA.wdEvery = k => Math.max(1, Math.floor(DATA.wdStageTimes(k) / _WR.xiulian.BOOKS));
+// 已悟道 n 次 → { k 第几阶段, t 本阶段已悟道次数, N 本阶段总次数 }
+DATA.wdStage = n => { let k = 1; while (n >= DATA.wdStageTimes(k)) { n -= DATA.wdStageTimes(k); k++; } return { k, t: n, N: DATA.wdStageTimes(k) }; };
+DATA.cnNum = n => { const d = "零一二三四五六七八九"; if (n < 10) return d[n]; if (n < 20) return "十" + (n % 10 ? d[n % 10] : "");
+  if (n < 100) return d[Math.floor(n / 10)] + "十" + (n % 10 ? d[n % 10] : ""); return String(n); };
+// 悟道秘诀来源（现算 + 缓存）：wd阶段_序号
+DATA._wdSrc = {};
+DATA.wdSrc = sid => {
+  if (DATA._wdSrc[sid]) return DATA._wdSrc[sid];
+  const m = /^wd(\d+)_(\d+)$/.exec(sid || ""); if (!m) return null;
+  const k = +m[1], j = +m[2], X = _WR.xiulian, T = X.TYPES, per = X.BOOKS / T.length;
+  if (k < 1 || j < 0 || j >= X.BOOKS) return null;
+  let h = 2166136261; for (const c of sid) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;
+  return DATA._wdSrc[sid] = { id: sid, src: "wdroom", star: Math.min(k, X.MAX_STAR), stage: k, idx: j, type: T[j % T.length],
+    juan: (k - 1) * per + Math.floor(j / T.length) + 1, mult: X.MULT[0] + (X.MULT[1] - X.MULT[0]) * ((h % 10001) / 10000), el: "jin", prefix: "", name: "悟道室", reqRealm: -1 };
+};
+DATA.wdBookId = (k, j) => { const o = DATA.wdSrc(`wd${k}_${j}`); return o ? `${o.id}:${o.type}` : null; };
+DATA.gfSources.wdroom = { name: "悟道室", cfg: () => Object.assign({}, CFG.gongfa.sect, { learn: 0 }) };
+
+G.module({
+  id: "wudaoshi",
+  defaults: () => ({ wd: { n: {}, day: {} } }),
+
+  api: {
+    wdLeft(dao) { const w = this.s.wd || {}; return (w.day || {})[dao] === this.today() ? 0 : _WR.DAILY; },
+    setWdDao(id) { this.wdDao = id; this.render(); },
+    // 功德司：买悟道果
+    buyWdFruit(n) {
+      const s = this.s, c = _WR.FRUIT_MERIT; n = Math.min(n, Math.floor((s.merit || 0) / c));
+      if (n <= 0) return this.log("功德不足。", "sys");
+      if (!this.addSm("wdg", n)) return;
+      s.merit -= c * n; this.log(`购得${DATA.smName("wdg")} ×${n}。`, "good"); this.after();
+    },
+    wudao(dao) {
+      const s = this.s, D0 = _WR.daos.find(d => d.id === dao); if (!D0) return;
+      if (!D0.open) return this.log(`${D0.name}暂未开放。`, "sys");
+      if (this.wdLeft(dao) <= 0) return this.log(`${D0.name}今天已经悟过了，明天再来。`, "sys");
+      const w = s.wd || (s.wd = { n: {}, day: {} }), n = w.n[dao] || 0, st = DATA.wdStage(n), need = DATA.wdStageFruit(st.k);
+      if (this.smCount("wdg") < need) return this.log(`${DATA.smName("wdg")}不足，需要 ${need} 个。`, "sys");
+      this.takeSm("wdg", need);
+      w.n[dao] = n + 1; w.day[dao] = this.today();
+      const P = _WR.xiulian.EXP_PCT, pct = P[0] + Math.random() * (P[1] - P[0]), gain = Math.max(1, Math.round(this.needExp() * pct / 100));
+      s.exp += gain;
+      let msg = `${D0.name}悟道一次，修为 +${U.fmt(gain)}（${pct.toFixed(1)}%）`;
+      const t = st.t + 1, ev = DATA.wdEvery(st.k);
+      if (t % ev === 0 && t / ev <= _WR.xiulian.BOOKS) {
+        const id = DATA.wdBookId(st.k, t / ev - 1), nm = `《${DATA.gongfaInfo(id, 1).name}》`;
+        if (this.bagFull()) msg += `，悟得${nm}（背包已满，未能放入）`;
+        else { s.bag.push({ t: "gfb", id, n: 1 }); msg += `，悟得${nm}（已放入背包）`; }
+      }
+      this._wdFx = Date.now();
+      this.log(msg + "。", "gold"); this.dirty(); this.after();
+    },
+  },
+});
+
+/* 洞府 · 悟道室页面 */
+G.caveViews.wudao = function () {
+  const s = this.s, w = s.wd || { n: {}, day: {} }, cur = _WR.daos.find(d => d.id === this.wdDao) || _WR.daos[0];
+  const fx = this._wdFx && Date.now() - this._wdFx < 1500 ? " fx" : "";
+  const daoBtn = d => { const st = DATA.wdStage(w.n[d.id] || 0);
+    return `<button class="wd-dao${cur.id === d.id ? " on" : ""}${d.open ? "" : " off"}" onclick="G.setWdDao('${d.id}')"><b>${d.name}</b>
+      <small>${d.open ? `第${st.k}阶段 · 剩余 ${this.wdLeft(d.id)} 次` : "暂未开放"}</small></button>`; };
+  let body;
+  if (!cur.open) body = `<p class="desc wd-tip">${cur.desc}</p><p class="desc wd-tip">暂未开放，敬请期待。</p><div class="btns"><button disabled>开始悟道</button></div>`;
+  else {
+    const st = DATA.wdStage(w.n[cur.id] || 0), need = DATA.wdStageFruit(st.k), have = this.smCount("wdg"), left = this.wdLeft(cur.id), ev = DATA.wdEvery(st.k);
+    const nb = Math.floor(st.t / ev), nextId = nb < _WR.xiulian.BOOKS ? DATA.wdBookId(st.k, nb) : null, toNext = (nb + 1) * ev - st.t;
+    const P = _WR.xiulian.EXP_PCT, M = _WR.xiulian.MULT, star = Math.min(st.k, _WR.xiulian.MAX_STAR);
+    body = `<div class="row small"><span>第${st.k}阶段</span><span>${st.t} / ${st.N} 次</span></div>
+      <div class="bar"><div style="width:${st.t / st.N * 100}%"></div></div>
+      <div class="ys-need"><img src="${DATA.smIcon("wdg")}" alt=""><b class="${have >= need ? "" : "q5"}">${U.fmt(have)}/${need}</b></div>
+      <p class="desc wd-tip">${cur.desc}<br>每次得修为：当前境界升级所需的 ${P[0]}%~${P[1]}%${nextId ? `<br>再悟道 ${toNext} 次得《${DATA.gongfaInfo(nextId, 1).name}》（${star}星秘诀 × ${M[0]}~${M[1]} 倍）` : ""}</p>
+      <div class="btns"><button class="primary" onclick="G.wudao('${cur.id}')" ${left > 0 && have >= need ? "" : "disabled"}>开始悟道</button></div>
+      <p class="desc wd-tip">每天仅可感悟 ${_WR.DAILY} 次 · ${DATA.smName("wdg")}在四界功德司购买</p>`;
+  }
+  return `<div class="card wd-card"><h3>${DATA.caveName("wudao")}</h3><p class="desc">${_WR.DESC}</p>
+    <div class="ys-stage wd-stage${fx}"><div class="ys-aura"></div><img class="ys-hero" src="img/wd_hero.webp?v=${DATA.IMG_V}" alt=""></div>
+    <div class="wd-daos">${_WR.daos.map(daoBtn).join("")}</div></div>
+    <div class="card"><h3>${cur.name}</h3>${body}</div>`;
+};
