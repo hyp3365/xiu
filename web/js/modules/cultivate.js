@@ -49,20 +49,20 @@ G.module({
     }
 
     // 3. 灵气不足且开了自动补充：用灵石补
-    const sp = this.speed().total;
-    if (s.ling < sp && s.array.autoRefill && s.stone >= 1) {
+    const sp = this.speed().total, red = this.wdRed("exp");   // red：神魂之道减掉的灵气消耗
+    if (s.ling < sp - red && s.array.autoRefill && s.stone >= 1) {
       const rate = this.lingPerStone();
-      const pay = Math.min(Math.ceil((sp - s.ling) / rate), Math.floor(s.stone));
+      const pay = Math.min(Math.ceil((sp - red - s.ling) / rate), Math.floor(s.stone));
       s.stone -= pay; s.ling += pay * rate;
     }
 
     // 4. 灵气转修为
-    const gain = Math.min(Math.floor(s.ling), sp);
+    const gain = Math.min(Math.floor(s.ling) + red, sp);
     if (gain <= 0) {           // 没有灵气，本次修炼不生效
       if (!s.lackWarned) { this.log("灵气耗尽，无法修炼。请开启聚灵阵或用灵石补充灵气。", "bad"); s.lackWarned = true; }
       return;
     }
-    s.ling -= gain; s.exp += gain;
+    s.ling -= Math.max(0, gain - red); s.exp += gain;
     if (gain < sp * 0.999) {
       if (!s.lackWarned) { this.log("灵气不足，修炼受阻。请开启聚灵阵或用灵石补充灵气。", "bad"); s.lackWarned = true; }
     } else s.lackWarned = false;

@@ -91,7 +91,7 @@
       const cultOn = this.isCultivating() && this.hasMijue() && !this.exBlocksCult();
       if (cultOn) for (const t in DATA.pills) { const b = s.buffs[t]; if (s.autoPill[t] && (!b || b.left <= 0) && this.bestPillIndex(t) >= 0) return 0; }
       const freeOn = cultOn && this.freeCultOn(), roomOn = cultOn && !freeOn && s.room >= 0 && !!s.sect, roomC = roomOn ? this.roomCost(s.room) : 0;
-      const SP = sp.total, RATE = this.lingPerStone(), refill = !!s.array.autoRefill;
+      const SP = sp.total, RED = this.wdRed("exp"), BRED = this.wdRed("body"), RATE = this.lingPerStone(), refill = !!s.array.autoRefill;
       const buffs = cultOn ? Object.values(s.buffs).filter(b => b.left > 0) : [];
       // 肉身修炼
       const bodyOn = !!s.bodyAuto && this.hasTijue() && !this.exBlocksCult() && !this.bodyMax();
@@ -140,20 +140,20 @@
         if (cultOn) {
           if (freeOn) { if (--fl <= 0) break; }   // 免费修炼室次数用完：事件
           else if (roomOn) { if (ct >= roomC) ct -= roomC; else break; }   // 贡献不足离开修炼室：事件
-          if (L < SP && refill && sn >= 1) { const pay = Math.min(Math.ceil((SP - L) / RATE), Math.floor(sn)); sn -= pay; L += pay * RATE; }
-          const gain = Math.min(Math.floor(L), SP);
+          if (L < SP - RED && refill && sn >= 1) { const pay = Math.min(Math.ceil((SP - RED - L) / RATE), Math.floor(sn)); sn -= pay; L += pay * RATE; }
+          const gain = Math.min(Math.floor(L) + RED, SP);
           if (gain <= 0) { if (!lk) lk = true; }
           else {
-            L -= gain; ex += gain;
+            L -= Math.max(0, gain - RED); ex += gain;
             if (gain < SP * 0.999) { if (!lk) lk = true; } else lk = false;
             if (bl.length) { bl2 = bl.slice(); for (let k = 0; k < bl2.length; k++) if (bl2[k] > 0 && --bl2[k] === 0) ended = true; }   // 药力耗尽：算完这一次就停
           }
         }
         // 7. body：肉身修炼
         if (bodyOn) {
-          if (L < BSP * BR && refill && sn >= 1) { const pay = Math.min(Math.ceil((BSP * BR - L) / RATE), Math.floor(sn)); sn -= pay; L += pay * RATE; }
-          const g = Math.min(BSP, Math.floor(L / BR));
-          if (g > 0) { L -= g * BR; be += g; }
+          if (L < BSP * BR - BRED && refill && sn >= 1) { const pay = Math.min(Math.ceil((BSP * BR - BRED - L) / RATE), Math.floor(sn)); sn -= pay; L += pay * RATE; }
+          const g = Math.min(BSP, Math.floor((L + BRED) / BR));
+          if (g > 0) { L -= Math.max(0, g * BR - BRED); be += g; }
         }
         // 11. garden：等灵气的田灵气够了 → 事件
         if (L >= waitMin) break;

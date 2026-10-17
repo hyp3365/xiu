@@ -17,15 +17,15 @@ G.module({
   tick() {
     const s = this.s, B = CFG.body;
     if (!s.bodyAuto || !this.hasTijue() || this.exBlocksCult() || this.bodyMax()) return;
-    const sp = this.bodySpeed().total, rate = Math.max(0.0001, B.LING_RATE || 1);
+    const sp = this.bodySpeed().total, rate = Math.max(0.0001, B.LING_RATE || 1), red = this.wdRed("body");   // red：神魂之道减掉的灵气消耗
     // 灵气不够且开了聚灵阵自动补充：用灵石补（和修为修炼一样）
-    if (s.ling < sp * rate && s.array && s.array.autoRefill && s.stone >= 1) {
-      const per = this.lingPerStone(), pay = Math.min(Math.ceil((sp * rate - s.ling) / per), Math.floor(s.stone));
+    if (s.ling < sp * rate - red && s.array && s.array.autoRefill && s.stone >= 1) {
+      const per = this.lingPerStone(), pay = Math.min(Math.ceil((sp * rate - red - s.ling) / per), Math.floor(s.stone));
       s.stone -= pay; s.ling += pay * per;
     }
-    const gain = Math.min(sp, Math.floor(s.ling / rate));
+    const gain = Math.min(sp, Math.floor((s.ling + red) / rate));
     if (gain <= 0) return;
-    s.ling -= gain * rate; s.bodyExp += gain;
+    s.ling -= Math.max(0, gain * rate - red); s.bodyExp += gain;
   },
 
   api: {
