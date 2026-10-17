@@ -1,8 +1,9 @@
 /* =====================================================================
  * 怪物属性生成（数值在 config/mobs.js）
- * 每个怪物 8 个数 [进入境界, 境界, 层, 功法星级, 功法来源, 学功法%, 功法层, 倍率]：
- *   怪物基础属性 = (修为突破属性 + 肉身突破属性 + 宗门功法属性) × 倍率
+ * 每个怪物 9 个数 [进入境界, 境界, 层, 功法星级, [1, 宗门%], [2, 坊市%], [3, 功德司%], 功法层, 倍率]：
+ *   怪物基础属性 = (修为突破属性 + 肉身突破属性 + 功法属性) × 倍率
  *   遇到时 × 随机(RAND[0] ~ RAND[1])；暴击 = CRIT
+ *   旧写法 8 个数 [.., 功法星级, 功法来源, 学功法%, 功法层, 倍率] 仍能读（只算宗门功法）
  * 生成后写进：
  *   CFG.monster.regions[地图][区域][normal/elite/boss]、CFG.monster.MAP_REALM（凡界 + 仙魔冥神）
  *   CFG.mijing.list[i] / CFG.lingdi.list[i] 的 realm 和 normal/elite/boss
@@ -16,22 +17,36 @@ DATA.mobRandOf = k => { const R = CFG.mobs.RAND; return R[k] || R["其他"]; };
 DATA.mobRnd = k => { const R = DATA.mobRandOf(k); return R[0] + Math.random() * (R[1] - R[0]); };
 // 肉身突破 n 次的合计加成（同 modules/body.js bodyBonus）
 DATA.mobBody = n => { const o = {}; for (const k of DATA.MOB_KEYS) o[k] = DATA.bodyStat(n, k); return o; };
-// v168 一行怪物数据统一成对象：8 个数 [进入境界, 境界, 层, 功法星级, 功法来源, 学功法%, 功法层, 倍率]
-//   层、学功法%、功法层都可以写一个数，或 [最小, 最大]（每次遇到随机；层、功法层取整数，学功法% 可带小数）
-DATA.MOB_NONE = [0, 0, 1, 0, 1, 100, 0, 1];   // 没写时：练气一层、不算功法
+// 怪物功法的三类来源（悟道、试炼塔、宗门传承功法怪物不算）
+//   1 宗门功法（宗门功法殿，不含传承功法）  2 坊市功法（凡阶坊市 + 四界坊市）  3 四界功德司功法
+DATA.MOB_GF_CAT = { 1: "宗门功法", 2: "坊市功法", 3: "功德司功法" };
+DATA.mobCatSrcs = c => c === 1 ? DATA.sects : c === 2 ? [...DATA.shopSources, ...((DATA.jieGf || {}).jshop || [])] : c === 3 ? (DATA.jieGf || {}).gd || [] : [];
+// v218 一行怪物数据统一成对象：9 个数 [进入境界, 境界, 层, 功法星级, [1, 宗门%], [2, 坊市%], [3, 功德司%], 功法层, 倍率]
+//   层、各类学功法%、功法层都可以写一个数，或 [最小, 最大]（每次遇到随机；层、功法层取整数，学功法% 可带小数）
+//   cats = [{ c: 1/2/3, pct: [最小, 最大] }]，学 0% 的那类不算
+DATA.MOB_NONE = [0, 0, 1, 0, [1, 100], [2, 0], [3, 0], 0, 1];   // 没写时：练气一层、不算功法
 DATA.mobRange = v => Array.isArray(v) ? [v[0], v[v.length - 1]] : [v || 0, v || 0];
 DATA.mobRow = t => {
   t = t || DATA.MOB_NONE;
-  return { enter: t[0], realm: Math.max(0, Math.min(DATA.realms.length - 1, t[1])), lay: DATA.mobRange(t[2]), star: t[3] || 0, src: t[4] || 1,
-    pct: DATA.mobRange(t[5]), gf: DATA.mobRange(t[6]), k: t[7] === undefined ? 1 : t[7] };
+  const isNew = Array.isArray(t[4]);
+  let cats, gf, k;
+  if (isNew) {   // 新写法：第 5~7 个是 [类别, 学%]
+    cats = [t[4], t[5], t[6]].filter(x => Array.isArray(x)).map(x => ({ c: x[0], pct: DATA.mobRange(x[1]) })); gf = t[7]; k = t[8];
+  } else {       // 旧写法：功法来源 + 学功法%（只按宗门功法算）
+    cats = [{ c: 1, pct: DATA.mobRange(t[5]) }]; gf = t[6]; k = t[7];
+  }
+  cats = cats.filter(x => DATA.MOB_GF_CAT[x.c] && x.pct[1] > 0);
+  const p1 = (cats.find(x => x.c === 1) || {}).pct || [0, 0];
+  return { enter: t[0], realm: Math.max(0, Math.min(DATA.realms.length - 1, t[1])), lay: DATA.mobRange(t[2]), star: t[3] || 0,
+    cats, pct: p1, gf: DATA.mobRange(gf), k: k === undefined ? 1 : k };
 };
-// 1 ~ 星级、来源里的全部功法，按种类分组：{ 种类id: [{ id, stat, stat2 }] }（缓存）
+// 1 ~ 星级、某一类来源里的全部功法，按种类分组：{ 种类id: [{ id, stat, stat2 }] }（缓存）
 DATA._mobBooks = {};
-DATA.mobBooks = (realm, star, src) => {
-  const ms = star > 0 ? star : DATA.refStar(realm), key = ms + ":" + src;
+DATA.mobBooks = (realm, star, cat) => {
+  const ms = star > 0 ? star : DATA.refStar(realm), key = ms + ":" + cat;
   if (DATA._mobBooks[key]) return DATA._mobBooks[key];
   const o = {};
-  for (const sc of DATA.refSrcList(src)) { if (sc.star > ms) continue;
+  for (const sc of DATA.mobCatSrcs(cat)) { if (sc.star > ms) continue;
     for (const t of DATA.gfTypesOf(sc.src)) { if (sc.src === "shop" && t.sectOnly) continue;
       (o[t.id] = o[t.id] || []).push({ id: DATA.gongfaId(sc.id, t.id), stat: t.stat, stat2: t.stat2 }); } }
   return DATA._mobBooks[key] = o;
@@ -42,12 +57,12 @@ const _mobRi = r => r[0] + Math.floor(Math.random() * (r[1] - r[0] + 1));
 // 算属性：rnd = true 每次遇到随机（层、学哪些功法、每本几层）；false = 显示用的平均值
 DATA.mobCalc = (t, crit, rnd) => {
   const R = DATA.mobRow(t), lay = Math.max(1, Math.min(DATA.LAYERS, rnd ? _mobRi(R.lay) : Math.round((R.lay[0] + R.lay[1]) / 2)));
-  const st = DATA.refStats(R.realm, lay, 0, R.star, R.src), bd = DATA.mobBody(R.realm * DATA.LAYERS + lay), add = {};
+  const st = DATA.refStats(R.realm, lay, 0, R.star, 1), bd = DATA.mobBody(R.realm * DATA.LAYERS + lay), add = {};
   for (const x of DATA.MOB_KEYS) add[x] = 0;
-  if (R.gf[1] > 0) {
-    const B = DATA.mobBooks(R.realm, R.star, R.src);
+  if (R.gf[1] > 0) for (const C of R.cats) {   // 每类来源各按自己的学功法% 算
+    const B = DATA.mobBooks(R.realm, R.star, C.c);
     for (const ty in B) {
-      const list = B[ty], pct = rnd ? R.pct[0] + Math.random() * (R.pct[1] - R.pct[0]) : (R.pct[0] + R.pct[1]) / 2;
+      const list = B[ty], pct = rnd ? C.pct[0] + Math.random() * (C.pct[1] - C.pct[0]) : (C.pct[0] + C.pct[1]) / 2;
       if (rnd) {   // 每个种类各学 pct% 本（随机挑），每本随机练到 功法层 [最小, 最大]
         const pick = list.slice(), n = Math.min(list.length, Math.round(list.length * pct / 100));
         for (let i = 0; i < n; i++) { const b = pick.splice(Math.floor(Math.random() * pick.length), 1)[0], v = DATA.mobGfVal(b.id, _mobRi(R.gf));
