@@ -109,7 +109,7 @@ G.module({
     rankTrialCost(i) { return Math.floor(((CFG.sect.rankTrial.cost || [])[i] || 0) * this.starMul()); },
     makeRankGuard(i) {
       const b = DATA.mobStats(DATA.mobExam(this.sectInfo().star, i), DATA.mobCrit("考官")), v = (x, k) => x * DATA.mobRnd(k);   // config/mobs.js 的 sect
-      return this.addMagic({ name: `${DATA.ranks[i].name}考官`, boss: false, hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: v(b.res, "res"), manaBr: b.manaBr, L: b.L, crit: b.crit }, "tower");
+      return this.addMagic({ name: `${DATA.ranks[i].name}考官`, boss: false, hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.res, manaBr: b.manaBr, L: b.L, crit: b.crit }, "tower");
     },
     challengeRank() {
       const s = this.s, i = s.rank + 1; if (i >= DATA.ranks.length || s.rankPass === i) return;
@@ -357,7 +357,7 @@ G.module({
     // 守关者属性：config/mobs.js 的 tower（v221 按层数公式算，2 星起叠加上一星塔顶），见 DATA.towerStage
     makeTowerGuard(floor) {
       const tw = DATA.towerStage(this.sectInfo().star, floor, this.towerMax()), m = {};
-      for (const k of DATA.REF_KEYS) m[k] = tw[k] * DATA.mobRnd(k);
+      for (const k of DATA.REF_KEYS) m[k] = k === "res" ? tw[k] : tw[k] * DATA.mobRnd(k);   // 抗性在 addMagic 里每系单独随机
       m.crit = tw.crit; m.manaBr = tw.manaBr; m.L = tw.L;
       return this.addMagic(Object.assign(m, { name: `第${floor}层守关者`, boss: false }), "tower");
     },
@@ -441,7 +441,7 @@ G.module({
       const v = (x, k) => x * DATA.mobRnd(k);   // 和地图普通怪一样每项随机浮动
       const p = this.testPick(), a = Math.floor(p.a / 4), r = p.a % 4, mp = DATA.maps[a];   // v180 名字 / 图同地图里的怪（图按名字找）
       const nm = kd === "boss" ? DATA.regionBoss(a, r) : (kd === "elite" ? "精英·" : "") + U.pick(mp.monsters);
-      const m = this.addMagic({ name: nm, a, kind: kd, boss: kd === "boss", elite: kd === "elite", hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: v(b.res, "res"), manaBr: b.manaBr, L: b.L, crit: b.crit }, kd);
+      const m = this.addMagic({ name: nm, a, kind: kd, boss: kd === "boss", elite: kd === "elite", hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.res, manaBr: b.manaBr, L: b.L, crit: b.crit }, kd);
       const res = this.battle(m, { test: true });
       this.playBattle(res.detail, "实力测试", "", true, [], false, { test: true, tname: this.testMobName() });
     },

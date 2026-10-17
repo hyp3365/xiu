@@ -107,7 +107,7 @@ G.module({
       const v = (x, k) => x * DATA.mobRnd(k);   // × 随机浮动
       const name = kind === "boss" ? DATA.regionBoss(a, r) : (kind === "elite" ? "精英·" : "") + U.pick(map.monsters);
       return this.addMagic({ name, Lm: R.L, kind, boss: kind === "boss", elite: kind === "elite",
-        hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: v(b.res, "res"), manaBr: b.manaBr, L: b.L, crit: b.crit }, kind);
+        hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.res, manaBr: b.manaBr, L: b.L, crit: b.crit }, kind);
     },
 
     // 给怪物加 属性 / 六系抗性 / 法术 / 法宝（config/mobs.js 的 mobs.magic）
@@ -117,7 +117,7 @@ G.module({
       m.mana = m.maxMana = b.mana !== undefined ? b.mana : m.mana || 0;   // 法力 = 修为突破 + 肉身突破的法力 × 倍率（同其他属性）
       const rv = typeof m.res === "number" ? m.res : 0;
       m.res = {};
-      for (const e of DATA.elements) m.res[e.id] = b.res && b.res[e.id] !== undefined ? b.res[e.id] : rv * (e.id === m.el ? O : 1);   // 每系抗性 = 怪物抗性（修为 + 肉身 + 真诀）× 倍率，本属性再 × OWN_RES
+      for (const e of DATA.elements) m.res[e.id] = b.res && b.res[e.id] !== undefined ? b.res[e.id] : rv * DATA.mobRnd("res") * (e.id === m.el ? O : 1);   // v227 每系单独随机；每系抗性 = 怪物抗性（修为 + 肉身 + 真诀）× 倍率，本属性再 × OWN_RES
       m.spell = M.spell; m.fabao = M.fabao;
       return m;
     },
@@ -765,7 +765,7 @@ G.module({
       const d = this.mjDef(i, k), b = DATA.mobMeet(d, kind), v = (x, k) => x * DATA.mobRnd(k);
       const name = kind === "boss" ? d.bossName : (kind === "elite" ? "精英·" : "") + U.pick(d.monsters);
       return this.addMagic({ name, Lm: d.L, kind, boss: kind === "boss", elite: kind === "elite",
-        hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: v(b.res, "res"), manaBr: b.manaBr, L: b.L, crit: b.crit }, kind);
+        hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.res, manaBr: b.manaBr, L: b.L, crit: b.crit }, kind);
     },
     // 秘境 / 灵地掉落 = 借用地图的药材矿石表（种数个数按 CFG.dropRule.mijing / lingdi，× 自己的 mat）+ extra 额外掉落
     //   秘境借用 drops 那张凡界地图；灵地借用发现地图（这一界的药材矿石表）
