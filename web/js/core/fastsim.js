@@ -43,6 +43,8 @@
       // 北京时间下一个 0 点（免费修炼室 / 练功房重置、道童俸禄）
       const last = tk - DATA.TICK * 1000;
       ev.push(Math.floor((last + B) / D) * D - B + D);
+      // v230 自动执行任务：北京时间 0:05（今天还没执行就是今天的，执行过就是明天的）
+      if (this.autoTaskAny()) { const m5 = Math.floor((last + B) / D) * D - B + 5 * 60000; ev.push(s.autoTask.day === this.bjDay() || last >= m5 ? m5 + D : m5); }
       if (s.gfLearn) ev.push(s.gfLearn.end);
       // 门派：练体池、事务堂、免费练功房到时
       if (s.pool && s.pool.end) ev.push(s.pool.end);

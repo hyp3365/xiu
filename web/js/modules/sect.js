@@ -45,7 +45,7 @@ G.module({
   // 每 10 秒：事务堂任务到时间就结算一次，并自动开始下一次（离线也会补算）
   tick(offline) {
     this.freeRoomDaily(); this.poolTick();
-    if (!offline) this.autoTaskCheck();   // v229 每天北京时间 0:05 自动执行任务（修炼设置）
+    this.autoTaskCheck();   // v229 每天北京时间 0:05 自动执行任务（修炼设置）；v230 离线补算到 0:05 也执行
     const s = this.s, a = s.affair;
     if (!s.sect || !a || a.task === undefined || a.task < 0) return;
     const t = DATA.affairs[a.task]; if (!t) { a.task = -1; return; }
@@ -257,7 +257,9 @@ G.module({
     autoTask() {
       return this.s.autoTask || (this.s.autoTask = { day: "", free: false, gf: false, pool: false, poolI: 0, xiulian: false, shenhun: false, zhandou: false, ex: false, exT: "", cq: false, cqT: "" });
     },
+    autoTaskAny() { const A = this.s.autoTask; return !!A && ["free", "gf", "pool", "xiulian", "shenhun", "zhandou", "ex", "cq"].some(k => A[k]); },
     autoTaskCheck() {
+      if (!this.autoTaskAny()) return;
       const A = this.autoTask(), day = this.bjDay(), t = new Date(this.now() + 8 * 3600000);
       if (A.day === day || t.getUTCHours() * 60 + t.getUTCMinutes() < 5) return;
       A.day = day; this.runAutoTask(); this.dirty();
