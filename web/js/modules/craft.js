@@ -174,10 +174,7 @@ G.module({
       this.s.bag.push({ t: "bp", kind, g }); return true;
     },
     addFurnaceItem(kind, g) {
-      const it = this.s.bag.find(x => x.t === "fu" && x.kind === kind && x.g === g);
-      if (it) { it.n = (it.n || 1) + 1; return true; }
-      if (this.bagFull()) { if (!this.silent) this.log("背包已满，炉子无处存放，暂停出炉。", "bad"); return false; }
-      this.s.bag.push({ t: "fu", kind, g, n: 1 }); return true;
+      return this.bagAdd(x => x.t === "fu" && x.kind === kind && x.g === g, k => ({ t: "fu", kind, g, n: k }), 1, "背包已满，炉子无处存放，暂停出炉。");
     },
     // 背包里点图纸「学习」
     learnBlueprint(i) {
@@ -357,10 +354,7 @@ G.module({
 
     /* ---------- 空间石 ---------- */
     addStone(g, n = 1) {
-      const it = this.s.bag.find(x => x.t === "ss" && x.g === g);
-      if (it) { it.n += n; return true; }
-      if (this.bagFull()) { if (!this.silent) this.log(`背包已满，${DATA.SS}暂停出炉。`, "bad"); return false; }
-      this.s.bag.push({ t: "ss", g, n }); return true;
+      return this.bagAdd(x => x.t === "ss" && x.g === g, k => ({ t: "ss", g, n: k }), n, `背包已满，${DATA.SS}暂停出炉。`);
     },
     stoneLeft(g) { return CFG.forge.stone.MAX_USE - ((this.s.stoneUsed || {})[g] || 0); },
     useStone(i, n) {
@@ -432,10 +426,7 @@ G.module({
     addDan(type, g, n = 1, sg) {
       if (DATA.recipeItem(type)) return this.addSm(DATA.recipeItem(type), n);   // 养神丹 → 专用材料
       if (DATA.isSpeedRecipe(type)) return this.addPill(type, DATA.pillGrade(type, g), n); // 修炼速度丹 → 背包修炼丹（品质 = 阶，仙界修炼丹 + REALM0）
-      const it = this.s.bag.find(x => x.t === "dan" && x.type === type && x.g === g && !x.sg === !sg);
-      if (it) { it.n += n; return true; }
-      if (this.bagFull()) { this.log("背包已满，丹药无处存放，暂停出炉。", "bad"); return false; }
-      this.s.bag.push(sg ? { t: "dan", type, g, n, sg: 1 } : { t: "dan", type, g, n }); return true;
+      return this.bagAdd(x => x.t === "dan" && x.type === type && x.g === g && !x.sg === !sg, k => sg ? { t: "dan", type, g, n: k, sg: 1 } : { t: "dan", type, g, n: k }, n, "背包已满，丹药无处存放，暂停出炉。");
     },
     danLeft(type, g) { return DATA.danLimit(type, g) - (this.s.danEaten[type + "|" + g] || 0); },
     eatDan(i, n) {

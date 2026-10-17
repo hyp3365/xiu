@@ -14,10 +14,7 @@ G.module({
     // 放进背包（叠放）
     addCustom(name, n = 1) {
       if (!this.cuDef(name) || n <= 0) return false;
-      const it = this.s.bag.find(x => x.t === "cu" && x.name === name);
-      if (it) { it.n += n; return true; }
-      if (this.bagFull()) { if (!this.silent) this.log("背包已满，物品遗失了。", "bad"); return false; }
-      this.s.bag.push({ t: "cu", name, n }); return true;
+      return this.bagAdd(x => x.t === "cu" && x.name === name, k => ({ t: "cu", name, n: k }), n, "背包已满，物品遗失了。");
     },
     // 背包弹窗内容（bag.js 的 openItem 调用）
     customItemHtml(i, it, sell) {

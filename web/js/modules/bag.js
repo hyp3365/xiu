@@ -71,18 +71,31 @@ G.module({
 
     /* ---------- 存取物品 ---------- */
     bagFull() { return this.s.bag.length >= this.s.bagCap; },
+    // 一格最多叠几个（config/bag.js）
+    stackMax(it) { const S = CFG.stack; return S.ONE.includes(it.t) || (it.t === "sm" && S.ONE_SM.includes(it.k)) ? 1 : S.MAX; },
+    // 放进背包：先补满同种的格子，剩下的每 stackMax 个开一格；make(k) 造一格 k 个。没空格时丢弃剩下的，返回 false
+    bagAdd(match, make, n, lost) {
+      const S = this.s.bag, max = this.stackMax(make(1));
+      if (max > 1) for (const it of S) { if (n <= 0) break; if (match(it) && (it.n || 1) < max) { const k = Math.min(n, max - (it.n || 1)); it.n = (it.n || 1) + k; n -= k; } }
+      while (n > 0) {
+        if (this.bagFull()) { if (lost && !this.silent) this.log(lost, "bad"); return false; }
+        const k = Math.min(n, max); S.push(make(k)); n -= k;
+      }
+      return true;
+    },
+    bagNum(match) { return this.s.bag.reduce((t, it) => t + (match(it) ? it.n || 1 : 0), 0); },
+    // 从背包扣 n 个（可跨多格，从后往前扣）；不够返回 false 且不扣
+    bagTake(match, n) {
+      if (this.bagNum(match) < n) return false;
+      for (let i = this.s.bag.length - 1; i >= 0 && n > 0; i--) { const it = this.s.bag[i]; if (!match(it)) continue; const k = Math.min(n, it.n || 1); this.removeAt(i, k); n -= k; }
+      return true;
+    },
     addPill(type, g, n = 1) {
-      const it = this.s.bag.find(x => x.t === "pill" && x.type === type && x.g === g);
-      if (it) { it.n += n; return true; }
-      if (this.bagFull()) { this.log("背包已满，物品遗失了。", "bad"); return false; }
-      this.s.bag.push({ t: "pill", type, g, n }); return true;
+      return this.bagAdd(x => x.t === "pill" && x.type === type && x.g === g, k => ({ t: "pill", type, g, n: k }), n, "背包已满，物品遗失了。");
     },
     addMat(kind, name, g, n = 1) {
       if (kind === "sm") return this.addSm(g, n);   // 秘境专用材料（退回养神露等）
-      const it = this.s.bag.find(x => x.t === "mat" && x.name === name && x.g === g);
-      if (it) { it.n += n; return true; }
-      if (this.bagFull()) { if (!this.silent) this.log("背包已满，材料遗失了。", "bad"); return false; }
-      this.s.bag.push({ t: "mat", kind, name, g, n }); return true;
+      return this.bagAdd(x => x.t === "mat" && x.name === name && x.g === g, k => ({ t: "mat", kind, name, g, n: k }), n, "背包已满，材料遗失了。");
     },
     addEquip(e) {
       if (this.bagFull()) { this.log("背包已满，装备遗失了。", "bad"); return false; }
@@ -282,41 +295,34 @@ G.module({
     },
 
     /* ---------- v25 火髓 ---------- */
-    fireCount() { const it = this.s.bag.find(x => x.t === "hx"); return it ? it.n : 0; },
-    addFire(n) {
-      const it = this.s.bag.find(x => x.t === "hx");
-      if (it) { it.n += n; return true; }
-      if (this.bagFull()) { if (!this.silent) this.log(`背包已满，${DATA.HX}遗失了。`, "bad"); return false; }
-      this.s.bag.push({ t: "hx", n }); return true;
-    },
-    takeFire(n) { const i = this.s.bag.findIndex(x => x.t === "hx"); if (i < 0 || this.s.bag[i].n < n) return false; this.removeAt(i, n); return true; },
+    fireCount() { return this.bagNum(x => x.t === "hx"); },
+    addFire(n) { return this.bagAdd(x => x.t === "hx", k => ({ t: "hx", n: k }), n, `背包已满，${DATA.HX}遗失了。`); },
+    takeFire(n) { return this.bagTake(x => x.t === "hx", n); },
     /* ---------- 秘境专用材料：空间晶核 kj、养神露 lu、耀石 ys（ft = 属性序号 0~5；-1 = 任意一种） ---------- */
     ysFor(e) { return e && e.slot === "fabao" ? DATA.elIdx(e.el) : -1; },   // 强化 / 炼制用哪种耀石
-    smFind(k, ft) { return this.s.bag.findIndex(x => x.t === "sm" && x.k === k && (!DATA.SM_GRADED.includes(k) || (x.ft || 0) === (ft || 0))); },
+    smIs(k, ft) { return x => x.t === "sm" && x.k === k && (!DATA.SM_GRADED.includes(k) || (x.ft || 0) === (ft || 0)); },
+    smFind(k, ft) { return this.s.bag.findIndex(this.smIs(k, ft)); },
     smCount(k, ft) {
-      if (k === "ys" && ft < 0) return this.s.bag.reduce((t, x) => t + (x.t === "sm" && x.k === "ys" ? x.n : 0), 0);
-      const i = this.smFind(k, ft); return i < 0 ? 0 : this.s.bag[i].n;
+      if (k === "ys" && ft < 0) return this.bagNum(x => x.t === "sm" && x.k === "ys");
+      return this.bagNum(this.smIs(k, ft));
     },
     addSm(k, n, ft) {
       if (k === "ys" && ft < 0) ft = 0;
-      const i = this.smFind(k, ft);
-      if (i >= 0) { this.s.bag[i].n += n; return true; }
-      if (this.bagFull()) { if (!this.silent) this.log(`背包已满，${DATA.smName(k, ft)}遗失了。`, "bad"); return false; }
-      const it = { t: "sm", k, n }; if (DATA.SM_GRADED.includes(k)) it.ft = ft || 0;
-      this.s.bag.push(it); return true;
+      return this.bagAdd(this.smIs(k, ft), c => { const it = { t: "sm", k, n: c }; if (DATA.SM_GRADED.includes(k)) it.ft = ft || 0; return it; }, n, `背包已满，${DATA.smName(k, ft)}遗失了。`);
     },
     // 扣专用材料；返回实际扣了哪些 [{ k, ft, n }]（任意耀石：先扣最多的那种），不够返回 false
     takeSm(k, n, ft) {
       if (k === "ys" && ft < 0) {
         if (this.smCount(k, ft) < n) return false;
         const out = [];
-        while (n > 0) {
-          const list = this.s.bag.filter(x => x.t === "sm" && x.k === "ys").sort((a, b) => b.n - a.n), x = list[0], m = Math.min(n, x.n), f = x.ft || 0;
-          this.removeAt(this.s.bag.indexOf(x), m); n -= m; out.push({ k, ft: f, n: m });
+        while (n > 0) {   // 先扣总数最多的那种
+          const fts = [...new Set(this.s.bag.filter(x => x.t === "sm" && x.k === "ys").map(x => x.ft || 0))].sort((a, b) => this.smCount("ys", b) - this.smCount("ys", a));
+          const f = fts[0], m = Math.min(n, this.smCount("ys", f));
+          this.bagTake(this.smIs("ys", f), m); n -= m; out.push({ k, ft: f, n: m });
         }
         return out;
       }
-      const i = this.smFind(k, ft); if (i < 0 || this.s.bag[i].n < n) return false; this.removeAt(i, n); return [{ k, ft, n }];
+      if (!this.bagTake(this.smIs(k, ft), n)) return false; return [{ k, ft, n }];
     },
     // 找到要洗练 / 强化的那件：b序号 = 背包，fb序号 = 法宝栏，其它 = 装备栏
     resetTarget(src) {
