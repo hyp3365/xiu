@@ -104,7 +104,7 @@ G.module({
       s.hp = st.hp; s.mana = st.mana;
       const ev = []; let win = true;
       for (const x of list) {
-        const res = this.battle(this.xjNpc(a, x.name, x.tu, x.ck));
+        const res = this.battle(this.xjNpc(a, x.name, x.tu, x.ck), { foe: "xj" });
         const t = res.win ? `${res.rounds}回合获胜` : res.timeout ? `${res.rounds} 回合未能击败，落败` : `第 ${res.rounds} 回合落败`;
         ev.push({ n: ev.length + 1, t: `${x.name}：${t}`, c: res.win ? "gold" : "bad", b: res.detail });
         if (!res.win) { win = false; break; }

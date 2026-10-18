@@ -2,6 +2,7 @@
  * 模块：战斗设置（世界 → 战斗）
  * ---------------------------------------------------------------------
  * 存档 s.bset：
+ *   foe     v241 按对手类型的战斗方式 { mob 怪物 / elite 精英 / boss 首领 / xj 星君: "norm" 正常攻击（默认）/ "atk" 只能普通攻击 }，优先于 r
  *   r       第一 ~ 三回合（每回合第一次出手）：[ "auto" 按出手方式 / "atk" 普通攻击 / "sp:法术id" / "fb:法宝栏序号" ] × 3
  *   mode    出手方式："rot" 法术、法宝轮流 / "sp" 优先法术 / "fb" 优先法宝 / "max" 伤害最高优先 / "cheap" 消耗最低优先 / "list" 按列表顺序
  *   order   列表顺序 [key]（「按列表顺序」用）
@@ -14,13 +15,14 @@
 G.module({
   id: "battleset",
 
-  defaults: () => ({ bset: { r: ["auto", "auto", "auto"], mode: "rot", lowPct: 0, lowKey: "", keep: 0, off: [], order: [] } }),
+  defaults: () => ({ bset: { foe: {}, r: ["auto", "auto", "auto"], mode: "rot", lowPct: 0, lowKey: "", keep: 0, off: [], order: [] } }),
 
   api: {
     bsetGet() {
       const b = this.s.bset || (this.s.bset = {});
       if (!Array.isArray(b.off)) b.off = [];
       if (!Array.isArray(b.order)) b.order = [];
+      if (!b.foe || typeof b.foe !== "object") b.foe = {};
       if (!Array.isArray(b.r)) b.r = ["auto", "auto", "auto"];
       if (!["rot", "sp", "fb", "max", "cheap", "list"].includes(b.mode)) b.mode = "rot";
       return b;
@@ -33,6 +35,7 @@ G.module({
       if (i < 0 || j < 0 || j >= L.length) return;
       [L[i], L[j]] = [L[j], L[i]]; b.order = L; this.dirty(); this.render();
     },
+    bsetFoe(k, v) { this.bsetGet().foe[k] = v; this.dirty(); this.render(); },
     bsetRound(i, v) { this.bsetGet().r[i] = v; this.dirty(); this.render(); },
     // 现在法术栏、法宝栏里生效的招式 [{ key, name, shield }]
     bsetActs() {
@@ -65,7 +68,10 @@ G.module({
       const num = k => `<input type="number" min="0" max="100" value="${b[k] || 0}" onchange="G.bsetSet('${k}',this.value)" style="width:5em">%`;
       const lost = key => key && key !== "auto" && key !== "atk" && !acts.some(a => a.key === key) ? `<small class="q5">已不在法术栏 / 法宝栏</small>` : "";
       const actOpts = acts.map(a => [a.key, a.name]);
-      return `<div class="card"><h3>战斗设置</h3>
+      const FOE = [["mob", "怪物"], ["elite", "精英"], ["boss", "首领"], ["xj", "星君"]];
+      return `<div class="card"><h3>战斗方式<small>按对手类型，优先于下面的回合设置</small></h3>
+        ${FOE.map(([k, t]) => `<div class="line"><div>${t}</div>${this.selBox("bs:foe" + k, [["norm", "正常攻击"], ["atk", "普通攻击"]], b.foe[k] || "norm", v => this.bsetFoe(k, v))}</div>`).join("")}</div>
+        <div class="card"><h3>战斗设置</h3>
         ${["第一回合", "第二回合", "第三回合"].map((t, i) => `<div class="line"><div>${t}${lost(b.r[i])}</div>${this.selBox("bs:r" + i, [["auto", "按出手方式"], ["atk", "普通攻击"], ...actOpts], b.r[i], v => this.bsetRound(i, v))}</div>`).join("")}
         <div class="line"><div>出手方式</div>${sel("mode", [["rot", "法术、法宝轮流"], ["sp", "优先法术"], ["fb", "优先法宝"], ["max", "伤害最高优先"], ["cheap", "消耗最低优先"], ["list", "按列表顺序"]])}</div>
         <div class="line"><div>生命低于</div>${num("lowPct")}</div>
