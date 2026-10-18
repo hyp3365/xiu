@@ -726,12 +726,15 @@ G.module({
         x.rest = 0; x.start = this.now(); x.step = 0; x.loot = this.newLoot(); x.ev = []; x.plan = this.exPlan(x);
         this.log(`生命、法力已恢复，继续${x.cq ? "出窍探索" : "自动探索"}。`, "sys"); changed = true;
       }
-      while (s.explore && this.now() >= x.start + (x.step + 1) * x.ms) {
+      const W = (CFG.explore.END_WAIT || 0) * 1000;   // v203 走完最后一步：先显示出来，固定再等 END_WAIT 秒才结算（「神行」不影响）
+      const due = () => x.lostWait ? x.start + (x.step + 1) * x.ms : x.step >= T ? x.start + T * x.ms + W : x.start + (x.step + 1) * x.ms;
+      while (s.explore && this.now() >= due()) {
         changed = true;
+        const at = due();   // 这次结算的时间：下一次从这里开始
         // 战败：先把战败那一步显示出来，再等一步的时间才结算「探索失败」
         let lost = false;
         if (x.lostWait) { lost = true; x.lostWait = 0; }
-        else if (this.exploreStep()) { x.lostWait = 1; continue; }
+        else if (x.step < T) { if (this.exploreStep()) x.lostWait = 1; continue; }
         if (x.step >= T || lost) {
           // 结算本次
           x.count++;
@@ -758,7 +761,7 @@ G.module({
             this.log(`${this.exReadyTxt()}，原地休养，恢复后自动继续（已探索 ${x.count} 次）。`, "bad");
             x.rest = 1; x.step = 0; x.loot = this.newLoot(); x.ev = []; break;
           }
-          x.start = x.start + (x.step + (lost ? 1 : 0)) * x.ms; x.ms = this.exploreMs(); x.step = 0; x.loot = this.newLoot(); x.ev = []; x.plan = this.exPlan(x);
+          x.start = at; x.ms = this.exploreMs(); x.step = 0; x.loot = this.newLoot(); x.ev = []; x.plan = this.exPlan(x);
           s.lastRun = null; // 开始新一次：不保留上一次的记录
         }
       }
@@ -1084,7 +1087,7 @@ G.module({
           const sub = x.mj !== undefined ? (x.once ? "" : x.queue && x.queue.length ? `一键探索 · 后面还有 ${x.queue.length} 处` : this.mjLabel(x.mk) + "探索") : x.once ? "" : x.cq ? `已完成 ${x.count} / ${x.cq} 次` : `已完成 ${x.count} 次`, hpP = Math.min(100, s.hp / this.stats().hp * 100), mpP = Math.min(100, s.mana / Math.max(1, this.stats().mana) * 100), bg = this.bsetGet(), gH = Math.min(100, bg.goHp || 0), gM = Math.min(100, bg.goMp || 0), restP = Math.min(gH > 0 ? hpP / gH : 1, gM > 0 ? mpP / gM : 1) * 100;   // v202 休养进度 = 生命、法力离「继续探索」设置还差多少
           return `<div class="card"><h3>${x.once ? "历练中" : x.cq ? "出窍探索中" : "自动探索中"} · ${this.exName(x)}<small>${sub}</small></h3>
           <div class="bar tick"><div style="width:${x.rest ? Math.min(100, restP) : x.step / T * 100}%"></div></div>
-          <div class="row small"><span>${x.rest ? `休养中 · 生命 ${U.fix(Math.floor(hpP) + "%")} / ${gH}%、法力 ${U.fix(Math.floor(mpP) + "%")} / ${gM}%，都够了自动继续` : `第 ${U.fix(x.step)} / ${T} 步 · 剩余 ${U.cd(Math.ceil((T - x.step) * (x.ms || 1000) / 1000))}`}</span><span>
+          <div class="row small" style="align-items:center"><span>${x.rest ? `休养中 · 生命 ${U.fix(Math.floor(hpP) + "%")} / <b class="c-green">${gH}%</b><br>法力 ${U.fix(Math.floor(mpP) + "%")} / <b class="c-green">${gM}%</b>` : x.step >= T ? `第 ${U.fix(T)} / ${T} 步 · 结算中` : `第 ${U.fix(x.step)} / ${T} 步 · 剩余 ${U.cd(Math.ceil((T - x.step) * (x.ms || 1000) / 1000 + (CFG.explore.END_WAIT || 0)))}`}</span><span style="white-space:nowrap;flex-shrink:0">
             <button class="sm" onclick="G.setExploreOpen(${!this.exploreOpen})">${this.exploreOpen ? "收起信息" : "探索信息"}</button>
             <button class="sm" onclick="G.stopNow()">停止</button></span></div>
           <p class="desc">本次收获（结束后放入背包）：灵石 ${U.fmt(L.stone)}${mats.length ? "、" + mats.join("、") : ""}</p>
