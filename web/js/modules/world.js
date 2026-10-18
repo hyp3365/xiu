@@ -376,8 +376,9 @@ G.module({
     },
     // 看详情：src = "cur" 本次探索 / "last" 上一次结果，i = 事件序号；用战斗过程画面重放，随时可跳过
     showBattle(src, i) {
-      const s = this.s, list = src === "cur" ? (s.explore && s.explore.ev) : (s.lastRun && s.lastRun.ev), e = list && list[i];
+      const s = this.s, hi = /^h\d+$/.test(src) ? +src.slice(1) : -1, list = hi >= 0 ? ((s.exHist || [])[hi] || {}).ev : src === "cur" ? (s.explore && s.explore.ev) : (s.lastRun && s.lastRun.ev), e = list && list[i];   // v205 "h序号" = 全部探索里的第几次
       if (!e || !e.b) return;
+      this._backHist = hi >= 0;   // 从全部探索点进来：关闭回放后回到全部探索窗口
       const b = e.b, last = b.log[b.log.length - 1], win = last ? last[8] <= 0 && last[6] > 0 : false;
       this.playBattle(b, "战斗过程", win ? "胜利" : "失败", win, [], true);
     },
@@ -520,7 +521,7 @@ G.module({
     // 播放完：这时才在信息栏提示胜负（只提示一次）
     battleDone(bp) { if (bp.logged) return; bp.logged = true; bp.logs.forEach(([m, c]) => this.log(m, c)); },
     skipBattle() { if (this.btCanSkip()) this.btFinish(); },
-    closeBattle() { if (this._bp) { clearInterval(this._bp.timer); clearTimeout(this._bp.skipT); this.battleDone(this._bp); } this._bp = null; this._lockModal = false; this.closeModal(); this.render(); },
+    closeBattle() { if (this._bp) { clearInterval(this._bp.timer); clearTimeout(this._bp.skipT); this.battleDone(this._bp); } this._bp = null; this._lockModal = false; this.closeModal(); this.render(); if (this._backHist) { this._backHist = false; this.openExHist(); } },
 
     /* ---------- 掉落 ---------- */
     newLoot() { return { stone: 0, mats: {} }; },
@@ -915,18 +916,18 @@ G.module({
     // 探索信息一行：战斗事件后面带「详情」按钮
     evLine(e, src, i) { return `<p class="${e.c}"><b>第${e.n}步</b> ${e.t}${e.b ? ` <button class="sm" onclick="G.showBattle('${src}',${i})">详情</button>` : ""}</p>`; },
     setLastOpen(v) { this.lastOpen = v; this.render(); },
-    // v204 全部探索记录：最近 30 次（新的在前）；存档里不存战斗过程（太大），所以没有「详情」
+    // v205 全部探索记录：最近 10 次（新的在前），含战斗回放
     exHistAdd(r) {
       const s = this.s, h = s.exHist || (s.exHist = []);
-      h.unshift({ title: r.title, bad: !!r.bad, ev: r.ev.map(e => ({ n: e.n, t: e.t, c: e.c })) });
-      if (h.length > 30) h.length = 30;
+      h.unshift({ title: r.title, bad: !!r.bad, ev: r.ev.slice() });
+      if (h.length > 10) h.length = 10;
     },
     openExHist(k) {
       if (k !== undefined) this.exHistSel = this.exHistSel === k ? -1 : k;
       const h = this.s.exHist || [], sel = this.exHistSel;
       this.modal(`<h2>全部探索<small style="color:#8c7e66;font-size:12px;margin-left:6px">最近 ${h.length} 次</small></h2>
         ${h.length ? h.map((r, i) => `<div class="line" style="align-items:center"><div class="${r.bad ? "q5" : ""}" style="font-size:13px">${i + 1}. ${r.title}</div><button class="sm ${sel === i ? "on" : ""}" style="flex-shrink:0" onclick="G.openExHist(${i})">${sel === i ? "收起" : "详细"}</button></div>
-          ${sel === i ? `<div class="explore-log">${r.ev.map(e => this.evLine(e)).join("")}</div>` : ""}`).join("") : "<p>还没有探索记录。</p>"}
+          ${sel === i ? `<div class="explore-log">${r.ev.map((e, j) => this.evLine(e, "h" + i, j)).join("")}</div>` : ""}`).join("") : "<p>还没有探索记录。</p>"}
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
     setMapSel(a) { this.mapSel = a; this.render(); },   // a = 地图序号，"mj" = 秘境
