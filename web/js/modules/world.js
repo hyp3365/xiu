@@ -168,7 +168,9 @@ G.module({
         if ((usedN[j] || 0) >= ((a.k === 1 ? a.sp.uses : a.fb.uses) || 1)) return null;   // v152 每场战斗使用次数用完
         usedN[j] = (usedN[j] || 0) + 1;
         s.mana -= cost;
-        if (a.k === 1) { const sp = a.sp; return roll(st, mE(), Math.max(MIN(st), sp.atk * sp.pct / 100 * sp.mul * this.lingenSpell(sp.el.id) - resOf(m, sp.el.id)), 1, j); }
+        if (a.k === 1) { const sp = a.sp, d = roll(st, mE(), Math.max(MIN(st), sp.atk * sp.pct / 100 * sp.mul * this.lingenSpell(sp.el.id) + (sp.jyDmg || 0) - resOf(m, sp.el.id)), 1, j);
+          if (!opt.test) { const xd = CFG.gongfa.XD_GAIN === undefined ? 1 : CFG.gongfa.XD_GAIN; if (xd > 0) { const X = this.s.spXd = this.s.spXd || {}; X[sp.el.id] = (X[sp.el.id] || 0) + xd; act.x = (act.x || 0) | 256; } }   // v239 法术心得
+          return d; }
         const fb = a.fb;
         if (fb.shield) { shield = Object.assign({ el: fb.el }, fb.shield); act = { k: 3, sp: j, f: 0 }; return 0; }
         let d = roll(fb.hit || fb.critAdd ? Object.assign({}, st, { hit: st.hit + (fb.hit || 0), crit: st.crit + (fb.critAdd || 0) }) : st, mE(), fabaoDmg(fb), 2, j);   // 刀 / 锤专属：本次攻击额外命中、暴击
@@ -179,7 +181,7 @@ G.module({
         }
         return d;
       };
-      const est = a => a.k === 1 ? Math.max(MIN(st), a.sp.atk * a.sp.pct / 100 * a.sp.mul * this.lingenSpell(a.sp.el.id) - resOf(m, a.sp.el.id)) : a.fb.shield ? -1 : fabaoDmg(a.fb);
+      const est = a => a.k === 1 ? Math.max(MIN(st), a.sp.atk * a.sp.pct / 100 * a.sp.mul * this.lingenSpell(a.sp.el.id) + (a.sp.jyDmg || 0) - resOf(m, a.sp.el.id)) : a.fb.shield ? -1 : fabaoDmg(a.fb);
       const costOf = a => a.k === 1 ? a.sp.mana : a.fb.mana;
       const jOf = key => acts.findIndex(a => a.key === key);
       const useJ = acts.map((a, j) => j).filter(j => !off.includes(acts[j].key));
@@ -332,7 +334,7 @@ G.module({
       if (TEST) s.mana = mana0;
       // 战斗说明（显示在探索信息里）
       const why = `你出战时生命 ${U.fmt(hp0)}，共造成 ${U.fmt(dealt)} 伤害（对方剩余生命 ${U.fmt(Math.max(0, mhp))}/${U.fmt(m.hp)}），承受 ${U.fmt(taken)} 伤害；对方攻击 ${U.fmt(m.atk)} 防御 ${U.fmt(m.def)}${m.el ? `，${DATA.elById[m.el].name}属性，施法术 ${mSp} 次、法宝 ${mFb} 次` : ""}`;
-      const detail = { name: m.name, el: m.el || "", a: m.a, sp: spNames, first: meFirst ? 0 : 1, log, mf: m.mf.slice(),
+      const detail = { name: m.name, el: m.el || "", a: m.a, sp: spNames, spEl: spells.map(sp => sp.el.name), first: meFirst ? 0 : 1, log, mf: m.mf.slice(),
         me: [R(hp0), R(st.hp), R(mana0), R(st.mana)], mob: [R(m.hp), R(m.hp), R(m.maxMana || 0), R(m.maxMana || 0)],
         // v181 这场战斗怪物的准确属性（战斗画面点怪物查看）
         ms: { hp: m.hp, atk: m.atk, def: m.def, speed: m.speed, hit: m.hit, dodge: m.dodge, mana: m.maxMana || 0, crit: m.crit || 0, res: Object.assign({}, m.res || {}),
@@ -356,6 +358,7 @@ G.module({
       if (fx & 1) res += `，${tgt}被眩晕`;
       if (fx & 64) res += `，${tgt}被镇魂，只能普通攻击`;
       if (fx & 16) res += `，${tgt}发动御天秘法，保留一点生命`;
+      if (fx & 256 && !w) res += `，获得${(b.spEl && b.spEl[sp]) || ""}系法术心得 ${CFG.gongfa.XD_GAIN === undefined ? 1 : CFG.gongfa.XD_GAIN} 点`;   // v239
       return `<p>${who}${pre}${how}${res}。</p>`;
     },
     // 战斗总览：先手、开战数值、双方各方式伤害合计

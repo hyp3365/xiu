@@ -252,8 +252,13 @@ DATA.spellInfo = (id, lv = 1, own) => {
     mana: Math.max(1, Math.round(DATA.spellManaBase(sect.star) * v(_GF.MANA_PCT, 0) / 100
       * (1 + (typeof G !== "undefined" && G.s && G.s.lingen ? G.s.lingen[el.id] || 0 : 0) * v(_GF.MANA_LINGEN, 0)))),
     cost: DATA.gfLearnCost(sect, "spell"),
+    // v239 精研：jy 次数，jyDmg 属性伤害（加在法术伤害上）
+    jy: DATA.spellJy(id), jyDmg: DATA.spellJy(id) * DATA.jyStep(sect.star, "JY_DMG"),
   };
 };
+// v239 法术精研：每星的参数（config/gongfa.js 的 JY_DMG / JY_COST），玩家某法术已精研次数
+DATA.jyStep = (star, k) => { const A = _GF[k] || [0]; return A[Math.min(Math.max(0, star - 1), A.length - 1)] || 0; };
+DATA.spellJy = id => (typeof G !== "undefined" && G.s && G.s.spJy && G.s.spJy[id]) || 0;
 
 // 通用：功法、法术或秘法
 // 法宝、法术攻击 = min(使用者修为 + 肉身突破的攻击, 上限 cap) + 其余全部攻击（v235：功法、装备、戒指、法宝、丹药、练体池等都算）

@@ -425,12 +425,27 @@ G.module({
       s.fabao[k] = it.e; s.bag[i] = { t: "eq", e: old };
       this.log(`装备了${it.e.name}。`, "good"); this.closeModal(); this.after();
     },
+    // v239 法术精研界面：用该系法术心得精研，每次 + 属性伤害（config/gongfa.js 的 JY_DMG / JY_COST）
+    openSpellJy(id) {
+      const s = this.s, g = DATA.spellInfo(id, s.gongfa[id]); if (!g) return;
+      const have = (s.spXd || {})[g.el.id] || 0, add = DATA.jyStep(g.star, "JY_DMG"), cost = DATA.jyStep(g.star, "JY_COST");
+      this.modal(`<h2 class="q1">《${g.name}》精研</h2><p>已精研 ${U.fmt(g.jy)} 次 · 属性伤害 +${U.fmt(g.jyDmg)}<br>${g.el.name}系法术心得 ${U.fmt(have)} 点<br>每次精研：属性伤害 +${U.fmt(add)}，消耗${g.el.name}系法术心得 ${U.fmt(cost)} 点</p>
+        <div class="btns"><button onclick="G.spellJy('${id}')" ${have < cost ? "disabled" : ""}>精研</button><button onclick="G.closeModal()">关闭</button></div>`);
+    },
+    spellJy(id) {
+      const s = this.s, g = DATA.spellInfo(id, s.gongfa[id]); if (!g) return;
+      const cost = DATA.jyStep(g.star, "JY_COST"), X = s.spXd = s.spXd || {};
+      if ((X[g.el.id] || 0) < cost) return this.log(`${g.el.name}系法术心得不足。`, "sys");
+      X[g.el.id] -= cost; (s.spJy = s.spJy || {})[id] = (s.spJy[id] || 0) + 1;
+      this.log(`《${g.name}》精研成功，属性伤害 +${U.fmt(DATA.jyStep(g.star, "JY_DMG"))}。`, "good");
+      this.dirty(); this.after(); this.openSpellJy(id);
+    },
     unslotSpell(i) { this.s.spellSlots.splice(i, 1); this.closeModal(); this.after(); },
     // 点法术栏：显示详细，可卸下
     openSpellSlot(i) {
       const id = this.s.spellSlots[i], g = id && DATA.spellInfo(id, this.s.gongfa[id]); if (!g) return;
       this.modal(`<h2 class="q1">《${g.name}》</h2><p>${g.el.name}系 · ${g.lv} 层<br>${this.spellDmgTxt(g)}<br>耗法力 ${U.fmt(g.mana)} · 每场战斗最多 ${g.uses} 次</p>
-        <div class="btns"><button onclick="G.unslotSpell(${i})">卸下</button><button onclick="G.openSpellPick(${i})">更换</button><button onclick="G.closeModal()">关闭</button></div>`);
+        <div class="btns"><button onclick="G.openSpellJy('${id}')">精研</button><button onclick="G.unslotSpell(${i})">卸下</button><button onclick="G.openSpellPick(${i})">更换</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
   },
 
