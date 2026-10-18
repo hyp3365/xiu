@@ -294,7 +294,7 @@ CFG.sect.qingling = {
 CFG.sect.chuancheng = {
   WORD: "传承",
   TYPES: ["gongjue", "xinfa", "zhenjing", "fajue"],   // 有哪几类功法（加一本法术）
-  NAME: { gongjue: "攻诀", xinfa: "心法", zhenjing: "真经", fajue: "法诀" },
+  NAME: { gongjue: "攻诀", xinfa: "心法", zhenjing: "真诀", fajue: "法诀" },
   SPELL: "神通",
   PCT: 150,
   LEARN: 2,

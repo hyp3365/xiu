@@ -2,9 +2,9 @@
  * 数据：功法 & 法术
  * ---------------------------------------------------------------------
  * 【功法】六大类，每类加成一种属性（固定数值，不是百分比）：
- *   心法 → 防御      功诀 → 攻击      真经 → 生命上限
+ *   心法 → 防御      功诀 → 攻击      真诀 → 生命上限
  *   秘诀 → 修炼速度  身法 → 速度、命中 遁术 → 闪避      法诀 → 法力上限
- *   真诀 → 本门派属性的抗性（金木水火土雷之一，v15）
+ *   真经 → 本门派属性的抗性（金木水火土雷之一，v15）
  * 每个门派每类功法若干本（config/gongfa.js 的 BOOKS），效果按 sect.TOTAL 分配
  * 必须学会至少一部秘诀才能修炼。
  *
@@ -30,12 +30,12 @@ const _NM = CFG.names;
 DATA.gongfaTypes = [
   { id: "xinfa",    name: "心法", suffix: "心法", stat: "def",       label: "防御" },
   { id: "gongjue",  name: "功诀", suffix: "诀",   stat: "atk",       label: "攻击" },
-  { id: "zhenjing", name: "真经", suffix: "真经", stat: "hp",        label: "生命上限" },
+  { id: "zhenjing", name: "真诀", suffix: "真诀", stat: "hp",        label: "生命上限" },
   { id: "mijue",    name: "秘诀", suffix: "秘诀", stat: "cultivate", label: "修炼速度" },
   { id: "shenfa",   name: "身法", suffix: "身法", stat: "hit",       label: "命中", catLabel: "命中、速度" },   // v240：身法拆成两本：这本只加命中（id 不变，已学的自动去掉速度）
   { id: "dunshu",   name: "遁术", suffix: "遁术", stat: "dodge",     label: "闪避" },
   { id: "fajue",    name: "法诀", suffix: "法诀", stat: "mana",      label: "法力上限" },
-  { id: "zhenjue",  name: "真诀", suffix: "真诀", stat: "res",       label: "抗性" }, // 抗性属性 = 来源属性
+  { id: "zhenjue",  name: "真经", suffix: "真经", stat: "res",       label: "抗性" }, // 抗性属性 = 来源属性
   { id: "tijue",    name: "肉身秘诀", suffix: "炼体诀", stat: "body", label: "肉身修炼速度", sectOnly: true }, // 修炼肉身的前提；只在宗门功法殿学习
 ];
 
@@ -224,7 +224,7 @@ DATA.gongfaInfo = (id, lv = 1) => {
   const J = sect.src === "jshop" ? _GF.jshop || {} : null;
   return {
     kind: "gf", id, sect, src: DATA.srcType(sect), star: sect.star, type, lv, el,
-    label: type.stat === "res" ? el.name + "抗性" : type.label, // 显示用：真诀写成「火抗性」等
+    label: type.stat === "res" ? el.name + "抗性" : type.label, // 显示用：真经写成「火抗性」等
     gx: J ? Math.floor(((J.GX || [])[sect.star - 6] || 0) * (((J.TYPE || {})[DATA.gfTypeKey(type.id)]) === undefined ? 1 : J.TYPE[DATA.gfTypeKey(type.id)])) : 0,   // 仙魔冥神坊市：还要本图贡献
     name: DATA.gongfaName(sect, type),
     value: per * DATA.lvMul(lv),                  // 当前加成（固定数值）
