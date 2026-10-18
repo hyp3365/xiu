@@ -528,3 +528,4 @@ button small .cd{min-width:0}
 .dsh-li{float:left;width:34px;height:34px;margin:0 6px 0 0}
 .dsh-big{display:block;width:72px;height:72px;margin:0 auto 6px}
 @media (prefers-reduced-motion:reduce){.dsh::after{animation:none}}
+.c-green{color:#6fd36f!important}.c-red{color:#ff6b5b!important}

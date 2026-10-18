@@ -274,7 +274,7 @@ G.module({
           (g.label2 ? `；${g.label2} ${cv("+" + this.gfValue(g, g.value2 * this.lingenGongfa(g.el.id)))}${max ? "" : `，下一层 ${cv("+" + this.gfValue(g, g.next2 * this.lingenGongfa(g.el.id)))}`}` : "");
       const sec = max ? 0 : this.studySec(g), n = Math.ceil(sec / DATA.STUDY_STEP), per = max ? 0 : DATA.studyPer(g), sp = max ? 0 : g.stonePer || 0;
       return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》${g.noEl ? "" : `<span class="tag">${g.star}星</span>`}${g.kind === "mf" || g.noEl ? "" : `<span class="tag">${g.el.name}</span>`}<span class="tag gf-lv">第${g.lv}层</span>
-        <small>${desc}${max ? "" : `<br>下一层：${U.dur(sec)} · 每5秒 ${U.fmt(per)} 修为${sp ? ` + ${U.fmt(sp)} 灵石` : ""}（共 ${U.fmt(per * n)}${sp ? ` 修为、${U.fmt(sp * n)} 灵石` : ""}）`}${plan > g.lv ? `<br>已排至第 ${plan} 层` : ""}</small></div>
+        <small>${desc}${max ? "" : `<br>下一层：${U.dur(sec)} · 每5秒 ${U.fmt(per)} 修为${sp ? ` + ${U.fmt(sp)} 灵石` : ""}（共 ${U.fmt(per * n)}${sp ? ` 修为、${U.fmt(sp * n)} 灵石` : ""}）`}${plan > g.lv ? `<br><span class="c-green">已排至第 ${plan} 层</span>` : ""}</small></div>
         ${max ? `<button class="sm" disabled>圆满</button>` :
           `<button class="sm" onclick="G.studyGongfa('${g.id}')" ${full || s.gfQueue.length >= DATA.GF_QUEUE ? "disabled" : ""}>${full ? "已排满" : "修炼"}</button>`}</div>`;
     },
