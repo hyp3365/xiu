@@ -66,8 +66,9 @@ G.module({
     regen(battle) {
       const m = this.mifaBonus();
       if (battle) return { hp: m.hpBattlePct || 0, mana: m.mpBattlePct || 0, hpFlat: m.hpBattle || 0, manaFlat: m.mpBattle || 0 };   // 战斗中只有秘法恢复
-      const b = CFG.player.REGEN_IDLE || {}, f = this.inFight() ? 0 : 1;   // v199 养血 / 养灵秘法：战斗进行中（历练 / 探索 / 出窍 / 秘境 / 灵地 / 渡劫）无效
-      return { hp: (b.hp || 0) + m.hpIdle * f, mana: (b.mana || 0) + m.mpIdle * f };
+      const b = CFG.player.REGEN_IDLE || {};
+      if (this.inFight()) return { hp: 0, mana: 0 };   // v201 战斗进行中（历练 / 探索 / 出窍 / 秘境 / 灵地 / 渡劫，休养不算）：平时恢复 1% 和 养血 / 养灵都不生效，只靠 斗血 / 斗灵
+      return { hp: (b.hp || 0) + m.hpIdle, mana: (b.mana || 0) + m.mpIdle };
     },
     // 战斗进行中：历练 / 探索 / 出窍 / 秘境 / 灵地（休养等待时不算），或正在渡劫
     inFight() {
