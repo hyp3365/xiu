@@ -124,7 +124,7 @@
         if (h < HP) h = Math.min(HP, h + HP * R0.hp / 100);
         if (mp < MP) mp = Math.min(MP, mp + MP * R0.mana / 100);
         // 2. cave：聚灵
-        L = Math.min(CAP, L + GATH);
+        if (L < CAP) L = Math.min(CAP, L + GATH);   // v207 上限变低不删已有灵气
         // 3. gongfa：功法修炼进度
         if (gs) {
           const steps = Math.floor((now - a2) / (2 * STEP));   // v247 每 10 秒结算（和 gongfa.js 一样）

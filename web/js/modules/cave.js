@@ -23,7 +23,7 @@ G.module({
 
   // 每 10 秒聚集灵气
   tick() {
-    this.s.ling = Math.min(this.lingCap(), this.s.ling + this.speed().gather);
+    const cap = this.lingCap(); if (this.s.ling < cap) this.s.ling = Math.min(cap, this.s.ling + this.speed().gather);   // v207 上限只挡聚灵，上限变低时不删已有灵气
   },
 
   api: {
