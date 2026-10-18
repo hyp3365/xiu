@@ -29,7 +29,7 @@ CFG.battle = {
   RAND_MAX: 1.1,     // 伤害随机上限（× 1.1）
   CRIT_MULT: 2,      // 暴击伤害倍率（× 2）
   MAX_ROUNDS: 100,   // 一场战斗最多回合数，打满还没击败对方算失败（雷劫不受此限）
-  TEST_ROUNDS: 500,   // v158 宗门「实力测试」最多打几回合（不扣生命，可随时关闭）
+  TEST_ROUNDS: 200,   // v158 宗门「实力测试」最多打几回合（不扣生命，可随时关闭）
   // v183：相对差 = (命中 − 对方闪避) ÷ (对方闪避 + HIT_PAD) × 100
   //   比对方高：每满 HIT_UP_STEP % 命中率 + HIT_UP_ADD %；比对方低：每满 HIT_DN_STEP % 命中率 − HIT_DN_ADD %；不满一档不变
   HIT_BASE: 80, HIT_UP_STEP: 6, HIT_UP_ADD: 1, HIT_DN_STEP: 5, HIT_DN_ADD: 2.5, HIT_MAX: 96, HIT_MIN: 30, HIT_PAD: 0,
@@ -44,12 +44,12 @@ CFG.battle = {
 // ---------- 属性抗性 ----------
 // 战斗中某系抗性 = 防御 × RES_RATE + 该系抗性
 // 被该系法术、法宝打中时按这个减免（伤害 − 防御 × RES_RATE − 该系抗性）；普通攻击只算 防御 × DEF_RATE
-CFG.battle.RES_RATE = 0.8;   // v235 法术 / 法宝减免 = 对方防御 × 0.9 + 对方该系抗性（双方一样）
+CFG.battle.RES_RATE = 0.72;   // v235 法术 / 法宝减免 = 对方防御 × 0.9 + 对方该系抗性（双方一样）
 
 // ---------- 战斗画面播放速度 ----------
 // 雷劫：每 ROUND_SEC 秒打一回合
-CFG.battle.ROUND_SEC = 1.5;   // 秒
+CFG.battle.ROUND_SEC = 2;   // 秒
 // 战斗过程画面（探索详情、试炼塔、晋升考验、星君）：每 ACT_SEC 秒播放一次出手（结果已算好，只是播放）
-CFG.battle.ACT_SEC = 1.6;   // 秒
+CFG.battle.ACT_SEC = 1.5;   // 秒
 CFG.battle.ANIM_SLOW = 1.6; // v161 战斗动作动画放慢倍数（1 = 原速，越大越慢）
 CFG.battle.SKIP_SEC = 3;    // 试炼塔等现场战斗几秒后可以跳过（看详情随时可跳过）
