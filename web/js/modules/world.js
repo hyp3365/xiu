@@ -579,7 +579,7 @@ G.module({
     },
     rollMonsterLoot(loot, m, a, mj, mk) {
       const E = CFG.drop, mult = m.boss ? E.BOSS_STONE : m.elite ? E.ELITE_STONE : 1, ev = m.boss ? "boss" : m.elite ? "elite" : "monster";
-      const sm = mj !== undefined ? (this.mjDef(mj, mk).stone || 1) : DATA.mapStone(a);
+      const sm = mj !== undefined ? (this.mjDef(mj, mk).stone || 1) : DATA.mapStone(a) * (E.MAP_STONE || 1);   // v199 地图怪物灵石 × MAP_STONE（灵矿不乘）
       const w = mj !== undefined ? (mk === "ld" ? this.mjDef(mj, mk).w : "fan") : DATA.maps[a].w, per = this.runStonePer(w, m.Lm);
       const raw = per * (1 + Math.random() * 1.5) * E.STONE_RATE * mult * sm;
       const stone = Math.floor(raw + Math.random());   // 随机取整，平均值不被向下取整吃掉
@@ -681,8 +681,11 @@ G.module({
       let t = "", c = "", bd = null;
       const roll = ev => mj !== undefined ? this.rollMj(x.loot, ev, mj, mk) : this.rollEvent(x.loot, ev, a);
       if (type === "kuang") { const g = this.kuangStone(a); x.loot.stone += g; t = `挖掘灵石矿，获得灵石 ${U.fmt(g)}`; c = "good"; }
-      else if (type === "herb") { t = `发现灵药，采得 ${[roll("herbEvent"), sm()].filter(Boolean).join("、") || "无"}`; c = "good"; }
-      else if (type === "ore") { t = `发现矿脉，挖得 ${[roll("oreEvent"), sm()].filter(Boolean).join("、") || "无"}`; c = "good"; }
+      else if (type === "herb" || type === "ore") {   // v199 什么都没得到时不显示「发现灵药 / 矿脉，获得 无」，当作普通一步
+        const g = [roll(type === "herb" ? "herbEvent" : "oreEvent"), sm()].filter(Boolean).join("、");
+        if (g) { t = type === "herb" ? `发现灵药，采得 ${g}` : `发现矿脉，挖得 ${g}`; c = "good"; }
+        else t = U.pick(DATA.exploreIdle);
+      }
       else if (type === "monster" || type === "elite" || type === "boss") {
         const kind = type === "monster" ? "normal" : type, m = mj !== undefined ? this.makeMjMob(mj, kind, mk) : this.makeMob(a, r, kind);
         m.a = a;
