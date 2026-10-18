@@ -165,7 +165,7 @@ const G = {
 
   /* ---------- 主循环（每 0.2 秒检查一次） ---------- */
   loop() {
-    if (this._stopped) return;
+    if (this._stopped || this._hold) return;   // v245 刚切回前台：先让画面显示出来，再补算离开期间的结算
     const now = Date.now(), T = DATA.TICK * 1000;
     if (now - this._lastTick >= T) {
       // 浏览器切到后台会暂停/降频定时器：按实际经过时间补齐漏掉的结算，不再丢修为、气血、灵气
@@ -248,15 +248,22 @@ const G = {
     const frame = () => { if (!this._stopped) this.bars(); requestAnimationFrame(frame); };
     if (typeof requestAnimationFrame === "function") requestAnimationFrame(frame);
     // 倒计时刷新（只在有倒计时的页面）
-    setInterval(() => { if (this.s && this.s.explore) this.advanceExplore(); }, 1000); // 自动探索每秒走一步
+    setInterval(() => { if (this.s && this.s.explore && !this._hold) this.advanceExplore(); }, 1000); // 自动探索每秒走一步
     setInterval(() => { if (this.s && this.s.trib) this.advanceTrib(); if (this.tribOpen) this.showTrib(); }, 1000); // 雷劫每秒一回合
     setInterval(() => { if ((this.tab === "gongfa" && this.s.gfStudy) || (this.tab === "sect" && (this.sectTab === "affair" || this.sectTab === "alchemy" || (this.sectTab === "gfroom" && this.freeGfOn()))) || (this.tab === "world" && this.s.explore) || this.tab === "cave" || this.s.gfLearn || this.s.danStudy || this.s.forgeStudy) this.render(); }, 1000);
     // 切到后台 / 关闭页面时立即上传
-    document.addEventListener("visibilitychange", () => { if (document.hidden && !this._stopped) { this.save(); API.beacon(this._saveStr); } else if (!document.hidden && !this._stopped) { this.loop(); this.save(true); } });
+    document.addEventListener("visibilitychange", () => { if (document.hidden && !this._stopped) { this.save(); API.beacon(this._saveStr); } else if (!document.hidden && !this._stopped) {
+      // v245 切回前台：先画一帧（不黑屏），下一轮再补算离开期间的修炼 / 探索并上传
+      this._hold = true;
+      const go = () => setTimeout(() => { this._hold = false; this.loop(); if (this.s && this.s.explore) this.advanceExplore(); this.save(true); }, 30);
+      if (typeof requestAnimationFrame === "function") requestAnimationFrame(go); else go();
+      setTimeout(() => { if (this._hold) { this._hold = false; this.loop(); } }, 1500);   // 保险：rAF 没触发也会继续
+    } });
     window.addEventListener("pagehide", () => { if (!this._stopped) { this.save(); API.beacon(this._saveStr); } });
   },
 
   init() {
+    const bt = document.getElementById("boot"); if (bt) bt.remove();   // v245 网页加载完：去掉「加载中」
     document.querySelectorAll("#tabs button").forEach(b => {   // 底部导航按钮名字在 config/names.js 的 tab
       const n = DATA.nmPick(CFG.names.tab, b.dataset.tab, ""), t = b.lastChild;
       if (n && t && t.nodeType === 3) t.textContent = n;

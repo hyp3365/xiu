@@ -6,6 +6,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.view.Window;
 import android.view.WindowManager;
+import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -41,6 +42,13 @@ public class MainActivity extends Activity {
         w.getDecorView().setBackgroundColor(BG);
         loadImgVer();
         loadSrvHash();
+        setContentView(makeWeb());
+        if (b != null) web.restoreState(b);
+        else web.loadUrl(serverUrl());
+    }
+
+    // 建 WebView（网页进程被系统回收时会重新建一个）
+    private WebView makeWeb() {
         web = new WebView(this);
         web.setBackgroundColor(BG);
         WebSettings s = web.getSettings();
@@ -58,6 +66,19 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView v, String url) {
                 v.evaluateJavascript("document.documentElement.classList.add('apk')", null);
             }
+            // 切到后台久了，系统可能回收网页进程：不让整个 App 崩溃 / 一直黑屏，换一个新的 WebView 重新打开游戏
+            @Override
+            @android.annotation.TargetApi(26)
+            public boolean onRenderProcessGone(WebView v, RenderProcessGoneDetail d) {
+                if (v == web) {
+                    android.view.ViewGroup p = (android.view.ViewGroup) v.getParent();
+                    if (p != null) p.removeView(v);
+                    v.destroy();
+                    setContentView(makeWeb());
+                    web.loadUrl(serverUrl());
+                } else v.destroy();
+                return true;
+            }
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest req) {
                 WebResourceResponse r = localImg(req.getUrl());
@@ -65,10 +86,14 @@ public class MainActivity extends Activity {
             }
         });
         web.setWebChromeClient(new WebChromeClient());   // 让网页的确认框 / 提示框（confirm、alert）能弹出来
-        setContentView(web);
-        if (b != null) web.restoreState(b);
-        else web.loadUrl(serverUrl());
+        return web;
     }
+
+    // 切后台 / 切回来：通知 WebView（切回来时马上恢复绘制，减少黑屏）；不暂停 JS 定时器，切后台时网页还要上传存档
+    @Override
+    protected void onPause() { super.onPause(); if (web != null) web.onPause(); }
+    @Override
+    protected void onResume() { super.onResume(); if (web != null) { web.onResume(); web.resumeTimers(); web.invalidate(); } }
 
     private void loadImgVer() {
         try (BufferedReader r = new BufferedReader(new InputStreamReader(getAssets().open("img_ver.txt"), "UTF-8"))) {

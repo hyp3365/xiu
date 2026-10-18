@@ -431,7 +431,7 @@ G.module({
         if (bp.shown < bp.acts.length) this.btAct(bp.acts[bp.shown++], true);
         if (bp.shown >= bp.acts.length) { clearInterval(bp.timer);
           if (bp.test) { const lg = $("#bt-log"); if (lg) { const L = bp.acts[bp.acts.length - 1] || [], ph = L[6], mh = L[8];   // v244 测试也会分出胜负
-            lg.insertAdjacentHTML("beforeend", `<p class="bt-gray">${mh <= 0 && ph > 0 ? `第 ${bp.round || 0} 回合击败对手` : ph <= 0 ? `第 ${bp.round || 0} 回合落败` : `已打满 ${bp.round || 0} 回合`}，测试结束（生命、法力已还原）。</p>`); lg.scrollTop = 1e9; } }
+            lg.insertAdjacentHTML("beforeend", `<p class="bt-gray">${mh <= 0 && ph > 0 ? `第 ${bp.round || 0} 回合击败对手` : ph <= 0 ? `第 ${bp.round || 0} 回合落败` : `已打满 ${bp.round || 0} 回合`}。</p>`); lg.scrollTop = 1e9; } }
           else setTimeout(() => { if (this._bp === bp) this.btFinish(); }, 600); }
         this.btBtn();
       };
