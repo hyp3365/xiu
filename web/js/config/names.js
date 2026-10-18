@@ -718,7 +718,7 @@ CFG.names.gfType = {
   gongjue: ["功诀", "诀"],          // 加攻击
   zhenjing: ["真经", "真经"],       // 加生命上限
   mijue: ["秘诀", "秘诀"],          // 加修炼速度
-  shenfa: ["身法", "身法"],         // 加速度、命中
+  shenfa: ["身法", "身法"],         // 加命中（v240 起另一本「身法」只加速度，名字同用这里）
   dunshu: ["遁术", "遁术"],         // 加闪避
   fajue: ["法诀", "法诀"],          // 加法力上限
   zhenjue: ["真诀", "真诀"],        // 加抗性
@@ -774,7 +774,7 @@ CFG.names.shopGf = {
   f5_5: "摇光",      // 5 星坊市功法（火）
 };
 CFG.names.shopGfSuffix = "传承";         // 坊市功法来源名后缀
-CFG.names.jieGfSuffix = { gongjue: "攻诀" };   // 仙魔冥神坊市、功德司功法的后缀（没写的用 gfType 的后缀）：梵度天攻诀
+CFG.names.jieGfSuffix = { gongjue: "攻诀", sufa: "疾影身法" };   // 仙魔冥神坊市、功德司功法的后缀（没写的用 gfType 的后缀）：梵度天攻诀
 CFG.names.gdGfWord = "功德";            // 仙魔冥神功德司功法：地图名 + 这个 + 后缀（梵度天功德秘诀）
 /* 试炼塔秘诀的来源：代号 = t星级；显示为「问心塔」 */
 CFG.names.towerGf = {

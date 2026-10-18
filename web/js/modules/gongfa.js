@@ -301,7 +301,7 @@ G.module({
       <button class="sm ${hide ? "active" : ""}" onclick="G.toggleGfHideMax()">${hide ? "显示满级" : "隐藏满级"}</button></div>`;
 
     const all = ids.map(id => DATA.skillInfo(id, s.gongfa[id])).filter(Boolean).filter(g => !hide || g.lv < (g.max || DATA.GONGFA_MAX));
-    const groups = [...DATA.gongfaTypes.filter(t => !t.base).map(t => ({ key: t.id, title: t.name, sub: t.label, items: all.filter(g => g.kind === "gf" && (g.type.base || g.type.id) === t.id) })),
+    const groups = [...DATA.gongfaTypes.filter(t => !t.base).map(t => ({ key: t.id, title: t.name, sub: t.catLabel || t.label, items: all.filter(g => g.kind === "gf" && (g.type.base || g.type.id) === t.id) })),
                     { key: "spell", title: "法术", sub: "放入背包法术栏后战斗中施放", items: all.filter(g => g.kind === "sp") },
                     { key: "mifa", title: "秘法", sub: "宗门秘法殿学习 · 修炼消耗修为和灵石", items: all.filter(g => g.kind === "mf") }];
     // 先按等级，同等级再按星级；同星级 天 → 黄

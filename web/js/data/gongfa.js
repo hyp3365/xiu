@@ -32,7 +32,7 @@ DATA.gongfaTypes = [
   { id: "gongjue",  name: "功诀", suffix: "诀",   stat: "atk",       label: "攻击" },
   { id: "zhenjing", name: "真经", suffix: "真经", stat: "hp",        label: "生命上限" },
   { id: "mijue",    name: "秘诀", suffix: "秘诀", stat: "cultivate", label: "修炼速度" },
-  { id: "shenfa",   name: "身法", suffix: "身法", stat: "speed",     label: "速度", stat2: "hit", label2: "命中" },   // v124：身法同时加速度和命中
+  { id: "shenfa",   name: "身法", suffix: "身法", stat: "hit",       label: "命中", catLabel: "命中、速度" },   // v240：身法拆成两本：这本只加命中（id 不变，已学的自动去掉速度）
   { id: "dunshu",   name: "遁术", suffix: "遁术", stat: "dodge",     label: "闪避" },
   { id: "fajue",    name: "法诀", suffix: "法诀", stat: "mana",      label: "法力上限" },
   { id: "zhenjue",  name: "真诀", suffix: "真诀", stat: "res",       label: "抗性" }, // 抗性属性 = 来源属性
@@ -44,9 +44,10 @@ DATA.gongfaTypes.forEach(t => { const n = (_NM.gfType || {})[t.id]; if (n) { t.n
 //   ni = 原来的序号（起名用，不影响原有功法的名字）
 DATA.gongfaTypes = DATA.gongfaTypes.flatMap((t, i) => { t.ni = i; const r = [t];
   for (let b = 2; b <= ((_GF.BOOKS || {})[t.id] || 1); b++) r.push(Object.assign({}, t, { id: t.id + b, base: t.id, book: b }));
+  if (t.id === "shenfa") r.push(Object.assign({}, t, { id: "sufa", base: "shenfa", book: 2, allSrc: true, stat: "speed", label: "速度", catLabel: undefined }));   // v240：另一本身法只加速度（同属身法类，宗门、坊市、功德司都有）
   return r; });
 // 某来源有哪些功法类别：宗门全部；其他来源没有第 2、3 本
-DATA.gfTypesOf = src => DATA.gongfaTypes.filter(t => (src || "sect") === "sect" || !t.base);
+DATA.gfTypesOf = src => DATA.gongfaTypes.filter(t => (src || "sect") === "sect" || !t.base || t.allSrc);
 DATA.gfTypeKey = id => { const t = DATA.gongfaTypes.find(x => x.id === id); return t && t.base || id; };   // 倍率、价格表用的类别 id
 
 /* 功法来源类型（内部标记）：sect 宗门功法、shop 凡界坊市功法；以后加新类型在这里加一行 + config 加一组 */
@@ -216,7 +217,7 @@ DATA.startGfInfo = (lv = 1) => {
 DATA.gongfaInfo = (id, lv = 1) => {
   if (id === DATA.START_GF) return DATA.startGfInfo(lv);
   const p = id.split(":"), sect = DATA.gfSrc(p[0]), type = DATA.gongfaTypes.find(x => x.id === p[1]);
-  if (p.length !== 2 || !sect || !type || (type.base && (sect.src || "sect") !== "sect")) return null;
+  if (p.length !== 2 || !sect || !type || (type.base && !type.allSrc && (sect.src || "sect") !== "sect")) return null;
   const per = DATA.gfCalc(sect, type.id, type.stat, "EFFECT_GONGFA"), per2 = type.stat2 ? DATA.gfCalc(sect, type.id, type.stat2, "EFFECT_GONGFA") : 0;
   const el = DATA.elById[(sect.els || {})[type.id] || sect.el];   // 仙魔冥神坊市、功德司：每本单独的属性
   const J = sect.src === "jshop" ? _GF.jshop || {} : null;
