@@ -254,7 +254,7 @@ G.module({
     // 法术伤害文字：法术攻击 × 伤害%（有灵根加成时注明）
     spellDmgTxt(g) {
       const lg = (this.s.lingen || {})[g.el.id] || 0;
-      return `法术攻击 ${U.fmt(g.atk)} · 伤害 攻击×<b class="gf-base">${U.dec(g.pct)}%</b>${lg ? `（${g.el.name}灵根伤害 +${U.dec(this.lingenPct(lg, "sp"))}%）` : ""}`;
+      return `伤害 = 攻击×<b class="gf-base">${U.dec(g.pct)}%</b>${lg ? `（${g.el.name}灵根伤害 +${U.dec(this.lingenPct(lg, "sp"))}%）` : ""}`;
     },
     // 一行：功法或法术，带修炼按钮
     skillLine(g) {

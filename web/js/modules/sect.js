@@ -220,9 +220,12 @@ G.module({
     freeUsed(f) { return f && f.day === this.bjDay() ? f.used || 0 : 0; },
     /* ---------- 练体池（config/sect.js 的 sect.pool） ---------- */
     poolCost(i) { const P = CFG.sect.pool, p = P.list[i], sm = (P.STAR_MULT || [])[this.sectInfo().star - 1]; return { contrib: Math.floor((p.contrib || 0) * (sm === undefined ? this.starMul() : sm)), hp: p.hp !== undefined ? p.hp : Math.ceil(this.stats().hp * (p.hpPct || 0) / 100) }; },
-    poolGainOf(i) {
-      const P = CFG.sect.pool, row = P.GAIN[Math.min(Math.max(0, this.sectInfo().star - 1), P.GAIN.length - 1)] || [], g = row[i] || row[row.length - 1] || [], o = {};
-      (P.list[i].keys || P.KEYS || ["hp", "atk", "def"]).forEach((k, j) => { if (g[j]) o[k] = g[j]; });
+    poolGainOf(i, rnd) {
+      // v237 基础值（GAIN 第 i 行）× STAR_GAIN^(宗门星级 − 1)；rnd = true 时每种再随机 ± RAND（进入练体池时定下）
+      const P = CFG.sect.pool, G0 = P.GAIN || [], g = G0[i] || G0[G0.length - 1] || [], o = {};
+      const mul = Math.pow(P.STAR_GAIN === undefined ? 1.2 : P.STAR_GAIN, Math.max(0, this.sectInfo().star - 1)), R = P.RAND || 0;
+      (P.list[i].keys || P.KEYS || ["hp", "atk", "def"]).forEach((k, j) => { if (!g[j]) return;
+        const v = Math.round(g[j] * mul) + (rnd && R ? U.rand(-R, R) : 0); if (v > 0) o[k] = v; });
       return o;
     },
     poolUsed() { const p = this.s.pool; return p && p.day === this.bjDay() ? p.used || 0 : 0; },
@@ -235,7 +238,7 @@ G.module({
       if (s.contrib < c.contrib) return this.log("门派贡献不足。", "sys");
       if ((s.bodyExp || 0) < c.hp) return this.log("气血不足。", "sys");   // 消耗肉身气血
       s.contrib -= c.contrib; s.bodyExp -= c.hp;
-      s.pool = { i, end: this.now() + P.MINUTES * 60000, gain: this.poolGainOf(i), day: this.bjDay(), used: this.poolUsed() + 1 };
+      s.pool = { i, end: this.now() + P.MINUTES * 60000, gain: this.poolGainOf(i, true), day: this.bjDay(), used: this.poolUsed() + 1 };
       this.log(`进入${d.name}，消耗${c.contrib ? `贡献 ${U.fmt(c.contrib)}、` : ""}气血 ${U.fmt(c.hp)}。`, "good"); this.after();
     },
     poolTick() {
@@ -610,8 +613,9 @@ G.module({
       const P = CFG.sect.pool, p = s.pool, on = this.poolOn(), done = !on && this.poolUsed() >= P.DAILY;
       h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "pool", P.name)}<small>每天 ${P.DAILY} 次 · 每次 ${P.MINUTES} 分钟</small></h3>` + P.list.map((d, i) => {
         const me = on && p.i === i, lock = (d.rank || 0) > s.rank, c = this.poolCost(i), gn = this.poolGainOf(i);
-        const gt = Object.keys(gn).map(k => `${{ hp: "生命", atk: "攻击", def: "防御", mana: "法力", hit: "命中", dodge: "闪避", crit: "暴击%", res: "抗性" }[k] || k} +${U.fmt(gn[k])}`).join(" ");
-        return `<div class="line"><div>${d.name}${d.rank ? `<span class="tag">${DATA.ranks[d.rank].name}专用</span>` : ""}<small>${me ? `剩余 ${U.cd(Math.ceil((p.end - this.now()) / 1000) + 59)} · ` : ""}${gt} · 消耗${c.contrib ? `贡献 ${U.fmt(c.contrib)} ` : ""}气血 ${U.fmt(c.hp)}</small></div>
+        const gt = Object.keys(gn).map(k => ({ hp: "生命", atk: "攻击", def: "防御", mana: "法力", hit: "命中", dodge: "闪避", crit: "暴击%", res: "抗性" }[k] || k)).join("、");
+        const gtx = gt ? `增加${gt}` : "";
+        return `<div class="line"><div>${d.name}${d.rank ? `<span class="tag">${DATA.ranks[d.rank].name}专用</span>` : ""}<small>${me ? `剩余 ${U.cd(Math.ceil((p.end - this.now()) / 1000) + 59)} · ` : ""}${gtx} · 消耗${c.contrib ? `贡献 ${U.fmt(c.contrib)} ` : ""}气血 ${U.fmt(c.hp)}</small></div>
           <button class="sm ${me ? "on" : ""}" onclick="G.enterPool(${i})" ${on || done || lock ? "disabled" : ""}>${me ? "修炼中" : lock ? "职务不足" : done ? "今日已用" : "进入"}</button></div>`;
       }).join("") + `</div>`;
     } else if (tab === "treasury") {
