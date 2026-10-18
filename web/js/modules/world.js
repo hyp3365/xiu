@@ -689,7 +689,7 @@ G.module({
       else if (type === "monster" || type === "elite" || type === "boss") {
         const kind = type === "monster" ? "normal" : type, m = mj !== undefined ? this.makeMjMob(mj, kind, mk) : this.makeMob(a, r, kind);
         m.a = a;
-        const res = this.battle(m, { foe: m.boss ? "boss" : m.elite ? "elite" : "mob" }), tag = `${m.boss ? "【首领】" : m.elite ? "【精英】" : ""}${m.name}`;
+        const res = this.battle(m, { foe: m.boss ? "boss" : m.elite ? "elite" : "mob" }), tag = `${m.boss ? "【首领】" : m.elite ? "【精英】" : ""}${String(m.name).replace(/^精英·/, "")}`;
         if (res.win) { this.s.kills++; t = `遭遇${tag}，${res.rounds}回合击败，获得 ${[this.rollMonsterLoot(x.loot, m, a, mj, mk), sm()].filter(Boolean).join("、")}`; c = m.boss ? "gold" : ""; }
         else if (res.lose) { t = `遭遇${tag}，${res.timeout ? `${res.rounds} 回合未能击败，力竭重伤` : `第 ${res.rounds} 回合不敌重伤`}，本次探索收获全部遗失。${res.why}`; c = "bad"; }
         else { const g = sm(); t = `遭遇${tag}，缠斗 ${res.rounds} 回合，各自退去${g ? `，拾得 ${g}` : ""}`; }
@@ -1081,10 +1081,10 @@ G.module({
           if (L.hx) mats.push(`${DATA.HX}×${U.fmt(L.hx)}`);
           for (const k in L.sm || {}) { const p = DATA.smParse(k); mats.push(`${DATA.smName(p.k, p.ft, p.tier)}×${U.fmt(L.sm[k])}`); }
           for (const n in L.cu || {}) mats.push(`${n}×${U.fmt(L.cu[n])}`);
-          const sub = x.mj !== undefined ? (x.once ? "" : x.queue && x.queue.length ? `一键探索 · 后面还有 ${x.queue.length} 处` : this.mjLabel(x.mk) + "探索") : x.once ? "" : x.cq ? `已完成 ${x.count} / ${x.cq} 次` : `已完成 ${x.count} 次`, hpP = Math.min(100, s.hp / this.stats().hp * 100);
+          const sub = x.mj !== undefined ? (x.once ? "" : x.queue && x.queue.length ? `一键探索 · 后面还有 ${x.queue.length} 处` : this.mjLabel(x.mk) + "探索") : x.once ? "" : x.cq ? `已完成 ${x.count} / ${x.cq} 次` : `已完成 ${x.count} 次`, hpP = Math.min(100, s.hp / this.stats().hp * 100), mpP = Math.min(100, s.mana / Math.max(1, this.stats().mana) * 100), bg = this.bsetGet(), gH = Math.min(100, bg.goHp || 0), gM = Math.min(100, bg.goMp || 0), restP = Math.min(gH > 0 ? hpP / gH : 1, gM > 0 ? mpP / gM : 1) * 100;   // v202 休养进度 = 生命、法力离「继续探索」设置还差多少
           return `<div class="card"><h3>${x.once ? "历练中" : x.cq ? "出窍探索中" : "自动探索中"} · ${this.exName(x)}<small>${sub}</small></h3>
-          <div class="bar tick"><div style="width:${x.rest ? hpP : x.step / T * 100}%"></div></div>
-          <div class="row small"><span>${x.rest ? `休养中 · 生命 ${U.fix(Math.floor(hpP) + "%")}，恢复后自动继续` : `第 ${U.fix(x.step)} / ${T} 步 · 剩余 ${U.cd(Math.ceil((T - x.step) * (x.ms || 1000) / 1000))}`}</span><span>
+          <div class="bar tick"><div style="width:${x.rest ? Math.min(100, restP) : x.step / T * 100}%"></div></div>
+          <div class="row small"><span>${x.rest ? `休养中 · 生命 ${U.fix(Math.floor(hpP) + "%")} / ${gH}%、法力 ${U.fix(Math.floor(mpP) + "%")} / ${gM}%，都够了自动继续` : `第 ${U.fix(x.step)} / ${T} 步 · 剩余 ${U.cd(Math.ceil((T - x.step) * (x.ms || 1000) / 1000))}`}</span><span>
             <button class="sm" onclick="G.setExploreOpen(${!this.exploreOpen})">${this.exploreOpen ? "收起信息" : "探索信息"}</button>
             <button class="sm" onclick="G.stopNow()">停止</button></span></div>
           <p class="desc">本次收获（结束后放入背包）：灵石 ${U.fmt(L.stone)}${mats.length ? "、" + mats.join("、") : ""}</p>
