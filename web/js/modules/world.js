@@ -124,7 +124,7 @@ G.module({
 
     // 通用战斗：速度高者先手，判闪避、暴击。返回 { win, lose, rounds, why, log }，并更新玩家生命、法力
     //   log：完整战斗过程（点「详情」查看），格式见 battleDetail
-    //   opt.test（v158 实力测试）：双方都不扣生命、打满 TEST_ROUNDS 回合，结束后人物生命 / 法力还原
+    //   opt.test（v158 实力测试）：v244 起双方照常扣生命、法力（只在测试画面里），一方倒下或打满 TEST_ROUNDS 回合结束；结束后人物生命 / 法力还原成测试前
     battle(m, opt = {}) {
       const st = this.stats(), s = this.s, TEST = !!opt.test;
       const spells = s.spellSlots.slice(0, this.slotCount()).map(id => DATA.spellInfo(id, s.gongfa[id])).filter(Boolean);
@@ -290,7 +290,7 @@ G.module({
           const ab = Math.min(mShield.hp, d); mShield.hp -= ab; d -= ab; act.ab = ab;
           if (mShield.hp <= 0) { mShield = null; act.x = (act.x || 0) | 4; }
         }
-        if (!TEST) mhp -= d; dealt += d;
+        mhp -= d; dealt += d;
         if (mhp <= 0 && php > 0 && cnt.mob.yt < pMob.ytT && ch(pMob.yt)) { dealt -= 1 - mhp; mhp = 1; cnt.mob.yt++; act.x = (act.x || 0) | 16; }   // 对方御天保命
         rec(0, d);
       };
@@ -308,7 +308,7 @@ G.module({
           const ab = Math.min(shield.hp, d); shield.hp -= ab; d -= ab; act.ab = ab;
           if (shield.hp <= 0) { shield = null; act.x = (act.x || 0) | 4; }
         }
-        if (!TEST) php -= d; taken += d;
+        php -= d; taken += d;
         if (php <= 0 && mhp > 0 && cnt.me.yt < pMe.ytT && ch(pMe.yt)) { taken -= 1 - php; php = 1; cnt.me.yt++; act.x = (act.x || 0) | 16; }   // 御天保命
         rec(1, d);
       };
@@ -407,16 +407,16 @@ G.module({
     playBattle(b, title, txt, win, logs, replay, opt = {}) {
       if (this._bp && this._bp.timer) clearInterval(this._bp.timer);
       if (this._bp) this.battleDone(this._bp);
-      const bp = this._bp = { b, title, txt, win, logs: logs || [[txt, win ? "gold" : "bad"]], acts: b.log.slice(), shown: 0, t0: Date.now(), done: false, replay: !!replay, test: !!opt.test, sum: [0, 0], hp: [b.me[0], b.mob[0]] };
+      const bp = this._bp = { b, title, txt, win, logs: logs || [[txt, win ? "gold" : "bad"]], acts: b.log.slice(), shown: 0, t0: Date.now(), done: false, replay: !!replay, test: !!opt.test, sum: [0, 0], hp: [b.me[0], b.mob[0]], mp: [b.me[2], b.mob[2]] };
       this._lockModal = true;
       const v = DATA.IMG_V, mi = this.battleMobImg(b);
       // v161 名字不放在人物 / 怪物脚下，怪物名字放标题后面（opt.tname 可改标题里显示的名字）
       this.modal(`<div class="btv" style="--bs:${CFG.battle.ANIM_SLOW || 1}">
         <div class="btv-title">${title}${opt.tname === "" ? "" : ` · ${opt.tname || b.name}`}</div>
         <div class="btv-stage" style="background-image:url(img/bt_bg.webp?v=${v})">
-          <div class="btv-hp l"><div class="btv-bar"><i id="bt-hp0"></i></div><span id="bt-hpt0"></span></div>
+          <div class="btv-hp l"><div class="btv-bar"><i id="bt-hp0"></i></div><span id="bt-hpt0"></span><div class="btv-mp"><i id="bt-mp0"></i></div></div>
           <div class="btv-zhan">战</div>
-          <div class="btv-hp r"><div class="btv-bar"><i id="bt-hp1"></i></div><span id="bt-hpt1"></span></div>
+          <div class="btv-hp r"><div class="btv-bar"><i id="bt-hp1"></i></div><span id="bt-hpt1"></span><div class="btv-mp"><i id="bt-mp1"></i></div></div>
           <div class="btv-u l" id="bt-u0"><div class="btv-hero"><img class="btv-body" src="img/bt_hero.webp?v=${v}" alt=""><div class="btv-arm"><img class="btv-sword" src="img/bt_sword.webp?v=${v}" alt=""><img class="btv-hand" src="img/bt_hand.webp?v=${v}" alt=""></div></div></div>
           <div class="btv-u r" id="bt-u1" onclick="G.btMobInfo()"><img src="${mi.src}" onerror="this.onerror=null;this.src='${mi.alt}'" alt=""></div>
           <div class="btv-fx" id="bt-fx"></div>
@@ -430,7 +430,8 @@ G.module({
         if (this._bp !== bp) return clearInterval(bp.timer);
         if (bp.shown < bp.acts.length) this.btAct(bp.acts[bp.shown++], true);
         if (bp.shown >= bp.acts.length) { clearInterval(bp.timer);
-          if (bp.test) { const lg = $("#bt-log"); if (lg) { lg.insertAdjacentHTML("beforeend", `<p class="bt-gray">已打满 ${bp.round || 0} 回合，测试结束。</p>`); lg.scrollTop = 1e9; } }
+          if (bp.test) { const lg = $("#bt-log"); if (lg) { const L = bp.acts[bp.acts.length - 1] || [], ph = L[6], mh = L[8];   // v244 测试也会分出胜负
+            lg.insertAdjacentHTML("beforeend", `<p class="bt-gray">${mh <= 0 && ph > 0 ? `第 ${bp.round || 0} 回合击败对手` : ph <= 0 ? `第 ${bp.round || 0} 回合落败` : `已打满 ${bp.round || 0} 回合`}，测试结束（生命、法力已还原）。</p>`); lg.scrollTop = 1e9; } }
           else setTimeout(() => { if (this._bp === bp) this.btFinish(); }, 600); }
         this.btBtn();
       };
@@ -450,12 +451,13 @@ G.module({
     btHp() {
       const bp = this._bp; if (!bp) return; const b = bp.b, mx = [b.me[1], b.mob[1]];
       for (const i of [0, 1]) { const bar = $("#bt-hp" + i), t = $("#bt-hpt" + i); if (!bar) continue;
-        bar.style.width = Math.max(0, Math.min(100, bp.hp[i] / (mx[i] || 1) * 100)) + "%"; t.textContent = U.fmt(Math.max(0, bp.hp[i])); }
+        bar.style.width = Math.max(0, Math.min(100, bp.hp[i] / (mx[i] || 1) * 100)) + "%"; t.textContent = U.fmt(Math.max(0, bp.hp[i]));
+        const mb = $("#bt-mp" + i), mm = [b.me[3], b.mob[3]][i]; if (mb) mb.style.width = (mm > 0 ? Math.max(0, Math.min(100, (bp.mp || [])[i] / mm * 100)) : 0) + "%"; }   // v244 法力蓝条
     },
     // 播放一次出手：文字 + 血条 + 动作（普通攻击冲撞、法术光球、法宝飞剑、护盾光罩）
     btAct(x, anim) {
       const bp = this._bp, b = bp.b, [r, w, k, sp, f, d, ph, pm, mh, mm, fx] = x;
-      bp.hp = [ph, mh];
+      bp.hp = [ph, mh]; bp.mp = [pm, mm];
       if (bp.test) { if (k < 3 && d > 0) bp.sum[w] += d; const se = $("#bt-sum"), R0 = bp.round || 1;
         if (se) se.innerHTML = `你共造成 <b>${U.fmt(bp.sum[0])}</b>（每回合 ${U.fmt(bp.sum[0] / Math.max(1, r))}）　对方共造成 <b>${U.fmt(bp.sum[1])}</b>（每回合 ${U.fmt(bp.sum[1] / Math.max(1, r))}）`; }
       const log = $("#bt-log");

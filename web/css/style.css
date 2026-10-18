@@ -529,3 +529,4 @@ button small .cd{min-width:0}
 .dsh-big{display:block;width:72px;height:72px;margin:0 auto 6px}
 @media (prefers-reduced-motion:reduce){.dsh::after{animation:none}}
 .c-green{color:#6fd36f!important}.c-red{color:#ff6b5b!important}
+.btv-mp{position:absolute;top:calc(100% + 3px);width:50%;height:6px;background:#0006;border-radius:3px;overflow:hidden;border:1px solid #fff6}.btv-hp.l .btv-mp{left:0}.btv-hp.r .btv-mp{right:0}.btv-mp i{display:block;height:100%;width:100%;background:linear-gradient(#9fd0ff,#3b7fe0);transition:width .35s}.btv-hp.r .btv-mp i{margin-left:auto}
