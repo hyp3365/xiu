@@ -19,10 +19,11 @@ G.module({
   defaults: () => ({ seeds: [], fields: [] }),
 
   tick() {
-    const s = this.s, now = this.now();
+    const s = this.s, now = this.now(), l0 = s.ling;
+    let nNew = 0;   // v206 本次新开始的季数（扣灵气），记日志，免得灵气突然少一截看不出原因
     s.fields.forEach(f => {
       if (f.g < 0) return;
-      if (f.wait) { if (!this.payField(f, now)) return; }
+      if (f.wait) { if (!this.payField(f, now)) return; nNew++; }
       let guard = 0;
       while (!f.wait && now >= f.start + this.fieldTime(f.g) && guard++ < 1e4) {
         const end = f.start + this.fieldTime(f.g), Y = DATA.herbGrow(f.g).yield;
@@ -30,9 +31,11 @@ G.module({
         this.addMat("herb", DATA.herbs[f.g], f.g, n);
         this.addCraftExp(ck, n * (ck === "xling" ? f.g - DATA.FAN_HERB_N + 1 : f.g + 1) * CFG.craftsman[ck].EXP_RATE);
         if (f.next != null) { f.g = f.next; f.next = null; } // 当季结束才换种
-        this.payField(f, end);                               // 下一季：扣灵气
+        if (this.payField(f, end)) nNew++;                   // 下一季：扣灵气
       }
     });
+    const used = l0 - s.ling;
+    if (nNew && used > 0) this.log(`${DATA.caveName ? DATA.caveName("garden") : "灵药园"}开始新一季（${nNew} 块灵田），消耗灵气 ${U.fmt(used)}。`, "sys");
   },
 
   api: {
