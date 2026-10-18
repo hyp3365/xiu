@@ -8,7 +8,7 @@
  *   最后一步遇到首领，其余无事发生（顺序随机）。怪物掉 灵石、药材、矿石（不掉丹药、装备）。
  *   历练、自动探索期间都不能修炼。
  * 战斗：速度高者先手，判闪避、暴击；法术栏法术轮流施放（耗法力），不足时普通攻击；战败遗失部分灵石。
- *   法术 / 法宝伤害 = 威力 − (对方防御 × RES_RATE + 对方该系抗性)；普通攻击只算 防御 × DEF_RATE（v235）。
+ *   法术 / 法宝伤害 = 威力 − (对方防御 × RES_RATE + 对方该系抗性 × RES_EL_RATE)；普通攻击只算 防御 × DEF_RATE（v235）。
  *   怪物也有法力、六系抗性、法术和法宝（见 config/mobs.js 的 mobs.magic）。
  *   一次探索中获得的东西先记下，走完后一起放进背包；
  *   生命够（≥ 三成）就继续下一次，不够就原地休养到满血再自动继续（v186）；探索时不能修炼；离线也继续。
@@ -131,7 +131,7 @@ G.module({
       let si = 0, act = null;   // act：这一下出手的方式 { k: 0 普通攻击 / 1 法术 / 2 法宝, sp 法术名序号, f: 0 命中 / 1 被闪避 / 2 暴击 }
       const BT = CFG.battle, myL = s.mortal ? 0 : s.L, MIN = A => DATA.minDmg(A === st ? myL : (A.L === undefined ? myL : A.L)), rnd = () => BT.RAND_MIN + Math.random() * (BT.RAND_MAX - BT.RAND_MIN);
       // 某系抗性 = 防御 × RES_RATE + 该系抗性（config/battle.js）
-      const RR = BT.RES_RATE === undefined ? BT.DEF_RATE : BT.RES_RATE, resOf = (D, el) => D.def * RR + ((D.res || {})[el] || 0);   // v235 法术 / 法宝减免 = 防御 × RES_RATE(0.9) + 该系抗性（抗性不再 × DEF_RATE）
+      const RR = BT.RES_RATE === undefined ? BT.DEF_RATE : BT.RES_RATE, ER = BT.RES_EL_RATE === undefined ? 1 : BT.RES_EL_RATE, resOf = (D, el) => D.def * RR + ((D.res || {})[el] || 0) * ER;   // v235 法术 / 法宝减免 = 防御 × RES_RATE(0.9) + 该系抗性（抗性不再 × DEF_RATE）
       const roll = (A, D, raw, k, sp) => {
         act = { k, sp, f: 0 };
         if (Math.random() * 100 < DATA.dodgeChance(A.hit, D.dodge, k)) { act.f = 1; return 0; } // 闪避（看命中与闪避之比；v220 法术 / 法宝另加命中率）

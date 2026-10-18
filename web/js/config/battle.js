@@ -8,9 +8,9 @@
  *   出手顺序：每场战斗人物速度 × 95%~105% 随机（SPEED_RAND），速度高者先手（相等时人物先手），双方轮流各出手一次为一回合，最多 MAX_ROUNDS 回合。
  *
  *   普通攻击：原始伤害 = max(保底伤害（MIN_BASE + 层 × MIN_STEP）, 攻击 − 对方防御 × DEF_RATE)
- *   法术    ：原始伤害 = max(保底伤害（MIN_BASE + 层 × MIN_STEP）, 法术攻击 × 法术% × 灵根加成 − 对方防御 × RES_RATE − 对方该系抗性)
- *   法宝    ：原始伤害 = max(保底伤害（MIN_BASE + 层 × MIN_STEP）, 法宝攻击 × 法宝% − (对方防御 × RES_RATE + 对方该系抗性 − 无视抗性)) + 追加伤害
- *   怪物法术 / 法宝：原始伤害 = max(保底伤害（MIN_BASE + 层 × MIN_STEP）, 攻击 × pct% − 对方防御 × RES_RATE − 对方该系抗性)（见 config/mobs.js 的 magic）
+ *   法术    ：原始伤害 = max(保底伤害（MIN_BASE + 层 × MIN_STEP）, 法术攻击 × 法术% × 灵根加成 − 对方防御 × RES_RATE − 对方该系抗性 × RES_EL_RATE)
+ *   法宝    ：原始伤害 = max(保底伤害（MIN_BASE + 层 × MIN_STEP）, 法宝攻击 × 法宝% − (对方防御 × RES_RATE + 对方该系抗性 × RES_EL_RATE − 无视抗性)) + 追加伤害
+ *   怪物法术 / 法宝：原始伤害 = max(保底伤害（MIN_BASE + 层 × MIN_STEP）, 攻击 × pct% − 对方防御 × RES_RATE − 对方该系抗性 × RES_EL_RATE)（见 config/mobs.js 的 magic）
  *   法术 / 法宝攻击 = min(修为 + 肉身攻击, 该星级 / 该阶参考值) + 其余全部攻击（功法、装备、戒指、法宝、丹药、练体池……）
  *   （v235 抗性部分不再 × DEF_RATE）
  *
@@ -42,9 +42,10 @@ CFG.battle = {
 };
 
 // ---------- 属性抗性 ----------
-// 战斗中某系抗性 = 防御 × RES_RATE + 该系抗性
-// 被该系法术、法宝打中时按这个减免（伤害 − 防御 × RES_RATE − 该系抗性）；普通攻击只算 防御 × DEF_RATE
-CFG.battle.RES_RATE = 0.72;   // v235 法术 / 法宝减免 = 对方防御 × 0.9 + 对方该系抗性（双方一样）
+// 战斗中某系抗性 = 防御 × RES_RATE + 该系抗性 × RES_EL_RATE
+// 被该系法术、法宝打中时按这个减免（伤害 − 防御 × RES_RATE − 该系抗性 × RES_EL_RATE）；普通攻击只算 防御 × DEF_RATE
+CFG.battle.RES_RATE = 0.72;      // 法术 / 法宝减免：对方防御 × 0.72（双方一样）
+CFG.battle.RES_EL_RATE = 0.85;   // v238 法术 / 法宝减免：对方该系抗性 × 0.85（双方一样）
 
 // ---------- 战斗画面播放速度 ----------
 // 雷劫：每 ROUND_SEC 秒打一回合
