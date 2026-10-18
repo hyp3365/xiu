@@ -1865,12 +1865,12 @@ CFG.mobs.magic = {
   OWN_RES: 1.2,
   // v165 怪物护盾：每次出手前有 法宝 chance × CHANCE_PCT% 几率祭起（不占出手，耗法力同法宝），护盾还在不会再祭，每场最多 MAX 次
   //   护盾值 = 怪物生命 × HP_PCT%，护盾防御 = 怪物防御 × DEF_PCT%（[最小, 最大] 每次祭盾随机），受到伤害减少 RED%（同人物的盾：先减防御 × DEF_RATE，再减 %，剩下扣护盾值）
-  SHIELD: { CHANCE_PCT: 30, MAX: 3, HP_PCT: [80, 105], DEF_PCT: [80, 95], RED: 0 },   // 怪物本属性那一系抗性再 × 1.2
+  SHIELD: { CHANCE_PCT: 30, MAX: 3, HP_PCT: [80, 105], DEF_PCT: [75, 95], RED: 0 },   // 怪物本属性那一系抗性再 × 1.2
   // 法力、抗性和生命攻击一样，按修为突破 + 肉身突破 + 功法 × 倍率生成
   // spell / fabao：chance 每回合施放几率%   pct 伤害 = 攻击 × pct%
   //   mana: [比例, 倍率] 每次耗法力 = 怪物境界的修为突破总法力（不算功法、肉身）× 比例 × 倍率（例 [0.15, 1] = 15%）
-  normal: { spell: { chance: 35, pct: 130, mana: [0.13, 1] }, fabao: { chance: 35, pct: 150, mana: [0.22, 1] } },   // 普通怪
-  elite:  { spell: { chance: 35, pct: 140, mana: [0.09, 1] }, fabao: { chance: 35, pct: 160, mana: [0.2, 1] } },   // 精英怪
-  boss:   { spell: { chance: 40, pct: 150, mana: [0.05, 1] },  fabao: { chance: 40, pct: 170, mana: [0.15, 1] } },  // 首领
-  tower:  { spell: { chance: 40, pct: 140, mana: [0.05, 1] }, fabao: { chance: 40, pct: 160, mana: [0.15, 1] } },   // 试炼塔守关者 / 宗门晋升考官
+  normal: { spell: { chance: 35, pct: 130, mana: [0.13, 1] }, fabao: { chance: 30, pct: 140, mana: [0.22, 1] } },   // 普通怪
+  elite:  { spell: { chance: 35, pct: 136, mana: [0.09, 1] }, fabao: { chance: 35, pct: 150, mana: [0.2, 1] } },   // 精英怪
+  boss:   { spell: { chance: 40, pct: 142, mana: [0.05, 1] },  fabao: { chance: 40, pct: 160, mana: [0.15, 1] } },  // 首领
+  tower:  { spell: { chance: 40, pct: 136, mana: [0.05, 1] }, fabao: { chance: 35, pct: 150, mana: [0.15, 1] } },   // 试炼塔守关者 / 宗门晋升考官
 };
