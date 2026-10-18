@@ -125,8 +125,10 @@ G.module({
     // 通用战斗：速度高者先手，判闪避、暴击。返回 { win, lose, rounds, why, log }，并更新玩家生命、法力
     //   log：完整战斗过程（点「详情」查看），格式见 battleDetail
     //   opt.test（v158 实力测试）：v244 起双方照常扣生命、法力（只在测试画面里），一方倒下或打满 TEST_ROUNDS 回合结束；结束后人物生命 / 法力还原成测试前
+    //   v245 进入测试时生命、法力按满的算（不管测试前多少），退出后还原成测试前的数，测试不影响原本的生命、法力
     battle(m, opt = {}) {
       const st = this.stats(), s = this.s, TEST = !!opt.test;
+      const tHp = s.hp, tMp = s.mana; if (TEST) { s.hp = st.hp; s.mana = st.mana; }   // v245 实力测试：进入时生命、法力回满，结束后还原成测试前的数
       const spells = s.spellSlots.slice(0, this.slotCount()).map(id => DATA.spellInfo(id, s.gongfa[id])).filter(Boolean);
       let si = 0, act = null;   // act：这一下出手的方式 { k: 0 普通攻击 / 1 法术 / 2 法宝, sp 法术名序号, f: 0 命中 / 1 被闪避 / 2 暴击 }
       const BT = CFG.battle, myL = s.mortal ? 0 : s.L, MIN = A => DATA.minDmg(A === st ? myL : (A.L === undefined ? myL : A.L)), rnd = () => BT.RAND_MIN + Math.random() * (BT.RAND_MAX - BT.RAND_MIN);
@@ -332,8 +334,8 @@ G.module({
         if (meSeal && sealR.me !== rounds) meSeal--; else if (meSeal) sealR.me = -1;
         if (mobSeal && sealR.mob !== rounds) mobSeal--; else if (mobSeal) sealR.mob = -1;
       }
-      s.hp = TEST ? hp0 : Math.max(1, php);
-      if (TEST) s.mana = mana0;
+      s.hp = TEST ? tHp : Math.max(1, php);
+      if (TEST) s.mana = tMp;
       // 战斗说明（显示在探索信息里）
       const why = `你出战时生命 ${U.fmt(hp0)}，共造成 ${U.fmt(dealt)} 伤害（对方剩余生命 ${U.fmt(Math.max(0, mhp))}/${U.fmt(m.hp)}），承受 ${U.fmt(taken)} 伤害；对方攻击 ${U.fmt(m.atk)} 防御 ${U.fmt(m.def)}${m.el ? `，${DATA.elById[m.el].name}属性，施法术 ${mSp} 次、法宝 ${mFb} 次` : ""}`;
       const detail = { name: m.name, el: m.el || "", a: m.a, sp: spNames, spEl: spells.map(sp => sp.el.name), first: meFirst ? 0 : 1, log, mf: m.mf.slice(),

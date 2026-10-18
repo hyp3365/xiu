@@ -487,7 +487,7 @@ G.module({
       const kOpts = Object.keys(DATA.MOB_KIND).map(k => [k, DATA.MOB_KIND[k]]), R = DATA.mobRow(t), rg = a => a[0] === a[1] ? `${a[0]}` : `${a[0]}~${a[1]}`;
       const n = gf.reduce((a, x) => a + x[1].length, 0);
       const st = [["生命", b.hp], ["攻击", b.atk], ["防御", b.def], ["速度", b.speed], ["命中", b.hit], ["闪避", b.dodge], ["法力", b.mana], ["抗性", b.res]].map(([k, v]) => `${k} ${U.fmt(v)}`).join("　") + `　暴击 ${U.num(b.crit)}%`;
-      return `<div class="card"><h3>实力测试<small>不扣生命，可随时关闭</small></h3>
+      return `<div class="card"><h3>实力测试<small>满生命法力开打，不影响原本生命法力</small></h3>
         <div class="line"><div>对手</div><div class="sg-btns">${this.selBox("testA", this.testMapOpts(), p.a, v => this.setTestPick("a", +v))}${this.selBox("testK", kOpts, p.k, v => this.setTestPick("k", v))}</div></div>
         <p class="desc">${this.testMobName()}：${DATA.realms[R.realm] || ""}${R.lay[0] === R.lay[1] ? DATA.layerNames[R.lay[0] - 1] : `${rg(R.lay)}层随机`}（属性为平均值，战斗时攻击 ×${DATA.mobRandOf("atk").join("~")}、生命 ×${DATA.mobRandOf("hp").join("~")}、其他 ×${DATA.mobRandOf("def").join("~")} 随机）<br>${st}</p>
         <p class="desc">法术：每回合 ${M.spell ? M.spell.chance : 0}% 几率，伤害 攻击×${M.spell ? M.spell.pct : 0}%　法宝：每回合 ${M.fabao ? M.fabao.chance : 0}% 几率，伤害 攻击×${M.fabao ? M.fabao.pct : 0}%</p>
