@@ -90,6 +90,7 @@
       const HP = st.hp, MP = st.mana, CAP = this.lingCap(), GATH = sp.gather;
       // 功法修炼
       const gs = s.gfStudy, STEP = DATA.STUDY_STEP * 1000;
+      if (gs && gs.ling !== 1) return 0;   // v246 旧存档还没转成灵气：逐个结算
       const GR = gs ? this.gfRoomNow() : null;
       // 修为修炼
       const cultOn = this.isCultivating() && this.hasMijue() && !this.exBlocksCult();
@@ -131,8 +132,10 @@
             a2 += steps * STEP;
             if (GR && GR.cost > 0 && Math.floor(ct / Math.max(1, GR.cost)) < Math.min(steps, Math.ceil((gs.total - d2) / STEP))) break;   // 离开练功房：事件
             const mul = GR ? GR.mul : 1, per = gs.per * mul, sps = (gs.stone || 0) * mul;
-            const can = Math.min(steps, Math.floor(ex / per), sps ? Math.floor(sn / sps) : Infinity, Math.ceil((gs.total - d2) / (STEP * mul)));
-            ex -= can * per; s2 += can * per; d2 = Math.min(gs.total, d2 + can * STEP * mul);
+            const want = Math.min(steps, Math.ceil((gs.total - d2) / (STEP * mul)));   // v246 消耗灵气（和 gongfa.js 一样先自动补充）
+            if (L < want * per && refill) { const pay = Math.min(Math.ceil((want * per - L) / RATE), Math.floor(sn - (sps ? want * sps : 0))); if (pay > 0) { sn -= pay; L += pay * RATE; } }
+            const can = Math.min(want, Math.floor(L / per), sps ? Math.floor(sn / sps) : Infinity);
+            L -= can * per; s2 += can * per; d2 = Math.min(gs.total, d2 + can * STEP * mul);
             if (sps) { sn -= can * sps; ss2 = (ss2 || 0) + can * sps; }
             if (GR) ct -= can * GR.cost;
             sl2 = can < steps && d2 < gs.total;

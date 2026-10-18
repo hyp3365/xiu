@@ -25,7 +25,7 @@
  *
  * 三、修炼升层（在「功法」页排队，和功法、法术一样）
  *   每层时间 = config/gongfa.js 的 STUDY_MIN（悟道 / 悟法秘法对秘法本身无效）
- *   每 5 秒消耗修为 = STUDY_RATE × STUDY_STAR[星级-1]（config/gongfa.js）
+ *   每 5 秒消耗灵气 = STUDY_RATE × STUDY_STAR[星级-1] × STUDY_LING（config/gongfa.js）
  *   每 5 秒消耗灵石 = STUDY_STONE × STAR_COST[星级-1]（取整，不乘层数）
  * ===================================================================== */
 window.CFG = window.CFG || {};
@@ -157,5 +157,5 @@ CFG.wudao = {
     50,   // 10 星
   ],
   // ---------- 「功法」页修炼 ----------
-  STUDY_STONE: 1000,      // 每 5 秒消耗灵石的基础值 = STUDY_STONE × STAR_COST[星级-1]（不乘层数；修为另按 config/gongfa.js 扣）
+  STUDY_STONE: 1000,      // 每 5 秒消耗灵石的基础值 = STUDY_STONE × STAR_COST[星级-1]（不乘层数；灵气另按 config/gongfa.js 扣）
 };

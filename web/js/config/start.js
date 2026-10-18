@@ -21,6 +21,6 @@ CFG.start = {
     MAX: 3,                 // 最多几层
     SPEED: 20,               // 每层增加修炼速度（第 n 层合计 = SPEED × n）
     STUDY_MIN: [1, 2],      // 修炼升层要几分钟：第 1 个 = 1→2 层，第 2 个 = 2→3 层
-    STUDY_PER: 5,           // 修炼升层时每 5 秒消耗修为
+    STUDY_PER: 5,           // 修炼升层时每 5 秒消耗（× config/gongfa.js 的 STUDY_LING = 灵气）
   },
 };

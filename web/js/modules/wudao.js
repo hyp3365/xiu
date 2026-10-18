@@ -58,6 +58,6 @@ G.sectWudaoView = function () {
         <small>${K.label} · ${effTxt}${lv ? "" : ` · ${U.fmt(c.stone)} 灵石 + ${U.fmt(c.contrib)} 贡献 · 学习 ${U.dur(this.mifaLearnMs(x.star) / 1000)}`}</small></div>
         ${lv ? `<button class="sm" disabled>已学会</button>` : this.lqBtn("gf", id, `G.learnMifa('${K.id}')`, s.stone < c.stone || s.contrib < c.contrib)}</div>`];
     })) +
-    `<p class="desc">同星级门派共用这套秘法。学会后在「功法 → 秘法」里修炼升层（每 5 秒消耗修为和灵石），离开门派也一直有效。</p></div>
+    `<p class="desc">同星级门派共用这套秘法。学会后在「功法 → 秘法」里修炼升层（每 5 秒消耗灵气和灵石），离开门派也一直有效。</p></div>
     <div class="card"><h3>秘法总加成</h3><div class="stats">${DATA.mifaKinds.map(K => `<div><span>${K.label}</span>${fmt(K, tot[K.id])}</div>`).join("")}<div><span>战斗每步回血上限</span>+${U.num(tot.hpBattlePct)}%</div><div><span>战斗每步回法力上限</span>+${U.num(tot.mpBattlePct)}%</div><div><span>破军无视防御</span>${U.num(tot.pojunIgn)}%</div><div><span>金蝉伤害降低</span>${tot.jinchan ? U.num(tot.jinchanCut) + "%" : "-"}</div></div></div>`;
 };
