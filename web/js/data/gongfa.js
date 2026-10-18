@@ -256,11 +256,15 @@ DATA.spellInfo = (id, lv = 1, own) => {
 };
 
 // 通用：功法、法术或秘法
-// 法宝、法术攻击 = min(使用者修为 + 肉身突破的攻击, 上限 cap) + 使用者功法攻击（含灵根加成）；不算装备、丹药等
+// 法宝、法术攻击 = min(使用者修为 + 肉身突破的攻击, 上限 cap) + 其余全部攻击（v235：功法、装备、戒指、法宝、丹药、练体池等都算）
 //   own = { br: 修为 + 肉身攻击, gf: 功法攻击 }，不写 = 玩家自己的
 DATA.ownAtk = () => {
   if (typeof G === "undefined" || !G.s || !G.gongfaBonus) return { br: 0, gf: 0 };
-  return { br: DATA.realmStat(G.s.mortal ? -1 : G.s.L, "atk") + ((G.bodyBonus ? G.bodyBonus() : {}).atk || 0), gf: G.gongfaBonus().atk };
+  const br = DATA.realmStat(G.s.mortal ? -1 : G.s.L, "atk") + ((G.bodyBonus ? G.bodyBonus() : {}).atk || 0);
+  // v235 上限只管 修为 + 肉身；其余全算（功法、装备、戒指、法宝、丹药、练体池……）= 人物总攻击 − 修为肉身
+  //   属性正在计算中（还没有缓存）时退回只算功法攻击，避免循环
+  const st = G._cache && G._cache.stats;
+  return { br, gf: st ? Math.max(0, st.atk - br) : G.gongfaBonus().atk };
 };
 // v165 通用版：k = hp / def …（盾的护盾值、防御用）：min(修为 + 肉身, 参考值) + 功法
 DATA.ownStat = k => {
