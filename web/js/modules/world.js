@@ -579,7 +579,7 @@ G.module({
     },
     rollMonsterLoot(loot, m, a, mj, mk) {
       const E = CFG.drop, mult = m.boss ? E.BOSS_STONE : m.elite ? E.ELITE_STONE : 1, ev = m.boss ? "boss" : m.elite ? "elite" : "monster";
-      const sm = mj !== undefined ? (this.mjDef(mj, mk).stone || 1) : DATA.mapStone(a) * (E.MAP_STONE || 1);   // v199 地图怪物灵石 × MAP_STONE（灵矿不乘）
+      const sm = (mj !== undefined ? (this.mjDef(mj, mk).stone || 1) : DATA.mapStone(a)) * (E.MAP_STONE || 1);   // v200 地图 / 秘境 / 灵地怪物灵石 × MAP_STONE（灵矿不乘）
       const w = mj !== undefined ? (mk === "ld" ? this.mjDef(mj, mk).w : "fan") : DATA.maps[a].w, per = this.runStonePer(w, m.Lm);
       const raw = per * (1 + Math.random() * 1.5) * E.STONE_RATE * mult * sm;
       const stone = Math.floor(raw + Math.random());   // 随机取整，平均值不被向下取整吃掉
