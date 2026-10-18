@@ -28,22 +28,25 @@ G.module({
     while (s.gfStudy) {
       const st = s.gfStudy;
       if (st.ling !== 1) { const inf = DATA.skillInfo(st.id, s.gongfa[st.id] || 1); if (inf) st.per = DATA.studyPer(inf); st.spent = 0; st.ling = 1; }   // v246 旧存档：正在修炼的改成按灵气算
-      let steps = Math.floor((this.now() - st.at) / STEP);
+      // v247 每 10 秒结算一次（= 2 个 5 秒单位）；消耗仍按 5 秒单位计，最后不足 10 秒只扣剩下的单位，每层总消耗不变
+      const steps = Math.floor((this.now() - st.at) / (2 * STEP));
       if (steps <= 0) break;
-      st.at += steps * STEP;
-      // 练功房（扣贡献）：减少修炼时间，进度 × mul，每步修为同比例多扣，总消耗不变
+      st.at += steps * 2 * STEP;
+      // 练功房（扣贡献）：减少修炼时间，进度 × mul，每单位灵气同比例多扣，总消耗不变
       let R = this.gfRoomNow();
-      if (R && R.cost > 0 && Math.floor(s[R.cur] / Math.max(1, R.cost)) < Math.min(steps, Math.ceil((st.total - st.done) / STEP))) { this.leaveGfRoom("门派贡献不足"); R = null; }
+      const remU = Math.ceil((st.total - st.done) / (STEP * (R ? R.mul : 1)));
+      if (R && R.cost > 0 && Math.floor(s[R.cur] / Math.max(1, R.cost)) < Math.min(2 * steps, remU)) { this.leaveGfRoom("门派贡献不足"); R = null; }
       const mul = R ? R.mul : 1, per = st.per * mul;
-      // v246 灵气（秘法还要灵石）够几步就走几步；灵气不够且开了自动补充：用灵石补（秘法要的灵石先留够）
-      const sp = (st.stone || 0) * mul, want = Math.min(steps, Math.ceil((st.total - st.done) / (STEP * mul)));
+      // 灵气（秘法还要灵石）够几次就走几次；灵气不够且开了自动补充：用灵石补（秘法要的灵石先留够）
+      const sp = (st.stone || 0) * mul, rem = Math.ceil((st.total - st.done) / (STEP * mul)), want = Math.min(2 * steps, rem);
       if (s.ling < want * per && s.array && s.array.autoRefill) { const keep = sp ? want * sp : 0, rate = this.lingPerStone(), pay = Math.min(Math.ceil((want * per - s.ling) / rate), Math.floor(s.stone - keep));
         if (pay > 0) { s.stone -= pay; s.ling += pay * rate; } }
-      const can = Math.min(want, Math.floor(s.ling / per), sp ? Math.floor(s.stone / sp) : Infinity);
-      s.ling -= can * per; st.spent += can * per; st.done = Math.min(st.total, st.done + can * STEP * mul);
+      let can = Math.min(want, Math.floor(s.ling / per), sp ? Math.floor(s.stone / sp) : Infinity);
+      if (can < rem && can % 2) can--;   // 只按整 10 秒走（最后一次除外）
+      s.ling -= can * per; st.spent += can * per; st.done = can >= rem ? st.total : Math.min(st.total, st.done + can * STEP * mul);
       if (sp) { s.stone -= can * sp; st.spentStone = (st.spentStone || 0) + can * sp; }
       if (R) s[R.cur] -= can * R.cost;
-      st.stalled = can < steps && st.done < st.total;   // 灵气 / 灵石不够，暂停
+      st.stalled = can < want && st.done < st.total;   // 灵气 / 灵石不够，暂停
       if (st.done < st.total) break;
       // 完成，升一层
       s.gongfa[st.id] = (s.gongfa[st.id] || 1) + 1;
@@ -238,7 +241,7 @@ G.module({
         html += `<div class="card"><h3>修炼中 ·《${info ? info.name : st.id}》${info ? `<span class="tag gf-lv">第${info.lv}层</span>` : ""}</h3>
         <div class="bar tick"><div style="width:${done / st.total * 100}%"></div></div>
         <div class="row small"><span>${st.stalled ? `<b class='q5'>${st.stone ? "灵气或灵石" : "灵气"}不足，暂停中</b>` : `倒计时 <b>${this.countdown(left)}</b>`}</span><button class="sm" onclick="G.stopStudy()">中断</button></div>
-        <div class="row small"><span>每 5 秒消耗 <b>${U.fmt(st.per)}</b> 灵气${st.stone ? ` + ${U.fmt(st.stone)} 灵石` : ""} · 已消耗 <b>${U.fix(U.fmt(st.spent))}</b> / ${U.fmt(st.per * st.total / (DATA.STUDY_STEP * 1000))}</span><span>${R ? `${R.name} -${U.num(R.pct)}%` : "未进练功房"}</span></div></div>`;
+        <div class="row small"><span>每 10 秒消耗 <b>${U.fmt(st.per * 2)}</b> 灵气${st.stone ? ` + ${U.fmt(st.stone * 2)} 灵石` : ""} · 已消耗 <b>${U.fix(U.fmt(st.spent))}</b> / ${U.fmt(st.per * st.total / (DATA.STUDY_STEP * 1000))}</span><span>${R ? `${R.name} -${U.num(R.pct)}%` : "未进练功房"}</span></div></div>`;
       } else html += `<div class="card"><p class="desc">当前没有在修炼的功法。在各分类里点「修炼」加入队列。</p></div>`;
       const lvPlan = {};
       if (s.gfStudy) lvPlan[s.gfStudy.id] = (s.gongfa[s.gfStudy.id] || 1) + 1;
@@ -277,7 +280,7 @@ G.module({
           (g.label2 ? `；${g.label2} ${cv("+" + this.gfValue(g, g.value2 * this.lingenGongfa(g.el.id)))}${max ? "" : `，下一层 ${cv("+" + this.gfValue(g, g.next2 * this.lingenGongfa(g.el.id)))}`}` : "");
       const sec = max ? 0 : this.studySec(g), n = Math.ceil(sec / DATA.STUDY_STEP), per = max ? 0 : DATA.studyPer(g), sp = max ? 0 : g.stonePer || 0;
       return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》${g.noEl ? "" : `<span class="tag">${g.star}星</span>`}${g.kind === "mf" || g.noEl ? "" : `<span class="tag">${g.el.name}</span>`}<span class="tag gf-lv">第${g.lv}层</span>
-        <small>${desc}${max ? "" : `<br>下一层：${U.dur(sec)} · 每5秒 ${U.fmt(per)} 灵气${sp ? ` + ${U.fmt(sp)} 灵石` : ""}（共 ${U.fmt(per * n)}${sp ? ` 灵气、${U.fmt(sp * n)} 灵石` : " 灵气"}）`}${plan > g.lv ? `<br><span class="c-green">已排至第 ${plan} 层</span>` : ""}</small></div>
+        <small>${desc}${max ? "" : `<br>下一层：${U.dur(sec)} · 每10秒 ${U.fmt(per * 2)} 灵气${sp ? ` + ${U.fmt(sp * 2)} 灵石` : ""}（共 ${U.fmt(per * n)}${sp ? ` 灵气、${U.fmt(sp * n)} 灵石` : " 灵气"}）`}${plan > g.lv ? `<br><span class="c-green">已排至第 ${plan} 层</span>` : ""}</small></div>
         ${max ? `<button class="sm" disabled>圆满</button>` :
           `<button class="sm" onclick="G.studyGongfa('${g.id}')" ${full || s.gfQueue.length >= DATA.GF_QUEUE ? "disabled" : ""}>${full ? "已排满" : "修炼"}</button>`}</div>`;
     },

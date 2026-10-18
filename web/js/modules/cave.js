@@ -35,6 +35,15 @@ G.module({
     gatherServant() { return (DATA.array.gather(this.s.array.lv) + this.gatherLz()) * (this.servantPct ? this.servantPct("zhen") : 0) / 100; },   // 道童阵法辅助：聚灵 +%
     gatherLz() { return (this.s.lzSlot || []).reduce((t, z) => t + (z ? z.v : 0), 0); },   // 灵珠格聚灵
     lingCap() { const sp = this.speed(); return Math.max(100, sp.gather * DATA.LING_CAP_GATHER + sp.total * DATA.LING_CAP_SPEED); },
+    // v247 每 10 秒修炼消耗的灵气：修为修炼 + 肉身修炼 + 功法修炼（只算正在进行的）
+    lingUse() {
+      const s = this.s; let u = 0;
+      if (s.auto && this.hasMijue() && !this.exBlocksCult()) u += Math.max(0, this.speed().total - this.wdRed("exp"));
+      if (s.bodyAuto && this.hasTijue() && !this.exBlocksCult() && !this.bodyMax()) u += Math.max(0, this.bodySpeed().total * Math.max(0.0001, CFG.body.LING_RATE || 1) - this.wdRed("body"));
+      const st = s.gfStudy;
+      if (st && st.done < st.total) { const R = this.gfRoomNow(); u += st.per * (R ? R.mul : 1) * 2; }
+      return u;
+    },
     lingPerStone() { return DATA.array.STONE_LING; }, // 固定数值
 
     // 用灵石补充灵气，stones 为 "fill" 时补满
@@ -130,7 +139,7 @@ G.module({
     // 聚灵阵
     const cap = this.lingCap(), max = a.lv >= DATA.array.MAX, f = this.arrayFactor();
     return rooms + `<div class="card"><h3>${DATA.caveName("array")} · ${a.lv} / ${DATA.array.MAX} 级</h3>
-      <div class="row small"><span>聚灵中（每 10 秒 +${U.num(this.gatherAmount())} 灵气）</span></div>
+      <div class="row small"><span>聚灵中（每 10 秒 +${U.num(this.gatherAmount())} 灵气）${(u => u > 0 ? `　修炼消耗 <b class="c-red">-${U.num(u)}</b>` : "")(this.lingUse())}</span></div>
       <div class="bar tick"><div id="gather-bar" style="width:${this.tickPct()}%"></div></div>
       <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>
       <div class="bar ling"><div style="width:${Math.min(100, s.ling / cap * 100)}%"></div></div>

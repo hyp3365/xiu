@@ -127,18 +127,19 @@
         L = Math.min(CAP, L + GATH);
         // 3. gongfa：功法修炼进度
         if (gs) {
-          const steps = Math.floor((now - a2) / STEP);
+          const steps = Math.floor((now - a2) / (2 * STEP));   // v247 每 10 秒结算（和 gongfa.js 一样）
           if (steps > 0) {
-            a2 += steps * STEP;
-            if (GR && GR.cost > 0 && Math.floor(ct / Math.max(1, GR.cost)) < Math.min(steps, Math.ceil((gs.total - d2) / STEP))) break;   // 离开练功房：事件
+            a2 += steps * 2 * STEP;
             const mul = GR ? GR.mul : 1, per = gs.per * mul, sps = (gs.stone || 0) * mul;
-            const want = Math.min(steps, Math.ceil((gs.total - d2) / (STEP * mul)));   // v246 消耗灵气（和 gongfa.js 一样先自动补充）
+            const rem = Math.ceil((gs.total - d2) / (STEP * mul)), want = Math.min(2 * steps, rem);
+            if (GR && GR.cost > 0 && Math.floor(ct / Math.max(1, GR.cost)) < want) break;   // 离开练功房：事件
             if (L < want * per && refill) { const pay = Math.min(Math.ceil((want * per - L) / RATE), Math.floor(sn - (sps ? want * sps : 0))); if (pay > 0) { sn -= pay; L += pay * RATE; } }
-            const can = Math.min(want, Math.floor(L / per), sps ? Math.floor(sn / sps) : Infinity);
-            L -= can * per; s2 += can * per; d2 = Math.min(gs.total, d2 + can * STEP * mul);
+            let can = Math.min(want, Math.floor(L / per), sps ? Math.floor(sn / sps) : Infinity);
+            if (can < rem && can % 2) can--;
+            L -= can * per; s2 += can * per; d2 = can >= rem ? gs.total : Math.min(gs.total, d2 + can * STEP * mul);
             if (sps) { sn -= can * sps; ss2 = (ss2 || 0) + can * sps; }
             if (GR) ct -= can * GR.cost;
-            sl2 = can < steps && d2 < gs.total;
+            sl2 = can < want && d2 < gs.total;
             if (d2 >= gs.total) break;   // 修炼完成：事件
           }
         }
