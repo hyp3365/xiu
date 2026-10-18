@@ -1869,8 +1869,8 @@ CFG.mobs.magic = {
   // 法力、抗性和生命攻击一样，按修为突破 + 肉身突破 + 功法 × 倍率生成
   // spell / fabao：chance 每回合施放几率%   pct 伤害 = 攻击 × pct%
   //   mana: [比例, 倍率] 每次耗法力 = 怪物境界的修为突破总法力（不算功法、肉身）× 比例 × 倍率（例 [0.15, 1] = 15%）
-  normal: { spell: { chance: 35, pct: 130, mana: [0.38, 1] }, fabao: { chance: 30, pct: 140, mana: [0.48, 1] } },   // 普通怪
-  elite:  { spell: { chance: 35, pct: 136, mana: [0.38, 1] }, fabao: { chance: 35, pct: 150, mana: [0.48, 1] } },   // 精英怪
-  boss:   { spell: { chance: 40, pct: 142, mana: [0.30, 1] },  fabao: { chance: 40, pct: 160, mana: [0.42, 1] } },  // 首领
-  tower:  { spell: { chance: 40, pct: 136, mana: [0.30, 1] }, fabao: { chance: 35, pct: 150, mana: [0.42, 1] } },   // 试炼塔守关者 / 宗门晋升考官
+  normal: { spell: { chance: 35, pct: 113, mana: [0.45, 1] }, fabao: { chance: 30, pct: 118, mana: [0.49, 1] } },   // 普通怪
+  elite:  { spell: { chance: 35, pct: 121, mana: [0.45, 1] }, fabao: { chance: 35, pct: 126, mana: [0.49, 1] } },   // 精英怪
+  boss:   { spell: { chance: 40, pct: 133, mana: [0.42, 1] },  fabao: { chance: 40, pct: 136, mana: [0.46, 1] } },  // 首领
+  tower:  { spell: { chance: 40, pct: 118, mana: [0.42, 1] }, fabao: { chance: 35, pct: 125, mana: [0.46, 1] } },   // 试炼塔守关者 / 宗门晋升考官
 };
