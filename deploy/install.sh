@@ -45,6 +45,6 @@ else
   cp "$DIR/deploy/nginx-xiuxian.conf" /etc/nginx/snippets/xiuxian.conf
   echo ">>> 请在 nginx 的 server{} 里加入一行：include snippets/xiuxian.conf;"
 fi
-nginx -t && systemctl reload nginx
+nginx -t && { systemctl is-active --quiet nginx && systemctl reload nginx || systemctl start nginx; }
 
 echo "安装完成。以后更新只需运行：sudo xiu-update；卸载：sudo xiu-uninstall"

@@ -73,14 +73,32 @@ systemctl restart xiu-server
 sleep 1
 systemctl is-active --quiet xiu-server && echo "存档服务运行中" || { echo "存档服务启动失败："; tail -n 20 /var/lib/xiu/server.log 2>/dev/null || journalctl -u xiu-server -n 20 --no-pager; exit 1; }
 
-# nginx 配置有更新也一起装（装完检查不通过就还原）
-for NGX in /etc/nginx/conf.d/central_vps_users/*/xiuxian.conf /etc/nginx/snippets/xiuxian.conf; do
+# nginx 配置（v243 修复：以前备份 xiuxian.conf.bak 放在 nginx 配置目录里，会被 include * 一起读进去 → location 重复，nginx 起不来）
+#   备份放 /var/lib/xiu/nginx-bak；新配置先写成隐藏临时文件再 mv（原子替换，中途断电/中断也不会留下半个文件）
+#   检查不通过就还原；还原后仍不通过就把 nginx -t 的报错打印出来
+BAK=/var/lib/xiu/nginx-bak; mkdir -p "$BAK"
+ngx_test() { nginx -t >/tmp/xiu-ngx-test 2>&1; }
+for D in /etc/nginx/conf.d/central_vps_users/*/ /etc/nginx/snippets/; do
+  [ -d "$D" ] || continue
+  # 清掉以前留在配置目录里的备份 / 临时文件
+  for F in "$D"xiuxian.conf.bak* "$D".xiuxian.conf.tmp*; do [ -e "$F" ] && rm -f "$F" && echo "已清理残留：$F"; done
+  NGX="${D}xiuxian.conf"
   [ -f "$NGX" ] || continue
+  # 配置被写坏（空文件 / 不完整）也直接用仓库里的重新装
   if ! cmp -s "$DIR/deploy/nginx-xiuxian.conf" "$NGX"; then
-    cp "$NGX" "$NGX.bak"; cp "$DIR/deploy/nginx-xiuxian.conf" "$NGX"
-    nginx -t >/dev/null 2>&1 && echo "nginx 配置已更新" || { mv "$NGX.bak" "$NGX"; echo "nginx 新配置检查失败，已还原"; }
+    cp "$NGX" "$BAK/$(echo "$D" | tr '/' '_')xiuxian.conf"
+    install -m 644 "$DIR/deploy/nginx-xiuxian.conf" "${D}.xiuxian.conf.tmp"
+    mv -f "${D}.xiuxian.conf.tmp" "$NGX"
+    if ngx_test; then echo "nginx 配置已更新"
+    else
+      grep -q xiuxian /tmp/xiu-ngx-test && { cp "$BAK/$(echo "$D" | tr '/' '_')xiuxian.conf" "${D}.xiuxian.conf.tmp" && mv -f "${D}.xiuxian.conf.tmp" "$NGX"; echo "nginx 新配置检查失败，已还原"; }
+    fi
   fi
 done
 
-nginx -t >/dev/null 2>&1 && systemctl reload nginx
+if ngx_test; then
+  if systemctl is-active --quiet nginx; then systemctl reload nginx; else systemctl start nginx && echo "nginx 已启动"; fi
+else
+  echo "nginx 配置检查不通过（不是本次更新改坏的也会显示），报错："; cat /tmp/xiu-ngx-test
+fi
 echo ">>> 更新完成！刷新网页即可。"
