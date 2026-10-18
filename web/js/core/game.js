@@ -81,7 +81,7 @@ const G = {
   },
   save(force) {
     if (this._stopped) return;
-    this.s.last = Date.now();
+    this.s.last = this._lastTick || Date.now();   // v208 存上次结算的时间（不是现在）：离线补算从这里接着算，不丢不足 10 秒的聚灵
     this._saveStr = JSON.stringify(this.s);   // 只转换一次：本地备份和上传服务器用同一份
     localStorage.setItem("xiu_local_" + API.user, this._saveStr); // 本地备份
     this._dirtySave = true;
@@ -242,7 +242,7 @@ const G = {
   /* ---------- 启动 ---------- */
   start() {
     this.dirty();
-    this._lastTick = Date.now();
+    this._lastTick = this.s.last && this.s.last <= Date.now() ? this.s.last : Date.now();   // v208 接着离线补算后的结算时间
     this.save(true); this.render(); this.renderLog();
     setInterval(() => this.loop(), 200);
     const frame = () => { if (!this._stopped) this.bars(); requestAnimationFrame(frame); };

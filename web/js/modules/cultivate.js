@@ -124,7 +124,7 @@ G.module({
       if (mine && c.went) {
         if (s.stone + ((x.loot || {}).stone || 0) > c.high) {
           c.went = false; this.stopExplore("灵石已够，停止探索");
-          this.log("开始修炼。", "sys"); this._lastTick = Date.now(); this.dirty();
+          this.log("开始修炼。", "sys"); this.dirty();   // v208 不再重置结算计时（会丢聚灵）
         }
         return;
       }
