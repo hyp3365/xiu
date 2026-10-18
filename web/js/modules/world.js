@@ -529,14 +529,31 @@ G.module({
         // 必定掉落：药材矿石 × mul；其它（专用材料、自定义物品）按原数量
         if (gr.fixed) { for (const name in gr.fixed) { const r = gr.fixed[name] || [1, 1], n = U.rand(r[0], r[1]);
           if (DATA.matByName[name]) add(name, n); else if (n > 0) { const t = this.lootAdd(loot, name, n); if (t) got.push(t); } } continue; }
-        const names = Object.keys(gr.items || {}).filter(n => DATA.matByName[n]), w = names.map(n => gr.items[n]);
-        const kinds = U.rand(gr.kinds[0], gr.kinds[1]);
-        for (let i = 0; i < kinds && w.some(x => x > 0); i++) {
-          const j = U.weighted(w); w[j] = 0;   // 同一组不重复
-          add(names[j], U.rand(gr.n[0], gr.n[1]));
-        }
+        // v236 随机药材矿石不在这里掉，改按 CFG.dropTotal 总量分到各步（见 matPlan / stepMats）
       }
       return got.join("、");
+    },
+    // v236 本次探索的药材 / 矿石总量（CFG.dropTotal），分配到各步：返回 { 步序号: [药材个数, 矿石个数] }
+    //   药材可落在 灵药 / 怪物 步，矿石可落在 矿脉 / 怪物 步；挖灵石矿（kuang）不掉
+    matPlan(x) {
+      const T = CFG.dropTotal || {}, plan = x.plan || "", mp = {};
+      if (x.kuang) return mp;
+      const tk = x.mj === undefined ? "explore" : x.mk === "ld" ? "lingdi" : "mijing", t = T[tk] || {};
+      const pick = (r, ok, j) => { if (!r) return; const n = U.rand(r[0], r[1]), idx = [];
+        for (let i = 0; i < plan.length; i++) if (ok.includes(plan[i])) idx.push(i);
+        if (!idx.length) idx.push(plan.length - 1);
+        for (let k = 0; k < n; k++) { const i = U.pick(idx); (mp[i] = mp[i] || [0, 0])[j]++; } };
+      pick(t.herb, "hmeb", 0); pick(t.ore, "omeb", 1);
+      return mp;
+    },
+    // 本次探索用哪张地图的药材矿石池：地图 / 秘境 drops / 灵地发现地图
+    matPoolMap(x) { if (x.mj === undefined) return x.map; const d = this.mjDef(x.mj, x.mk); return x.mk === "ld" ? d._map : d.drops; },
+    // 第 i 步分到的药材矿石：每个从池里等权重随机，写进 loot，返回描述
+    stepMats(x, i) {
+      const c = (x.mp || {})[i]; if (!c) return "";
+      const pool = DATA.mapPool(this.matPoolMap(x)), cnt = {};
+      ["herb", "ore"].forEach((k, j) => { const L = pool[k]; if (!L.length) return; for (let n = 0; n < c[j]; n++) { const name = U.pick(L); cnt[name] = (cnt[name] || 0) + 1; } });
+      return Object.keys(cnt).map(n => this.lootAdd(x.loot, n, cnt[n])).filter(Boolean).join("、");
     },
     // 击败怪物的掉落，写进 loot，返回描述文字
     //   mj = 秘境序号（秘境：灵石倍率、掉落按 config/mijing.js）
@@ -645,6 +662,8 @@ G.module({
     exploreStep() {
       const x = this.s.explore, a = x.map, r = x.reg || 0, mj = x.mj, mk = x.mk;
       if (!x.plan) x.plan = this.exPlan(x);
+      if (x.step === 0 || !x.mp) x.mp = this.matPlan(x);   // v236 每次开始：定好本次药材 / 矿石总量
+      const si = x.step, sm = () => this.stepMats(x, si);
       const type = { n: "nothing", m: "monster", e: "elite", b: "boss", h: "herb", o: "ore", k: "kuang" }[x.plan[x.step]] || "nothing";
       x.step++;
       // 每走一步恢复生命、法力（HEAL_STEP + 宗门秘法「斗血 / 斗灵」）；战斗回合中不恢复
@@ -653,15 +672,15 @@ G.module({
       let t = "", c = "", bd = null;
       const roll = ev => mj !== undefined ? this.rollMj(x.loot, ev, mj, mk) : this.rollEvent(x.loot, ev, a);
       if (type === "kuang") { const g = this.kuangStone(a); x.loot.stone += g; t = `挖掘灵石矿，获得灵石 ${U.fmt(g)}`; c = "good"; }
-      else if (type === "herb") { t = `发现灵药，采得 ${roll("herbEvent") || "无"}`; c = "good"; }
-      else if (type === "ore") { t = `发现矿脉，挖得 ${roll("oreEvent") || "无"}`; c = "good"; }
+      else if (type === "herb") { t = `发现灵药，采得 ${[roll("herbEvent"), sm()].filter(Boolean).join("、") || "无"}`; c = "good"; }
+      else if (type === "ore") { t = `发现矿脉，挖得 ${[roll("oreEvent"), sm()].filter(Boolean).join("、") || "无"}`; c = "good"; }
       else if (type === "monster" || type === "elite" || type === "boss") {
         const kind = type === "monster" ? "normal" : type, m = mj !== undefined ? this.makeMjMob(mj, kind, mk) : this.makeMob(a, r, kind);
         m.a = a;
         const res = this.battle(m), tag = `${m.boss ? "【首领】" : m.elite ? "【精英】" : ""}${m.name}`;
-        if (res.win) { this.s.kills++; t = `遭遇${tag}，${res.rounds}回合击败，获得 ${this.rollMonsterLoot(x.loot, m, a, mj, mk)}`; c = m.boss ? "gold" : ""; }
+        if (res.win) { this.s.kills++; t = `遭遇${tag}，${res.rounds}回合击败，获得 ${[this.rollMonsterLoot(x.loot, m, a, mj, mk), sm()].filter(Boolean).join("、")}`; c = m.boss ? "gold" : ""; }
         else if (res.lose) { t = `遭遇${tag}，${res.timeout ? `${res.rounds} 回合未能击败，力竭重伤` : `第 ${res.rounds} 回合不敌重伤`}，本次探索收获全部遗失。${res.why}`; c = "bad"; }
-        else { t = `遭遇${tag}，缠斗 ${res.rounds} 回合，各自退去`; }
+        else { const g = sm(); t = `遭遇${tag}，缠斗 ${res.rounds} 回合，各自退去${g ? `，拾得 ${g}` : ""}`; }
         bd = res.detail;
       } else t = U.pick(DATA.exploreIdle);
       x.ev.unshift(bd ? { n: x.step, t, c, b: bd } : { n: x.step, t, c });   // b：完整战斗过程（点「详情」看）
@@ -767,11 +786,11 @@ G.module({
       return this.addMagic({ name, Lm: d.L, kind, boss: kind === "boss", elite: kind === "elite",
         hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.res, manaBr: b.manaBr, L: b.L, crit: b.crit }, kind);
     },
-    // 秘境 / 灵地掉落 = 借用地图的药材矿石表（种数个数按 CFG.dropRule.mijing / lingdi，× 自己的 mat）+ extra 额外掉落
+    // 秘境 / 灵地掉落：extra 必掉 / 几率掉落（药材矿石总量见 CFG.dropTotal，按步分配，stepMats）
     //   秘境借用 drops 那张凡界地图；灵地借用发现地图（这一界的药材矿石表）
     rollMj(loot, ev, i, k) {
-      const d = this.mjDef(i, k), R = CFG.dropRule || {};
-      const got = [this.rollEventMats(loot, ev, k === "ld" ? d._map : d.drops, d.mat === undefined ? 1 : d.mat, k === "ld" ? R.lingdi || R.mijing : R.mijing)];
+      const d = this.mjDef(i, k);
+      const got = [];   // v236 随机药材矿石改按 CFG.dropTotal 总量（stepMats）；这里只掉必掉的 extra
       for (const x of (d.extra || {})[ev] || []) {
         if (Math.random() * 100 >= (x.chance || 0)) continue;
         const nn = x.n || [1, 1], n = U.rand(nn[0], nn[1]); if (n <= 0) continue;

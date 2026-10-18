@@ -107,10 +107,16 @@ DATA.mapDrop = (a, ev, rule) => {
   const items = ev === "herbEvent" ? herb : ev === "oreEvent" ? ore : Object.assign({}, herb, ore);
   const fixed = {};
   if (!rule) {
-    if (ev === "boss") Object.assign(fixed, m.special || {});
     Object.assign(fixed, (m.fixed || {})[ev] || {});
   }
   return [{ items, kinds: r.kinds, n: r.n }, { fixed }];
+};
+// v236 该地图药材 / 矿石的随机池（等权重，四界含特产）：{ herb: [名字], ore: [名字] }
+DATA.mapPool = a => {
+  const m = (CFG.mapDrops || [])[a], o = { herb: [], ore: [] }; if (!m) return o;
+  const names = [...Object.keys(m.herb || {}), ...Object.keys(m.ore || {}), ...Object.keys(m.special || {})];
+  for (const n of names) { const x = DATA.matByName[n]; if (x && o[x.kind] && !o[x.kind].includes(n)) o[x.kind].push(n); }
+  return o;
 };
 DATA.mapStone = a => { const m = (CFG.mapDrops || [])[a]; return m && m.stone !== undefined ? m.stone : 1; };
 DATA.mapMat = a => { const m = (CFG.mapDrops || [])[a]; return m && m.mat !== undefined ? m.mat : 1; };
