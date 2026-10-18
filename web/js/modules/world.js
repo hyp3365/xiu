@@ -744,6 +744,7 @@ G.module({
           this.log(x.mj !== undefined ? this.exName(x) + x.last : x.last, lost ? "bad" : "gold");
           // 保存这一次的全部事件，结束后也能查看（含失败那一步）
           s.lastRun = { title: `${this.exName(x)} · ${x.last}`, ev: x.ev.slice(), bad: lost };
+          this.exHistAdd(s.lastRun);   // v204 全部探索：保留最近 EX_HIST 次
           if (x.mj !== undefined) { if (!this.mjFinish(x, lost)) break; x = s.explore; continue; }   // 秘境：每处只走一次，一键探索接着走下一处
           if (!lost && !x.kuang) this.mjDiscover(x.map);   // 地图走完一次：有几率发现秘境（凡界）/ 灵地（四界）
           if (x.once) { // 历练只走一次；走完且未战败 = 通过，解锁该区域自动探索
@@ -914,6 +915,20 @@ G.module({
     // 探索信息一行：战斗事件后面带「详情」按钮
     evLine(e, src, i) { return `<p class="${e.c}"><b>第${e.n}步</b> ${e.t}${e.b ? ` <button class="sm" onclick="G.showBattle('${src}',${i})">详情</button>` : ""}</p>`; },
     setLastOpen(v) { this.lastOpen = v; this.render(); },
+    // v204 全部探索记录：最近 30 次（新的在前）；存档里不存战斗过程（太大），所以没有「详情」
+    exHistAdd(r) {
+      const s = this.s, h = s.exHist || (s.exHist = []);
+      h.unshift({ title: r.title, bad: !!r.bad, ev: r.ev.map(e => ({ n: e.n, t: e.t, c: e.c })) });
+      if (h.length > 30) h.length = 30;
+    },
+    openExHist(k) {
+      if (k !== undefined) this.exHistSel = this.exHistSel === k ? -1 : k;
+      const h = this.s.exHist || [], sel = this.exHistSel;
+      this.modal(`<h2>全部探索<small style="color:#8c7e66;font-size:12px;margin-left:6px">最近 ${h.length} 次</small></h2>
+        ${h.length ? h.map((r, i) => `<div class="line" style="align-items:center"><div class="${r.bad ? "q5" : ""}" style="font-size:13px">${i + 1}. ${r.title}</div><button class="sm ${sel === i ? "on" : ""}" style="flex-shrink:0" onclick="G.openExHist(${i})">${sel === i ? "收起" : "详细"}</button></div>
+          ${sel === i ? `<div class="explore-log">${r.ev.map(e => this.evLine(e)).join("")}</div>` : ""}`).join("") : "<p>还没有探索记录。</p>"}
+        <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+    },
     setMapSel(a) { this.mapSel = a; this.render(); },   // a = 地图序号，"mj" = 秘境
 
     /* ---------- 坊市：丹药 装备 功法 药材 矿石 ----------
@@ -1087,11 +1102,11 @@ G.module({
           const sub = x.mj !== undefined ? (x.once ? "" : x.queue && x.queue.length ? `一键探索 · 后面还有 ${x.queue.length} 处` : this.mjLabel(x.mk) + "探索") : x.once ? "" : x.cq ? `已完成 ${x.count} / ${x.cq} 次` : `已完成 ${x.count} 次`, hpP = Math.min(100, s.hp / this.stats().hp * 100), mpP = Math.min(100, s.mana / Math.max(1, this.stats().mana) * 100), bg = this.bsetGet(), gH = Math.min(100, bg.goHp || 0), gM = Math.min(100, bg.goMp || 0), restP = Math.min(gH > 0 ? hpP / gH : 1, gM > 0 ? mpP / gM : 1) * 100;   // v202 休养进度 = 生命、法力离「继续探索」设置还差多少
           return `<div class="card"><h3>${x.once ? "历练中" : x.cq ? "出窍探索中" : "自动探索中"} · ${this.exName(x)}<small>${sub}</small></h3>
           <div class="bar tick"><div style="width:${x.rest ? Math.min(100, restP) : x.step / T * 100}%"></div></div>
-          <div class="row small" style="align-items:center"><span>${x.rest ? `休养中 · 生命 ${U.fix(Math.floor(hpP) + "%")} / <b class="c-green">${gH}%</b><br>法力 ${U.fix(Math.floor(mpP) + "%")} / <b class="c-green">${gM}%</b>` : x.step >= T ? `第 ${U.fix(T)} / ${T} 步 · 结算中` : `第 ${U.fix(x.step)} / ${T} 步 · 剩余 ${U.cd(Math.ceil((T - x.step) * (x.ms || 1000) / 1000 + (CFG.explore.END_WAIT || 0)))}`}</span><span style="white-space:nowrap;flex-shrink:0">
+          <div class="row small" style="align-items:center"><span>${x.rest ? `<b class="c-red">休养中</b> · 生命 ${U.fix(Math.floor(hpP) + "%")} / <b class="c-green">${gH}%</b><br><b class="c-red">休养中</b> · 法力 ${U.fix(Math.floor(mpP) + "%")} / <b class="c-green">${gM}%</b>` : x.step >= T ? `第 ${U.fix(T)} / ${T} 步 · 结算中` : `第 ${U.fix(x.step)} / ${T} 步 · 剩余 ${U.cd(Math.ceil((T - x.step) * (x.ms || 1000) / 1000 + (CFG.explore.END_WAIT || 0)))}`}</span><span style="white-space:nowrap;flex-shrink:0">
             <button class="sm" onclick="G.setExploreOpen(${!this.exploreOpen})">${this.exploreOpen ? "收起信息" : "探索信息"}</button>
             <button class="sm" onclick="G.stopNow()">停止</button></span></div>
           <p class="desc">本次收获（结束后放入背包）：灵石 ${U.fmt(L.stone)}${mats.length ? "、" + mats.join("、") : ""}</p>
-          ${this.exploreOpen ? `<div class="explore-log">${x.ev.map((e, i) => this.evLine(e, "cur", i)).join("") || "<p>出发……</p>"}</div>` : ""}</div>`; })()
+          ${this.exploreOpen ? `<div class="btns" style="margin-top:6px"><button class="sm on">当前探索</button><button class="sm" onclick="G.openExHist()">全部探索</button></div><div class="explore-log">${x.ev.map((e, i) => this.evLine(e, "cur", i)).join("") || "<p>出发……</p>"}</div>` : ""}</div>`; })()
         : s.lastRun ? `<div class="card"><h3>本次结果<small><button class="sm" onclick="G.setLastOpen(${!this.lastOpen})">${this.lastOpen ? "收起" : "详细"}</button></small></h3>
           <p class="desc ${s.lastRun.bad ? "q5" : ""}">${s.lastRun.title}</p>
           ${this.lastOpen ? `<div class="explore-log">${s.lastRun.ev.map((e, i) => this.evLine(e, "last", i)).join("")}</div>` : ""}</div>` : "")();
