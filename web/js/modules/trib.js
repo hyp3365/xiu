@@ -29,11 +29,21 @@ G.module({
       const v = o[DATA.realms[ri]] !== undefined ? o[DATA.realms[ri]] : o[DATA.NM_DEF.realm[ri]];
       return Math.max(1, v !== undefined ? v : T.TIME_DEFAULT || 60);
     },
-    // 劫云：属性 = 突破后那一层（境界、层）的参考属性 × MOB[大境界] 的 [功法层, 倍率] × 随机 CFG.trib.RAND
+    // 劫云（v226）：属性 = 突破后那一层（境界、层）的修为 + 肉身 + 三类功法（学% 按层平均递增）× 当层倍率 × 随机 CFG.trib.RAND
+    tribRow(L) {
+      const T = CFG.trib, ri = Math.floor(L / DATA.LAYERS), lay = L % DATA.LAYERS + 1;
+      const rows = Array.isArray(T.MOB) ? T.MOB : [];
+      const R = DATA.mobRange, hit = r => Array.isArray(r) && r[0] === ri && lay >= R(r[1])[0] && lay <= R(r[1])[1];
+      let r = rows.find(hit);
+      if (!r) { const d = T.MOB_DEFAULT || [0, [1, 10], [1, 100, 4], [2, 0, 0], [3, 0, 0], 0]; r = [ri].concat(d.slice(1)); }
+      const ly = R(r[1]), p = ly[1] > ly[0] ? (lay - ly[0]) / (ly[1] - ly[0]) : 0;   // 这一层在分段里的位置 0 ~ 1
+      const lerp = (v, round) => { const a = R(v), x = a[0] + (a[1] - a[0]) * p; return round ? Math.round(x) : x; };
+      const cat = c => { const x = r.slice(2, 5).find(y => Array.isArray(y) && y[0] === c) || [c, 0, 0]; return [c, lerp(x[1]), lerp(x[2], true)]; };
+      const k = 1 + (lay - ly[0]) * (r[5] || 0);
+      return [0, ri, lay, 0, cat(1), cat(2), cat(3), k];   // 怪物 8 个数格式，功法星级 0 = 该境界能学到的全部星级
+    },
     makeTrib(L) {
-      const T = CFG.trib, ri = Math.floor(L / DATA.LAYERS), M = T.MOB || {};
-      const tp = M[DATA.realms[ri]] || M[DATA.NM_DEF.realm[ri]] || [4, 1];
-      const st = DATA.mobStats([0, ri, L % DATA.LAYERS + 1, 0, 1, 100, tp[0], tp[1]]);
+      const T = CFG.trib, st = DATA.mobStats(this.tribRow(L));
       const R = T.RAND || [1, 1], rnd = R[0] + Math.random() * (R[1] - R[0]);
       return { atk: st.atk * rnd, crit: T.crit === undefined ? 5 : T.crit };
     },
