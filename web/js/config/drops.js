@@ -10,13 +10,19 @@ window.CFG = window.CFG || {};
 // 击败怪物得灵石 = 取整( 每只普通怪灵石基数（见下面 RUN_STONE）× 随机(1 ~ 2.5) × STONE_RATE × 种类倍率 × 地图 stone )（随机取整）
 //   区域层序：凡界 = 地图序号(0起) × 10 + config/mobs.js 的 FAN_L[区域]（东 0 西 3 南 6 北 9）；
 //             秘境 = config/mijing.js 里该秘境的 L；仙冥魔神见 config/worldmaps.js
-//   种类倍率：普通怪 1、精英怪 ELITE_STONE、首领 BOSS_STONE
+//   种类倍率：见下面 BOSS_SHARE（v248 首领约占 30%）
 //   地图 stone：下面 mapDrops 里该地图的 stone（秘境用秘境自己的 stone）
 // 发现灵药 / 矿脉不掉灵石；战败只丢本次收获，不扣身上灵石（见 config/explore.js）
 CFG.drop = {
   STONE_RATE: 1,     // 灵石掉落总倍率（全部怪物统一再乘）
   ELITE_STONE: 2,    // 精英怪灵石 ×2
-  BOSS_STONE: 3,     // 首领灵石 ×3
+  BOSS_STONE: 3,     // 首领灵石 ×3（v248 起只用来算一次走完的灵石总量，首领实际拿多少见 BOSS_SHARE）
+  // v248 首领占比：一次探索 / 秘境 / 灵地走完，灵石总量和药材矿石总数都不变，其中约 BOSS_SHARE 来自首领
+  //   灵石：总量 = 每只普通怪基数 × 1.75 × (普通怪数 + 精英数×ELITE_STONE + 首领数×BOSS_STONE)；首领分 30%，其余按 普通 1 : 精英 ELITE_STONE 分
+  //     凡界 / 四界（10 普通、3 精英、1 首领）：首领约 ×5.7，普通 ×0.83，精英 ×1.66（原来 3 / 1 / 2）
+  //   药材矿石（CFG.dropTotal）：每个以 30% 几率落在首领那一步，其余平均分到灵药 / 矿脉 / 普通怪 / 精英的步
+  //   删掉这一行 = 恢复原来的分法
+  BOSS_SHARE: 0.3,
   // 一次地图探索（全胜）平均灵石：[该界第一张图东域, 最后一张图北域]，中间按区域层序平均递增
   //   每只怪 = 平均值 ÷ (1.75 × (普通怪数 + 精英怪数×ELITE_STONE + 首领数×BOSS_STONE)) × 随机(1 ~ 2.5) × 种类倍率 × STONE_RATE × 地图 stone
   //   秘境 / 灵地按它的区域层序 L 套所在界的平均值，再 × 自己的 stone（config/mijing.js、config/lingdi.js，默认 2 = 多一倍）
